@@ -26,6 +26,7 @@ import {
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
   AlertTriangle, Clock, FileWarning, AlarmClock, BookOpen, UserCheck,
   Crosshair, Landmark, ClipboardCheck, EyeOff, Lightbulb, BriefcaseBusiness,
+  Layers3,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -102,6 +103,15 @@ interface DashboardComunidade {
   sigla_territorio?: string;
   membros?: any[];
   bias?: any[];
+}
+
+interface DashboardStrategicCell {
+  id: string;
+  community_id: string;
+  community_name: string;
+  name: string;
+  type_short_description?: string | null;
+  membership_status: "INTERESTED" | "PENDING" | "ACTIVE" | "REJECTED";
 }
 
 interface AgendaTarefa {
@@ -760,6 +770,11 @@ export default function PainelPage() {
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
   const opasAbertas = data?.opas_abertas ?? opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").length;
   const comunidadeIds = useMemo(() => comunidades.map((c) => String(c.id)).filter(Boolean), [comunidades]);
+  const { data: minhasCelulas = [] } = useQuery<DashboardStrategicCell[]>({
+    queryKey: ["/api/me/celulas"],
+    queryFn: () => fetch("/api/me/celulas", { credentials: "include" }).then((response) => response.ok ? response.json() : []),
+    enabled: Boolean(user),
+  });
 
   const { data: aprovacoesPendentes = [], isLoading: isLoadingAprovacoes } = useQuery<DashboardApproval[]>({
     queryKey: ["/api/dashboard/aprovacoes-pendentes", comunidadeIds.join(",")],
@@ -871,7 +886,7 @@ export default function PainelPage() {
       };
     });
 
-    const pendencias = [...carteira, ...chamadas, ...diretorias, ...socios, ...convites].slice(0, 4);
+    const pendencias = [...carteira, ...chamadas, ...diretorias, ...socios, ...convites].slice(0, 3);
     if (pendencias.length > 0) return pendencias;
 
     return [
@@ -1121,7 +1136,7 @@ export default function PainelPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-foreground">
-                    Frase do dia
+                    Insight do dia
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-foreground">
                     “{dailyQuote.text}”
@@ -1211,9 +1226,27 @@ export default function PainelPage() {
             </div>
           </CardContent>
         </Card>
+        {minhasCelulas.length > 0 && (
+          <Card className="border border-border/60" data-testid="dashboard-minhas-celulas">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold"><Layers3 className="h-4 w-4 text-blue-600" />Suas Células</h2>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => navigate("/comunidade")}>Ver comunidades</Button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {minhasCelulas.slice(0, 4).map((cell) => (
+                  <button key={cell.id} type="button" onClick={() => navigate(`/comunidade/${cell.community_id}#celulas`)} className="flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left hover:border-blue-400">
+                    <Layers3 className="h-4 w-4 shrink-0 text-blue-600" />
+                    <span className="min-w-0"><strong className="block truncate text-sm">{cell.name}</strong><span className="block truncate text-xs text-muted-foreground">{cell.community_name}</span></span>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <Card
           className="border border-border/60"
           style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
@@ -1301,7 +1334,7 @@ export default function PainelPage() {
         <Card className="border border-border/60" data-testid="dashboard-acoes-rapidas">
           <CardContent className="p-3">
             <p className="text-sm font-semibold text-foreground">Ações rápidas</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-2">
               {[
                 { label: "Nova Demanda", icon: Target, path: "/demandas/nova" },
                 { label: "Nova BIA", icon: Plus, path: "/area-aliancas?tab=bias&criar=true" },
@@ -1315,7 +1348,7 @@ export default function PainelPage() {
                     key={acao.label}
                     type="button"
                     onClick={() => acao.auraRegister ? goToAuraRegister() : acao.target ? goToEnvironment(acao.target, acao.path) : navigate(acao.path)}
-                    className="group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-background text-center text-xs font-semibold text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
+                    className="group flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-lg border border-border/70 bg-background px-1 text-center text-[10px] font-semibold leading-tight text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
                     data-testid={`acao-rapida-${acao.label.toLowerCase().replace(/\s+/g, "-")}`}
                   >
                     <Icon className="h-6 w-6 text-blue-700 transition-transform group-hover:scale-110" />
@@ -1328,17 +1361,10 @@ export default function PainelPage() {
         </Card>
         </div>
 
-        <EnvironmentAccessDialog
-          access={blockedAccess}
-          open={!!blockedAccess}
-          onOpenChange={(open) => !open && setBlockedAccess(null)}
-        />
-      </div>
-
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:col-start-1 lg:row-start-2">
         {isLoading ?(
-          Array.from({ length: 2 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
           <Card
@@ -1437,7 +1463,7 @@ export default function PainelPage() {
             </CardContent>
           </Card>
 
-          <Card className="border border-border/60" data-testid="stat-card-proximas-acoes">
+          <Card className="h-full border border-border/60" data-testid="stat-card-proximas-acoes">
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold text-foreground">Próximas ações</h2>
@@ -1478,6 +1504,13 @@ export default function PainelPage() {
 
           </>
         )}
+      </div>
+
+        <EnvironmentAccessDialog
+          access={blockedAccess}
+          open={!!blockedAccess}
+          onOpenChange={(open) => !open && setBlockedAccess(null)}
+        />
       </div>
 
         </TabsContent>
@@ -1824,6 +1857,7 @@ export default function PainelPage() {
                 ))}
               </div>
             )}
+
           </div>
         </TabsContent>
 
@@ -1921,6 +1955,30 @@ export default function PainelPage() {
                     </Card>
                   );
                 })}
+              </div>
+            )}
+
+            {minhasCelulas.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold"><Layers3 className="h-4 w-4 text-blue-600" />Suas Células</h3>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {minhasCelulas.map((cell) => (
+                    <button
+                      type="button"
+                      key={cell.id}
+                      onClick={() => navigate(`/comunidade/${cell.community_id}?from=dashboard#celulas`)}
+                      className="flex items-start gap-3 rounded-lg border bg-card p-3 text-left transition hover:border-blue-400"
+                      data-testid={`card-minha-celula-${cell.id}`}
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><Layers3 className="h-4 w-4" /></span>
+                      <span className="min-w-0 flex-1">
+                        <strong className="block truncate text-sm">{cell.name}</strong>
+                        <span className="block truncate text-xs text-muted-foreground">{cell.community_name}</span>
+                      </span>
+                      <Badge variant="outline" className="shrink-0 text-[10px]">{cell.membership_status === "ACTIVE" ? "Participante" : cell.membership_status === "PENDING" ? "Em análise" : "Interesse"}</Badge>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

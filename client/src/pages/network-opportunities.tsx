@@ -91,6 +91,15 @@ interface OpportunityMeeting {
   data: string;
   hora?: string | null;
   status?: string;
+  community_id?: string | null;
+  community_name?: string | null;
+  strategic_cell_id?: string | null;
+  strategic_cell_name?: string | null;
+  end_at?: string | null;
+  timezone?: string | null;
+  location_type?: "online" | "presencial" | "hibrida";
+  address?: string | null;
+  guest_policy?: "members_only" | "external_by_invitation";
   total_participantes?: number | string;
   oportunidades?: Array<{ codigo: string; tipo: string; titulo: string; papel?: string }>;
 }
@@ -101,6 +110,7 @@ interface OpportunityMeetingDetail extends OpportunityMeeting {
   ata?: string | null;
   proximos_passos?: Array<string | { descricao?: string }>;
   participantes?: Array<{ id: string; nome?: string | null; papel: string; confirmacao: string; presenca: string }>;
+  convidados_externos?: Array<{ id: string; nome: string; email?: string | null; confirmacao: string; presenca: string; guest_terms_accepted_at?: string | null }>;
   can_organize?: boolean;
   decisoes_estruturadas?: Array<{
     id: string;
@@ -119,6 +129,8 @@ const EMPTY_DEMAND = {
   pais: "Brasil",
   urgencia: "normal",
   especialidades: "",
+  strategic_cell_id: "",
+  market_code: "",
   publicar: false,
 };
 
@@ -135,10 +147,18 @@ const EMPTY_ECONOMIC = {
 
 const EMPTY_MEETING = {
   titulo: "",
+  community_id: "",
+  focus_mode: "general",
   data: "",
   hora: "",
+  end_at: "",
+  timezone: "America/Sao_Paulo",
   link: "",
+  location_type: "online",
+  address: "",
+  guest_policy: "members_only",
   pauta: "",
+  strategic_cell_id: "",
   oportunidades: [] as string[],
   contextos: [] as string[],
 };
@@ -147,6 +167,7 @@ function typeFromSearch(search: string): OpportunityType {
   const params = new URLSearchParams(search);
   const value = params.get("tipo");
   if (value === "oportunidades" || value === "obas" || value === "ros") return value;
+  if (params.get("tab") === "ros") return "ros";
   if (params.get("tab") === "opas") return "obas";
   return "demandas";
 }
@@ -181,11 +202,17 @@ function stageTone(stage: string) {
   return "bg-blue-50 text-blue-700";
 }
 
-export default function NetworkOpportunitiesHub() {
+interface NetworkOpportunitiesHubProps {
+  communityId?: string;
+  communityName?: string | null;
+  roOnly?: boolean;
+}
+
+export default function NetworkOpportunitiesHub({ communityId, communityName, roOnly = false }: NetworkOpportunitiesHubProps = {}) {
   const searchParams = useSearch();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const activeType = typeFromSearch(searchParams);
+  const activeType: OpportunityType = roOnly ? "ros" : typeFromSearch(searchParams);
   const preselectedOpportunity = new URLSearchParams(searchParams).get("opp");
   const preselectedMeeting = new URLSearchParams(searchParams).get("ro");
   const [search, setSearch] = useState("");
@@ -199,8 +226,9 @@ export default function NetworkOpportunitiesHub() {
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(preselectedMeeting);
   const [demandForm, setDemandForm] = useState(EMPTY_DEMAND);
   const [economicForm, setEconomicForm] = useState(EMPTY_ECONOMIC);
-  const [meetingForm, setMeetingForm] = useState(EMPTY_MEETING);
+  const [meetingForm, setMeetingForm] = useState({ ...EMPTY_MEETING, community_id: communityId || "" });
   const [meetingEdit, setMeetingEdit] = useState({ ata: "", proximos_passos: "", status: "agendada" });
+  const [guestForm, setGuestForm] = useState({ nome: "", email: "" });
   const [decisionDrafts, setDecisionDrafts] = useState<Record<string, { acao: string; parecer: string }>>({});
   const [demandEditForm, setDemandEditForm] = useState({
     titulo: "",
@@ -255,6 +283,30 @@ export default function NetworkOpportunitiesHub() {
     enabled: meetingOpen,
   });
 
+  const myCellsQuery = useQuery<Array<{ id: string; name: string; community_name: string; type_code: string }>>({
+    queryKey: ["/api/me/celulas"],
+    enabled: meetingOpen || demandOpen,
+  });
+  const communitiesQuery = useQuery<Array<{ id: string; nome?: string; sigla?: string }>>({
+    queryKey: ["/api/comunidades", meQuery.data?.membro_directus_id, "ro"],
+    queryFn: async () => {
+      const isAdmin = ["admin", "manager", "superadmin"].includes(String(meQuery.data?.role || "").toLowerCase());
+      const response = await fetch(isAdmin ? "/api/comunidades" : `/api/comunidades?membro_id=${encodeURIComponent(String(meQuery.data?.membro_directus_id || ""))}`, { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error("Não foi possível carregar suas Comunidades.");
+      return response.json();
+    },
+    enabled: meetingOpen && !communityId && Boolean(meQuery.data?.membro_directus_id || ["admin", "manager", "superadmin"].includes(String(meQuery.data?.role || "").toLowerCase())),
+  });
+  const meetingCellsQuery = useQuery<{ cells: Array<{ id: string; name: string; status: string }> }>({
+    queryKey: ["/api/comunidades", meetingForm.community_id, "celulas", "ro"],
+    queryFn: async () => (await apiRequest("GET", `/api/comunidades/${meetingForm.community_id}/celulas`)).json(),
+    enabled: meetingOpen && Boolean(meetingForm.community_id) && meetingForm.focus_mode === "cell",
+  });
+  const cellTypesQuery = useQuery<Array<{ code: string; markets: Array<{ code: string; public_name: string }> }>>({
+    queryKey: ["/api/strategic-cell-types"],
+    enabled: demandOpen,
+  });
+
   const meetingsQuery = useQuery<OpportunityMeeting[]>({
     queryKey: ["/api/reunioes-oportunidades"],
     enabled: activeType === "ros" || Boolean(selectedMeetingId),
@@ -279,16 +331,17 @@ export default function NetworkOpportunitiesHub() {
 
   function openMeeting(identifier: string) {
     const params = new URLSearchParams(searchParams);
-    params.set("tab", "oportunidades");
-    params.set("tipo", "ros");
+    params.set("tab", communityId ? "ros" : "oportunidades");
+    if (communityId) params.delete("tipo");
+    else params.set("tipo", "ros");
     params.set("ro", identifier);
-    navigate(`/area-aliancas?${params.toString()}`);
+    navigate(communityId ? `/comunidade/${communityId}?${params.toString()}` : `/area-aliancas?${params.toString()}`);
   }
 
   function closeMeeting() {
     const params = new URLSearchParams(searchParams);
     params.delete("ro");
-    navigate(`/area-aliancas?${params.toString()}`);
+    navigate(communityId ? `/comunidade/${communityId}?${params.toString()}` : `/area-aliancas?${params.toString()}`);
   }
 
   useEffect(() => {
@@ -311,6 +364,8 @@ export default function NetworkOpportunitiesHub() {
       pais: demandForm.pais,
       urgencia: demandForm.urgencia,
       especialidades: demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean),
+      strategic_cell_id: demandForm.strategic_cell_id || null,
+      market_code: demandForm.market_code || null,
       publicar: demandForm.publicar,
       consentimento_publicacao: demandForm.publicar,
     })).json(),
@@ -340,10 +395,14 @@ export default function NetworkOpportunitiesHub() {
   });
 
   const createMeeting = useMutation({
-    mutationFn: async () => (await apiRequest("POST", "/api/reunioes-oportunidades", meetingForm)).json(),
+    mutationFn: async () => (await apiRequest("POST", "/api/reunioes-oportunidades", {
+      ...meetingForm,
+      strategic_cell_id: meetingForm.focus_mode === "cell" ? meetingForm.strategic_cell_id : null,
+      end_at: meetingForm.end_at || null,
+    })).json(),
     onSuccess: () => {
       setMeetingOpen(false);
-      setMeetingForm(EMPTY_MEETING);
+      setMeetingForm({ ...EMPTY_MEETING, community_id: communityId || "" });
       queryClient.invalidateQueries({ queryKey: ["/api/reunioes-oportunidades"] });
       toast({ title: "RO criada", description: "A pauta e os participantes foram registrados na Agenda." });
     },
@@ -362,6 +421,16 @@ export default function NetworkOpportunitiesHub() {
       toast({ title: "RO atualizada" });
     },
     onError: (error: any) => toast({ title: "Não foi possível atualizar a RO", description: error?.message, variant: "destructive" }),
+  });
+
+  const inviteExternalGuest = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/reunioes-oportunidades/${selectedMeetingId}/convidados`, guestForm)).json(),
+    onSuccess: (result: any) => {
+      setGuestForm({ nome: "", email: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/reunioes-oportunidades", selectedMeetingId] });
+      toast({ title: "Convidado registrado", description: result.email_enviado ? "O convite foi enviado por e-mail." : "O convite foi criado; o e-mail não pôde ser enviado." });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível convidar", description: error?.message, variant: "destructive" }),
   });
 
   const executeDecision = useMutation({
@@ -435,40 +504,44 @@ export default function NetworkOpportunitiesHub() {
   const setType = (type: OpportunityType) => navigate(`/area-aliancas?tab=oportunidades&tipo=${type}`, { replace: true });
   const selectedEconomicCodes = useMemo(() => new Set(meetingForm.oportunidades), [meetingForm.oportunidades]);
   const selectedContextCodes = useMemo(() => new Set(meetingForm.contextos), [meetingForm.contextos]);
+  const selectedCommunityId = communityId || new URLSearchParams(searchParams).get("community_id");
+  const visibleMeetings = (meetingsQuery.data || []).filter((meeting) => !selectedCommunityId || String(meeting.community_id) === selectedCommunityId);
+  const selectedDemandCell = (myCellsQuery.data || []).find((cell) => cell.id === demandForm.strategic_cell_id);
+  const selectedDemandMarkets = (cellTypesQuery.data || []).find((type) => type.code === selectedDemandCell?.type_code)?.markets || [];
+  const meetingCells = (meetingCellsQuery.data?.cells || []).filter((cell) => cell.status === "ACTIVE");
   const principalMeetingItems = (meetingDetailQuery.data?.oportunidades || []).filter((item) => item.tipo === "oportunidade" && item.papel === "principal") as NetworkOpportunity[];
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Oportunidades</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Necessidades viram Demandas. Teses amadurecem em Oportunidades. BIAs buscam parceiros por OBAs.</p>
+          <h2 className="text-xl font-bold">{roOnly ? "ROs" : "Oportunidades"}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{activeType === "ros" ? "RO — Reunião de Oportunidades da sua Comunidade, com foco geral ou em uma Célula." : "Necessidades viram Demandas. Teses amadurecem em Oportunidades. BIAs buscam parceiros por OBAs."}</p>
         </div>
         {activeType === "demandas" && <Button onClick={() => setDemandOpen(true)}><Plus className="mr-2 h-4 w-4" />Nova Demanda</Button>}
         {activeType === "oportunidades" && <Button disabled={!canCreateEconomic} onClick={() => setEconomicOpen(true)}><Plus className="mr-2 h-4 w-4" />Nova Oportunidade</Button>}
-        {activeType === "ros" && <Button onClick={() => setMeetingOpen(true)}><Plus className="mr-2 h-4 w-4" />Nova RO</Button>}
+        {activeType === "ros" && <Button onClick={() => { setMeetingForm({ ...EMPTY_MEETING, community_id: communityId || "" }); setMeetingOpen(true); }}><Plus className="mr-2 h-4 w-4" />Nova RO</Button>}
       </div>
 
-      <Tabs value={activeType} onValueChange={(value) => setType(value as OpportunityType)}>
+      {!roOnly && <Tabs value={activeType} onValueChange={(value) => setType(value as OpportunityType)}>
         <TabsList className="flex h-11 w-full flex-nowrap overflow-x-auto">
           <TabsTrigger className="min-w-max flex-1" value="demandas"><Target className="mr-2 h-4 w-4 text-blue-600" />Demandas</TabsTrigger>
           <TabsTrigger className="min-w-max flex-1" value="oportunidades"><Lightbulb className="mr-2 h-4 w-4 text-amber-600" />Oportunidades</TabsTrigger>
           <TabsTrigger className="min-w-max flex-1" value="obas"><Handshake className="mr-2 h-4 w-4 text-emerald-600" />OBAs</TabsTrigger>
-          <TabsTrigger className="min-w-max flex-1" value="ros"><CalendarDays className="mr-2 h-4 w-4 text-violet-600" />ROs</TabsTrigger>
         </TabsList>
-      </Tabs>
+      </Tabs>}
 
       {activeType === "obas" ? (
         <div className="[&>div]:max-w-none [&>div]:p-0"><OportunidadesPage /></div>
       ) : activeType === "ros" ? (
         <div className="space-y-3">
-          {(meetingsQuery.data || []).length === 0 ? (
+          {visibleMeetings.length === 0 ? (
             <div className="border-y py-12 text-center"><CalendarDays className="mx-auto h-7 w-7 text-muted-foreground" /><p className="mt-3 font-medium">Nenhuma RO cadastrada</p><p className="mt-1 text-sm text-muted-foreground">Crie uma reunião quando uma ou mais teses precisarem de decisão conjunta.</p></div>
-          ) : (meetingsQuery.data || []).map((meeting) => (
+          ) : visibleMeetings.map((meeting) => (
             <div key={meeting.id} className="border-b py-4">
               <div className="flex flex-wrap items-start gap-3">
                 <div className="grid h-9 w-9 place-items-center rounded-md bg-violet-50 text-violet-700"><CalendarDays className="h-4 w-4" /></div>
-                <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{meeting.titulo}</p><Badge variant="outline" className="font-mono">{meeting.codigo}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{new Date(`${meeting.data}T12:00:00`).toLocaleDateString("pt-BR")}{meeting.hora ? ` às ${meeting.hora}` : ""} · {Number(meeting.total_participantes || 0)} participantes</p><div className="mt-2 flex flex-wrap gap-1">{(meeting.oportunidades || []).map((item) => <Badge key={`${item.codigo}-${item.papel}`} variant="outline" className="text-[10px]">{item.papel === "principal" ? "Tese" : item.tipo === "demanda" ? "Demanda" : "OBA"} · {item.codigo}</Badge>)}</div></div>
+                <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{meeting.titulo}</p><Badge variant="outline" className="font-mono">{meeting.codigo}</Badge>{meeting.community_name && <Badge variant="outline">{meeting.community_name}</Badge>}<Badge className="bg-blue-50 text-blue-700">{meeting.strategic_cell_name ? `Foco: Célula ${meeting.strategic_cell_name}` : "Foco: Geral da Comunidade"}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{new Date(`${meeting.data}T12:00:00`).toLocaleDateString("pt-BR")}{meeting.hora ? ` às ${meeting.hora}` : ""} · {Number(meeting.total_participantes || 0)} participantes</p><div className="mt-2 flex flex-wrap gap-1">{(meeting.oportunidades || []).map((item) => <Badge key={`${item.codigo}-${item.papel}`} variant="outline" className="text-[10px]">{item.papel === "principal" ? "Tese" : item.tipo === "demanda" ? "Demanda" : "OBA"} · {item.codigo}</Badge>)}</div></div>
                 <Button variant="outline" onClick={() => openMeeting(meeting.codigo || meeting.id)}>Gerenciar</Button>
               </div>
               <TraceabilitySummary objectType="ro" objectId={meeting.id} compact />
@@ -498,15 +571,49 @@ export default function NetworkOpportunitiesHub() {
         </>
       )}
 
-      <Dialog open={demandOpen} onOpenChange={setDemandOpen}><DialogContent className="sm:max-w-xl"><DialogHeader><DialogTitle>Nova Demanda</DialogTitle><DialogDescription>Descreva uma necessidade específica. Você pode criar uma Demanda mesmo sem imóvel vinculado.</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Título</Label><Input value={demandForm.titulo} onChange={(event) => setDemandForm({ ...demandForm, titulo: event.target.value })} placeholder="Preciso regularizar um imóvel" /></div><div className="space-y-2 sm:col-span-2"><Label>Contexto</Label><Textarea value={demandForm.contexto} onChange={(event) => setDemandForm({ ...demandForm, contexto: event.target.value })} placeholder="Explique o que precisa ser resolvido." /></div><div className="space-y-2"><Label>Cidade</Label><Input value={demandForm.cidade} onChange={(event) => setDemandForm({ ...demandForm, cidade: event.target.value })} /></div><div className="space-y-2"><Label>Estado</Label><Input value={demandForm.estado} onChange={(event) => setDemandForm({ ...demandForm, estado: event.target.value })} /></div><div className="space-y-2"><Label>Urgência</Label><Select value={demandForm.urgencia} onValueChange={(urgencia) => setDemandForm({ ...demandForm, urgencia })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem><SelectItem value="urgente">Urgente</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Especialidades</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Avaliação, Jurídico..." /></div><label className="flex items-start gap-3 sm:col-span-2"><Checkbox checked={demandForm.publicar} onCheckedChange={(checked) => setDemandForm({ ...demandForm, publicar: checked === true })} /><span className="text-sm">Publicar na Vitrine e autorizar o compartilhamento do resumo. Dados privados permanecem protegidos.</span></label></div><DialogFooter><Button variant="outline" onClick={() => setDemandOpen(false)}>Cancelar</Button><Button disabled={!demandForm.titulo.trim() || !demandForm.contexto.trim() || createDemand.isPending} onClick={() => createDemand.mutate()}>Criar Demanda</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={demandOpen} onOpenChange={setDemandOpen}><DialogContent className="sm:max-w-xl"><DialogHeader><DialogTitle>Nova Demanda</DialogTitle><DialogDescription>Descreva uma necessidade específica. Você pode criar uma Demanda mesmo sem imóvel vinculado.</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Título</Label><Input value={demandForm.titulo} onChange={(event) => setDemandForm({ ...demandForm, titulo: event.target.value })} placeholder="Preciso regularizar um imóvel" /></div><div className="space-y-2 sm:col-span-2"><Label>Contexto</Label><Textarea value={demandForm.contexto} onChange={(event) => setDemandForm({ ...demandForm, contexto: event.target.value })} placeholder="Explique o que precisa ser resolvido." /></div><div className="space-y-2"><Label>Cidade</Label><Input value={demandForm.cidade} onChange={(event) => setDemandForm({ ...demandForm, cidade: event.target.value })} /></div><div className="space-y-2"><Label>Estado</Label><Input value={demandForm.estado} onChange={(event) => setDemandForm({ ...demandForm, estado: event.target.value })} /></div><div className="space-y-2"><Label>Célula (opcional)</Label><Select value={demandForm.strategic_cell_id || "none"} onValueChange={(value) => setDemandForm({ ...demandForm, strategic_cell_id: value === "none" ? "" : value, market_code: "" })}><SelectTrigger><SelectValue placeholder="Sem Célula" /></SelectTrigger><SelectContent><SelectItem value="none">Sem Célula</SelectItem>{(myCellsQuery.data || []).map((cell) => <SelectItem key={cell.id} value={cell.id}>{cell.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Tipo de negócio</Label><Select disabled={!selectedDemandCell} value={demandForm.market_code || "none"} onValueChange={(value) => setDemandForm({ ...demandForm, market_code: value === "none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Escolha depois" /></SelectTrigger><SelectContent><SelectItem value="none">Não informar</SelectItem>{selectedDemandMarkets.map((market) => <SelectItem key={market.code} value={market.code}>{market.public_name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Urgência</Label><Select value={demandForm.urgencia} onValueChange={(urgencia) => setDemandForm({ ...demandForm, urgencia })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem><SelectItem value="urgente">Urgente</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Especialidades</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Avaliação, Jurídico..." /></div><label className="flex items-start gap-3 sm:col-span-2"><Checkbox checked={demandForm.publicar} onCheckedChange={(checked) => setDemandForm({ ...demandForm, publicar: checked === true })} /><span className="text-sm">Publicar na Vitrine e autorizar o compartilhamento do resumo. Dados privados permanecem protegidos.</span></label></div><DialogFooter><Button variant="outline" onClick={() => setDemandOpen(false)}>Cancelar</Button><Button disabled={!demandForm.titulo.trim() || !demandForm.contexto.trim() || createDemand.isPending} onClick={() => createDemand.mutate()}>Criar Demanda</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={Boolean(managedDemand)} onOpenChange={(open) => !open && setManagedDemand(null)}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl"><DialogHeader><DialogTitle>Gerenciar Demanda</DialogTitle><DialogDescription>{managedDemand?.codigo} · edite a necessidade, controle a publicação ou transforme-a em uma tese econômica.</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Título</Label><Input value={demandEditForm.titulo} onChange={(event) => setDemandEditForm({ ...demandEditForm, titulo: event.target.value })} /></div><div className="space-y-2 sm:col-span-2"><Label>Descrição</Label><Textarea className="min-h-28" value={demandEditForm.descricao} onChange={(event) => setDemandEditForm({ ...demandEditForm, descricao: event.target.value })} /></div><div className="space-y-2"><Label>Cidade</Label><Input value={demandEditForm.cidade} onChange={(event) => setDemandEditForm({ ...demandEditForm, cidade: event.target.value })} /></div><div className="space-y-2"><Label>Estado</Label><Input value={demandEditForm.estado} onChange={(event) => setDemandEditForm({ ...demandEditForm, estado: event.target.value })} /></div><div className="space-y-2"><Label>Urgência</Label><Select value={demandEditForm.urgencia} onValueChange={(urgencia) => setDemandEditForm({ ...demandEditForm, urgencia })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem><SelectItem value="urgente">Urgente</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Especialidades</Label><Input value={demandEditForm.especialidades} onChange={(event) => setDemandEditForm({ ...demandEditForm, especialidades: event.target.value })} /></div></div><div className="space-y-3 border-y py-4"><div className="flex flex-wrap gap-2">{managedDemand?.visibilidade === "publicada" ? <Button variant="outline" disabled={updateDemandPublication.isPending} onClick={() => updateDemandPublication.mutate("pausar")}><Pause className="mr-2 h-4 w-4" />Pausar na Vitrine</Button> : <Button variant="outline" disabled={!publicationConsent || updateDemandPublication.isPending} onClick={() => updateDemandPublication.mutate("publicar")}><Upload className="mr-2 h-4 w-4" />Publicar na Vitrine</Button>}{canCreateEconomic && <Button variant="outline" disabled={generateEconomicFromDemand.isPending} onClick={() => generateEconomicFromDemand.mutate()}>{generateEconomicFromDemand.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-2 h-4 w-4" />}Criar Oportunidade</Button>}</div>{managedDemand?.visibilidade !== "publicada" && <label className="flex items-start gap-3 text-sm"><Checkbox checked={publicationConsent} onCheckedChange={(checked) => setPublicationConsent(checked === true)} /><span>Autorizo a publicação do resumo na Vitrine. Endereço exato, documentos e contatos permanecem privados.</span></label>}</div><DialogFooter><Button variant="outline" onClick={() => setManagedDemand(null)}>Cancelar</Button><Button disabled={!demandEditForm.titulo.trim() || !demandEditForm.descricao.trim() || updateDemand.isPending} onClick={() => updateDemand.mutate()}>{updateDemand.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={economicOpen} onOpenChange={setEconomicOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl"><DialogHeader><DialogTitle>Nova Oportunidade econômica</DialogTitle><DialogDescription>Registre uma tese de negócio. Isso ainda não cria uma BIA nem uma OBA.</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Título</Label><Input value={economicForm.titulo} onChange={(event) => setEconomicForm({ ...economicForm, titulo: event.target.value })} placeholder="Aquisição e retrofit do Edifício Central" /></div><div className="space-y-2 sm:col-span-2"><Label>Tese inicial</Label><Textarea className="min-h-28" value={economicForm.tese} onChange={(event) => setEconomicForm({ ...economicForm, tese: event.target.value })} placeholder="Explique o ativo, a transformação imaginada e o resultado econômico esperado." /></div><div className="space-y-2 sm:col-span-2"><Label>Finalidade imaginada</Label><Input value={economicForm.finalidade} onChange={(event) => setEconomicForm({ ...economicForm, finalidade: event.target.value })} placeholder="Aquisição, retrofit e operação para renda" /></div><div className="space-y-2"><Label>Cidade</Label><Input value={economicForm.cidade} onChange={(event) => setEconomicForm({ ...economicForm, cidade: event.target.value })} /></div><div className="space-y-2"><Label>Estado</Label><Input value={economicForm.estado} onChange={(event) => setEconomicForm({ ...economicForm, estado: event.target.value })} /></div><div className="space-y-2"><Label>Origem</Label><Select value={economicForm.source_type} onValueChange={(source_type) => setEconomicForm({ ...economicForm, source_type })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sem_fonte">Registro direto</SelectItem><SelectItem value="demanda">Demanda</SelectItem><SelectItem value="land_bank_asset">Banco de Ativos</SelectItem><SelectItem value="imovel">Imóvel da Carteira</SelectItem><SelectItem value="oportunidade_externa">Oportunidade externa</SelectItem><SelectItem value="servico">Prestação de serviço</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Código/ID da origem</Label><Input disabled={economicForm.source_type === "sem_fonte"} value={economicForm.source_id} onChange={(event) => setEconomicForm({ ...economicForm, source_id: event.target.value })} /></div></div><DialogFooter><Button variant="outline" onClick={() => setEconomicOpen(false)}>Cancelar</Button><Button disabled={!economicForm.titulo.trim() || !economicForm.tese.trim() || (economicForm.source_type !== "sem_fonte" && !economicForm.source_id.trim()) || createEconomic.isPending} onClick={() => createEconomic.mutate()}>Criar Oportunidade</Button></DialogFooter></DialogContent></Dialog>
 
-      <Dialog open={meetingOpen} onOpenChange={setMeetingOpen}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Nova Reunião de Oportunidades</DialogTitle><DialogDescription>A pauta principal é formada por teses econômicas. Demandas e OBAs entram apenas como contexto.</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Título</Label><Input value={meetingForm.titulo} onChange={(event) => setMeetingForm({ ...meetingForm, titulo: event.target.value })} placeholder="RO semanal de oportunidades" /></div><div className="space-y-2"><Label>Data</Label><Input type="date" value={meetingForm.data} onChange={(event) => setMeetingForm({ ...meetingForm, data: event.target.value })} /></div><div className="space-y-2"><Label>Horário</Label><Input type="time" value={meetingForm.hora} onChange={(event) => setMeetingForm({ ...meetingForm, hora: event.target.value })} /></div><div className="space-y-2 sm:col-span-2"><Label>Link</Label><Input value={meetingForm.link} onChange={(event) => setMeetingForm({ ...meetingForm, link: event.target.value })} placeholder="https://..." /></div><div className="space-y-2 sm:col-span-2"><Label>Pauta</Label><Textarea value={meetingForm.pauta} onChange={(event) => setMeetingForm({ ...meetingForm, pauta: event.target.value })} /></div><div className="space-y-2 sm:col-span-2"><Label>Oportunidades da pauta</Label><div className="max-h-48 divide-y overflow-y-auto border-y">{(economicsQuery.data || []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 py-3"><Checkbox checked={selectedEconomicCodes.has(item.codigo)} onCheckedChange={(checked) => setMeetingForm((current) => ({ ...current, oportunidades: checked ? [...current.oportunidades, item.codigo] : current.oportunidades.filter((code) => code !== item.codigo) }))} /><Badge className="bg-amber-50 text-amber-800">Tese</Badge><span className="min-w-0 flex-1 truncate text-sm">{item.titulo}</span><span className="font-mono text-[10px] text-muted-foreground">{item.codigo}</span></label>)}</div></div><div className="space-y-2 sm:col-span-2"><Label>Demandas e OBAs relacionadas</Label><div className="max-h-40 divide-y overflow-y-auto border-y">{(contextsQuery.data || []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 py-3"><Checkbox checked={selectedContextCodes.has(item.codigo)} onCheckedChange={(checked) => setMeetingForm((current) => ({ ...current, contextos: checked ? [...current.contextos, item.codigo] : current.contextos.filter((code) => code !== item.codigo) }))} /><Badge variant="outline">{item.tipo === "demanda" ? "Demanda" : "OBA"}</Badge><span className="min-w-0 flex-1 truncate text-sm">{item.titulo}</span></label>)}</div></div></div><DialogFooter><Button variant="outline" onClick={() => setMeetingOpen(false)}>Cancelar</Button><Button disabled={!meetingForm.titulo || !meetingForm.data || meetingForm.oportunidades.length === 0 || createMeeting.isPending} onClick={() => createMeeting.mutate()}>Criar RO</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={meetingOpen} onOpenChange={setMeetingOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Nova RO — Reunião de Oportunidades</DialogTitle><DialogDescription>A RO pertence a uma Comunidade. A pauta principal é formada por teses econômicas; Demandas e OBAs entram como contexto.</DialogDescription></DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2"><Label>Comunidade</Label>{communityId ? <Input value={communityName || "Comunidade atual"} disabled /> : <Select value={meetingForm.community_id || "none"} onValueChange={(value) => setMeetingForm({ ...meetingForm, community_id: value === "none" ? "" : value, strategic_cell_id: "", focus_mode: "general" })}><SelectTrigger><SelectValue placeholder="Selecione a Comunidade" /></SelectTrigger><SelectContent><SelectItem value="none">Selecione</SelectItem>{(communitiesQuery.data || []).map((community) => <SelectItem key={community.id} value={String(community.id)}>{community.nome || community.sigla || "Comunidade BUILT"}</SelectItem>)}</SelectContent></Select>}</div>
+            <div className="space-y-2 sm:col-span-2"><Label>Título</Label><Input value={meetingForm.titulo} onChange={(event) => setMeetingForm({ ...meetingForm, titulo: event.target.value })} placeholder="RO semanal de oportunidades" /></div>
+            <div className="space-y-2"><Label>Data</Label><Input type="date" value={meetingForm.data} onChange={(event) => setMeetingForm({ ...meetingForm, data: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Horário</Label><Input type="time" value={meetingForm.hora} onChange={(event) => setMeetingForm({ ...meetingForm, hora: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Término (opcional)</Label><Input type="datetime-local" value={meetingForm.end_at} onChange={(event) => setMeetingForm({ ...meetingForm, end_at: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Fuso horário</Label><Input value={meetingForm.timezone} onChange={(event) => setMeetingForm({ ...meetingForm, timezone: event.target.value })} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Foco da RO</Label><Select value={meetingForm.focus_mode} onValueChange={(focus_mode) => setMeetingForm({ ...meetingForm, focus_mode, strategic_cell_id: "" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="general">Geral da Comunidade</SelectItem><SelectItem value="cell">Focada em uma Célula</SelectItem></SelectContent></Select></div>
+            {meetingForm.focus_mode === "cell" && <div className="space-y-2 sm:col-span-2"><Label>Célula</Label><Select value={meetingForm.strategic_cell_id || "none"} onValueChange={(value) => setMeetingForm({ ...meetingForm, strategic_cell_id: value === "none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Selecione a Célula" /></SelectTrigger><SelectContent><SelectItem value="none">Selecione</SelectItem>{meetingCells.map((cell) => <SelectItem key={cell.id} value={cell.id}>{cell.name}</SelectItem>)}</SelectContent></Select></div>}
+            <div className="space-y-2"><Label>Formato</Label><Select value={meetingForm.location_type} onValueChange={(location_type) => setMeetingForm({ ...meetingForm, location_type })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="online">On-line</SelectItem><SelectItem value="presencial">Presencial</SelectItem><SelectItem value="hibrida">Híbrida</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Convidados</Label><Select value={meetingForm.guest_policy} onValueChange={(guest_policy) => setMeetingForm({ ...meetingForm, guest_policy })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="members_only">Somente membros</SelectItem><SelectItem value="external_by_invitation">Externos por convite</SelectItem></SelectContent></Select></div>
+            {meetingForm.location_type !== "online" && <div className="space-y-2 sm:col-span-2"><Label>Endereço</Label><Input value={meetingForm.address} onChange={(event) => setMeetingForm({ ...meetingForm, address: event.target.value })} /></div>}
+            {meetingForm.location_type !== "presencial" && <div className="space-y-2 sm:col-span-2"><Label>Link da reunião</Label><Input value={meetingForm.link} onChange={(event) => setMeetingForm({ ...meetingForm, link: event.target.value })} placeholder="https://..." /></div>}
+            <div className="space-y-2 sm:col-span-2"><Label>Pauta</Label><Textarea value={meetingForm.pauta} onChange={(event) => setMeetingForm({ ...meetingForm, pauta: event.target.value })} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Oportunidades da pauta</Label><div className="max-h-48 divide-y overflow-y-auto border-y">{(economicsQuery.data || []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 py-3"><Checkbox checked={selectedEconomicCodes.has(item.codigo)} onCheckedChange={(checked) => setMeetingForm((current) => ({ ...current, oportunidades: checked ? [...current.oportunidades, item.codigo] : current.oportunidades.filter((code) => code !== item.codigo) }))} /><Badge className="bg-amber-50 text-amber-800">Tese</Badge><span className="min-w-0 flex-1 truncate text-sm">{item.titulo}</span><span className="font-mono text-[10px] text-muted-foreground">{item.codigo}</span></label>)}</div></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Demandas e OBAs relacionadas</Label><div className="max-h-40 divide-y overflow-y-auto border-y">{(contextsQuery.data || []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 py-3"><Checkbox checked={selectedContextCodes.has(item.codigo)} onCheckedChange={(checked) => setMeetingForm((current) => ({ ...current, contextos: checked ? [...current.contextos, item.codigo] : current.contextos.filter((code) => code !== item.codigo) }))} /><Badge variant="outline">{item.tipo === "demanda" ? "Demanda" : "OBA"}</Badge><span className="min-w-0 flex-1 truncate text-sm">{item.titulo}</span></label>)}</div></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setMeetingOpen(false)}>Cancelar</Button><Button disabled={!meetingForm.titulo || !meetingForm.community_id || !meetingForm.data || (meetingForm.focus_mode === "cell" && !meetingForm.strategic_cell_id) || meetingForm.oportunidades.length === 0 || createMeeting.isPending} onClick={() => createMeeting.mutate()}>Criar RO</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <Dialog open={Boolean(selectedMeetingId)} onOpenChange={(open) => !open && closeMeeting()}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>{meetingDetailQuery.data?.can_organize ? "Gerenciar" : "Consultar"} {meetingDetailQuery.data?.codigo || "RO"}</DialogTitle><DialogDescription>{meetingDetailQuery.data?.can_organize ? "Registre a ata e execute uma decisão confirmada para cada Oportunidade da pauta." : "Consulte a pauta, os participantes e as decisões registradas."}</DialogDescription></DialogHeader>{meetingDetailQuery.isLoading ? <p className="py-10 text-center text-sm text-muted-foreground">Carregando reunião...</p> : <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Ata</Label><Textarea className="min-h-28" value={meetingEdit.ata} disabled={!meetingDetailQuery.data?.can_organize} onChange={(event) => setMeetingEdit({ ...meetingEdit, ata: event.target.value })} /></div><div className="space-y-2"><Label>Próximos passos</Label><Textarea value={meetingEdit.proximos_passos} disabled={!meetingDetailQuery.data?.can_organize} onChange={(event) => setMeetingEdit({ ...meetingEdit, proximos_passos: event.target.value })} placeholder="Um passo por linha" /></div><div className="space-y-2"><Label>Status</Label><Select value={meetingEdit.status} disabled={!meetingDetailQuery.data?.can_organize} onValueChange={(status) => setMeetingEdit({ ...meetingEdit, status })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="agendada">Agendada</SelectItem><SelectItem value="realizada">Realizada</SelectItem><SelectItem value="cancelada">Cancelada</SelectItem></SelectContent></Select></div></div><div><h3 className="font-semibold">Decisões por Oportunidade</h3><div className="mt-2 divide-y border-y">{principalMeetingItems.map((item) => { const existing = (meetingDetailQuery.data?.decisoes_estruturadas || []).find((decision) => decision.opportunity_codigo === item.codigo); const draft = decisionDrafts[item.codigo] || { acao: "amadurecer", parecer: "" }; return <div key={item.codigo} className="space-y-3 py-4"><div className="flex flex-wrap items-center gap-2"><Badge className="bg-amber-50 text-amber-800">{item.codigo}</Badge><p className="font-medium">{item.titulo}</p>{existing && <Badge variant="outline">{statusLabel(existing.acao)} · {existing.status}</Badge>}</div>{!existing && meetingDetailQuery.data?.can_organize && <><div className="grid gap-3 sm:grid-cols-[210px_1fr]"><Select value={draft.acao} onValueChange={(acao) => setDecisionDrafts((current) => ({ ...current, [item.codigo]: { ...draft, acao } }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="descartar">Descartar</SelectItem><SelectItem value="amadurecer">Amadurecer</SelectItem><SelectItem value="gerar_demanda">Gerar Demanda</SelectItem><SelectItem value="solicitar_bia">Solicitar estruturação de BIA</SelectItem></SelectContent></Select><Input value={draft.parecer} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [item.codigo]: { ...draft, parecer: event.target.value } }))} placeholder="Parecer que fundamenta a decisão" /></div><Button size="sm" disabled={!draft.parecer.trim() || executeDecision.isPending} onClick={() => executeDecision.mutate({ opportunity: item, draft })}>Executar decisão</Button></>}</div>; })}</div></div><div><h3 className="font-semibold">Participantes</h3><div className="mt-2 flex flex-wrap gap-2">{(meetingDetailQuery.data?.participantes || []).map((participant) => <Badge key={participant.id} variant="outline"><Users className="mr-1 h-3 w-3" />{participant.nome || "Participante BUILT"} · {participant.presenca === "presente" ? "presente" : participant.confirmacao}</Badge>)}</div></div></div>}<DialogFooter><Button variant="outline" onClick={closeMeeting}>Fechar</Button>{meetingDetailQuery.data?.can_organize && <Button onClick={() => updateMeeting.mutate()} disabled={updateMeeting.isPending}>Salvar ata</Button>}</DialogFooter></DialogContent></Dialog>
+      <Dialog open={Boolean(selectedMeetingId)} onOpenChange={(open) => !open && closeMeeting()}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader><DialogTitle>{meetingDetailQuery.data?.can_organize ? "Gerenciar" : "Consultar"} {meetingDetailQuery.data?.codigo || "RO"}</DialogTitle><DialogDescription>{meetingDetailQuery.data?.can_organize ? "Registre a ata e execute uma decisão confirmada para cada Oportunidade da pauta." : "Consulte a pauta, os participantes e as decisões registradas."}</DialogDescription></DialogHeader>
+          {meetingDetailQuery.isLoading ? <p className="py-10 text-center text-sm text-muted-foreground">Carregando reunião...</p> : <div className="space-y-5">
+            <div className="flex flex-wrap gap-2"><Badge variant="outline">{meetingDetailQuery.data?.community_name || "Comunidade"}</Badge><Badge className="bg-blue-50 text-blue-700">{meetingDetailQuery.data?.strategic_cell_name ? `Foco: Célula ${meetingDetailQuery.data.strategic_cell_name}` : "Foco: Geral da Comunidade"}</Badge></div>
+            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Ata</Label><Textarea className="min-h-28" value={meetingEdit.ata} disabled={!meetingDetailQuery.data?.can_organize} onChange={(event) => setMeetingEdit({ ...meetingEdit, ata: event.target.value })} /></div><div className="space-y-2"><Label>Próximos passos</Label><Textarea value={meetingEdit.proximos_passos} disabled={!meetingDetailQuery.data?.can_organize} onChange={(event) => setMeetingEdit({ ...meetingEdit, proximos_passos: event.target.value })} placeholder="Um passo por linha" /></div><div className="space-y-2"><Label>Status</Label><Select value={meetingEdit.status} disabled={!meetingDetailQuery.data?.can_organize} onValueChange={(status) => setMeetingEdit({ ...meetingEdit, status })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="agendada">Agendada</SelectItem><SelectItem value="realizada">Realizada</SelectItem><SelectItem value="cancelada">Cancelada</SelectItem></SelectContent></Select></div></div>
+            <div><h3 className="font-semibold">Decisões por Oportunidade</h3><div className="mt-2 divide-y border-y">{principalMeetingItems.map((item) => { const existing = (meetingDetailQuery.data?.decisoes_estruturadas || []).find((decision) => decision.opportunity_codigo === item.codigo); const draft = decisionDrafts[item.codigo] || { acao: "amadurecer", parecer: "" }; return <div key={item.codigo} className="space-y-3 py-4"><div className="flex flex-wrap items-center gap-2"><Badge className="bg-amber-50 text-amber-800">{item.codigo}</Badge><p className="font-medium">{item.titulo}</p>{existing && <Badge variant="outline">{statusLabel(existing.acao)} · {existing.status}</Badge>}</div>{!existing && meetingDetailQuery.data?.can_organize && <><div className="grid gap-3 sm:grid-cols-[210px_1fr]"><Select value={draft.acao} onValueChange={(acao) => setDecisionDrafts((current) => ({ ...current, [item.codigo]: { ...draft, acao } }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="descartar">Descartar</SelectItem><SelectItem value="amadurecer">Amadurecer</SelectItem><SelectItem value="gerar_demanda">Gerar Demanda</SelectItem><SelectItem value="solicitar_bia">Solicitar estruturação de BIA</SelectItem></SelectContent></Select><Input value={draft.parecer} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [item.codigo]: { ...draft, parecer: event.target.value } }))} placeholder="Parecer que fundamenta a decisão" /></div><Button size="sm" disabled={!draft.parecer.trim() || executeDecision.isPending} onClick={() => executeDecision.mutate({ opportunity: item, draft })}>Executar decisão</Button></>}</div>; })}</div></div>
+            <div><h3 className="font-semibold">Participantes</h3><div className="mt-2 flex flex-wrap gap-2">{(meetingDetailQuery.data?.participantes || []).filter((participant: any) => !participant.external).map((participant) => <Badge key={participant.id} variant="outline"><Users className="mr-1 h-3 w-3" />{participant.nome || "Participante BUILT"} · {participant.presenca === "presente" ? "presente" : participant.confirmacao}</Badge>)}</div></div>
+            {meetingDetailQuery.data?.guest_policy === "external_by_invitation" && <div className="space-y-3 border-t pt-4"><h3 className="font-semibold">Convidados externos</h3>{meetingDetailQuery.data.can_organize && <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input value={guestForm.nome} onChange={(event) => setGuestForm({ ...guestForm, nome: event.target.value })} placeholder="Nome" /><Input type="email" value={guestForm.email} onChange={(event) => setGuestForm({ ...guestForm, email: event.target.value })} placeholder="email@exemplo.com" /><Button disabled={!guestForm.nome.trim() || !guestForm.email.trim() || inviteExternalGuest.isPending} onClick={() => inviteExternalGuest.mutate()}>Enviar convite</Button></div>}<div className="flex flex-wrap gap-2">{(meetingDetailQuery.data.convidados_externos || []).map((guest) => <Badge key={guest.id} variant="outline"><Users className="mr-1 h-3 w-3" />{guest.nome}{guest.email ? ` · ${guest.email}` : ""} · {guest.confirmacao}</Badge>)}</div></div>}
+          </div>}
+          <DialogFooter><Button variant="outline" onClick={closeMeeting}>Fechar</Button>{meetingDetailQuery.data?.can_organize && <Button onClick={() => updateMeeting.mutate()} disabled={updateMeeting.isPending}>Salvar ata</Button>}</DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

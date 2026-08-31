@@ -12,6 +12,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 type Policy = { code: string; version: number; amount_cents?: number | null; minimum_rate?: string | number | null; status: string };
 type PublicLabel = { code: string; display_name: string; description?: string | null };
 type Subscription = { id: string; subscription_type: "company" | "member"; name: string; email?: string | null; status: string; renewal_at?: string | null; billing_suspended: boolean; frozen_at?: string | null; provider?: string | null };
+type CellTaxonomyItem = { code: string; public_name: string; short_description: string; help_text?: string | null; status: string; display_order: number; markets: CellTaxonomyMarket[] };
+type CellTaxonomyMarket = Omit<CellTaxonomyItem, "markets">;
+type CellTaxonomyDraft = Partial<Omit<CellTaxonomyMarket, "code">>;
 
 const POLICY_LABELS: Record<string, string> = {
   MEMBER_ANNUAL: "Anuidade do Membro Aliado",
@@ -30,9 +33,11 @@ export function AdminCommercialPolicies() {
   const policiesQuery = useQuery<Policy[]>({ queryKey: ["/api/admin/monetization/policies"] });
   const labelsQuery = useQuery<PublicLabel[]>({ queryKey: ["/api/taxonomy/public-labels"] });
   const subscriptionsQuery = useQuery<Subscription[]>({ queryKey: ["/api/admin/subscriptions"] });
+  const cellTaxonomyQuery = useQuery<CellTaxonomyItem[]>({ queryKey: ["/api/admin/taxonomy/strategic-cells"] });
   const [policyCode, setPolicyCode] = useState("MEMBER_ANNUAL");
   const [policyValue, setPolicyValue] = useState("");
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const [cellTaxonomy, setCellTaxonomy] = useState<Record<string, CellTaxonomyDraft>>({});
   const [area, setArea] = useState("");
   const [segmentCodes, setSegmentCodes] = useState("");
   const [bia, setBia] = useState({ id: "", origin: "", rigPercent: "1", start: "" });
@@ -48,6 +53,13 @@ export function AdminCommercialPolicies() {
   useEffect(() => {
     setLabels(Object.fromEntries((labelsQuery.data || []).map((item) => [item.code, item.display_name])));
   }, [labelsQuery.data]);
+
+  useEffect(() => {
+    setCellTaxonomy(Object.fromEntries((cellTaxonomyQuery.data || []).flatMap((cell) => [
+      [`cell:${cell.code}`, { public_name: cell.public_name, short_description: cell.short_description, help_text: cell.help_text, status: cell.status, display_order: cell.display_order }],
+      ...cell.markets.map((market) => [`market:${market.code}`, { public_name: market.public_name, short_description: market.short_description, help_text: market.help_text, status: market.status, display_order: market.display_order }]),
+    ])));
+  }, [cellTaxonomyQuery.data]);
 
   useEffect(() => {
     setRenewalDates(Object.fromEntries((subscriptionsQuery.data || []).map((item) => [item.id, item.renewal_at ? item.renewal_at.slice(0, 10) : ""])));
@@ -72,6 +84,12 @@ export function AdminCommercialPolicies() {
       segment_codes: segmentCodes.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean),
     }),
     onSuccess: () => toast({ title: "Relação de segmentos atualizada" }),
+  });
+
+  const cellTaxonomyMutation = useMutation({
+    mutationFn: ({ kind, code }: { kind: "cell" | "market"; code: string }) => request(`/api/admin/taxonomy/strategic-cells/${kind}/${code}`, "PUT", cellTaxonomy[`${kind}:${code}`]),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/taxonomy/strategic-cells"] }); queryClient.invalidateQueries({ queryKey: ["/api/strategic-cell-types"] }); toast({ title: "Taxonomia de Células atualizada" }); },
+    onError: (error: any) => toast({ title: "Não foi possível atualizar", description: error.message, variant: "destructive" }),
   });
 
   const loadBiaMutation = useMutation({
@@ -140,6 +158,34 @@ export function AdminCommercialPolicies() {
       </section>
 
       <section className="space-y-4 border-y py-5"><h2 className="font-semibold">Nomes públicos</h2>{(labelsQuery.data || []).map((item) => <div key={item.code} className="grid gap-2 sm:grid-cols-[180px_1fr_auto]"><Label className="self-center">{item.code}</Label><Input value={labels[item.code] || ""} onChange={(event) => setLabels({ ...labels, [item.code]: event.target.value })} /><Button variant="outline" onClick={() => labelMutation.mutate(item.code)}>Salvar</Button></div>)}</section>
+
+      <section className="space-y-4 border-y py-5">
+        <div><h2 className="font-semibold">Células e tipos de negócio</h2><p className="mt-1 text-xs text-slate-500">Edite a linguagem pública sem alterar os códigos internos.</p></div>
+        {(cellTaxonomyQuery.data || []).map((cell) => {
+          const cellDraft = cellTaxonomy[`cell:${cell.code}`];
+          return <div key={cell.code} className="space-y-3 rounded-md border p-4">
+            <div className="grid gap-2 lg:grid-cols-[1fr_2fr_120px_90px_auto]">
+              <Input value={cellDraft?.public_name || ""} onChange={(event) => setCellTaxonomy((current) => ({ ...current, [`cell:${cell.code}`]: { ...current[`cell:${cell.code}`], public_name: event.target.value } }))} aria-label={`Nome público ${cell.code}`} />
+              <Input value={cellDraft?.short_description || ""} onChange={(event) => setCellTaxonomy((current) => ({ ...current, [`cell:${cell.code}`]: { ...current[`cell:${cell.code}`], short_description: event.target.value } }))} aria-label={`Descrição ${cell.code}`} />
+              <Select value={cellDraft?.status || "ACTIVE"} onValueChange={(status) => setCellTaxonomy((current) => ({ ...current, [`cell:${cell.code}`]: { ...current[`cell:${cell.code}`], status } }))}><SelectTrigger aria-label={`Status ${cell.code}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ACTIVE">Ativa</SelectItem><SelectItem value="SUSPENDED">Suspensa</SelectItem><SelectItem value="ARCHIVED">Arquivada</SelectItem></SelectContent></Select>
+              <Input type="number" min="0" value={cellDraft?.display_order ?? 0} onChange={(event) => setCellTaxonomy((current) => ({ ...current, [`cell:${cell.code}`]: { ...current[`cell:${cell.code}`], display_order: Number(event.target.value) } }))} aria-label={`Ordem ${cell.code}`} />
+              <Button variant="outline" onClick={() => cellTaxonomyMutation.mutate({ kind: "cell", code: cell.code })}>Salvar Célula</Button>
+            </div>
+            <div className="space-y-2 border-l-2 border-blue-100 pl-3">
+              {cell.markets.map((market) => {
+                const marketDraft = cellTaxonomy[`market:${market.code}`];
+                return <div key={market.code} className="grid gap-2 lg:grid-cols-[1fr_2fr_120px_90px_auto]">
+                  <Input value={marketDraft?.public_name || ""} onChange={(event) => setCellTaxonomy((current) => ({ ...current, [`market:${market.code}`]: { ...current[`market:${market.code}`], public_name: event.target.value } }))} aria-label={`Nome público ${market.code}`} />
+                  <Input value={marketDraft?.short_description || ""} onChange={(event) => setCellTaxonomy((current) => ({ ...current, [`market:${market.code}`]: { ...current[`market:${market.code}`], short_description: event.target.value } }))} aria-label={`Descrição ${market.code}`} />
+                  <Select value={marketDraft?.status || "ACTIVE"} onValueChange={(status) => setCellTaxonomy((current) => ({ ...current, [`market:${market.code}`]: { ...current[`market:${market.code}`], status } }))}><SelectTrigger aria-label={`Status ${market.code}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ACTIVE">Ativo</SelectItem><SelectItem value="SUSPENDED">Suspenso</SelectItem><SelectItem value="ARCHIVED">Arquivado</SelectItem></SelectContent></Select>
+                  <Input type="number" min="0" value={marketDraft?.display_order ?? 0} onChange={(event) => setCellTaxonomy((current) => ({ ...current, [`market:${market.code}`]: { ...current[`market:${market.code}`], display_order: Number(event.target.value) } }))} aria-label={`Ordem ${market.code}`} />
+                  <Button variant="ghost" onClick={() => cellTaxonomyMutation.mutate({ kind: "market", code: market.code })}>Salvar tipo</Button>
+                </div>;
+              })}
+            </div>
+          </div>;
+        })}
+      </section>
 
       <section className="space-y-4 border-y py-5"><h2 className="font-semibold">Áreas de contribuição e segmentos</h2><div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><Select value={area} onValueChange={setArea}><SelectTrigger><SelectValue placeholder="Área pública" /></SelectTrigger><SelectContent>{getPublicContributionAreas().map((item) => <SelectItem key={item.value} value={item.value}>{item.displayName}</SelectItem>)}</SelectContent></Select><Input value={segmentCodes} onChange={(event) => setSegmentCodes(event.target.value)} placeholder="Códigos de segmento separados por vírgula" /><Button disabled={!area || mappingMutation.isPending} onClick={() => mappingMutation.mutate()}>Salvar relação</Button></div></section>
 

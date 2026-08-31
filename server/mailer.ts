@@ -750,6 +750,48 @@ export async function notificarAliadoAposAuraInvitador(opts: {
   );
 }
 
+function escapeEmailHtml(value: unknown): string {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export async function enviarLembreteVencimentoPagamento(opts: {
+  destinatarioEmail: string;
+  destinatarioNome: string;
+  biaNome: string;
+  biaRef: string;
+  descricao: string;
+  valor: number;
+  dataVencimento: string;
+}) {
+  const vencimento = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" })
+    .format(new Date(`${opts.dataVencimento}T12:00:00Z`));
+  const valor = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
+    .format(Number.isFinite(opts.valor) ? opts.valor : 0);
+  const link = `${BASE_URL}/bias/${encodeURIComponent(opts.biaRef)}?tab=capital&capital=financeiro`;
+  return send(
+    opts.destinatarioEmail,
+    "Lembrete: pagamento vence em 2 dias — BUILT Alliances",
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Pagamento próximo do vencimento</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${escapeEmailHtml(opts.destinatarioNome)}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Um pagamento agendado da BIA <strong>${escapeEmailHtml(opts.biaNome)}</strong> vence em dois dias.</p>
+      <div style="margin:24px 0;padding:18px;border:1px solid rgba(215,187,125,0.25);border-radius:8px;background:rgba(255,255,255,0.04)">
+        <p style="margin:0 0 8px;color:#fff"><strong>Descrição:</strong> ${escapeEmailHtml(opts.descricao)}</p>
+        <p style="margin:0 0 8px;color:#fff"><strong>Valor:</strong> ${escapeEmailHtml(valor)}</p>
+        <p style="margin:0;color:#fff"><strong>Vencimento:</strong> ${escapeEmailHtml(vencimento)}</p>
+      </div>
+      <div style="text-align:center;margin:28px 0 12px">
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar Financeiro da BIA</a>
+      </div>
+    `),
+  );
+}
+
 export async function enviarLembreteTermos(opts: {
   candidatoEmail: string;
   candidatoNome: string;
@@ -884,6 +926,27 @@ export async function notificarNovaOportunidade(opts: {
         <p style="color:#fff;margin:0;font-weight:bold">${opts.titulo}</p>
       </div>
       <div style="text-align:center;margin:32px 0"><a href="${link}" style="display:inline-block;background-color:#D7BB7D;color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver oportunidade</a></div>
+    `),
+  );
+}
+
+export async function enviarConviteRo(opts: {
+  email: string;
+  nome: string;
+  titulo: string;
+  comunidade: string;
+  conviteUrl: string;
+}) {
+  const safe = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
+  return send(
+    opts.email,
+    `Convite para uma Reunião de Oportunidades — ${opts.comunidade}`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Reunião de Oportunidades</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${safe(opts.nome)}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Você foi convidado para a RO <strong>${safe(opts.titulo)}</strong>, da comunidade <strong>${safe(opts.comunidade)}</strong>.</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:13px">Confirmar presença não cria automaticamente uma conta ou vínculo de membro na BUILT.</p>
+      <div style="text-align:center;margin:32px 0"><a href="${safe(opts.conviteUrl)}" style="display:inline-block;background-color:#D7BB7D;color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold">Revisar convite</a></div>
     `),
   );
 }

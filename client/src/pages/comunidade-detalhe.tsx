@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type React from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, useSearch } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getBiaUrl } from "@/lib/bia-url";
 import { getMembroUrl } from "@/lib/public-refs";
 import {
   ArrowLeft, MapPin, Users, Briefcase, Shield,
-  MessageCircle, Pencil, Globe, Calendar, Hash
+  MessageCircle, Pencil, Globe, Calendar, Hash, Layers3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import NetworkOpportunitiesHub from "@/pages/network-opportunities";
 import {
   Bar,
   BarChart,
@@ -56,6 +57,37 @@ interface Bia {
 interface MembroJunction { cadastro_geral_id: Membro | string | null; }
 interface BiaJunction { bias_projetos_id: Bia | string | null; }
 
+interface StrategicCellMembership {
+  id: string;
+  membro_id: string;
+  nome: string;
+  status: "INTERESTED" | "PENDING" | "ACTIVE" | "REJECTED" | "LEFT";
+}
+
+interface StrategicCell {
+  id: string;
+  name: string;
+  description?: string | null;
+  proposal_reason?: string | null;
+  status: "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "SUSPENDED" | "REJECTED" | "ARCHIVED";
+  coordinator_membro_id?: string | null;
+  type_code: string;
+  type_public_name: string;
+  type_short_description: string;
+  markets: Array<{ code: string; public_name: string; short_description?: string | null }>;
+  member_count: number;
+  my_membership_id?: string | null;
+  my_membership_status?: StrategicCellMembership["status"] | null;
+  memberships?: StrategicCellMembership[];
+}
+
+interface StrategicCellsResponse {
+  cells: StrategicCell[];
+  can_manage: boolean;
+  is_community_member: boolean;
+  has_member_entitlement: boolean;
+}
+
 interface Comunidade {
   id: string;
   nome?: string;
@@ -82,6 +114,21 @@ interface Comunidade {
 }
 
 const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#8B5CF6"];
+const CELL_STATUS_LABELS: Record<StrategicCell["status"], string> = {
+  DRAFT: "Rascunho",
+  PENDING_APPROVAL: "Aguardando aprovação",
+  ACTIVE: "Ativa",
+  SUSPENDED: "Suspensa",
+  REJECTED: "Rejeitada",
+  ARCHIVED: "Arquivada",
+};
+const MEMBERSHIP_STATUS_LABELS: Record<StrategicCellMembership["status"], string> = {
+  INTERESTED: "Interesse registrado",
+  PENDING: "Participação em análise",
+  ACTIVE: "Participante",
+  REJECTED: "Participação recusada",
+  LEFT: "Participação encerrada",
+};
 
 function resolveAliado(c: Comunidade): Membro | null {
   if (!c.aliado) return null;
@@ -171,8 +218,9 @@ function SectionTitle({ icon: Icon, children }: { icon: any; children: React.Rea
 }
 
 export default function ComunidadeDetalhePage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, cellId } = useParams<{ id: string; cellId?: string }>();
   const [location, navigate] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<ComunidadeEditForm>({
@@ -183,7 +231,9 @@ export default function ComunidadeDetalhePage() {
     bias_ids: [],
     status: "ativa",
   });
-  const fromDashboard = new URLSearchParams(location.split("?")[1] || "").get("from") === "dashboard";
+  const fromDashboard = new URLSearchParams(search).get("from") === "dashboard";
+  const requestedCommunityTab = new URLSearchParams(search).get("tab");
+  const activeCommunityTab = requestedCommunityTab === "celulas" || requestedCommunityTab === "ros" ? requestedCommunityTab : "visao-geral";
   const backHref = fromDashboard ?"/" : "/area-aliancas?tab=comunidades";
   const backLabel = fromDashboard ?"Voltar para Dashboard" : "Voltar para Área de Alianças";
 
@@ -194,6 +244,15 @@ export default function ComunidadeDetalhePage() {
         if (!r.ok) throw new Error("Não encontrado");
         return r.json();
       }),
+    enabled: !!id,
+  });
+
+  const { data: strategicCellsData, isLoading: isLoadingCells } = useQuery<StrategicCellsResponse>({
+    queryKey: ["/api/comunidades", id, "celulas"],
+    queryFn: () => fetch(`/api/comunidades/${id}/celulas`).then(r => {
+      if (!r.ok) throw new Error("Não foi possível carregar as Células.");
+      return r.json();
+    }),
     enabled: !!id,
   });
 
@@ -226,6 +285,20 @@ export default function ComunidadeDetalhePage() {
       setEditOpen(false);
     },
     onError: () => toast({ title: "Erro ao atualizar comunidade", variant: "destructive" }),
+  });
+
+  const cellParticipationMutation = useMutation({
+    mutationFn: ({ cellId, action }: { cellId: string; action: "INTERESTED" | "REQUEST" | "LEAVE" }) =>
+      apiRequest("POST", `/api/comunidades/${id}/celulas/${cellId}/participacao`, { action }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/comunidades", id, "celulas"] }),
+    onError: (error: any) => toast({ title: "Não foi possível registrar sua escolha", description: error?.message, variant: "destructive" }),
+  });
+
+  const decideCellMembershipMutation = useMutation({
+    mutationFn: ({ cellId, membershipId, status }: { cellId: string; membershipId: string; status: "ACTIVE" | "REJECTED" }) =>
+      apiRequest("PATCH", `/api/comunidades/${id}/celulas/${cellId}/participacoes/${membershipId}`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/comunidades", id, "celulas"] }),
+    onError: (error: any) => toast({ title: "Não foi possível decidir a participação", description: error?.message, variant: "destructive" }),
   });
 
   function openEditModal(c: Comunidade) {
@@ -265,6 +338,12 @@ export default function ComunidadeDetalhePage() {
     });
   }
 
+  function selectCommunityTab(tab: "visao-geral" | "celulas" | "ros") {
+    const params = new URLSearchParams(search);
+    params.set("tab", tab);
+    navigate(`${location}?${params.toString()}`);
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -294,6 +373,91 @@ export default function ComunidadeDetalhePage() {
   const membros = resolveMembros(comunidade);
   const bias = resolveBias(comunidade);
   const aliadoFoto = fotoUrl(aliado?.foto_perfil);
+
+  if (cellId) {
+    if (isLoadingCells) {
+      return <div className="p-6 max-w-4xl mx-auto"><Skeleton className="h-72 rounded-2xl" /></div>;
+    }
+    const cell = strategicCellsData?.cells.find((item) => String(item.id) === String(cellId));
+    if (!cell) {
+      return (
+        <div className="p-6 max-w-4xl mx-auto flex min-h-64 flex-col items-center justify-center gap-4">
+          <p className="text-sm text-muted-foreground">Célula não encontrada.</p>
+          <Button variant="outline" onClick={() => navigate(`/comunidade/${id}?tab=celulas`)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar para Células</Button>
+        </div>
+      );
+    }
+    const activeMemberships = (cell.memberships || []).filter((membership) => membership.status === "ACTIVE");
+    const pendingMemberships = (cell.memberships || []).filter((membership) => ["INTERESTED", "PENDING"].includes(membership.status));
+    return (
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6" data-testid="page-celula-detalhe">
+        <button
+          onClick={() => navigate(`/comunidade/${id}?tab=celulas`)}
+          className="inline-flex items-center gap-2 rounded-lg border border-brand-gold/20 px-3 py-1.5 text-sm text-brand-gold/70 transition-colors hover:bg-brand-gold/10 hover:text-brand-gold"
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar para Células
+        </button>
+
+        <section className="rounded-2xl p-5 sm:p-7" style={{ background: "linear-gradient(145deg, #071626, #040e1c)", border: "1px solid rgba(215,187,125,0.15)" }}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-brand-gold/60">Célula · {comunidade.nome}</p>
+              <h1 className="mt-2 text-2xl font-bold text-white">{cell.name || cell.type_public_name}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/50">{cell.description || cell.type_short_description}</p>
+            </div>
+            <Badge variant="outline" className="w-fit border-emerald-400/30 text-emerald-300">{CELL_STATUS_LABELS[cell.status]}</Badge>
+          </div>
+          <div className="mt-6 inline-flex items-center gap-2 text-sm text-white/50">
+            <Users className="h-4 w-4" /> {Number(cell.member_count || 0)} participante(s)
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6" data-testid="section-participantes-celula">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Participantes</h2>
+            <Badge variant="secondary">{activeMemberships.length}</Badge>
+          </div>
+          {activeMemberships.length ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {activeMemberships.map((membership) => (
+                <div key={membership.id} className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">{getInitials(membership.nome || "Membro")}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{membership.nome}</p>
+                    <p className="text-xs text-muted-foreground">Participante</p>
+                  </div>
+                  {membership.membro_id && <Button size="sm" variant="ghost" onClick={() => navigate(`/membro/${membership.membro_id}`)}>Ver perfil</Button>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Ainda não há participantes nesta Célula.</p>
+          )}
+        </section>
+
+        {strategicCellsData?.can_manage && pendingMemberships.length > 0 && (
+          <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+            <h2 className="mb-4 text-lg font-semibold">Solicitações de participação</h2>
+            <div className="space-y-3">
+              {pendingMemberships.map((membership) => (
+                <div key={membership.id} className="flex flex-col gap-3 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{membership.nome}</p>
+                    <p className="text-xs text-muted-foreground">{MEMBERSHIP_STATUS_LABELS[membership.status]}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => decideCellMembershipMutation.mutate({ cellId: cell.id, membershipId: membership.id, status: "ACTIVE" })}>Aprovar</Button>
+                    <Button size="sm" variant="outline" onClick={() => decideCellMembershipMutation.mutate({ cellId: cell.id, membershipId: membership.id, status: "REJECTED" })}>Recusar</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    );
+  }
+
   const analytics = comunidade.analytics ?? {
     opas_total: 0,
     opas_por_abrangencia: [
@@ -329,9 +493,16 @@ export default function ComunidadeDetalhePage() {
         {backLabel}
       </button>
 
+      <nav className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-lg bg-muted/60 p-1" aria-label="Navegação da Comunidade" role="tablist">
+        <Button role="tab" aria-selected={activeCommunityTab === "visao-geral"} variant={activeCommunityTab === "visao-geral" ? "secondary" : "ghost"} size="sm" className="min-w-max" onClick={() => selectCommunityTab("visao-geral")}>Visão Geral</Button>
+        <Button role="tab" aria-selected={activeCommunityTab === "celulas"} variant={activeCommunityTab === "celulas" ? "secondary" : "ghost"} size="sm" className="min-w-max" onClick={() => selectCommunityTab("celulas")}>Células</Button>
+        <Button role="tab" aria-selected={activeCommunityTab === "ros"} variant={activeCommunityTab === "ros" ? "secondary" : "ghost"} size="sm" className="min-w-max" onClick={() => selectCommunityTab("ros")}>ROs</Button>
+      </nav>
+
       {/* Hero */}
       <div
-        className="relative rounded-2xl overflow-hidden p-8"
+        id="visao-geral"
+        className={`${activeCommunityTab === "visao-geral" ? "block" : "hidden"} relative rounded-2xl overflow-hidden p-8`}
         style={{
           background: "linear-gradient(135deg, #071626 0%, #040e1c 60%, #071420 100%)",
           border: "1px solid rgba(215,187,125,0.15)",
@@ -419,7 +590,105 @@ export default function ComunidadeDetalhePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex flex-col gap-6">
+      {/* Células ficam dentro da Comunidade; não há menu global. */}
+      <section
+        id="celulas"
+        className={`${activeCommunityTab === "celulas" ? "block" : "hidden"} rounded-2xl p-4 sm:p-6 space-y-5`}
+        style={{ background: "linear-gradient(145deg, #071626, #040e1c)", border: "1px solid rgba(215,187,125,0.15)" }}
+        data-testid="section-celulas-comunidade"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl shrink-0" style={{ background: "rgba(215,187,125,0.1)", border: "1px solid rgba(215,187,125,0.2)" }}>
+              <Layers3 className="w-5 h-5 text-brand-gold" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Células desta Comunidade</h2>
+              <p className="mt-1 text-xs leading-relaxed text-white/45">
+                Grupos organizados por uma estratégia imobiliária.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {isLoadingCells ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-40 rounded-xl" />)}
+          </div>
+        ) : strategicCellsData?.cells.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {strategicCellsData.cells.map((cell) => {
+              const membershipStatus = cell.my_membership_status || null;
+              return (
+                <article
+                  key={cell.id}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Abrir Célula ${cell.name || cell.type_public_name}`}
+                  onClick={() => navigate(`/comunidade/${id}/celulas/${cell.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(`/comunidade/${id}/celulas/${cell.id}`);
+                    }
+                  }}
+                  className="rounded-xl p-4 space-y-4 min-w-0 cursor-pointer transition-shadow hover:ring-1 hover:ring-blue-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  data-testid={`card-celula-${cell.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-widest text-brand-gold/60">Célula</p>
+                      <h3 className="mt-1 text-sm font-bold text-white break-words">{cell.name || cell.type_public_name}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-white/45">{cell.description || cell.type_short_description}</p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 text-[10px] ${cell.status === "ACTIVE" ? "border-emerald-400/30 text-emerald-300" : "border-amber-400/30 text-amber-300"}`}
+                    >
+                      {CELL_STATUS_LABELS[cell.status]}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/40">
+                    <span className="inline-flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {Number(cell.member_count || 0)} participante(s)</span>
+                  </div>
+
+                  {!strategicCellsData.can_manage && cell.status === "ACTIVE" && strategicCellsData.is_community_member ? (
+                    <div className="border-t border-white/5 pt-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                      {membershipStatus ? (
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-xs text-white/55">{MEMBERSHIP_STATUS_LABELS[membershipStatus]}</p>
+                          {!["REJECTED", "LEFT"].includes(membershipStatus) && <Button size="sm" variant="ghost" className="text-white/45" onClick={() => cellParticipationMutation.mutate({ cellId: cell.id, action: "LEAVE" })}>Sair da Célula</Button>}
+                          {membershipStatus === "INTERESTED" && strategicCellsData.has_member_entitlement && <Button size="sm" onClick={() => cellParticipationMutation.mutate({ cellId: cell.id, action: "REQUEST" })}>Solicitar participação</Button>}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button size="sm" variant="outline" className="border-brand-gold/25 text-brand-gold" onClick={() => cellParticipationMutation.mutate({ cellId: cell.id, action: "INTERESTED" })}>Tenho interesse</Button>
+                          {strategicCellsData.has_member_entitlement && <Button size="sm" onClick={() => cellParticipationMutation.mutate({ cellId: cell.id, action: "REQUEST" })}>Solicitar participação</Button>}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-white/45">Não foi possível carregar as seis Células oficiais desta Comunidade.</p>
+        )}
+      </section>
+
+      <section
+        id="ros"
+        className={`${activeCommunityTab === "ros" ? "block" : "hidden"} rounded-2xl border border-border/60 bg-card p-4 sm:p-6`}
+        data-testid="section-ros-comunidade"
+      >
+        <NetworkOpportunitiesHub communityId={String(id || "")} communityName={comunidade.nome} roOnly />
+      </section>
+
+      <div className={`${activeCommunityTab === "visao-geral" ? "grid" : "hidden"} grid-cols-1 md:grid-cols-2 gap-6`}>
         {/* Aliado BUILT */}
         <div
           className="rounded-2xl p-5 space-y-4 relative overflow-hidden"
@@ -487,9 +756,10 @@ export default function ComunidadeDetalhePage() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Indicadores da comunidade */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`${activeCommunityTab === "visao-geral" ? "grid" : "hidden"} grid-cols-1 lg:grid-cols-2 gap-6`}>
         <DarkPanel>
           <SectionTitle icon={Globe}>OBAs da Comunidade</SectionTitle>
           <div className="h-[220px]">
@@ -550,7 +820,7 @@ export default function ComunidadeDetalhePage() {
 
       {/* Membros */}
       <div
-        className="rounded-2xl p-5 space-y-4"
+        className={`${activeCommunityTab === "visao-geral" ? "block" : "hidden"} rounded-2xl p-5 space-y-4`}
         style={{
           background: "linear-gradient(145deg, #071626, #040e1c)",
           border: "1px solid rgba(255,255,255,0.06)",
@@ -602,7 +872,7 @@ export default function ComunidadeDetalhePage() {
 
       {/* BIAs */}
       <div
-        className="rounded-2xl p-5 space-y-4"
+        className={`${activeCommunityTab === "visao-geral" ? "block" : "hidden"} rounded-2xl p-5 space-y-4`}
         style={{
           background: "linear-gradient(145deg, #071626, #040e1c)",
           border: "1px solid rgba(255,255,255,0.06)",

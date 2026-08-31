@@ -15,7 +15,7 @@ import { PinbankClient, type PinbankChargePayload, type PinbankChargeQueryPayloa
 import { PNG } from "pngjs";
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { deflateSync } from "zlib";
-import { buildComparableMarketAnalysis, marketDistanceKm, marketLocationCandidates, MARKET_AREA_TOLERANCE_M2, MARKET_RADIUS_KM } from "./market-comparables";
+import { buildComparableMarketAnalysis, marketAreaRange, marketDistanceKm, marketLocationCandidates, MARKET_RADIUS_KM } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { resolveAuraAudioMetadata } from "./aura-audio";
 import {
@@ -52,6 +52,20 @@ import {
 } from "@shared/monetization";
 import { getPublicContributionAreas } from "@shared/contribution-areas";
 import { PUBLIC_LABELS } from "@shared/public-labels";
+import {
+  RO_EVENT_TYPE,
+  RO_GUEST_TERMS_VERSION,
+  normalizeRoGuestPolicy,
+  normalizeRoLocationType,
+  normalizeRoSchedule,
+  normalizeRoTimeZone,
+  roAlertCopy,
+} from "@shared/ro";
+import {
+  STRATEGIC_CELL_BUSINESS_TYPES,
+  STRATEGIC_CELL_TYPES,
+  normalizeStrategicCellPreferences,
+} from "@shared/strategic-cells";
 import { RAMOS_SEGMENTOS } from "../client/src/lib/ramos-segmentos";
 import { buildPropertyOriginAllocations, normalizePropertyPartners, propertyMapIsComplete, PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, type PropertyPartnerInput } from "@shared/property-ownership";
 import { canAccessBuiltEnvironment, canPublishVitrineProfile } from "@shared/environment-access";
@@ -1597,6 +1611,178 @@ async function ensureTaxonomyTables() {
   `);
 }
 
+async function ensureStrategicCellTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS strategic_cell_types (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      code text NOT NULL UNIQUE,
+      name text NOT NULL,
+      public_name text NOT NULL,
+      short_description text NOT NULL,
+      help_text text,
+      icon_key text,
+      status text NOT NULL DEFAULT 'ACTIVE',
+      display_order integer NOT NULL DEFAULT 0,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS strategic_cell_markets (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      strategic_cell_type_id uuid NOT NULL REFERENCES strategic_cell_types(id) ON DELETE RESTRICT,
+      code text NOT NULL UNIQUE,
+      name text NOT NULL,
+      public_name text NOT NULL,
+      short_description text,
+      help_text text,
+      status text NOT NULL DEFAULT 'ACTIVE',
+      display_order integer NOT NULL DEFAULT 0,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS strategic_cells (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      community_id text NOT NULL,
+      strategic_cell_type_id uuid NOT NULL REFERENCES strategic_cell_types(id) ON DELETE RESTRICT,
+      name text NOT NULL,
+      description text,
+      proposal_reason text,
+      coordinator_user_id text,
+      coordinator_membro_id text,
+      status text NOT NULL DEFAULT 'ACTIVE',
+      created_by_user_id text NOT NULL,
+      created_by_membro_id text,
+      approved_by_user_id text,
+      approved_by_membro_id text,
+      approved_at timestamp,
+      decision_reason text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT strategic_cells_status_check CHECK (status IN ('DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'ARCHIVED'))
+    )
+  `);
+  await db.execute(sql`ALTER TABLE strategic_cells ALTER COLUMN status SET DEFAULT 'ACTIVE'`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS strategic_cell_memberships (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      strategic_cell_id uuid NOT NULL REFERENCES strategic_cells(id) ON DELETE CASCADE,
+      user_id text NOT NULL,
+      membro_id text NOT NULL,
+      source text NOT NULL DEFAULT 'manual',
+      status text NOT NULL DEFAULT 'INTERESTED',
+      joined_at timestamp DEFAULT now() NOT NULL,
+      approved_at timestamp,
+      approved_by_user_id text,
+      approved_by_membro_id text,
+      updated_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT strategic_cell_memberships_status_check CHECK (status IN ('INTERESTED', 'PENDING', 'ACTIVE', 'REJECTED', 'LEFT')),
+      CONSTRAINT strategic_cell_memberships_cell_user_uniq UNIQUE (strategic_cell_id, user_id)
+    )
+  `);
+  await db.execute(sql`ALTER TABLE strategic_cell_memberships ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'manual'`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS strategic_cell_preferences (
+      user_id text PRIMARY KEY,
+      membro_id text NOT NULL,
+      cell_type_codes jsonb NOT NULL DEFAULT '[]'::jsonb,
+      business_type_codes jsonb NOT NULL DEFAULT '[]'::jsonb,
+      source text NOT NULL DEFAULT 'profile',
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS strategic_cell_events (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      strategic_cell_id uuid NOT NULL REFERENCES strategic_cells(id) ON DELETE CASCADE,
+      event_type text NOT NULL,
+      actor_user_id text,
+      actor_membro_id text,
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS strategic_cells_active_type_uniq ON strategic_cells (community_id, strategic_cell_type_id) WHERE status = 'ACTIVE'`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_strategic_cells_community ON strategic_cells (community_id, status, created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_strategic_cell_memberships_member ON strategic_cell_memberships (membro_id, status)`);
+
+  for (let index = 0; index < STRATEGIC_CELL_TYPES.length; index += 1) {
+    const type = STRATEGIC_CELL_TYPES[index];
+    await db.execute(sql`
+      INSERT INTO strategic_cell_types (code, name, public_name, short_description, help_text, icon_key, status, display_order)
+      VALUES (${type.code}, ${type.name}, ${type.publicName}, ${type.description}, ${type.description}, ${type.iconKey}, 'ACTIVE', ${index + 1})
+      ON CONFLICT (code) DO NOTHING
+    `);
+  }
+  const typeRows = (await db.execute(sql`SELECT id::text, code FROM strategic_cell_types`)).rows as Array<{ id: string; code: string }>;
+  const typeIds = new Map(typeRows.map((row) => [row.code, row.id]));
+  for (let index = 0; index < STRATEGIC_CELL_BUSINESS_TYPES.length; index += 1) {
+    const [typeCode, code, name, publicName] = STRATEGIC_CELL_BUSINESS_TYPES[index];
+    const typeId = typeIds.get(typeCode);
+    if (!typeId) continue;
+    await db.execute(sql`
+      INSERT INTO strategic_cell_markets (strategic_cell_type_id, code, name, public_name, short_description, status, display_order)
+      VALUES (${typeId}, ${code}, ${name}, ${publicName}, ${publicName}, 'ACTIVE', ${index + 1})
+      ON CONFLICT (code) DO NOTHING
+    `);
+  }
+  await db.execute(sql`UPDATE strategic_cell_markets SET status = 'ARCHIVED', updated_at = now() WHERE code IN ('REAL_ESTATE_EQUITY', 'CLUB_DEAL')`);
+}
+
+async function ensureCommunityStrategicCells(communityId: string) {
+  const normalizedCommunityId = String(communityId || "").trim();
+  if (!normalizedCommunityId) return;
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`strategic-cells:${normalizedCommunityId}`}))`);
+    const activated = await tx.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (c.strategic_cell_type_id) c.id
+        FROM strategic_cells c
+        WHERE c.community_id = ${normalizedCommunityId}
+          AND c.status IN ('DRAFT', 'PENDING_APPROVAL', 'SUSPENDED')
+          AND NOT EXISTS (
+            SELECT 1 FROM strategic_cells active
+            WHERE active.community_id = c.community_id
+              AND active.strategic_cell_type_id = c.strategic_cell_type_id
+              AND active.status = 'ACTIVE'
+          )
+        ORDER BY c.strategic_cell_type_id, c.created_at DESC
+      )
+      UPDATE strategic_cells c
+      SET status = 'ACTIVE', approved_at = COALESCE(c.approved_at, now()), updated_at = now()
+      FROM latest
+      WHERE c.id = latest.id
+      RETURNING c.id::text
+    `);
+    const created = await tx.execute(sql`
+      INSERT INTO strategic_cells (
+        community_id, strategic_cell_type_id, name, description, status,
+        created_by_user_id, approved_at
+      )
+      SELECT ${normalizedCommunityId}, t.id, t.public_name, t.short_description, 'ACTIVE', 'system', now()
+      FROM strategic_cell_types t
+      WHERE t.status = 'ACTIVE'
+        AND NOT EXISTS (
+          SELECT 1 FROM strategic_cells c
+          WHERE c.community_id = ${normalizedCommunityId}
+            AND c.strategic_cell_type_id = t.id
+            AND c.status = 'ACTIVE'
+        )
+      ON CONFLICT DO NOTHING
+      RETURNING id::text
+    `);
+    for (const row of [...(activated.rows || []), ...(created.rows || [])] as any[]) {
+      await tx.execute(sql`
+        INSERT INTO strategic_cell_events (strategic_cell_id, event_type, metadata)
+        VALUES (${String(row.id)}, 'STRUCTURE_ENSURED', ${JSON.stringify({ community_id: normalizedCommunityId })}::jsonb)
+      `);
+    }
+  });
+}
+
 async function ensureBiaBancoTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bia_bank_accounts (
@@ -2028,6 +2214,7 @@ async function applyBusinessOpportunityTables() {
   await ensureLandBankAssetsTable();
   await ensureInventarioTables();
   await ensureMemberPortfolioTables();
+  await ensureStrategicCellTables();
 
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS visibilidade text NOT NULL DEFAULT 'privada'`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS consentimento_publicacao_at timestamp`);
@@ -2145,6 +2332,14 @@ async function applyBusinessOpportunityTables() {
 
   await db.execute(sql`ALTER TABLE carteira_demandas ALTER COLUMN imovel_id DROP NOT NULL`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS bia_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS community_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS source_type text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS source_event_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS strategic_cell_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS strategic_cell_type_code text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS market_code text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS contribution_area text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS primary_segment_code text`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS codigo text`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS autor_tipo text NOT NULL DEFAULT 'usuario'`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS autor_user_id text`);
@@ -2368,10 +2563,19 @@ async function applyBusinessOpportunityTables() {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       codigo text NOT NULL UNIQUE,
       titulo text NOT NULL,
+      event_type text NOT NULL DEFAULT 'RO',
+      community_id text,
       data date NOT NULL,
       hora text,
+      start_at timestamp,
+      end_at timestamp,
+      timezone text NOT NULL DEFAULT 'America/Sao_Paulo',
       link text,
+      location_type text NOT NULL DEFAULT 'online',
+      address text,
+      guest_policy text NOT NULL DEFAULT 'members_only',
       pauta text,
+      strategic_cell_id text,
       publico text NOT NULL DEFAULT 'convidados',
       ata text,
       decisoes jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -2382,6 +2586,21 @@ async function applyBusinessOpportunityTables() {
       criado_em timestamp DEFAULT now() NOT NULL,
       atualizado_em timestamp DEFAULT now() NOT NULL
     )
+  `);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS event_type text NOT NULL DEFAULT 'RO'`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS community_id text`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS start_at timestamp`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS end_at timestamp`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS timezone text NOT NULL DEFAULT 'America/Sao_Paulo'`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS location_type text NOT NULL DEFAULT 'online'`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS address text`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS guest_policy text NOT NULL DEFAULT 'members_only'`);
+  await db.execute(sql`ALTER TABLE opportunity_meetings ADD COLUMN IF NOT EXISTS strategic_cell_id text`);
+  await db.execute(sql`
+    UPDATE opportunity_meetings meeting
+    SET community_id = cell.community_id
+    FROM strategic_cells cell
+    WHERE meeting.community_id IS NULL AND meeting.strategic_cell_id = cell.id::text
   `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS opportunity_meeting_items (
@@ -2401,13 +2620,43 @@ async function applyBusinessOpportunityTables() {
       user_id text,
       membro_id text,
       nome text,
+      email text,
+      external boolean NOT NULL DEFAULT false,
       papel text,
       confirmacao text NOT NULL DEFAULT 'pendente',
       presenca text NOT NULL DEFAULT 'nao_informada',
       decisao text,
-      criado_em timestamp DEFAULT now() NOT NULL
+      invited_by_user_id text,
+      invited_by_membro_id text,
+      invite_token_hash text,
+      invite_expires_at timestamp,
+      guest_terms_version text,
+      guest_terms_accepted_at timestamp,
+      guest_terms_evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+      source_type text,
+      source_event_id text,
+      source_community text,
+      source_invited_by text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
     )
   `);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS email text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS external boolean NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS invited_by_user_id text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS invited_by_membro_id text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS invite_token_hash text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS invite_expires_at timestamp`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS guest_terms_version text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS guest_terms_accepted_at timestamp`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS guest_terms_evidence jsonb NOT NULL DEFAULT '{}'::jsonb`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS source_type text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS source_event_id text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS source_community text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS source_invited_by text`);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_participants ADD COLUMN IF NOT EXISTS atualizado_em timestamp DEFAULT now() NOT NULL`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_ro_external_guest_email ON opportunity_meeting_participants (meeting_id, lower(email)) WHERE external = true AND email IS NOT NULL`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_ro_external_guest_token ON opportunity_meeting_participants (invite_token_hash) WHERE invite_token_hash IS NOT NULL`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS opportunity_meeting_decisions (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3771,6 +4020,13 @@ export async function registerRoutes(
   ensureCompanyPlanSubscriptionsTable().catch((err: any) => console.warn("[company-plan] Tabela nao sincronizada:", err?.message || err));
   ensureMonetizationTables().catch((err: any) => console.warn("[monetization] Tabelas nao sincronizadas:", err?.message || err));
   ensureTaxonomyTables().catch((err: any) => console.warn("[taxonomy] Tabelas nao sincronizadas:", err?.message || err));
+  ensureStrategicCellTables()
+    .then(async () => {
+      const collection = await getComunidadeCol();
+      const communities = await directusFetch(collection, "fields=id");
+      for (const community of communities || []) await ensureCommunityStrategicCells(String(community.id));
+    })
+    .catch((err: any) => console.warn("[strategic-cells] Estrutura nao sincronizada:", err?.message || err));
   processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Competencias nao sincronizadas:", err?.message || err));
   setInterval(() => processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Cron de governanca falhou:", err?.message || err)), 6 * 60 * 60 * 1000).unref();
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
@@ -4017,6 +4273,67 @@ export async function registerRoutes(
       res.json({ contribution_area: area, segment_codes: segmentCodes });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Erro ao atualizar relação de segmentos" });
+    }
+  });
+
+  app.get("/api/admin/taxonomy/strategic-cells", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    try {
+      await ensureStrategicCellTables();
+      const result = await db.execute(sql`
+        SELECT t.id::text, t.code, t.public_name, t.short_description, t.help_text, t.status, t.display_order,
+          COALESCE((
+            SELECT jsonb_agg(jsonb_build_object(
+              'code', m.code,
+              'public_name', m.public_name,
+              'short_description', m.short_description,
+              'help_text', m.help_text,
+              'status', m.status,
+              'display_order', m.display_order
+            ) ORDER BY m.display_order)
+            FROM strategic_cell_markets m WHERE m.strategic_cell_type_id = t.id
+          ), '[]'::jsonb) AS markets
+        FROM strategic_cell_types t ORDER BY t.display_order, t.public_name
+      `);
+      return res.json(resultRows(result));
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message || "Erro ao carregar a taxonomia de Células" });
+    }
+  });
+
+  app.put("/api/admin/taxonomy/strategic-cells/:kind/:code", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const kind = String(req.params.kind || "");
+    const code = String(req.params.code || "").trim().toUpperCase();
+    const publicName = String(req.body?.public_name || "").trim();
+    const shortDescription = String(req.body?.short_description || "").trim();
+    const helpText = String(req.body?.help_text || "").trim() || null;
+    const status = String(req.body?.status || "ACTIVE").toUpperCase();
+    const displayOrder = Number(req.body?.display_order || 0);
+    if (!code || !publicName || !shortDescription || !["ACTIVE", "SUSPENDED", "ARCHIVED"].includes(status) || !Number.isFinite(displayOrder)) {
+      return res.status(400).json({ error: "Preencha nome, descrição, status e ordem válidos." });
+    }
+    try {
+      await ensureStrategicCellTables();
+      const result = kind === "cell"
+        ? await db.execute(sql`
+            UPDATE strategic_cell_types SET public_name = ${publicName}, short_description = ${shortDescription},
+              help_text = ${helpText}, status = ${status}, display_order = ${displayOrder}, updated_at = now()
+            WHERE code = ${code} RETURNING *
+          `)
+        : kind === "market"
+          ? await db.execute(sql`
+              UPDATE strategic_cell_markets SET public_name = ${publicName}, short_description = ${shortDescription},
+                help_text = ${helpText}, status = ${status}, display_order = ${displayOrder}, updated_at = now()
+              WHERE code = ${code} RETURNING *
+            `)
+          : null;
+      const updated = result ? resultRows(result)[0] : null;
+      if (!updated) return res.status(kind === "cell" || kind === "market" ? 404 : 400).json({ error: kind === "cell" || kind === "market" ? "Item não encontrado." : "Use cell ou market." });
+      await recordUsageEvent(req, "strategic_cell_taxonomy_updated", { metadata: { kind, code } });
+      return res.json(updated);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message || "Erro ao atualizar a taxonomia de Células" });
     }
   });
 
@@ -8735,14 +9052,14 @@ export async function registerRoutes(
     }
     const entries = allEntries.filter((entry: any) => directusRelationId(entry?.bia) === biaId || String(entry?.bia || "") === biaId);
 
-    const contributions: Array<{ memberId: string; name: string; value: number }> = [];
+    const contributions: Array<{ memberId: string; name: string; value: number; status: string }> = [];
     for (const entry of entries) {
       if (entry?.tipo !== "entrada") continue;
       if (entry?.descricao === "Valor de Origem da BIA") continue;
       const favorecido = relationMember(entry?.favorecido_id) || relationMember(entry?.Favorecido);
       const id = memberId(favorecido);
       if (!id) continue;
-      contributions.push({ memberId: id, name: memberName(favorecido), value: parsePdfNumber(entry?.valor) });
+      contributions.push({ memberId: id, name: memberName(favorecido), value: parsePdfNumber(entry?.valor), status: String(entry?.status || "") });
     }
 
     let transferencias: any[] = [];
@@ -13217,24 +13534,30 @@ ${textContent}`;
     return String(value);
   }
 
-  async function canAccessProtectedOpaActions(req: Request): Promise<boolean> {
-    const role = (req.session as any)?.role;
-    if (role === "admin" || role === "manager" || role === "superadmin") return true;
-
-    const membroId = (req.session as any)?.membroId as string | undefined;
-    if (!membroId) return false;
-    const userId = String((req.session as any)?.directusUserId || "");
+  async function hasActiveMemberEntitlementFor(userId: string, membroId?: string | null): Promise<boolean> {
     if (userId && await hasActiveCompanyPlan(userId)) return true;
-
+    if (!membroId) return false;
     if (process.env.MEMBER_PORTFOLIO_V2_ENABLED === "false") {
       const member = await directusFetchOne("cadastro_geral", membroId, "fields=em_membros_built").catch(() => null);
       return member?.em_membros_built === true;
     }
-
     const membership = (await db.execute(sql`
-      SELECT status, starts_at, ends_at FROM membro_anuidades WHERE membro_id = ${membroId} ORDER BY ends_at DESC LIMIT 1
+      SELECT status, starts_at, ends_at, frozen_at FROM membro_anuidades WHERE membro_id = ${membroId} ORDER BY ends_at DESC LIMIT 1
     `).catch(() => ({ rows: [] } as any))).rows?.[0] as any;
     return isMembershipActive(membership);
+  }
+
+  async function hasActiveMemberEntitlement(req: Request): Promise<boolean> {
+    const role = String((req.session as any)?.role || "").toLowerCase();
+    if (["admin", "manager", "superadmin", "master"].includes(role)) return true;
+    return hasActiveMemberEntitlementFor(
+      String((req.session as any)?.directusUserId || ""),
+      (req.session as any)?.membroId || null,
+    );
+  }
+
+  async function canAccessProtectedOpaActions(req: Request): Promise<boolean> {
+    return hasActiveMemberEntitlement(req);
   }
 
   function resolveAnexosOpa(items: any[], includeAnexos = true): any[] {
@@ -14554,6 +14877,8 @@ ${textContent}`;
 
   function sanitizeInventarioImovel(body: any, actor: { userId?: string | null; membroId?: string | null }, id: string) {
     const now = new Date();
+    const optionalCount = (value: unknown) => value === "" || value == null ? null : Math.min(100, Math.max(0, Math.round(Number(value) || 0)));
+    const constructionYear = Math.round(Number(body.ano_construcao || 0));
     const frequenciaPulso = ["mensal", "trimestral", "desativado"].includes(String(body.frequencia_pulso || ""))
       ? String(body.frequencia_pulso)
       : "mensal";
@@ -14568,6 +14893,12 @@ ${textContent}`;
       nome: String(body.nome || body.qualificacao || "Imóvel").slice(0, 180),
       tipo: String(body.tipo || "").slice(0, 80),
       area_m2: body.area_m2 || body.area || "",
+      padrao_imovel: ["economico", "medio", "alto", "luxo"].includes(String(body.padrao_imovel || "")) ? body.padrao_imovel : null,
+      ano_construcao: constructionYear >= 1800 && constructionYear <= now.getFullYear() + 2 ? constructionYear : null,
+      estado_conservacao: ["novo", "reformado", "bom", "regular", "reformar"].includes(String(body.estado_conservacao || "")) ? body.estado_conservacao : null,
+      quartos: optionalCount(body.quartos),
+      banheiros: optionalCount(body.banheiros),
+      vagas: optionalCount(body.vagas),
       valor_pago: body.valor_pago || "",
       valor_atual: body.valor_atual || body.valor || "",
       moeda: body.moeda || "BRL",
@@ -15525,6 +15856,7 @@ ${inputText.slice(0, 18000)}`,
     const result = await db.execute(sql`
       SELECT * FROM carteira_analises
       WHERE tipo = 'avaliacao_mercado_sugerida'
+        AND versao_regra = 'comparaveis-robustos-v2'
       ORDER BY imovel_id, criado_em DESC
     `);
     const states = new Map<string, { latestAttempt?: any; latestSuccess?: any }>();
@@ -15554,16 +15886,19 @@ ${inputText.slice(0, 18000)}`,
         ? (successAge < MARKET_ESTIMATE_MAX_AGE_MS ? "atualizada" : "desatualizada")
         : "sem_dados";
     return {
-      valor: suggestedValue > 0 ? suggestedValue : fallbackValue,
-      moeda: String(successResult.moeda || imovel.moeda || "BRL").toUpperCase(),
-      data_base: successResult.data_base || imovel.valor_data_base || null,
+      valor: fallbackValue,
+      valor_sugerido: suggestedValue > 0 ? suggestedValue : null,
+      moeda: String(imovel.moeda || "BRL").toUpperCase(),
+      data_base: imovel.valor_data_base || null,
+      sugestao_data_base: successResult.data_base || null,
       status,
       raio_km: MARKET_RADIUS_KM,
       quantidade_comparaveis: Number(successResult.quantidade_comparaveis || 0),
       confianca: successResult.confianca || null,
-      fonte: suggestedValue > 0 ? "comparaveis_mercado" : String(imovel.valor_origem || "declarada"),
+      fonte: String(imovel.valor_origem || "declarada"),
+      sugestao_fonte: suggestedValue > 0 ? "comparaveis_mercado" : null,
       precisa_atualizar: attemptAge >= MARKET_ESTIMATE_MAX_AGE_MS,
-      valor_fallback: suggestedValue > 0 ? null : fallbackValue,
+      valor_fallback: fallbackValue,
     };
   }
 
@@ -15885,6 +16220,12 @@ ${inputText.slice(0, 18000)}`,
       areaM2,
       precoM2: referenceValue / areaM2,
       moeda: String(imovel.moeda || "BRL").toUpperCase(),
+      anoConstrucao: Number(imovel.ano_construcao || 0) || null,
+      padrao: imovel.padrao_imovel || null,
+      estadoConservacao: imovel.estado_conservacao || null,
+      quartos: imovel.quartos ?? null,
+      banheiros: imovel.banheiros ?? null,
+      vagas: imovel.vagas ?? null,
     });
     const verified = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, imovel);
     if (!verified) throw Object.assign(new Error("Não foi possível validar a localização do imóvel para a pesquisa."), { status: 422 });
@@ -15898,6 +16239,12 @@ ${inputText.slice(0, 18000)}`,
       moeda: String(imovel.moeda || "BRL").toUpperCase(),
       raioMaxKm: MARKET_RADIUS_KM,
       exigirDistancia: true,
+      anoConstrucao: Number(imovel.ano_construcao || 0) || undefined,
+      padrao: imovel.padrao_imovel || undefined,
+      estadoConservacao: imovel.estado_conservacao || undefined,
+      quartos: imovel.quartos ?? undefined,
+      banheiros: imovel.banheiros ?? undefined,
+      vagas: imovel.vagas ?? undefined,
     });
     const value = analysis.amostra_suficiente && analysis.referencia_m2_media
       ? Number((analysis.referencia_m2_media * areaM2).toFixed(2))
@@ -16392,6 +16739,7 @@ ${inputText.slice(0, 18000)}`,
       const cached = await db.execute(sql`
         SELECT * FROM carteira_analises
         WHERE imovel_id = ${req.params.id} AND tipo = 'avaliacao_mercado_sugerida'
+          AND versao_regra = 'comparaveis-robustos-v2'
           AND criado_em >= now() - interval '30 days'
         ORDER BY criado_em DESC LIMIT 1
       `);
@@ -16406,9 +16754,15 @@ ${inputText.slice(0, 18000)}`,
           area_m2: access.imovel.area_m2 || null,
           moeda: access.imovel.moeda || "BRL",
           raio_km: MARKET_RADIUS_KM,
+          padrao_imovel: access.imovel.padrao_imovel || null,
+          ano_construcao: access.imovel.ano_construcao || null,
+          estado_conservacao: access.imovel.estado_conservacao || null,
+          quartos: access.imovel.quartos ?? null,
+          banheiros: access.imovel.banheiros ?? null,
+          vagas: access.imovel.vagas ?? null,
         },
         result,
-        "comparaveis-raio-20km-v1",
+        "comparaveis-robustos-v2",
       );
       res.json({ cached: false, analise: analysis, ...result });
     } catch (error: any) {
@@ -16428,7 +16782,7 @@ ${inputText.slice(0, 18000)}`,
         await tx.execute(sql`UPDATE inventario_imoveis SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${req.params.id}`);
         const analysis = await tx.execute(sql`
           INSERT INTO carteira_analises (imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id)
-          VALUES (${req.params.id}, 'avaliacao_confirmada', 'comparaveis-v1', ${JSON.stringify({ valor_anterior: access.imovel.valor_atual, fontes: req.body?.fontes || [], amostra: req.body?.amostra || null, regiao: req.body?.regiao || null, confianca: req.body?.confianca || null })}::jsonb, ${JSON.stringify({ valor_atual: value, data_base: baseDate, confirmado: true })}::jsonb, ${actor.userId}, ${actor.membroId}) RETURNING *
+          VALUES (${req.params.id}, 'avaliacao_confirmada', 'comparaveis-robustos-v2', ${JSON.stringify({ valor_anterior: access.imovel.valor_atual, fontes: req.body?.fontes || [], amostra: req.body?.amostra || null, regiao: req.body?.regiao || null, confianca: req.body?.confianca || null, metodo: req.body?.metodo || "mediana", fatores: req.body?.fatores || [], cobertura_caracteristicas_percentual: req.body?.cobertura_caracteristicas_percentual || 0 })}::jsonb, ${JSON.stringify({ valor_atual: value, data_base: baseDate, confirmado: true })}::jsonb, ${actor.userId}, ${actor.membroId}) RETURNING *
         `);
         return { imovel: data, analise: analysis.rows?.[0] };
       });
@@ -17583,7 +17937,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         ${JSON.stringify(Array.isArray(demand.especialidades) ? demand.especialidades : [])}::jsonb,
         ${demand.cidade || property.cidade || null}, ${demand.estado || property.estado || null}, ${demand.pais || property.pais || "Brasil"},
         ${demand.publicada_em || null}, ${expiresAt}, ${demand.fluxo_disparo || "imediato"},
-        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null, tipo_resolucao: normalizeDemandResolutionMode(demand.tipo_resolucao), tipo_demanda: normalizeDemandKind(demand.tipo_demanda), modalidade_distribuicao: normalizeDemandDistributionMode(demand.modalidade_distribuicao) })}::jsonb,
+        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null, source_type: demand.source_type || null, source_event_id: demand.source_event_id || null, community_id: demand.community_id || null, tipo_resolucao: normalizeDemandResolutionMode(demand.tipo_resolucao), tipo_demanda: normalizeDemandKind(demand.tipo_demanda), modalidade_distribuicao: normalizeDemandDistributionMode(demand.modalidade_distribuicao), strategic_cell_id: demand.strategic_cell_id || null, strategic_cell_type_code: demand.strategic_cell_type_code || null, market_code: demand.market_code || null, contribution_area: demand.contribution_area || null, primary_segment_code: demand.primary_segment_code || null })}::jsonb,
         ${demand.criado_em || new Date()}, ${demand.atualizado_em || new Date()}
       )
       ON CONFLICT (source_type, source_id) DO UPDATE SET
@@ -18027,6 +18381,13 @@ Deixe claro que premissas precisam de validação profissional.`,
       const membroId = String(session.membroId || "");
       const isAdmin = ["admin", "manager", "superadmin"].includes(String(session.role || ""));
       const publicOnly = req.query.publico === "1" || req.query.publico === "true" || (!actorId && !membroId && !isAdmin);
+      const onlyMyCells = req.query.minhas_celulas === "1" || req.query.minhas_celulas === "true";
+      const myCellIds = onlyMyCells && membroId
+        ? new Set((await db.execute(sql`
+            SELECT strategic_cell_id::text AS id FROM strategic_cell_memberships
+            WHERE membro_id = ${membroId} AND status = 'ACTIVE'
+          `)).rows.map((row: any) => String(row.id)))
+        : null;
       const items = (result.rows || []).filter((item: any) => {
         if (tipo !== "todos" && item.tipo !== tipo) return false;
         const expired = item.expira_em && new Date(item.expira_em).getTime() <= Date.now();
@@ -18049,6 +18410,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         if (estado && !String(item.estado || "").toLowerCase().includes(estado)) return false;
         if (pais && !String(item.pais || "").toLowerCase().includes(pais)) return false;
         if (especialidade && !values.includes(especialidade)) return false;
+        if (myCellIds && !myCellIds.has(String(item.metadata?.strategic_cell_id || ""))) return false;
         return true;
       });
       const visibleItems = await Promise.all(items.map(async (item: any) => {
@@ -18138,6 +18500,9 @@ Deixe claro que premissas precisam de validação profissional.`,
       const actor = requireCarteiraActor(req);
       await ensureBusinessOpportunityTables();
       scheduleOpportunityRegistryBackfill();
+      const meetingCommunityContext = await opportunityMeetingCommunityContext(req);
+      const meetingCommunityIds = Array.from(meetingCommunityContext.ids);
+      const meetingCommunityNames = new Map(meetingCommunityContext.communities.map((community) => [String(community.id), community.nome || community.sigla || "Comunidade BUILT"]));
 
       const profile = actor.membroId
         ? await directusFetchOne(
@@ -18260,12 +18625,14 @@ Deixe claro que premissas precisam de validação profissional.`,
 
       const meetingsResult = await db.execute(sql`
         SELECT meeting.*,
-          (SELECT COUNT(*) FROM opportunity_meeting_items item WHERE item.meeting_id = meeting.id)::int AS total_oportunidades
+          (SELECT COUNT(*) FROM opportunity_meeting_items item WHERE item.meeting_id = meeting.id)::int AS total_oportunidades,
+          (SELECT cell.name FROM strategic_cells cell WHERE cell.id::text = meeting.strategic_cell_id LIMIT 1) AS strategic_cell_name
         FROM opportunity_meetings meeting
         WHERE meeting.status <> 'cancelada'
           AND (
             meeting.organizador_user_id = ${actor.userId}
             OR meeting.organizador_membro_id = ${actor.membroId}
+            OR meeting.community_id = ANY(${meetingCommunityIds}::text[])
             OR EXISTS (
               SELECT 1 FROM opportunity_meeting_participants participant
               WHERE participant.meeting_id = meeting.id
@@ -18277,6 +18644,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       `);
       for (const meeting of meetingsResult.rows || []) {
         const item: any = meeting;
+        const communityName = meetingCommunityNames.get(String(item.community_id || "")) || null;
         const scored = scoreBusinessFeedCandidate(scoringProfile, {
           title: item.titulo,
           description: item.pauta,
@@ -18290,13 +18658,14 @@ Deixe claro que premissas precisam de validação profissional.`,
           selo: "RO",
           codigo: item.codigo,
           titulo: item.titulo,
-          resumo: item.pauta || `${Number(item.total_oportunidades || 0)} oportunidades na pauta`,
-          localizacao: item.link ? "Reunião on-line" : null,
+          resumo: roAlertCopy({ date: String(item.data), time: item.hora, cellName: item.strategic_cell_name, communityName }),
+          localizacao: item.location_type === "presencial" ? item.address : item.location_type === "hibrida" ? `Híbrida${item.address ? ` · ${item.address}` : ""}` : "On-line",
           status: item.status,
           data: item.data,
           hora: item.hora,
           aderencia: Math.min(100, scored.score + 15),
-          motivos: ["Você está entre os participantes", ...scored.reasons].slice(0, 2),
+          categoria: item.strategic_cell_name || communityName,
+          motivos: ["Uma Reunião de Oportunidades da sua Comunidade.", item.strategic_cell_name ? `Foco: Célula ${item.strategic_cell_name}` : communityName ? `Geral da ${communityName}` : null, ...scored.reasons].filter(Boolean).slice(0, 2),
           url: `/area-aliancas?tab=oportunidades&tipo=ros&ro=${item.codigo}`,
         });
       }
@@ -18843,6 +19212,15 @@ Deixe claro que premissas precisam de validação profissional.`,
       } else if (imovelId) {
         await requireCarteiraAccess(imovelId, actor, "administracao");
       }
+      const cellSelection = await resolveDemandCellSelection(req, biaId, req.body?.strategic_cell_id, req.body?.market_code);
+      const contributionArea = String(req.body?.contribution_area || "").trim() || null;
+      const primarySegmentCode = String(req.body?.primary_segment_code || "").trim() || null;
+      if (contributionArea && !getPublicContributionAreas().some((item) => item.value === contributionArea)) {
+        return res.status(400).json({ error: "Área de contribuição inválida." });
+      }
+      if (primarySegmentCode && !RAMOS_SEGMENTOS.some((branch) => branch.segmentos.some((segment) => segment.codigo === primarySegmentCode))) {
+        return res.status(400).json({ error: "Segmento inválido." });
+      }
       const tipoDemanda = normalizeDemandKind(req.body?.tipo_demanda);
       const modalidadeDistribuicao = normalizeDemandDistributionMode(req.body?.modalidade_distribuicao);
       const destinatarios = Array.isArray(req.body?.destinatarios) ? req.body.destinatarios : [];
@@ -18860,7 +19238,8 @@ Deixe claro que premissas precisam de validação profissional.`,
       const expiryDays = Number(req.body?.validade_dias || 60);
       const insert = await db.execute(sql`
         INSERT INTO carteira_demandas (
-          imovel_id, bia_id, codigo, autor_tipo, autor_user_id, autor_membro_id,
+          imovel_id, bia_id, strategic_cell_id, strategic_cell_type_code, market_code,
+          contribution_area, primary_segment_code, codigo, autor_tipo, autor_user_id, autor_membro_id,
           tipo_resolucao, titulo, escopo, urgencia, especialidades, status,
           responsavel_user_id, responsavel_membro_id, visibilidade,
           consentimento_publicacao_at, publicada_em, expira_em, resumo_publico,
@@ -18868,7 +19247,8 @@ Deixe claro que premissas precisam de validação profissional.`,
           fluxo_disparo, tipo_demanda, modalidade_distribuicao,
           criado_por_user_id, criado_por_membro_id
         ) VALUES (
-          ${imovelId}, ${biaId}, ${code}, ${authorType},
+          ${imovelId}, ${biaId}, ${cellSelection.cellId}, ${cellSelection.typeCode}, ${cellSelection.marketCode},
+          ${contributionArea}, ${primarySegmentCode}, ${code}, ${authorType},
           ${authorType === "usuario" ? actor.userId : null}, ${authorType === "usuario" ? actor.membroId : null},
           ${resolutionMode}, ${titulo}, ${req.body?.descricao || req.body?.escopo || null},
           ${req.body?.urgencia || "normal"},
@@ -18948,6 +19328,12 @@ Deixe claro que premissas precisam de validação profissional.`,
         : normalizeDemandResolutionMode(req.body.tipo_resolucao);
       const resolutionError = demandResolutionError(resolutionMode, current.bia_id);
       if (resolutionError) return res.status(400).json({ error: resolutionError });
+      const cellSelection = await resolveDemandCellSelection(
+        req,
+        current.bia_id ? String(current.bia_id) : null,
+        req.body?.strategic_cell_id === undefined ? current.strategic_cell_id : req.body.strategic_cell_id,
+        req.body?.market_code === undefined ? current.market_code : req.body.market_code,
+      );
       const updated = await db.execute(sql`
         UPDATE carteira_demandas SET
           titulo = ${String(req.body?.titulo ?? current.titulo).trim()},
@@ -18963,6 +19349,11 @@ Deixe claro que premissas precisam de validação profissional.`,
           pais = ${req.body?.pais === undefined ? current.pais : String(req.body.pais || "").trim() || null},
           expira_em = ${req.body?.expira_em === undefined ? current.expira_em : req.body.expira_em || null},
           fluxo_disparo = ${req.body?.fluxo_disparo === "gradual" ? "gradual" : req.body?.fluxo_disparo === "imediato" ? "imediato" : current.fluxo_disparo || "imediato"},
+          strategic_cell_id = ${cellSelection.cellId},
+          strategic_cell_type_code = ${cellSelection.typeCode},
+          market_code = ${cellSelection.marketCode},
+          contribution_area = ${req.body?.contribution_area === undefined ? current.contribution_area : String(req.body.contribution_area || "").trim() || null},
+          primary_segment_code = ${req.body?.primary_segment_code === undefined ? current.primary_segment_code : String(req.body.primary_segment_code || "").trim() || null},
           tipo_resolucao = ${resolutionMode},
           status = ${status}, atualizado_em = now()
         WHERE id = ${registry.source_id} RETURNING *
@@ -19300,6 +19691,8 @@ Deixe claro que premissas precisam de validação profissional.`,
     try {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate");
       const search = String(req.query.q || "").trim().toLowerCase();
+      const onlyMyCells = req.query.minhas_celulas === "1" || req.query.minhas_celulas === "true";
+      const memberId = String((req.session as any)?.membroId || "");
       const result = await db.execute(sql`
         SELECT d.*,
           i.data->>'cidade' AS cidade,
@@ -19312,6 +19705,11 @@ Deixe claro que premissas precisam de validação profissional.`,
         WHERE d.visibilidade = 'publicada'
           AND d.status NOT IN ('cancelada', 'concluida', 'convertida', 'encerrada_sem_acordo', 'expirada', 'arquivada')
           AND (d.expira_em IS NULL OR d.expira_em > now())
+          AND (${!onlyMyCells} OR EXISTS (
+            SELECT 1 FROM strategic_cell_memberships sm
+            WHERE sm.strategic_cell_id::text = d.strategic_cell_id
+              AND sm.membro_id = ${memberId || null} AND sm.status = 'ACTIVE'
+          ))
           AND (${search} = '' OR lower(concat_ws(' ', d.titulo, d.resumo_publico, d.escopo, i.data->>'cidade', i.data->>'estado')) LIKE ${`%${search}%`})
         ORDER BY COALESCE(d.publicada_em, d.criado_em) DESC
       `);
@@ -19791,6 +20189,10 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
 
     let originCommunityId = req.body?.comunidade_id || null;
+    const strategicCellId = registry.metadata?.strategic_cell_id ? String(registry.metadata.strategic_cell_id) : null;
+    if (!originCommunityId && strategicCellId) {
+      originCommunityId = (await db.execute(sql`SELECT community_id FROM strategic_cells WHERE id = ${strategicCellId} AND status = 'ACTIVE' LIMIT 1`)).rows?.[0]?.community_id || null;
+    }
     if (!originCommunityId && session.membroId) {
       const storedMotherCommunity = await getStoredMembroComunidadeMae(String(session.membroId)).catch(() => null);
       originCommunityId = storedMotherCommunity?.comunidade_id || null;
@@ -19852,9 +20254,21 @@ Deixe claro que premissas precisam de validação profissional.`,
     const members = (membersRaw as any[]).filter((member) => member.em_membros_built === true || member.em_membros_built === 1);
     const communities = communitiesRaw as any[];
     const targetIds = new Set<string>();
-    if (wave.audiencia === "comunidade_origem" && flow.comunidade_id) {
-      const community = communities.find((item) => String(item.id) === String(flow.comunidade_id));
-      if (community) communityMemberIds(community).forEach((id) => targetIds.add(id));
+    if (wave.audiencia === "comunidade_origem") {
+      const strategicCellId = registry.metadata?.strategic_cell_id ? String(registry.metadata.strategic_cell_id) : null;
+      const targetCellIds = Array.from(new Set([
+        strategicCellId,
+        ...(Array.isArray(registry.metadata?.target_strategic_cell_ids) ? registry.metadata.target_strategic_cell_ids : []),
+      ].filter(Boolean).map(String)));
+      if (targetCellIds.length) {
+        const cellMembers = await db.execute(sql`
+          SELECT membro_id FROM strategic_cell_memberships WHERE strategic_cell_id::text = ANY(${targetCellIds}::text[]) AND status = 'ACTIVE'
+        `);
+        for (const row of cellMembers.rows || []) targetIds.add(String((row as any).membro_id));
+      } else if (flow.comunidade_id) {
+        const community = communities.find((item) => String(item.id) === String(flow.comunidade_id));
+        if (community) communityMemberIds(community).forEach((id) => targetIds.add(id));
+      }
     } else if (["regional", "mesmo_territorio"].includes(wave.audiencia) && flow.territorio) {
       communities.filter((item) => String(item.territorio || "").toLowerCase() === String(flow.territorio).toLowerCase()).forEach((community) => communityMemberIds(community).forEach((id) => targetIds.add(id)));
     } else if (["nacional", "mesmo_pais", "mesmo_estado"].includes(wave.audiencia) && flow.pais) {
@@ -19869,7 +20283,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       const member: any = memberById.get(memberId);
       if (!member) continue;
       const userId = userByMember.get(memberId) || null;
-      const metadata = { audiencia: wave.audiencia, codigo: registry.codigo, titulo: registry.titulo, selo: registry.tipo === "demanda" ? "Demanda" : "OBA", url: registry.url || (registry.tipo === "demanda" ? `/vitrine/oportunidades/demandas/${registry.source_id}` : `/vitrine/oportunidades/obas/${registry.source_id}`) };
+      const metadata = { audiencia: wave.audiencia, strategic_cell_id: registry.metadata?.strategic_cell_id || null, codigo: registry.codigo, titulo: registry.titulo, selo: registry.tipo === "demanda" ? "Demanda" : "OBA", url: registry.url || (registry.tipo === "demanda" ? `/vitrine/oportunidades/demandas/${registry.source_id}` : `/vitrine/oportunidades/obas/${registry.source_id}`) };
       const internal = await db.execute(sql`
         INSERT INTO opportunity_distribution_deliveries (wave_id, registry_id, user_id, membro_id, canal, metadata)
         VALUES (${wave.id}, ${registry.id}, ${userId}, ${memberId}, 'interna', ${JSON.stringify(metadata)}::jsonb)
@@ -19931,7 +20345,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       const flow = (await db.execute(sql`SELECT * FROM opportunity_distribution_flows WHERE registry_id = ${registry.id} LIMIT 1`)).rows?.[0] as any;
       if (!flow) return res.status(404).json({ error: "Fluxo de disparo não encontrado." });
       const waves = await db.execute(sql`SELECT * FROM opportunity_distribution_waves WHERE flow_id = ${flow.id} ORDER BY ordem`);
-      res.json({ ...flow, ondas: waves.rows || [] });
+      res.json({ ...flow, ondas: waves.rows || [], strategic_cell_ids: registry.metadata?.target_strategic_cell_ids || [] });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -19943,6 +20357,14 @@ Deixe claro que premissas precisam de validação profissional.`,
       if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
       if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para configurar o disparo." });
       const mode = req.body?.modo === "gradual" ? "gradual" : "imediato";
+      const targetCellIds: string[] = Array.from(new Set<string>((Array.isArray(req.body?.strategic_cell_ids) ? req.body.strategic_cell_ids : []).map(String).filter(Boolean)));
+      if (targetCellIds.length) {
+        const activeCells = await db.execute(sql`SELECT id::text FROM strategic_cells WHERE id::text = ANY(${targetCellIds}::text[]) AND status = 'ACTIVE'`);
+        if (activeCells.rows.length !== targetCellIds.length) return res.status(400).json({ error: "Uma ou mais Células de destino estão inativas ou não existem." });
+        registry.metadata = { ...(registry.metadata || {}), target_strategic_cell_ids: targetCellIds };
+        await db.execute(sql`UPDATE opportunity_registry SET metadata = ${JSON.stringify(registry.metadata)}::jsonb, atualizado_em = now() WHERE id = ${registry.id}`);
+        await recordOpportunityEvent(String(registry.id), req, "celulas_distribuicao_definidas", "Células de destino definidas", { strategic_cell_ids: targetCellIds });
+      }
       res.json(await createDistributionFlow(registry, req, mode));
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -20066,6 +20488,13 @@ Deixe claro que premissas precisam de validação profissional.`,
       if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para converter esta Demanda." });
       const demand = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0] as any;
       if (!demand) return res.status(404).json({ error: "Demanda não encontrada" });
+      const inheritedCellContext = {
+        strategic_cell_id: demand.strategic_cell_id || registry.metadata?.strategic_cell_id || null,
+        strategic_cell_type_code: demand.strategic_cell_type_code || registry.metadata?.strategic_cell_type_code || null,
+        market_code: demand.market_code || registry.metadata?.market_code || null,
+        contribution_area: demand.contribution_area || registry.metadata?.contribution_area || null,
+        primary_segment_code: demand.primary_segment_code || registry.metadata?.primary_segment_code || null,
+      };
       if (demand.opa_id) {
         const existingOpa = await directusFetchOne("tipos_oportunidades", String(demand.opa_id), "fields=*").catch(() => null);
         const existingRegistry = existingOpa ? await syncOpaRegistry(existingOpa) : await getOpportunityRegistry(String(demand.opa_id)).catch(() => null);
@@ -20074,7 +20503,7 @@ Deixe claro que premissas precisam de validação profissional.`,
           INSERT INTO opportunity_relations (
             origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id
           ) VALUES (
-            ${registry.id}, ${existingRegistry.id}, 'demanda_gerou_oba', ${JSON.stringify({ bia_id: demand.bia_id || registry.bia_id })}::jsonb,
+            ${registry.id}, ${existingRegistry.id}, 'demanda_gerou_oba', ${JSON.stringify({ bia_id: demand.bia_id || registry.bia_id, ...inheritedCellContext })}::jsonb,
             ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null}
           ) ON CONFLICT (origem_registry_id, destino_registry_id, tipo) DO NOTHING
         `);
@@ -20084,7 +20513,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         `);
         await db.execute(sql`
           UPDATE opportunity_registry
-          SET metadata = metadata || ${JSON.stringify({ demanda_id: String(demand.id), demanda_codigo: registry.codigo })}::jsonb,
+          SET metadata = metadata || ${JSON.stringify({ demanda_id: String(demand.id), demanda_codigo: registry.codigo, ...inheritedCellContext })}::jsonb,
               atualizado_em = now()
           WHERE id = ${existingRegistry.id}
         `);
@@ -20144,13 +20573,13 @@ Deixe claro que premissas precisam de validação profissional.`,
         INSERT INTO opportunity_relations (
           origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id
         ) VALUES (
-          ${registry.id}, ${targetRegistry.id}, 'demanda_gerou_oba', ${JSON.stringify({ bia_id: String(authorization.bia.id) })}::jsonb,
+          ${registry.id}, ${targetRegistry.id}, 'demanda_gerou_oba', ${JSON.stringify({ bia_id: String(authorization.bia.id), ...inheritedCellContext })}::jsonb,
           ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null}
         ) ON CONFLICT (origem_registry_id, destino_registry_id, tipo) DO NOTHING
       `);
       await db.execute(sql`
         UPDATE opportunity_registry
-        SET metadata = metadata || ${JSON.stringify({ demanda_id: String(demand.id), demanda_codigo: registry.codigo })}::jsonb,
+        SET metadata = metadata || ${JSON.stringify({ demanda_id: String(demand.id), demanda_codigo: registry.codigo, ...inheritedCellContext })}::jsonb,
             atualizado_em = now()
         WHERE id = ${targetRegistry.id}
       `);
@@ -20166,7 +20595,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       });
       res.status(201).json({
         oba: opa,
-        oportunidade: { ...targetRegistry, metadata: { ...(targetRegistry.metadata || {}), demanda_id: String(demand.id), demanda_codigo: registry.codigo } },
+        oportunidade: { ...targetRegistry, metadata: { ...(targetRegistry.metadata || {}), demanda_id: String(demand.id), demanda_codigo: registry.codigo, ...inheritedCellContext } },
         origem: registry,
       });
     } catch (error: any) {
@@ -20251,7 +20680,28 @@ Deixe claro que premissas precisam de validação profissional.`,
     throw new Error("Não foi possível gerar um código único para a RO.");
   }
 
-  async function opportunityMeetingAccess(req: Request, meeting: any) {
+  async function opportunityMeetingCommunityContext(req: Request) {
+    const actor = requireCarteiraActor(req);
+    const communities = actor.membroId ? await getMembroComunidadesLinks(String(actor.membroId)).catch(() => [] as any[]) : [];
+    const anchor = actor.membroId ? await getStoredMembroComunidadeMae(String(actor.membroId)).catch(() => null) : null;
+    const ids = new Set((communities as any[]).map((community) => String(community.id)));
+    if (anchor?.comunidade_id) ids.add(String(anchor.comunidade_id));
+    return { actor, communities: communities as any[], ids };
+  }
+
+  function normalizedOptionalRoUrl(value: unknown) {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error();
+      return parsed.toString();
+    } catch {
+      throw Object.assign(new Error("Informe um link válido para a RO."), { status: 400 });
+    }
+  }
+
+  async function opportunityMeetingAccess(req: Request, meeting: any, accessibleCommunityIds?: Set<string>) {
     const actor = requireCarteiraActor(req);
     const isOrganizer = actor.isPlatformAdmin
       || String(meeting.organizador_user_id || "") === String(actor.userId || "")
@@ -20286,29 +20736,50 @@ Deixe claro que premissas precisam de validação profissional.`,
         break;
       }
     }
-    return { canView: participant || canReview, canOrganize: canReview };
+    const communityIds = accessibleCommunityIds || (await opportunityMeetingCommunityContext(req)).ids;
+    const communityMember = Boolean(meeting.community_id && communityIds.has(String(meeting.community_id)));
+    return { canView: participant || canReview || communityMember, canOrganize: canReview };
   }
+
+  app.use("/api/reunioes-oportunidades", async (_req, res, next) => {
+    try {
+      await ensureBusinessOpportunityTables();
+      next();
+    } catch (error: any) {
+      res.status(503).json({ error: `As ROs ainda não estão disponíveis: ${error.message}` });
+    }
+  });
 
   app.get("/api/reunioes-oportunidades", async (req, res) => {
     try {
-      requireCarteiraActor(req);
+      const communityContext = await opportunityMeetingCommunityContext(req);
       const search = String(req.query.q || "").trim();
       const result = await db.execute(sql`
         SELECT m.*,
+          (SELECT c.name FROM strategic_cells c WHERE c.id::text = m.strategic_cell_id LIMIT 1) AS strategic_cell_name,
           COALESCE((
             SELECT jsonb_agg(jsonb_build_object('codigo', r.codigo, 'tipo', r.tipo, 'titulo', r.titulo, 'papel', mi.papel) ORDER BY mi.papel DESC, r.titulo)
             FROM opportunity_meeting_items mi
             JOIN opportunity_registry r ON r.id = mi.registry_id
             WHERE mi.meeting_id = m.id
           ), '[]'::jsonb) AS oportunidades,
-          (SELECT COUNT(*) FROM opportunity_meeting_participants p WHERE p.meeting_id = m.id) AS total_participantes
+          (SELECT COUNT(*) FROM opportunity_meeting_participants p WHERE p.meeting_id = m.id) AS total_participantes,
+          (SELECT COUNT(*) FROM opportunity_meeting_participants p WHERE p.meeting_id = m.id AND p.external = true) AS total_convidados_externos
         FROM opportunity_meetings m
         WHERE ${search} = '' OR lower(concat_ws(' ', m.codigo, m.titulo, m.pauta)) LIKE ${`%${search.toLowerCase()}%`}
         ORDER BY m.data DESC, m.hora DESC NULLS LAST
       `);
+      const communityNames = new Map(communityContext.communities.map((community) => [String(community.id), community.nome || community.sigla || "Comunidade BUILT"]));
       const visible: any[] = [];
       for (const meeting of result.rows || []) {
-        if ((await opportunityMeetingAccess(req, meeting)).canView) visible.push(meeting);
+        const access = await opportunityMeetingAccess(req, meeting, communityContext.ids);
+        if (!access.canView) continue;
+        const communityId = String((meeting as any).community_id || "");
+        if (communityId && !communityNames.has(communityId)) {
+          const community = await getCommunityForCells(communityId);
+          if (community) communityNames.set(communityId, community.nome || community.sigla || "Comunidade BUILT");
+        }
+        visible.push({ ...meeting, community_name: communityNames.get(communityId) || null, can_organize: access.canOrganize });
       }
       res.json(visible);
     } catch (error: any) {
@@ -20323,13 +20794,19 @@ Deixe claro que premissas precisam de validação profissional.`,
       if (!meeting) return res.status(404).json({ error: "Reunião de Oportunidades não encontrada" });
       const access = await opportunityMeetingAccess(req, meeting);
       if (!access.canView) return res.status(403).json({ error: "Sem acesso a esta Reunião de Oportunidades." });
+      const community = meeting.community_id ? await getCommunityForCells(String(meeting.community_id)) : null;
       const [items, participants, decisions] = await Promise.all([
         db.execute(sql`
           SELECT r.*, mi.papel FROM opportunity_meeting_items mi
           JOIN opportunity_registry r ON r.id = mi.registry_id
           WHERE mi.meeting_id = ${meeting.id} ORDER BY r.tipo, r.titulo
         `),
-        db.execute(sql`SELECT * FROM opportunity_meeting_participants WHERE meeting_id = ${meeting.id} ORDER BY nome`),
+        db.execute(sql`
+          SELECT id::text, user_id, membro_id, nome, papel, confirmacao, presenca, external,
+            CASE WHEN ${access.canOrganize} THEN email ELSE NULL END AS email,
+            guest_terms_version, guest_terms_accepted_at, criado_em, atualizado_em
+          FROM opportunity_meeting_participants WHERE meeting_id = ${meeting.id} ORDER BY nome
+        `),
         db.execute(sql`
           SELECT d.*, eo.codigo AS opportunity_codigo, eo.titulo AS opportunity_titulo
           FROM opportunity_meeting_decisions d
@@ -20338,7 +20815,15 @@ Deixe claro que premissas precisam de validação profissional.`,
           ORDER BY d.criado_em DESC
         `),
       ]);
-      res.json({ ...meeting, oportunidades: items.rows || [], participantes: participants.rows || [], decisoes_estruturadas: decisions.rows || [], can_organize: access.canOrganize });
+      res.json({
+        ...meeting,
+        community_name: community?.nome || community?.sigla || null,
+        oportunidades: items.rows || [],
+        participantes: participants.rows || [],
+        convidados_externos: (participants.rows || []).filter((participant: any) => participant.external === true),
+        decisoes_estruturadas: decisions.rows || [],
+        can_organize: access.canOrganize,
+      });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -20351,9 +20836,46 @@ Deixe claro que premissas precisam de validação profissional.`,
       const data = String(req.body?.data || "").trim();
       const opportunityIds = Array.isArray(req.body?.oportunidades) ? req.body.oportunidades.map(String) : [];
       const contextIds = Array.isArray(req.body?.contextos) ? req.body.contextos.map(String) : [];
-      if (!titulo || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return res.status(400).json({ error: "Informe título e data da RO." });
+      const communityId = String(req.body?.community_id || "").trim();
+      const strategicCellId = String(req.body?.strategic_cell_id || "").trim() || null;
+      if (!titulo || !communityId) return res.status(400).json({ error: "Informe título e Comunidade da RO." });
       if (!opportunityIds.length) return res.status(400).json({ error: "Selecione pelo menos uma Oportunidade econômica." });
+      let schedule: ReturnType<typeof normalizeRoSchedule>;
+      let locationType: ReturnType<typeof normalizeRoLocationType>;
+      let guestPolicy: ReturnType<typeof normalizeRoGuestPolicy>;
+      let timezone: string;
+      try {
+        schedule = normalizeRoSchedule({ date: data, time: req.body?.hora, endAt: req.body?.end_at });
+        locationType = normalizeRoLocationType(req.body?.location_type);
+        guestPolicy = normalizeRoGuestPolicy(req.body?.guest_policy);
+        timezone = normalizeRoTimeZone(req.body?.timezone);
+      } catch (validationError: any) {
+        throw Object.assign(validationError, { status: 400 });
+      }
+      const meetingUrl = normalizedOptionalRoUrl(req.body?.link || req.body?.meeting_url);
+      const address = String(req.body?.address || "").trim() || null;
       await ensureBusinessOpportunityTables();
+      const community = await getCommunityForCells(communityId);
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada." });
+      if (!isAdminRequest(req) && !await isCommunityMemberIncludingAnchor(req, community)) {
+        return res.status(403).json({ error: "A RO deve pertencer a uma Comunidade da qual você participa." });
+      }
+      let strategicCellName: string | null = null;
+      if (strategicCellId) {
+        const linkedCell = (await db.execute(sql`
+          SELECT c.name, c.community_id,
+            EXISTS (
+              SELECT 1 FROM strategic_cell_memberships sm
+              WHERE sm.strategic_cell_id = c.id AND sm.membro_id = ${actor.membroId} AND sm.status = 'ACTIVE'
+            ) AS is_participant
+          FROM strategic_cells c
+          WHERE c.id::text = ${strategicCellId} AND c.status = 'ACTIVE'
+          LIMIT 1
+        `)).rows?.[0] as any;
+        if (!linkedCell || String(linkedCell.community_id) !== communityId) return res.status(400).json({ error: "A Célula em foco deve pertencer à Comunidade da RO." });
+        if (!isAdminRequest(req) && !linkedCell.is_participant) return res.status(403).json({ error: "A RO só pode focar uma Célula ativa da qual você participa." });
+        strategicCellName = linkedCell.name || null;
+      }
       scheduleOpportunityRegistryBackfill();
       const registries: any[] = [];
       for (const identifier of opportunityIds) {
@@ -20376,13 +20898,17 @@ Deixe claro que premissas precisam de validação profissional.`,
       const code = await createUniqueMeetingCode();
       const inserted = await db.execute(sql`
         INSERT INTO opportunity_meetings (
-          codigo, titulo, data, hora, link, pauta, publico, organizador_user_id, organizador_membro_id
+          codigo, titulo, event_type, community_id, data, hora, start_at, end_at, timezone,
+          link, location_type, address, guest_policy, pauta, strategic_cell_id, publico,
+          organizador_user_id, organizador_membro_id
         ) VALUES (
-          ${code}, ${titulo}, ${data}, ${req.body?.hora || null}, ${req.body?.link || null},
-          ${req.body?.pauta || null}, ${req.body?.publico || "convidados"}, ${actor.userId}, ${actor.membroId}
+          ${code}, ${titulo}, ${RO_EVENT_TYPE}, ${communityId}, ${schedule.date}, ${schedule.time}, ${schedule.startAt}, ${schedule.endAt}, ${timezone},
+          ${meetingUrl}, ${locationType}, ${address}, ${guestPolicy}, ${req.body?.pauta || null}, ${strategicCellId},
+          ${guestPolicy === "external_by_invitation" ? "convidados" : "membros"}, ${actor.userId}, ${actor.membroId}
         ) RETURNING *
       `);
       const meeting = inserted.rows?.[0] as any;
+      const alertCopy = roAlertCopy({ date: schedule.date, time: schedule.time, cellName: strategicCellName, communityName: community.nome || community.sigla || null });
       const participantMap = new Map<string, { user_id: string | null; membro_id: string | null; nome: string | null; papel: string }>();
       const addParticipant = (userId: any, membroId: any, nome: any, papel: string) => {
         const key = membroId ? `m:${membroId}` : userId ? `u:${userId}` : "";
@@ -20420,8 +20946,8 @@ Deixe claro que premissas precisam de validação profissional.`,
               user_id, membro_id, titulo, descricao, data, hora, prioridade,
               contexto_tipo, contexto_id, atribuido_por_user_id, atribuido_por_membro_id, atribuido_por_nome
             ) VALUES (
-              ${agendaUserId}, ${participant.membro_id}, ${`RO ${code} · ${titulo}`}, ${req.body?.pauta || null},
-              ${data}, ${req.body?.hora || null}, 'media', 'reuniao_oportunidades', ${String(meeting.id)},
+              ${agendaUserId}, ${participant.membro_id}, ${alertCopy}, ${req.body?.pauta || titulo},
+              ${schedule.date}, ${schedule.time}, 'media', 'reuniao_oportunidades', ${String(meeting.id)},
               ${actor.userId}, ${actor.membroId}, ${(req.session as any)?.nome || null}
             )
           `);
@@ -20434,11 +20960,11 @@ Deixe claro que premissas precisam de validação profissional.`,
           code,
           title: titulo,
           status: "agendada",
-          metadata: { papel: registry.papel || "contexto" },
+          metadata: { papel: registry.papel || "contexto", community_id: communityId, strategic_cell_id: strategicCellId },
         }, "discutida_em_ro", { userId: actor.userId, memberId: actor.membroId });
         await recordOpportunityEvent(String(registry.id), req, "incluida_ro", "Incluída em Reunião de Oportunidades", { ro_codigo: code });
       }
-      res.status(201).json({ ...meeting, oportunidades: registries, participantes: Array.from(participantMap.values()) });
+      res.status(201).json({ ...meeting, community_name: community.nome || community.sigla || null, strategic_cell_name: strategicCellName, oportunidades: registries, participantes: Array.from(participantMap.values()) });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -20450,11 +20976,42 @@ Deixe claro que premissas precisam de validação profissional.`,
       const meeting = (await db.execute(sql`SELECT * FROM opportunity_meetings WHERE id::text = ${req.params.id} OR codigo = ${req.params.id} LIMIT 1`)).rows?.[0] as any;
       if (!meeting) return res.status(404).json({ error: "RO não encontrada" });
       if (!(await opportunityMeetingAccess(req, meeting)).canOrganize) return res.status(403).json({ error: "Somente um organizador autorizado pode editar esta RO." });
+      const communityId = String(req.body?.community_id ?? meeting.community_id ?? "").trim();
+      const community = communityId ? await getCommunityForCells(communityId) : null;
+      if (!community) return res.status(400).json({ error: "A RO deve permanecer vinculada a uma Comunidade válida." });
+      if (!isAdminRequest(req) && !await isCommunityMemberIncludingAnchor(req, community)) return res.status(403).json({ error: "Você não pertence à Comunidade escolhida." });
+      const strategicCellId = req.body?.strategic_cell_id === undefined ? meeting.strategic_cell_id || null : String(req.body.strategic_cell_id || "").trim() || null;
+      if (strategicCellId) {
+        const cell = (await db.execute(sql`SELECT community_id FROM strategic_cells WHERE id::text = ${strategicCellId} AND status = 'ACTIVE' LIMIT 1`)).rows?.[0] as any;
+        if (!cell || String(cell.community_id) !== communityId) return res.status(400).json({ error: "A Célula em foco deve pertencer à Comunidade da RO." });
+      }
+      let schedule: ReturnType<typeof normalizeRoSchedule>;
+      let locationType: ReturnType<typeof normalizeRoLocationType>;
+      let guestPolicy: ReturnType<typeof normalizeRoGuestPolicy>;
+      let timezone: string;
+      try {
+        schedule = normalizeRoSchedule({
+          date: req.body?.data ?? meeting.data,
+          time: req.body?.hora === undefined ? meeting.hora : req.body.hora,
+          endAt: req.body?.end_at === undefined ? meeting.end_at ? new Date(meeting.end_at).toISOString().slice(0, 19) : null : req.body.end_at,
+        });
+        locationType = normalizeRoLocationType(req.body?.location_type ?? meeting.location_type);
+        guestPolicy = normalizeRoGuestPolicy(req.body?.guest_policy ?? meeting.guest_policy);
+        timezone = normalizeRoTimeZone(req.body?.timezone ?? meeting.timezone);
+      } catch (validationError: any) {
+        throw Object.assign(validationError, { status: 400 });
+      }
+      const meetingUrl = req.body?.link === undefined && req.body?.meeting_url === undefined
+        ? meeting.link
+        : normalizedOptionalRoUrl(req.body?.link ?? req.body?.meeting_url);
       const updated = await db.execute(sql`
         UPDATE opportunity_meetings SET
           titulo = ${String(req.body?.titulo ?? meeting.titulo)},
-          data = ${req.body?.data ?? meeting.data}, hora = ${req.body?.hora === undefined ? meeting.hora : req.body.hora || null},
-          link = ${req.body?.link === undefined ? meeting.link : req.body.link || null},
+          event_type = ${RO_EVENT_TYPE}, community_id = ${communityId}, strategic_cell_id = ${strategicCellId},
+          data = ${schedule.date}, hora = ${schedule.time}, start_at = ${schedule.startAt}, end_at = ${schedule.endAt}, timezone = ${timezone},
+          link = ${meetingUrl}, location_type = ${locationType},
+          address = ${req.body?.address === undefined ? meeting.address : String(req.body.address || "").trim() || null},
+          guest_policy = ${guestPolicy}, publico = ${guestPolicy === "external_by_invitation" ? "convidados" : "membros"},
           pauta = ${req.body?.pauta === undefined ? meeting.pauta : req.body.pauta || null},
           ata = ${req.body?.ata === undefined ? meeting.ata : req.body.ata || null},
           decisoes = ${JSON.stringify(req.body?.decisoes === undefined ? meeting.decisoes || [] : Array.isArray(req.body.decisoes) ? req.body.decisoes : [])}::jsonb,
@@ -20468,6 +21025,125 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
+  app.post("/api/reunioes-oportunidades/:id/convidados", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const meeting = (await db.execute(sql`SELECT * FROM opportunity_meetings WHERE id::text = ${req.params.id} OR codigo = ${req.params.id} LIMIT 1`)).rows?.[0] as any;
+      if (!meeting) return res.status(404).json({ error: "RO não encontrada." });
+      if (!(await opportunityMeetingAccess(req, meeting)).canOrganize) return res.status(403).json({ error: "Somente o organizador pode convidar pessoas externas." });
+      if (normalizeRoGuestPolicy(meeting.guest_policy) !== "external_by_invitation") return res.status(409).json({ error: "Esta RO não permite convidados externos." });
+      const nome = String(req.body?.nome || "").trim();
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      if (nome.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Informe nome e e-mail válidos." });
+      const token = randomBytes(32).toString("hex");
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const existing = (await db.execute(sql`
+        SELECT id FROM opportunity_meeting_participants
+        WHERE meeting_id = ${meeting.id} AND external = true AND lower(email) = ${email}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      const participantResult = existing
+        ? await db.execute(sql`
+            UPDATE opportunity_meeting_participants SET
+              nome = ${nome}, email = ${email}, papel = 'convidado_externo', confirmacao = 'pendente', presenca = 'nao_informada',
+              invited_by_user_id = ${actor.userId}, invited_by_membro_id = ${actor.membroId}, invite_token_hash = ${tokenHash},
+              invite_expires_at = ${expiresAt}, guest_terms_version = ${RO_GUEST_TERMS_VERSION}, guest_terms_accepted_at = NULL,
+              guest_terms_evidence = '{}'::jsonb, source_type = ${RO_EVENT_TYPE}, source_event_id = ${String(meeting.id)},
+              source_community = ${meeting.community_id || null}, source_invited_by = ${actor.membroId || actor.userId}, atualizado_em = now()
+            WHERE id = ${existing.id}
+            RETURNING id::text, nome, email, confirmacao, presenca, guest_terms_version, invite_expires_at
+          `)
+        : await db.execute(sql`
+            INSERT INTO opportunity_meeting_participants (
+              meeting_id, nome, email, external, papel, invited_by_user_id, invited_by_membro_id,
+              invite_token_hash, invite_expires_at, guest_terms_version,
+              source_type, source_event_id, source_community, source_invited_by
+            ) VALUES (
+              ${meeting.id}, ${nome}, ${email}, true, 'convidado_externo', ${actor.userId}, ${actor.membroId},
+              ${tokenHash}, ${expiresAt}, ${RO_GUEST_TERMS_VERSION},
+              ${RO_EVENT_TYPE}, ${String(meeting.id)}, ${meeting.community_id || null}, ${actor.membroId || actor.userId}
+            ) RETURNING id::text, nome, email, confirmacao, presenca, guest_terms_version, invite_expires_at
+          `);
+      const participant = participantResult.rows?.[0] as any;
+      const community = meeting.community_id ? await getCommunityForCells(String(meeting.community_id)) : null;
+      const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+      const conviteUrl = `${baseUrl}/ro-convite/${encodeURIComponent(token)}`;
+      const { enviarConviteRo } = await import("./mailer");
+      const delivery = await enviarConviteRo({
+        email,
+        nome,
+        titulo: meeting.titulo,
+        comunidade: community?.nome || community?.sigla || "Comunidade BUILT",
+        conviteUrl,
+      });
+      res.status(existing ? 200 : 201).json({ ...participant, convite_url: conviteUrl, email_enviado: delivery.ok });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/reunioes-oportunidades/convidado/:token", async (req, res) => {
+    try {
+      const tokenHash = createHash("sha256").update(String(req.params.token || "")).digest("hex");
+      const invitation = (await db.execute(sql`
+        SELECT participant.id::text, participant.nome, participant.confirmacao, participant.presenca,
+          participant.guest_terms_version, participant.guest_terms_accepted_at, participant.invite_expires_at,
+          meeting.id::text AS meeting_id, meeting.codigo, meeting.titulo, meeting.data, meeting.hora,
+          meeting.end_at, meeting.timezone, meeting.location_type, meeting.address, meeting.link,
+          meeting.pauta, meeting.community_id, meeting.strategic_cell_id,
+          (SELECT cell.name FROM strategic_cells cell WHERE cell.id::text = meeting.strategic_cell_id LIMIT 1) AS strategic_cell_name
+        FROM opportunity_meeting_participants participant
+        JOIN opportunity_meetings meeting ON meeting.id = participant.meeting_id
+        WHERE participant.external = true AND participant.invite_token_hash = ${tokenHash}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (!invitation) return res.status(404).json({ error: "Convite de RO não encontrado." });
+      if (invitation.invite_expires_at && new Date(invitation.invite_expires_at) < new Date()) return res.status(410).json({ error: "Este convite expirou." });
+      const community = invitation.community_id ? await getCommunityForCells(String(invitation.community_id)) : null;
+      res.json({
+        ...invitation,
+        link: invitation.guest_terms_accepted_at ? invitation.link : null,
+        community_name: community?.nome || community?.sigla || "Comunidade BUILT",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/reunioes-oportunidades/convidado/:token/confirmar", async (req, res) => {
+    try {
+      const tokenHash = createHash("sha256").update(String(req.params.token || "")).digest("hex");
+      const confirmation = String(req.body?.confirmacao || "").trim().toLowerCase();
+      if (!req.body?.termos_aceitos || !["confirmado", "recusado"].includes(confirmation)) {
+        return res.status(400).json({ error: "Aceite os termos e informe se participará da RO." });
+      }
+      const ipHash = createHash("sha256").update(String(req.ip || "unknown")).digest("hex");
+      const evidence = {
+        accepted: true,
+        version: RO_GUEST_TERMS_VERSION,
+        user_agent: String(req.get("user-agent") || "").slice(0, 240),
+        ip_hash: ipHash,
+      };
+      const result = await db.execute(sql`
+        UPDATE opportunity_meeting_participants SET
+          confirmacao = ${confirmation},
+          presenca = ${confirmation === "confirmado" ? "presenca_confirmada" : "nao_participara"},
+          guest_terms_version = ${RO_GUEST_TERMS_VERSION},
+          guest_terms_accepted_at = COALESCE(guest_terms_accepted_at, now()),
+          guest_terms_evidence = ${JSON.stringify(evidence)}::jsonb,
+          atualizado_em = now()
+        WHERE external = true AND invite_token_hash = ${tokenHash}
+          AND (invite_expires_at IS NULL OR invite_expires_at >= now())
+        RETURNING id::text, nome, confirmacao, presenca, guest_terms_version, guest_terms_accepted_at
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Convite inválido ou expirado." });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/reunioes-oportunidades/:id/participantes/:participantId", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -20475,16 +21151,21 @@ Deixe claro que premissas precisam de validação profissional.`,
       if (!meeting) return res.status(404).json({ error: "RO não encontrada" });
       const participant = (await db.execute(sql`SELECT * FROM opportunity_meeting_participants WHERE id = ${req.params.participantId} AND meeting_id = ${meeting.id} LIMIT 1`)).rows?.[0] as any;
       if (!participant) return res.status(404).json({ error: "Participante não encontrado" });
-      const isOrganizer = actor.isPlatformAdmin || String(meeting.organizador_user_id || "") === String(actor.userId || "");
+      const isOrganizer = (await opportunityMeetingAccess(req, meeting)).canOrganize;
       const isSelf = String(participant.user_id || "") === String(actor.userId || "") || String(participant.membro_id || "") === String(actor.membroId || "");
       if (!isOrganizer && !isSelf) return res.status(403).json({ error: "Sem permissão para atualizar este participante." });
+      const confirmation = String(req.body?.confirmacao || "pendente");
+      const presence = String(req.body?.presenca || "nao_informada");
+      if (!["pendente", "confirmado", "recusado"].includes(confirmation) || !["nao_informada", "presenca_confirmada", "presente", "ausente", "nao_participara"].includes(presence)) {
+        return res.status(400).json({ error: "Confirmação ou presença inválida." });
+      }
       const updated = await db.execute(sql`
         UPDATE opportunity_meeting_participants SET
-          confirmacao = ${req.body?.confirmacao || "pendente"},
-          presenca = ${req.body?.presenca || "nao_informada"},
-          decisao = ${req.body?.decisao || null}
+          confirmacao = ${confirmation},
+          presenca = ${presence},
+          decisao = ${req.body?.decisao || null}, atualizado_em = now()
         WHERE id = ${req.params.participantId} AND meeting_id = ${meeting.id}
-        RETURNING *
+        RETURNING id::text, user_id, membro_id, nome, papel, confirmacao, presenca, decisao, external, atualizado_em
       `);
       if (!updated.rows?.[0]) return res.status(404).json({ error: "Participante não encontrado" });
       res.json(updated.rows[0]);
@@ -20558,12 +21239,14 @@ Deixe claro que premissas precisam de validação profissional.`,
           const code = await createUniqueDemandCode();
           const inserted = await db.execute(sql`
             INSERT INTO carteira_demandas (
-              bia_id, codigo, autor_tipo, autor_user_id, autor_membro_id,
+              bia_id, community_id, source_type, source_event_id, strategic_cell_id,
+              codigo, autor_tipo, autor_user_id, autor_membro_id,
               tipo_resolucao, titulo, escopo, urgencia, especialidades, status,
               responsavel_user_id, responsavel_membro_id, visibilidade, contexto,
               cidade, estado, pais, economic_opportunity_id, criado_por_user_id, criado_por_membro_id
             ) VALUES (
-              ${opportunity.bia_id || null}, ${code}, ${opportunity.bia_id ? "bia" : "usuario"},
+              ${opportunity.bia_id || null}, ${meeting.community_id || null}, ${RO_EVENT_TYPE}, ${String(meeting.id)}, ${meeting.strategic_cell_id || null},
+              ${code}, ${opportunity.bia_id ? "bia" : "usuario"},
               ${opportunity.bia_id ? null : opportunity.originador_user_id || actor.userId},
               ${opportunity.bia_id ? null : opportunity.originador_membro_id || actor.membroId},
               'solicitacao', ${`Demanda para ${opportunity.titulo}`},
@@ -21264,9 +21947,14 @@ ${textContent.slice(0, 16000)}`;
     areaM2: number;
     precoM2: number;
     moeda: string;
+    anoConstrucao?: number | null;
+    padrao?: string | null;
+    estadoConservacao?: string | null;
+    quartos?: number | null;
+    banheiros?: number | null;
+    vagas?: number | null;
   }) {
-    const areaMin = Math.max(1, params.areaM2 - MARKET_AREA_TOLERANCE_M2);
-    const areaMax = params.areaM2 + MARKET_AREA_TOLERANCE_M2;
+    const { min: areaMin, max: areaMax } = marketAreaRange(params.areaM2);
     const requiredRegion = params.bairro || params.cidade || params.location;
     const prompt = `Pesquise na internet anúncios atuais e individuais de imóveis à venda para comparar um imóvel/BIA.
 
@@ -21280,18 +21968,25 @@ Dados do ativo:
 - Valor total informado: ${params.valor.toFixed(2)} ${params.moeda}
 - Área: ${params.areaM2.toFixed(2)} m²
 - Faixa de área permitida: ${areaMin.toFixed(2)} a ${areaMax.toFixed(2)} m², inclusive
+- Padrão: ${params.padrao || "não informado"}
+- Ano de construção: ${params.anoConstrucao || "não informado"}
+- Estado de conservação: ${params.estadoConservacao || "não informado"}
+- Quartos: ${params.quartos ?? "não informado"}
+- Banheiros: ${params.banheiros ?? "não informado"}
+- Vagas: ${params.vagas ?? "não informado"}
 - Preço informado por m²: ${params.precoM2.toFixed(2)} ${params.moeda}/m²
 
 Instruções:
 - Use pesquisa web real e retorne somente anúncios individuais de venda com URL pública direta.
 - Não use índices genéricos, médias municipais, relatórios, páginas de busca sem imóvel específico, aluguel ou conhecimento interno.
 - Cada anúncio precisa ser do mesmo tipo do ativo, estar em até ${MARKET_RADIUS_KM} km do endereço de referência e ter área entre ${areaMin.toFixed(2)} e ${areaMax.toFixed(2)} m².
-- Para cada anúncio, extraia o preço total de venda, a área, o tipo, o endereço público disponível, o bairro, a cidade, o estado, o país, a localização e a URL.
+- Quando o ativo informar padrão, idade, conservação, quartos, banheiros ou vagas, priorize anúncios compatíveis com essas características.
+- Para cada anúncio, extraia o preço total de venda, a área, o tipo, o endereço público disponível, o bairro, a cidade, o estado, o país, a localização, o padrão, o ano de construção, o estado de conservação, quartos, banheiros, vagas e a URL.
 - Procure até 12 anúncios válidos na região e em localidades próximas. Não ultrapasse o raio de ${MARKET_RADIUS_KM} km nem amplie a faixa de área.
 - Não calcule média, faixa, diferença, confiança ou classificação; o servidor fará esses cálculos.
-- Não invente anúncios, URLs, preços, áreas ou localizações. Quando um dado não estiver explícito na fonte, não inclua o anúncio.
+- Não invente anúncios, URLs, preços, áreas ou características. Quando padrão, ano, conservação ou configuração não estiverem explícitos, use null.
 - Responda SOMENTE JSON minificado neste formato:
-{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","endereco":"endereço público se disponível","bairro":"bairro","cidade":"cidade","estado":"estado","pais":"país","localizacao":"bairro, cidade, estado","area_m2":0,"preco_total":0,"moeda":"BRL","trecho":"preço e área encontrados na fonte"}]}`;
+{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","endereco":"endereço público se disponível","bairro":"bairro","cidade":"cidade","estado":"estado","pais":"país","localizacao":"bairro, cidade, estado","area_m2":0,"preco_total":0,"moeda":"BRL","padrao":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"trecho":"preço, área e características encontrados na fonte"}]}`;
 
     const client = getOpenAI() as any;
     if (!client.responses?.create) {
@@ -21354,6 +22049,12 @@ Instruções:
         areaM2,
         precoM2,
         moeda: String(body.moeda || "BRL"),
+        anoConstrucao: Number(body.ano_construcao || 0) || null,
+        padrao: body.padrao_imovel || body.padrao || null,
+        estadoConservacao: body.estado_conservacao || null,
+        quartos: body.quartos ?? null,
+        banheiros: body.banheiros ?? null,
+        vagas: body.vagas ?? null,
       });
       const verifiedComparables = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, body);
       if (!verifiedComparables) return res.status(422).json({ error: `Não foi possível validar a localização para aplicar o raio de ${MARKET_RADIUS_KM} km.` });
@@ -21367,14 +22068,21 @@ Instruções:
         moeda: String(body.moeda || "BRL"),
         raioMaxKm: MARKET_RADIUS_KM,
         exigirDistancia: true,
+        anoConstrucao: Number(body.ano_construcao || 0) || undefined,
+        padrao: body.padrao_imovel || body.padrao || undefined,
+        estadoConservacao: body.estado_conservacao || undefined,
+        quartos: body.quartos ?? undefined,
+        banheiros: body.banheiros ?? undefined,
+        vagas: body.vagas ?? undefined,
       });
       res.json({
         success: true,
         ...analysis,
         preco_m2_informado: Math.round(precoM2),
         valor_total: Math.round(valor),
+        valor_sugerido: analysis.referencia_m2_media ? Math.round(analysis.referencia_m2_media * areaM2) : null,
         area_m2: Number(areaM2.toFixed(2)),
-        raio_km: MARKET_RADIUS_KM,
+        raio_km: analysis.raio_aplicado_km || MARKET_RADIUS_KM,
       });
     } catch (error: any) {
       console.error("[ai/preco-m2]", error?.message || error);
@@ -21610,6 +22318,25 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     return result?.rows?.[0] || null;
   }
 
+  async function getRoOnboardingAttribution(email: string) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail) return null;
+    const guest = (await db.execute(sql`
+      SELECT source_type, source_event_id, source_invited_by, source_community
+      FROM opportunity_meeting_participants
+      WHERE external = true AND lower(email) = ${normalizedEmail}
+      ORDER BY criado_em DESC
+      LIMIT 1
+    `).catch(() => ({ rows: [] } as any))).rows?.[0] as any;
+    if (!guest) return null;
+    return {
+      source_type: guest.source_type || RO_EVENT_TYPE,
+      source_event_id: guest.source_event_id,
+      invited_by: guest.source_invited_by,
+      source_community: guest.source_community,
+    };
+  }
+
   function onboardingStepUrl(step: string) {
     return `/onboarding/${isInitialOnboardingStep(step) ? step : "personalizacao"}`;
   }
@@ -21650,6 +22377,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!conviteLink.comunidade_id) return res.status(400).json({ error: "O convite não possui comunidade de origem." });
       if (await storage.getUserByEmail(email)) return res.status(409).json({ error: "E-mail já cadastrado", field: "email" });
       if (await storage.getUserByUsername(username)) return res.status(409).json({ error: "Nome de usuário já em uso", field: "username" });
+      const roAttribution = await getRoOnboardingAttribution(email);
 
       const profile = await directusCreate("cadastro_geral", {
         Nome_de_usuario: username, nome, email,
@@ -21671,15 +22399,21 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         invitador_membro_id: conviteLink.gerador_membro_id || null,
         status: "onboarding_pendente",
         tipo: "onboarding_inicial",
-        dados_contratuais: { nome_completo: nome, email, origem: "novo_onboarding", termos_aceitos: {}, termos_versoes: {} },
+        dados_contratuais: { nome_completo: nome, email, origem: "novo_onboarding", origem_ro: roAttribution, termos_aceitos: {}, termos_versoes: {} },
         expires_at: null,
       });
       await ensureInitialOnboardingTable();
       await db.execute(sql`
         INSERT INTO initial_onboarding_journeys (user_id, membro_id, convite_link_id, convite_id, flow_version, current_step, terms_ready_at, responses)
-        VALUES (${userId}, ${membroId}, ${String(conviteLink.id)}, ${String(onboardingInvite.id)}, 2, 'aceites', now(), ${JSON.stringify({ conta: { nome, email, username } })}::jsonb)
+        VALUES (${userId}, ${membroId}, ${String(conviteLink.id)}, ${String(onboardingInvite.id)}, 2, 'aceites', now(), ${JSON.stringify({ conta: { nome, email, username }, origem_ro: roAttribution })}::jsonb)
         ON CONFLICT (user_id) DO NOTHING
       `);
+      if (roAttribution) {
+        await db.execute(sql`
+          UPDATE opportunity_meeting_participants SET user_id = ${userId}, membro_id = ${membroId}, atualizado_em = now()
+          WHERE external = true AND lower(email) = ${email}
+        `);
+      }
       (req.session as any).directusUserId = user.id;
       (req.session as any).membroId = membroId;
       (req.session as any).nome = nome;
@@ -21810,6 +22544,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
     const validationError = validateOnboardingStepPayload(step, payload);
     if (validationError) return res.status(400).json({ error: validationError });
+    if (step === "configuracao" && journey.membro_id) {
+      const normalized = normalizedCellPreferencePayload(payload);
+      await syncStrategicCellPreferences({
+        userId: String(userId),
+        membroId: String(journey.membro_id),
+        ...normalized,
+        source: "onboarding",
+      });
+    }
     const completed = Array.from(new Set([...(Array.isArray(journey.completed_steps) ? journey.completed_steps : []), step]));
     const mergedResponses = { ...currentResponses, [step]: payload };
     if (flowVersion >= 2 && step === "pronto") {
@@ -22036,6 +22779,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (conviteLink.expires_at && new Date() > new Date(conviteLink.expires_at)) {
         return res.status(403).json({ error: "Este cÃ³digo de convite expirou. Solicite um novo convite ao membro da rede." });
       }
+      const roAttribution = await getRoOnboardingAttribution(String(email));
 
       const finalUsername = username || email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
 
@@ -22247,6 +22991,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         permissions: permissionsForRole(roleInicial),
         ativo: true,
       });
+      if (roAttribution) {
+        await db.execute(sql`
+          UPDATE opportunity_meeting_participants SET user_id = ${String(user.id)}, membro_id = ${membroDirectusId}, atualizado_em = now()
+          WHERE external = true AND lower(email) = ${String(email).trim().toLowerCase()}
+        `);
+      }
 
       await replaceAccountPurposes(
         { userId: String(user.id), membroId: membroDirectusId },
@@ -22315,6 +23065,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
             pais: pais || null,
             interesses: interessesArr,
             origem: "cadastro_inicial",
+            origem_ro: roAttribution,
             convite_link_tipo: rawInviteType,
             finalidades_conta: accountPurposes,
             acesso_imoveis_gratuito: accountPurposes.includes("imoveis"),
@@ -24642,6 +25393,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       }
 
       const created = await directusCreate(col, payload);
+      await ensureStrategicCellTables();
+      await ensureCommunityStrategicCells(String(created.id));
       res.json(created);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -24704,14 +25457,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   // Helper: verify that the session user is the aliado of a community (or admin/manager)
   function isCommunityManager(req: any, comunidade: any): boolean {
-    const sessionRole = (req.session as any).role || "user";
-    if (sessionRole === "admin" || sessionRole === "manager") return true;
+    const sessionRole = String((req.session as any).role || "user").toLowerCase();
+    if (["admin", "manager", "superadmin", "master"].includes(sessionRole)) return true;
     const sessionMembroId = (req.session as any).membroId as string | null;
     if (!sessionMembroId || !comunidade) return false;
     const aliadoId = typeof comunidade.aliado === "object" && comunidade.aliado !== null
       ? comunidade.aliado.id
       : comunidade.aliado;
-    return aliadoId === sessionMembroId;
+    return String(aliadoId || "") === String(sessionMembroId);
   }
 
   /** Returns true if the current session user is the aliado OR an active member of this community */
@@ -24724,9 +25477,523 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const id = typeof m.cadastro_geral_id === "object" && m.cadastro_geral_id !== null
         ? m.cadastro_geral_id.id
         : m.cadastro_geral_id;
-      return id === sessionMembroId;
+      return String(id || "") === String(sessionMembroId);
     });
   }
+
+  async function isCommunityMemberIncludingAnchor(req: any, comunidade: any): Promise<boolean> {
+    if (isCommunityMember(req, comunidade)) return true;
+    const membroId = String((req.session as any).membroId || "");
+    if (!membroId) return false;
+    const anchor = await getStoredMembroComunidadeMae(membroId).catch(() => null);
+    return String(anchor?.comunidade_id || "") === String(comunidade?.id || "");
+  }
+
+  async function getCommunityForCells(id: string) {
+    const collection = await getComunidadeCol();
+    return directusFetchOne(collection, id, COMUNIDADE_FIELDS).catch(() => null);
+  }
+
+  async function communityIdsForBia(biaId: string): Promise<string[]> {
+    const collection = await getComunidadeCol();
+    const communities = await directusFetch(collection, COMUNIDADE_FIELDS).catch(() => []);
+    return (communities as any[]).filter((community) => (Array.isArray(community.bias) ? community.bias : []).some((relation: any) => {
+      const id = directusRelationId(relation?.bias_projetos_id) || directusRelationId(relation);
+      return String(id || "") === String(biaId);
+    })).map((community) => String(community.id));
+  }
+
+  async function resolveDemandCellSelection(req: any, biaId: string | null, cellId: unknown, marketCode: unknown) {
+    const normalizedCellId = String(cellId || "").trim();
+    const normalizedMarketCode = String(marketCode || "").trim().toUpperCase();
+    if (!normalizedCellId) {
+      if (normalizedMarketCode) throw Object.assign(new Error("Escolha uma Célula antes do Tipo de negócio."), { status: 400 });
+      return { cellId: null, typeCode: null, marketCode: null };
+    }
+    await ensureStrategicCellTables();
+    const result = await db.execute(sql`
+      SELECT c.id::text, c.community_id, t.code AS type_code,
+        EXISTS (
+          SELECT 1 FROM strategic_cell_markets m
+          WHERE m.strategic_cell_type_id = t.id AND m.code = ${normalizedMarketCode} AND m.status = 'ACTIVE'
+        ) AS market_valid
+      FROM strategic_cells c
+      JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+      WHERE c.id = ${normalizedCellId} AND c.status = 'ACTIVE'
+      LIMIT 1
+    `);
+    const cell = result.rows?.[0] as any;
+    if (!cell) throw Object.assign(new Error("Célula não encontrada ou inativa."), { status: 400 });
+    if (normalizedMarketCode && !cell.market_valid) throw Object.assign(new Error("O Tipo de negócio não pertence à Célula escolhida."), { status: 400 });
+    if (biaId) {
+      const communityIds = await communityIdsForBia(biaId);
+      if (!communityIds.includes(String(cell.community_id))) throw Object.assign(new Error("A Célula escolhida não pertence a uma Comunidade desta BIA."), { status: 403 });
+    } else {
+      const community = await getCommunityForCells(String(cell.community_id));
+      if (!community || !await isCommunityMemberIncludingAnchor(req, community)) throw Object.assign(new Error("Você não pertence à Comunidade desta Célula."), { status: 403 });
+    }
+    return { cellId: String(cell.id), typeCode: String(cell.type_code), marketCode: normalizedMarketCode || null };
+  }
+
+  async function recordStrategicCellEvent(cellId: string, eventType: string, req: any, metadata: Record<string, unknown> = {}) {
+    const actor = getAuditActor(req);
+    await db.execute(sql`
+      INSERT INTO strategic_cell_events (strategic_cell_id, event_type, actor_user_id, actor_membro_id, metadata)
+      VALUES (${cellId}, ${eventType}, ${actor.userId}, ${actor.membroId}, ${JSON.stringify(metadata)}::jsonb)
+    `);
+  }
+
+  function normalizedCellPreferencePayload(payload: any) {
+    return normalizeStrategicCellPreferences(
+      payload?.strategic_cell_type_codes ?? payload?.strategic_cell_type_code,
+      payload?.business_type_codes ?? payload?.market_codes,
+    );
+  }
+
+  async function syncStrategicCellPreferences(input: {
+    userId: string;
+    membroId: string;
+    cellTypeCodes: string[];
+    businessTypeCodes: string[];
+    source: "onboarding" | "profile" | "repair";
+  }) {
+    await ensureStrategicCellTables();
+    const normalized = normalizeStrategicCellPreferences(input.cellTypeCodes, input.businessTypeCodes);
+    const links = await getMembroComunidadesLinks(input.membroId).catch(() => [] as any[]);
+    const anchor = await getStoredMembroComunidadeMae(input.membroId).catch(() => null);
+    const communityIds = Array.from(new Set([
+      ...links.map((link: any) => String(link.id || "").trim()),
+      String(anchor?.comunidade_id || "").trim(),
+    ].filter(Boolean)));
+    for (const communityId of communityIds) await ensureCommunityStrategicCells(communityId);
+
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        INSERT INTO strategic_cell_preferences (user_id, membro_id, cell_type_codes, business_type_codes, source, updated_at)
+        VALUES (${input.userId}, ${input.membroId}, ${JSON.stringify(normalized.cellTypeCodes)}::jsonb, ${JSON.stringify(normalized.businessTypeCodes)}::jsonb, ${input.source}, now())
+        ON CONFLICT (user_id) DO UPDATE SET
+          membro_id = EXCLUDED.membro_id,
+          cell_type_codes = EXCLUDED.cell_type_codes,
+          business_type_codes = EXCLUDED.business_type_codes,
+          source = EXCLUDED.source,
+          updated_at = now()
+      `);
+      const unlinked = await tx.execute(sql`
+        UPDATE strategic_cell_memberships sm
+        SET status = 'LEFT', updated_at = now()
+        FROM strategic_cells c
+        JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+        WHERE sm.strategic_cell_id = c.id
+          AND sm.user_id = ${input.userId}
+          AND sm.source LIKE 'preference:%'
+          AND NOT (t.code = ANY(${normalized.cellTypeCodes}::text[]))
+        RETURNING sm.strategic_cell_id::text
+      `);
+      let linked: any = { rows: [] };
+      if (communityIds.length && normalized.cellTypeCodes.length) {
+        linked = await tx.execute(sql`
+          INSERT INTO strategic_cell_memberships (strategic_cell_id, user_id, membro_id, source, status, approved_at)
+          SELECT c.id, ${input.userId}, ${input.membroId}, ${`preference:${input.source}`}, 'ACTIVE', now()
+          FROM strategic_cells c
+          JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+          WHERE c.community_id = ANY(${communityIds}::text[])
+            AND c.status = 'ACTIVE'
+            AND t.code = ANY(${normalized.cellTypeCodes}::text[])
+          ON CONFLICT (strategic_cell_id, user_id) DO UPDATE SET
+            membro_id = EXCLUDED.membro_id,
+            source = CASE
+              WHEN strategic_cell_memberships.source = 'manual' AND strategic_cell_memberships.status = 'ACTIVE' THEN strategic_cell_memberships.source
+              ELSE EXCLUDED.source
+            END,
+            status = 'ACTIVE',
+            approved_at = COALESCE(strategic_cell_memberships.approved_at, now()),
+            updated_at = now()
+          WHERE strategic_cell_memberships.status <> 'ACTIVE'
+            OR (strategic_cell_memberships.source <> 'manual' AND strategic_cell_memberships.source <> EXCLUDED.source)
+          RETURNING strategic_cell_id::text
+        `);
+      }
+      for (const row of unlinked.rows || []) await tx.execute(sql`
+        INSERT INTO strategic_cell_events (strategic_cell_id, event_type, actor_user_id, actor_membro_id, metadata)
+        VALUES (${String((row as any).strategic_cell_id)}, 'PREFERENCE_UNLINKED', ${input.userId}, ${input.membroId}, ${JSON.stringify({ source: input.source })}::jsonb)
+      `);
+      for (const row of linked.rows || []) await tx.execute(sql`
+        INSERT INTO strategic_cell_events (strategic_cell_id, event_type, actor_user_id, actor_membro_id, metadata)
+        VALUES (${String((row as any).strategic_cell_id)}, 'PREFERENCE_LINKED', ${input.userId}, ${input.membroId}, ${JSON.stringify({ source: input.source })}::jsonb)
+      `);
+    });
+    return { ...normalized, communityIds };
+  }
+
+  async function repairStrategicCellPreferences(userId: string, membroId: string) {
+    const row = (await db.execute(sql`
+      SELECT cell_type_codes, business_type_codes
+      FROM strategic_cell_preferences WHERE user_id = ${userId} LIMIT 1
+    `)).rows?.[0] as any;
+    if (!row) return null;
+    return syncStrategicCellPreferences({
+      userId,
+      membroId,
+      cellTypeCodes: row.cell_type_codes || [],
+      businessTypeCodes: row.business_type_codes || [],
+      source: "repair",
+    });
+  }
+
+  app.get("/api/strategic-cell-types", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const result = await db.execute(sql`
+        SELECT t.id::text, t.code, t.public_name, t.short_description, t.help_text, t.icon_key, t.display_order,
+          COALESCE((
+            SELECT jsonb_agg(jsonb_build_object(
+              'code', m.code,
+              'public_name', m.public_name,
+              'short_description', m.short_description
+            ) ORDER BY m.display_order)
+            FROM strategic_cell_markets m
+            WHERE m.strategic_cell_type_id = t.id AND m.status = 'ACTIVE'
+          ), '[]'::jsonb) AS business_types
+        FROM strategic_cell_types t
+        WHERE t.status = 'ACTIVE'
+        ORDER BY t.display_order, t.public_name
+      `);
+      return res.json((result.rows || []).map((row: any) => ({ ...row, markets: row.business_types })));
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/celulas/ativas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      if (!isAdminRequest(req) && !await hasActiveMemberEntitlement(req)) return res.status(403).json({ error: "A participação em Células exige anuidade ativa." });
+      await ensureStrategicCellTables();
+      const result = await db.execute(sql`
+        SELECT c.id::text, c.community_id, c.name, c.description,
+          t.code AS type_code, t.public_name AS type_public_name
+        FROM strategic_cells c
+        JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+        WHERE c.status = 'ACTIVE' AND t.status = 'ACTIVE'
+        ORDER BY t.display_order, c.name
+      `);
+      return res.json(result.rows || []);
+    } catch (error: any) {
+      return res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/me/celulas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const userId = String((req.session as any).directusUserId || "");
+      const membroId = String((req.session as any).membroId || "");
+      if (membroId) await repairStrategicCellPreferences(userId, membroId);
+      const result = await db.execute(sql`
+        SELECT c.id::text, c.community_id, c.name, c.description, c.coordinator_membro_id,
+          t.code AS type_code, t.public_name AS type_public_name, t.short_description AS type_short_description,
+          sm.status AS membership_status, sm.joined_at, sm.approved_at
+        FROM strategic_cell_memberships sm
+        JOIN strategic_cells c ON c.id = sm.strategic_cell_id
+        JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+        WHERE sm.user_id = ${userId} AND sm.status <> 'LEFT' AND c.status IN ('ACTIVE', 'SUSPENDED')
+        ORDER BY sm.approved_at DESC NULLS LAST, sm.joined_at DESC
+      `);
+      const cells = (result.rows || []) as any[];
+      const collection = await getComunidadeCol();
+      const communityNames = new Map<string, string>();
+      for (const communityId of Array.from(new Set(cells.map((cell) => String(cell.community_id))))) {
+        const community = await directusFetchOne(collection, communityId, "fields=id,nome").catch(() => null);
+        communityNames.set(communityId, community?.nome || "Comunidade BUILT");
+      }
+      return res.json(cells.map((cell) => ({ ...cell, community_name: communityNames.get(String(cell.community_id)) || "Comunidade BUILT" })));
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/me/celulas-preferencias", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const userId = String((req.session as any).directusUserId || "");
+      const row = (await db.execute(sql`
+        SELECT cell_type_codes, business_type_codes, updated_at
+        FROM strategic_cell_preferences WHERE user_id = ${userId} LIMIT 1
+      `)).rows?.[0] as any;
+      return res.json({
+        strategic_cell_type_codes: row?.cell_type_codes || [],
+        business_type_codes: row?.business_type_codes || [],
+        updated_at: row?.updated_at || null,
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/me/celulas-preferencias", async (req, res) => {
+    const userId = String((req.session as any).directusUserId || "");
+    const membroId = String((req.session as any).membroId || "");
+    if (!userId) return res.status(401).json({ error: "Não autenticado" });
+    if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado." });
+    try {
+      const normalized = normalizedCellPreferencePayload(req.body);
+      const result = await syncStrategicCellPreferences({ userId, membroId, ...normalized, source: "profile" });
+      return res.json({
+        strategic_cell_type_codes: result.cellTypeCodes,
+        business_type_codes: result.businessTypeCodes,
+        communities_linked: result.communityIds.length,
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:id/celulas-disponiveis", async (req, res) => {
+    try {
+      const authorization = await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "view");
+      if (!authorization) return;
+      await ensureStrategicCellTables();
+      const communityIds = await communityIdsForBia(String(authorization.bia.id));
+      if (!communityIds.length) return res.json([]);
+      const result = await db.execute(sql`
+        SELECT c.id::text, c.community_id, c.name, c.description, t.code AS type_code,
+          t.public_name AS type_public_name, t.short_description AS type_short_description,
+          COALESCE((
+            SELECT jsonb_agg(jsonb_build_object('code', m.code, 'public_name', m.public_name) ORDER BY m.display_order)
+            FROM strategic_cell_markets m WHERE m.strategic_cell_type_id = t.id AND m.status = 'ACTIVE'
+          ), '[]'::jsonb) AS markets
+        FROM strategic_cells c
+        JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+        WHERE c.community_id = ANY(${communityIds}::text[]) AND c.status = 'ACTIVE'
+        ORDER BY t.display_order, c.name
+      `);
+      return res.json(result.rows || []);
+    } catch (error: any) {
+      return res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/comunidades/:id/celulas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const community = await getCommunityForCells(req.params.id);
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada" });
+      await ensureCommunityStrategicCells(req.params.id);
+      const canManage = isCommunityManager(req, community);
+      const userId = String((req.session as any).directusUserId || "");
+      const result = await db.execute(sql`
+        SELECT c.id::text, c.community_id, c.name, c.description, c.proposal_reason, c.status,
+          c.coordinator_user_id, c.coordinator_membro_id, c.created_by_membro_id,
+          c.decision_reason, c.approved_at, c.created_at, c.updated_at,
+          t.id::text AS strategic_cell_type_id, t.code AS type_code, t.public_name AS type_public_name,
+          t.short_description AS type_short_description, t.help_text AS type_help_text, t.icon_key,
+          COALESCE((
+            SELECT jsonb_agg(jsonb_build_object(
+              'code', m.code,
+              'public_name', m.public_name,
+              'short_description', m.short_description
+            ) ORDER BY m.display_order)
+            FROM strategic_cell_markets m
+            WHERE m.strategic_cell_type_id = t.id AND m.status = 'ACTIVE'
+          ), '[]'::jsonb) AS markets,
+          COALESCE((SELECT count(*)::int FROM strategic_cell_memberships sm WHERE sm.strategic_cell_id = c.id AND sm.status = 'ACTIVE'), 0) AS member_count,
+          mine.id::text AS my_membership_id, mine.status AS my_membership_status
+        FROM strategic_cells c
+        JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
+        LEFT JOIN strategic_cell_memberships mine ON mine.strategic_cell_id = c.id AND mine.user_id = ${userId}
+        WHERE c.community_id = ${req.params.id} AND c.status = 'ACTIVE'
+        ORDER BY t.display_order, c.created_at
+      `);
+      const cells = (result.rows || []) as any[];
+      const isMember = await isCommunityMemberIncludingAnchor(req, community);
+      if ((canManage || isMember) && cells.length) {
+        const memberships = await db.execute(sql`
+          SELECT sm.id::text, sm.strategic_cell_id::text, sm.user_id, sm.membro_id, sm.status,
+            sm.joined_at, sm.approved_at, COALESCE(u.nome, u.email, sm.membro_id) AS nome
+          FROM strategic_cell_memberships sm
+          JOIN strategic_cells c ON c.id = sm.strategic_cell_id
+          LEFT JOIN users u ON u.id::text = sm.user_id
+          WHERE c.community_id = ${req.params.id} AND c.status = 'ACTIVE' AND sm.status <> 'LEFT'
+          ORDER BY sm.joined_at
+        `);
+        const byCell = new Map<string, any[]>();
+        for (const membership of memberships.rows || []) {
+          const key = String((membership as any).strategic_cell_id);
+          byCell.set(key, [...(byCell.get(key) || []), membership]);
+        }
+        for (const cell of cells) {
+          const cellMemberships = byCell.get(String(cell.id)) || [];
+          cell.memberships = canManage ? cellMemberships : cellMemberships.filter((membership) => membership.status === "ACTIVE");
+        }
+      }
+      const hasMemberEntitlement = await hasActiveMemberEntitlement(req);
+      return res.json({
+        cells,
+        can_manage: canManage,
+        is_community_member: isMember,
+        has_member_entitlement: hasMemberEntitlement,
+        can_propose: false,
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/comunidades/:id/celulas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const community = await getCommunityForCells(req.params.id);
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada" });
+      await ensureCommunityStrategicCells(req.params.id);
+      return res.status(409).json({ error: "Esta Comunidade já possui as seis Células oficiais." });
+    } catch (error: any) {
+      return res.status(error?.code === "23505" ? 409 : 500).json({ error: error?.code === "23505" ? "Esta Comunidade já possui uma Célula ativa deste tipo." : error.message });
+    }
+  });
+
+  app.patch("/api/comunidades/:id/celulas/:cellId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const community = await getCommunityForCells(req.params.id);
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada" });
+      if (!isCommunityManager(req, community)) return res.status(403).json({ error: "Somente o Aliado responsável ou a Gestão BUILT pode administrar Células." });
+      const currentResult = await db.execute(sql`
+        SELECT id::text, status, name, description, coordinator_membro_id
+        FROM strategic_cells WHERE id = ${req.params.cellId} AND community_id = ${req.params.id} LIMIT 1
+      `);
+      const current = currentResult.rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Célula não encontrada" });
+
+      const targetStatus = req.body?.status === undefined ? current.status : String(req.body.status).toUpperCase();
+      if (targetStatus !== "ACTIVE") return res.status(409).json({ error: "As seis Células oficiais são permanentes em cada Comunidade." });
+      const hasName = Object.prototype.hasOwnProperty.call(req.body || {}, "name");
+      const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, "description");
+      const hasCoordinator = Object.prototype.hasOwnProperty.call(req.body || {}, "coordinator_membro_id");
+      const name = String(req.body?.name || "").trim();
+      if (hasName && !name) return res.status(400).json({ error: "Informe o nome da Célula." });
+      const coordinatorMembroId = hasCoordinator && req.body.coordinator_membro_id ? String(req.body.coordinator_membro_id) : null;
+      let coordinatorUserId: string | null = null;
+      if (coordinatorMembroId) {
+        const members = new Set<string>([
+          String(typeof community.aliado === "object" ? community.aliado?.id || "" : community.aliado || ""),
+          ...(Array.isArray(community.membros) ? community.membros.map((item: any) => String(typeof item?.cadastro_geral_id === "object" ? item.cadastro_geral_id?.id || "" : item?.cadastro_geral_id || "")) : []),
+          ...await getMembroIdsDaComunidadeMae(req.params.id),
+        ].filter(Boolean));
+        if (!members.has(coordinatorMembroId)) return res.status(400).json({ error: "O coordenador deve pertencer a esta Comunidade." });
+        coordinatorUserId = String((await db.execute(sql`SELECT id::text FROM users WHERE membro_directus_id = ${coordinatorMembroId} LIMIT 1`)).rows?.[0]?.id || "") || null;
+      }
+      const actor = getAuditActor(req);
+      const decisionReason = Object.prototype.hasOwnProperty.call(req.body || {}, "decision_reason")
+        ? String(req.body?.decision_reason || "").trim() || null
+        : null;
+      const updatedResult = await db.execute(sql`
+        UPDATE strategic_cells SET
+          name = CASE WHEN ${hasName} THEN ${name || current.name} ELSE name END,
+          description = CASE WHEN ${hasDescription} THEN ${String(req.body?.description || "").trim() || null} ELSE description END,
+          coordinator_membro_id = CASE WHEN ${hasCoordinator} THEN ${coordinatorMembroId} ELSE coordinator_membro_id END,
+          coordinator_user_id = CASE WHEN ${hasCoordinator} THEN ${coordinatorUserId} ELSE coordinator_user_id END,
+          status = ${targetStatus},
+          approved_by_user_id = CASE WHEN ${current.status === "PENDING_APPROVAL" && targetStatus === "ACTIVE"} THEN ${actor.userId} ELSE approved_by_user_id END,
+          approved_by_membro_id = CASE WHEN ${current.status === "PENDING_APPROVAL" && targetStatus === "ACTIVE"} THEN ${actor.membroId} ELSE approved_by_membro_id END,
+          approved_at = CASE WHEN ${current.status === "PENDING_APPROVAL" && targetStatus === "ACTIVE"} THEN now() ELSE approved_at END,
+          decision_reason = CASE WHEN ${decisionReason !== null || targetStatus === "REJECTED"} THEN ${decisionReason} ELSE decision_reason END,
+          updated_at = now()
+        WHERE id = ${req.params.cellId}
+        RETURNING id::text, community_id, name, description, status, coordinator_membro_id, approved_at, decision_reason, updated_at
+      `);
+      const updated = updatedResult.rows?.[0] as any;
+      await recordStrategicCellEvent(updated.id, current.status === targetStatus ? "UPDATED" : `STATUS_${targetStatus}`, req, { previous_status: current.status });
+      return res.json(updated);
+    } catch (error: any) {
+      return res.status(error?.code === "23505" ? 409 : 500).json({ error: error?.code === "23505" ? "Esta Comunidade já possui uma Célula ativa deste tipo." : error.message });
+    }
+  });
+
+  app.post("/api/comunidades/:id/celulas/:cellId/participacao", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const userId = String((req.session as any).directusUserId || "");
+    const membroId = String((req.session as any).membroId || "");
+    if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado." });
+    try {
+      await ensureStrategicCellTables();
+      const community = await getCommunityForCells(req.params.id);
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada" });
+      if (!await isCommunityMemberIncludingAnchor(req, community)) return res.status(403).json({ error: "Você não pertence a esta Comunidade." });
+      const cell = (await db.execute(sql`
+        SELECT id::text, status FROM strategic_cells WHERE id = ${req.params.cellId} AND community_id = ${req.params.id} LIMIT 1
+      `)).rows?.[0] as any;
+      if (!cell) return res.status(404).json({ error: "Célula não encontrada" });
+      const action = String(req.body?.action || "INTERESTED").toUpperCase();
+      const targetStatus = action === "REQUEST" ? "PENDING" : action === "LEAVE" ? "LEFT" : "INTERESTED";
+      if (cell.status !== "ACTIVE" && targetStatus !== "LEFT") return res.status(409).json({ error: "Esta Célula não está aceitando participações." });
+      if (targetStatus === "PENDING" && !await hasActiveMemberEntitlement(req)) {
+        return res.status(403).json({ error: "A participação formal requer Membro Aliado ativo." });
+      }
+      const existing = (await db.execute(sql`
+        SELECT id::text, status FROM strategic_cell_memberships WHERE strategic_cell_id = ${cell.id} AND user_id = ${userId} LIMIT 1
+      `)).rows?.[0] as any;
+      if (targetStatus === "LEFT" && !existing) return res.status(404).json({ error: "Participação não encontrada." });
+      if (existing?.status === "ACTIVE" && targetStatus !== "LEFT") return res.json(existing);
+      const result = await db.execute(sql`
+        INSERT INTO strategic_cell_memberships (strategic_cell_id, user_id, membro_id, status)
+        VALUES (${cell.id}, ${userId}, ${membroId}, ${targetStatus})
+        ON CONFLICT (strategic_cell_id, user_id) DO UPDATE
+          SET status = EXCLUDED.status, updated_at = now(),
+            approved_at = CASE WHEN EXCLUDED.status = 'LEFT' THEN strategic_cell_memberships.approved_at ELSE NULL END,
+            approved_by_user_id = CASE WHEN EXCLUDED.status = 'LEFT' THEN strategic_cell_memberships.approved_by_user_id ELSE NULL END,
+            approved_by_membro_id = CASE WHEN EXCLUDED.status = 'LEFT' THEN strategic_cell_memberships.approved_by_membro_id ELSE NULL END
+        RETURNING id::text, strategic_cell_id::text, user_id, membro_id, status, joined_at, updated_at
+      `);
+      const membership = result.rows?.[0] as any;
+      await recordStrategicCellEvent(cell.id, `MEMBERSHIP_${targetStatus}`, req);
+      return res.json(membership);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/comunidades/:id/celulas/:cellId/participacoes/:membershipId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await ensureStrategicCellTables();
+      const community = await getCommunityForCells(req.params.id);
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada" });
+      if (!isCommunityManager(req, community)) return res.status(403).json({ error: "Somente o Aliado responsável ou a Gestão BUILT pode decidir participações." });
+      const membership = (await db.execute(sql`
+        SELECT sm.id::text, sm.user_id, sm.membro_id, sm.status
+        FROM strategic_cell_memberships sm
+        JOIN strategic_cells c ON c.id = sm.strategic_cell_id
+        WHERE sm.id = ${req.params.membershipId} AND sm.strategic_cell_id = ${req.params.cellId} AND c.community_id = ${req.params.id}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (!membership) return res.status(404).json({ error: "Solicitação de participação não encontrada." });
+      const targetStatus = String(req.body?.status || "").toUpperCase();
+      if (!["ACTIVE", "REJECTED"].includes(targetStatus)) return res.status(400).json({ error: "Use ACTIVE ou REJECTED." });
+      if (targetStatus === "ACTIVE" && !await hasActiveMemberEntitlementFor(String(membership.user_id), String(membership.membro_id))) {
+        return res.status(409).json({ error: "O participante precisa estar com a condição de Membro Aliado ativa." });
+      }
+      const actor = getAuditActor(req);
+      const updated = (await db.execute(sql`
+        UPDATE strategic_cell_memberships SET status = ${targetStatus},
+          approved_at = CASE WHEN ${targetStatus === "ACTIVE"} THEN now() ELSE NULL END,
+          approved_by_user_id = CASE WHEN ${targetStatus === "ACTIVE"} THEN ${actor.userId} ELSE NULL END,
+          approved_by_membro_id = CASE WHEN ${targetStatus === "ACTIVE"} THEN ${actor.membroId} ELSE NULL END,
+          updated_at = now()
+        WHERE id = ${membership.id}
+        RETURNING id::text, strategic_cell_id::text, user_id, membro_id, status, approved_at, updated_at
+      `)).rows?.[0] as any;
+      await recordStrategicCellEvent(req.params.cellId, `MEMBERSHIP_${targetStatus}`, req, { membership_id: membership.id });
+      return res.json(updated);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
 
   async function findMemberCommunityForAdesao(membroId: string) {
     const col = await getComunidadeCol();

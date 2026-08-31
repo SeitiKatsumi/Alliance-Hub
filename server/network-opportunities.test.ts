@@ -47,10 +47,16 @@ test("public demand view exposes only catalog fields", () => {
     escopo: "Resumo",
     endereco: "Rua privada",
     cidade: "Vitoria",
+    strategic_cell_id: "cell-1",
+    strategic_cell_type_code: "REAL_ESTATE_INCOME",
+    market_code: "LONG_TERM_RENTAL",
     total_interesses: "2",
   });
   assert.equal(result.titulo, "Avaliar imovel");
   assert.equal(result.cidade, "Vitoria");
+  assert.equal(result.strategic_cell_id, "cell-1");
+  assert.equal(result.strategic_cell_type_code, "REAL_ESTATE_INCOME");
+  assert.equal(result.market_code, "LONG_TERM_RENTAL");
   assert.equal((result as any).endereco, undefined);
   assert.equal(result.total_interesses, 2);
 });

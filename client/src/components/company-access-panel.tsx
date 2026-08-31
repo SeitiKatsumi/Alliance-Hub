@@ -3,6 +3,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Briefcase,
   Clock3,
+  Eye,
+  EyeOff,
   Loader2,
   Mail,
   Pencil,
@@ -96,6 +98,7 @@ export function CompanyAccessPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyEmployee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(EMPTY_FORM);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { data: companyPlan, isLoading: isLoadingPlan } = useQuery<CompanyPlan>({
     queryKey: ["/api/empresa/plano"],
@@ -186,6 +189,7 @@ export function CompanyAccessPanel() {
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY_FORM, permissions: { ...DEFAULT_COMPANY_ACCESS } });
+    setShowPassword(false);
     setDialogOpen(true);
   }
 
@@ -198,6 +202,7 @@ export function CompanyAccessPanel() {
       password: "",
       permissions: normalizeCompanyAccess(employee.permissions),
     });
+    setShowPassword(false);
     setDialogOpen(true);
   }
 
@@ -388,7 +393,12 @@ export function CompanyAccessPanel() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="employee-password">{editing ? "Nova senha (opcional)" : "Senha inicial"}</Label>
-              <Input id="employee-password" type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} />
+              <div className="relative">
+                <Input id="employee-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="pr-10" />
+                <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Ocultar senha inicial" : "Mostrar senha inicial"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
 

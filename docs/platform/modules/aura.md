@@ -7,7 +7,7 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 ## Telas e URLs
 
 - `/aura` e `/aura/:membroId`.
-- O resumo de `/meu-perfil` exibe o score, a faixa e o estado da Aura do proprio membro com o mesmo padrao visual do Inicio; o clique abre `/aura/:membroId`.
+- A previa superior de `/meu-perfil` exibe o score, a faixa e o estado da Aura do proprio membro ao lado do nome, com circulo do mesmo diametro da foto; o clique abre `/aura/:membroId`.
 - `/avaliar-aura/:token` para avaliacao publica controlada de candidato.
 - Implementacao principal: `client/src/pages/aura.tsx`, `client/src/pages/avaliar-aura-candidato.tsx`, `client/src/components/aura-score.tsx` e `client/src/lib/aura-access.ts`.
 

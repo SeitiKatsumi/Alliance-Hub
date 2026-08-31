@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getMemberDirectoryDisplayName as getDisplayNome, MEMBER_DIRECTORY_QUERY_OPTIONS } from "@/lib/member-directory-query";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -234,14 +235,6 @@ function logoEmpresaUrl(logo?: string | { id?: string } | null): string | null {
   const id = typeof logo === "string" ?logo : logo?.id;
   if (!id) return null;
   return `/api/assets/${id}?width=160&height=80&fit=contain`;
-}
-
-function getDisplayNome(m: Membro): string {
-  return m.nome_completo ||
-    [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") ||
-    m.Nome_de_usuario ||
-    m.nome ||
-    "—";
 }
 
 function getInitials(nome: string): string {
@@ -2483,6 +2476,7 @@ export default function MembrosPage() {
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
     enabled: !!user,
+    ...MEMBER_DIRECTORY_QUERY_OPTIONS,
   });
 
   const { data: usageData, isLoading: loadingUsage } = useQuery<UsageHeatmapData>({

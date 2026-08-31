@@ -4,6 +4,7 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import InitialOnboardingPage from "@/pages/initial-onboarding";
 import { queryClient } from "@/lib/queryClient";
+import { STRATEGIC_CELL_TYPES, getBusinessTypesForStrategicCell } from "@shared/strategic-cells";
 import "@/index.css";
 
 const previewSteps = ["personalizacao", "perfil", "configuracao", "conexoes", "pronto"] as const;
@@ -82,6 +83,15 @@ window.fetch = async (input, init) => {
   const url = new URL(rawUrl, window.location.origin);
   if (url.pathname === "/api/onboarding") {
     return new Response(JSON.stringify(previewData), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+  if (url.pathname === "/api/strategic-cell-types") {
+    const cellTypes = STRATEGIC_CELL_TYPES.map((cell) => ({
+      code: cell.code,
+      public_name: cell.publicName,
+      short_description: cell.description,
+      business_types: getBusinessTypesForStrategicCell(cell.code).map((type) => ({ code: type.code, public_name: type.publicName })),
+    }));
+    return new Response(JSON.stringify(cellTypes), { status: 200, headers: { "Content-Type": "application/json" } });
   }
   if (url.pathname.startsWith("/api/onboarding/etapas/")) {
     const current = url.pathname.split("/").pop() || "personalizacao";

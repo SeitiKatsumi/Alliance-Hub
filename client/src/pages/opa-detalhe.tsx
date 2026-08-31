@@ -24,6 +24,7 @@ import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { OpaFormDialog } from "@/pages/oportunidades";
 import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import TraceabilitySummary from "@/components/traceability-summary";
+import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
 
 const opaCyanText = "text-cyan-600";
 const opaCyanTextStrong = "text-cyan-700";
@@ -681,6 +682,7 @@ export default function OpaDetalhePage() {
 
         {canManageOpa && (
           <TabsContent value="gestao" className="space-y-5" data-testid="content-opa-gestao">
+            <Card><CardContent className="pt-5"><SectionTitle icon={Layers}>Distribuição da OBA</SectionTitle><OpportunityDistributionControls code={String(opa.id)} /></CardContent></Card>
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardContent className="pt-5 pb-4">

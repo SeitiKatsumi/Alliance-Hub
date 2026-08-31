@@ -49,6 +49,7 @@ import BuiltCapitalPage from "@/pages/built-capital";
 import MovimentacaoCotasPage from "@/pages/movimentacao-cotas";
 import LoginPage from "@/pages/login";
 import InitialOnboardingPage from "@/pages/initial-onboarding";
+import RoGuestConfirmationPage from "@/pages/ro-guest-confirmation";
 import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
 import ConvitePage from "@/pages/convite";
 import ConviteImovelPage from "@/pages/convite-imovel";
@@ -1502,6 +1503,7 @@ function ProtectedApp() {
               <Route path="/banco-ativos">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <AreaAliancasPage forcedArea="landbank" /> : <RedirectToMembership />}</Route>
               <Route path="/area-membros">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <AreMembroPage /> : <RedirectToMembership />}</Route>
               <Route path="/membro/:id" component={MembroDetalhePage} />
+              <Route path="/comunidade/:id/celulas/:cellId">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <ComunidadeDetalhePage /> : <RedirectToMembership />}</Route>
               <Route path="/comunidade/:id">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <ComunidadeDetalhePage /> : <RedirectToMembership />}</Route>
               <Route path="/comunidade">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <ComunidadePage /> : <RedirectToMembership />}</Route>
               <Route path="/notificacoes">{() => <LegacyAgendaAlertsRedirect view="alertas" />}</Route>
@@ -1534,6 +1536,7 @@ function App() {
         <Switch>
           <Route path="/convite/:token" component={ConvitePage} />
           <Route path="/convite-imovel/:token" component={ConviteImovelPage} />
+          <Route path="/ro-convite/:token" component={RoGuestConfirmationPage} />
           <Route path="/adesao/:token" component={AdesaoPage} />
           <Route path="/avaliar-aura/:token" component={AvaliarAuraCandidatoPage} />
           <Route path="/pagamento/sucesso" component={PagamentoSucessoPage} />

@@ -99,6 +99,12 @@ interface CarteiraImovel {
   nome: string;
   tipo: string;
   area_m2: string | number;
+  padrao_imovel?: "economico" | "medio" | "alto" | "luxo" | null;
+  ano_construcao?: number | null;
+  estado_conservacao?: "novo" | "reformado" | "bom" | "regular" | "reformar" | null;
+  quartos?: number | null;
+  banheiros?: number | null;
+  vagas?: number | null;
   valor_pago: string | number;
   valor_atual: string | number;
   moeda: string;
@@ -146,7 +152,7 @@ interface CarteiraImovel {
   diagnostico?: CarteiraDiagnostico | null;
   contas_a_pagar?: number;
   estimativa_mercado?: {
-    valor: number; moeda: string; data_base?: string | null;
+    valor: number; valor_sugerido?: number | null; moeda: string; data_base?: string | null; sugestao_data_base?: string | null;
     status: "atualizada" | "desatualizada" | "sem_amostra" | "sem_dados";
     raio_km: number; quantidade_comparaveis: number; confianca?: string | null;
     fonte: string; precisa_atualizar: boolean; valor_fallback?: number | null;
@@ -373,7 +379,18 @@ interface MarketM2Analysis {
   referencia_m2_media?: number | null;
   referencia_m2_min?: number | null;
   referencia_m2_max?: number | null;
+  valor_sugerido?: number | null;
+  confianca?: "baixa" | "media" | "alta";
+  metodo?: "mediana";
+  cobertura_caracteristicas_percentual?: number;
+  lacunas?: string[];
+  fatores?: string[];
   resumo?: string;
+  observacao?: string;
+  comparaveis?: Array<{
+    titulo: string; url: string; area_m2: number; preco_total: number; preco_m2: number; distancia_km?: number;
+    padrao?: string; ano_construcao?: number; estado_conservacao?: string; quartos?: number; banheiros?: number; vagas?: number;
+  }>;
   fontes?: Array<{ titulo?: string; url: string; trecho?: string }>;
 }
 
@@ -381,6 +398,12 @@ const EMPTY_PROPERTY: Omit<CarteiraImovel, "id"> = {
   nome: "",
   tipo: "",
   area_m2: "",
+  padrao_imovel: null,
+  ano_construcao: null,
+  estado_conservacao: null,
+  quartos: null,
+  banheiros: null,
+  vagas: null,
   valor_pago: "",
   valor_atual: "",
   moeda: "BRL",
@@ -714,6 +737,17 @@ function PropertyFormDialog({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
+            <div><p className="font-medium">Características para avaliação de mercado</p><p className="text-xs text-muted-foreground">Opcionais, mas deixam os comparáveis mais próximos do imóvel real.</p></div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-2"><Label>Padrão</Label><Select value={form.padrao_imovel || "nao_informado"} onValueChange={(value) => setForm({ ...form, padrao_imovel: value === "nao_informado" ? null : value as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="nao_informado">Não informado</SelectItem><SelectItem value="economico">Econômico</SelectItem><SelectItem value="medio">Médio</SelectItem><SelectItem value="alto">Alto padrão</SelectItem><SelectItem value="luxo">Luxo</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Ano de construção</Label><Input type="number" min="1800" max={new Date().getFullYear() + 2} value={form.ano_construcao ?? ""} onChange={(event) => setForm({ ...form, ano_construcao: event.target.value ? Number(event.target.value) : null })} /></div>
+              <div className="space-y-2"><Label>Conservação</Label><Select value={form.estado_conservacao || "nao_informado"} onValueChange={(value) => setForm({ ...form, estado_conservacao: value === "nao_informado" ? null : value as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="nao_informado">Não informada</SelectItem><SelectItem value="novo">Novo</SelectItem><SelectItem value="reformado">Reformado</SelectItem><SelectItem value="bom">Bom estado</SelectItem><SelectItem value="regular">Regular</SelectItem><SelectItem value="reformar">Precisa reformar</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Quartos</Label><Input type="number" min="0" value={form.quartos ?? ""} onChange={(event) => setForm({ ...form, quartos: event.target.value === "" ? null : Number(event.target.value) })} /></div>
+              <div className="space-y-2"><Label>Banheiros</Label><Input type="number" min="0" value={form.banheiros ?? ""} onChange={(event) => setForm({ ...form, banheiros: event.target.value === "" ? null : Number(event.target.value) })} /></div>
+              <div className="space-y-2"><Label>Vagas</Label><Input type="number" min="0" value={form.vagas ?? ""} onChange={(event) => setForm({ ...form, vagas: event.target.value === "" ? null : Number(event.target.value) })} /></div>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>Moeda</Label>
             <Select value={form.moeda} onValueChange={(value) => setForm({ ...form, moeda: value })}>
@@ -967,7 +1001,7 @@ function PropertyCard({
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3 text-sm">
             <div>
-              <p className="text-[11px] text-muted-foreground">Sua fração ({ownership.toFixed(2)}%)</p>
+              <p className="text-[11px] text-muted-foreground">Sua fração do valor atual ({ownership.toFixed(2)}%)</p>
               <p className="font-semibold tabular-nums">{money(ownedValue)}</p>
             </div>
             <div>
@@ -1181,9 +1215,9 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor estimado dos imóveis próprios, respeitando sua fração de propriedade, ao valor confirmado das participações nas BIAs pelo MAP. Dívidas e contas a pagar não são descontadas deste total.${currencyNotice}`} />
+        <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor atual declarado ou confirmado dos imóveis próprios, respeitando sua fração de propriedade, ao valor confirmado das participações nas BIAs pelo MAP. Sugestões da IA só entram depois de aceitas. Dívidas e contas a pagar não são descontadas deste total.${currencyNotice}`} />
         <Metric label="Valor de aquisição" value={money(totals?.valor_aquisicao_total_brl ?? totals?.patrimonio_pago ?? 0)} icon={CircleDollarSign} description={`Soma o valor pago pelos imóveis, proporcional à sua propriedade, aos aportes oficiais realizados nas BIAs.${currencyNotice}`} />
-        <Metric label="Valor estimado dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma as estimativas dos imóveis em carteira. A pesquisa usa ao menos três anúncios comparáveis do mesmo tipo, dentro de um raio de até 20 km, e é renovada a cada 30 dias. Quando a pesquisa não está disponível, permanece o último valor válido ou o valor declarado.${currencyNotice}`} />
+        <Metric label="Valor atual dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma apenas os valores declarados ou confirmados dos imóveis em carteira. A sugestão de mercado fica separada até você aceitá-la.${currencyNotice}`} />
         <Metric label="Investido em alianças" value={money(totals?.investido_aliancas_brl ?? totals?.total_investido_aliancas ?? 0)} icon={Users} helper={`Valor oficial atual: ${money(totals?.valor_participacoes_aliancas_brl ?? totals?.valor_participacoes_aliancas ?? 0)}`} description={`Soma os aportes oficiais que você realizou nas BIAs. Uma BIA sem snapshot patrimonial confirmado permanece neste indicador, mas ainda não entra no Patrimônio Total Estimado.${currencyNotice}`} />
         <Metric label="Valorização registrada" value={money(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} description={`Diferença entre o valor estimado e o valor de aquisição dos imóveis, somada à diferença entre as participações confirmadas nas BIAs e os aportes oficiais. Ativos sem as duas bases ficam fora deste cálculo.${valuationCoverageText}${currencyNotice}`} />
         <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" description={`Soma das receitas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
@@ -1687,7 +1721,7 @@ function DetailPage({ id }: { id: string }) {
   };
 
   const marketQuery = useQuery<MarketM2Analysis>({
-    queryKey: ["/api/ai/preco-m2", "carteira", id, imovel?.valor_atual, imovel?.area_m2, imovel?.tipo, imovel?.endereco, imovel?.numero, imovel?.bairro, imovel?.cidade, imovel?.estado, imovel?.pais, imovel?.cep],
+    queryKey: ["/api/ai/preco-m2", "carteira", id, imovel?.valor_atual, imovel?.area_m2, imovel?.tipo, imovel?.endereco, imovel?.numero, imovel?.bairro, imovel?.cidade, imovel?.estado, imovel?.pais, imovel?.cep, imovel?.padrao_imovel, imovel?.ano_construcao, imovel?.estado_conservacao, imovel?.quartos, imovel?.banheiros, imovel?.vagas],
     enabled: Boolean(activeDetailTab === "analise" && imovel && parseNumber(imovel.valor_atual) > 0 && parseNumber(imovel.area_m2) > 0 && (imovel.endereco || imovel.bairro || imovel.cidade || imovel.cep)),
     staleTime: 10 * 60 * 1000,
     queryFn: async () => (await apiRequest("POST", "/api/ai/preco-m2", {
@@ -1704,6 +1738,12 @@ function DetailPage({ id }: { id: string }) {
       cidade: imovel?.cidade,
       estado: imovel?.estado,
       pais: imovel?.pais,
+      padrao_imovel: imovel?.padrao_imovel,
+      ano_construcao: imovel?.ano_construcao,
+      estado_conservacao: imovel?.estado_conservacao,
+      quartos: imovel?.quartos,
+      banheiros: imovel?.banheiros,
+      vagas: imovel?.vagas,
     })).json(),
   });
 
@@ -1844,12 +1884,15 @@ function DetailPage({ id }: { id: string }) {
   });
   const confirmMarketMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/carteira/imoveis/${id}/avaliacao/confirmar`, {
-      valor_atual: Number(marketQuery.data?.referencia_m2_media || 0) * parseNumber(imovel?.area_m2),
+      valor_atual: Number(marketQuery.data?.valor_sugerido || 0),
       data_base: new Date().toISOString().slice(0, 10),
       fontes: marketQuery.data?.fontes || [],
       amostra: marketQuery.data?.quantidade_comparaveis || 0,
       regiao: [imovel?.bairro, imovel?.cidade, imovel?.estado].filter(Boolean).join(", "),
-      confianca: (marketQuery.data?.quantidade_comparaveis || 0) >= 5 ? "alta" : "moderada",
+      confianca: marketQuery.data?.confianca || "baixa",
+      metodo: marketQuery.data?.metodo || "mediana",
+      fatores: marketQuery.data?.fatores || [],
+      cobertura_caracteristicas_percentual: marketQuery.data?.cobertura_caracteristicas_percentual || 0,
     }),
     onSuccess: () => { invalidateAll(); toast({ title: "Valor de mercado confirmado", description: "O histórico e a data-base foram preservados." }); },
     onError: (error: any) => toast({ title: "Não foi possível confirmar o valor", description: error?.message, variant: "destructive" }),
@@ -2340,22 +2383,26 @@ function DetailPage({ id }: { id: string }) {
 
         <TabsContent value="analise" className="space-y-7">
           <section>
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Diagnóstico patrimonial</h2><p className="mt-1 text-sm text-muted-foreground">Regras objetivas, dados faltantes e confiança da conclusão.</p></div><Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">Confiança {diagnostic?.confianca || "baixa"}</Badge></div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Diagnóstico patrimonial</h2><p className="mt-1 text-sm text-muted-foreground">Regras objetivas, dados faltantes e confiança da conclusão.</p></div><Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">Confiança do diagnóstico: {diagnostic?.confianca || "baixa"}</Badge></div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div className="border-y py-4"><p className="text-xs text-muted-foreground">Cobertura</p><p className="mt-1 text-xl font-bold">{diagnostic?.cobertura?.percentual || 0}%</p><p className="text-xs text-muted-foreground">{diagnostic?.cobertura?.preenchidos || 0} de {diagnostic?.cobertura?.total || 7} grupos</p></div>
               <div className="border-y py-4 md:col-span-2"><p className="text-xs text-muted-foreground">Dados que podem alterar a conclusão</p><div className="mt-2 flex flex-wrap gap-2">{diagnostic?.dados_faltantes?.length ? diagnostic.dados_faltantes.map((item) => <Badge key={item} variant="outline">{item}</Badge>) : <span className="text-sm text-emerald-700">Nenhuma lacuna essencial identificada.</span>}</div></div>
             </div>
           </section>
           <section className="border-y border-blue-100 bg-slate-50 py-5">
-            <div className="px-4"><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">IA de preço por m²</h3></div>
+            <div className="px-4">
+              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">IA de preço por m²</h3></div>{marketQuery.data?.confianca && <Badge variant="outline">Confiança da estimativa: {marketQuery.data.confianca === "media" ? "média" : marketQuery.data.confianca}</Badge>}</div>
               {marketQuery.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Pesquisando imóveis comparáveis...</p> : marketQuery.data?.amostra_suficiente ? (
-                <>
-                  <p className="mt-3 text-sm text-blue-800">Baseado em {marketQuery.data.quantidade_comparaveis} imóveis comparáveis em até {marketQuery.data.raio_km || 20} km, entre {marketQuery.data.area_min} e {marketQuery.data.area_max} m².</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="border-y py-3"><p className="text-xs text-muted-foreground">Informado</p><p className="font-bold">{money(marketQuery.data.preco_m2_informado, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Referência média</p><p className="font-bold">{money(marketQuery.data.referencia_m2_media, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Faixa</p><p className="font-bold">{money(marketQuery.data.referencia_m2_min, imovel.moeda)} – {money(marketQuery.data.referencia_m2_max, imovel.moeda)}</p></div></div>
-                  {!!marketQuery.data.fontes?.length && <div className="mt-3 flex flex-wrap gap-2">{marketQuery.data.fontes.slice(0, 5).map((source, index) => <a key={`${source.url}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="text-xs text-blue-700 underline">Comparável {index + 1}</a>)}</div>}
-                  {canManage && Number(marketQuery.data.referencia_m2_media || 0) > 0 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-white p-3"><div><p className="text-xs text-muted-foreground">Valor sugerido para confirmação</p><p className="font-bold">{money(Number(marketQuery.data.referencia_m2_media) * parseNumber(imovel.area_m2), imovel.moeda)}</p></div><Button disabled={confirmMarketMutation.isPending} onClick={() => confirmMarketMutation.mutate()}>{confirmMarketMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Aceitar atualização</Button></div>}
-                </>
-              ) : <p className="mt-3 text-sm text-muted-foreground">{marketQuery.data?.resumo || "Ainda não há comparáveis suficientes para exibir uma média."}</p>}
+                <div className="mt-3 space-y-4">
+                  <p className="text-sm text-blue-800">{marketQuery.data.resumo} Faixa de área: {marketQuery.data.area_min} a {marketQuery.data.area_max} m²; raio aplicado: até {marketQuery.data.raio_km || 20} km.</p>
+                  <div className="grid gap-3 sm:grid-cols-3"><div className="border-y py-3"><p className="text-xs text-muted-foreground">Valor atual informado</p><p className="font-bold">{money(marketQuery.data.preco_m2_informado, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Referência mediana</p><p className="font-bold">{money(marketQuery.data.referencia_m2_media, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Faixa dos comparáveis usados</p><p className="font-bold">{money(marketQuery.data.referencia_m2_min, imovel.moeda)} – {money(marketQuery.data.referencia_m2_max, imovel.moeda)}</p></div></div>
+                  {!!marketQuery.data.comparaveis?.length && <div className="grid gap-2 sm:grid-cols-2">{marketQuery.data.comparaveis.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="rounded-md border bg-white p-3 text-sm hover:border-blue-300"><p className="truncate font-medium text-blue-700">Comparável {index + 1}: {item.titulo}</p><p className="mt-1 text-xs text-muted-foreground">{item.area_m2.toLocaleString("pt-BR")} m² · {money(item.preco_m2, imovel.moeda)}/m²{item.distancia_km != null ? ` · ${item.distancia_km.toLocaleString("pt-BR")} km` : ""}</p><p className="mt-1 text-xs text-muted-foreground">{[item.padrao, item.ano_construcao, item.estado_conservacao, item.quartos != null ? `${item.quartos} quarto(s)` : null, item.vagas != null ? `${item.vagas} vaga(s)` : null].filter(Boolean).join(" · ") || "Características não publicadas no anúncio"}</p></a>)}</div>}
+                  {!!marketQuery.data.fatores?.length && <div><p className="text-xs font-medium">Critérios aplicados</p><div className="mt-2 flex flex-wrap gap-1">{marketQuery.data.fatores.map((factor) => <Badge key={factor} variant="outline" className="font-normal">{factor}</Badge>)}</div></div>}
+                  {!!marketQuery.data.lacunas?.length && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><span>Para aumentar a confiança, informe: {marketQuery.data.lacunas.join(", ")}.</span>{canManage && <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>Completar características</Button>}</div>}
+                  {canManage && Number(marketQuery.data.valor_sugerido || 0) > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-white p-3"><div><p className="text-xs text-muted-foreground">Sugestão separada do valor oficial</p><p className="font-bold">{money(marketQuery.data.valor_sugerido, imovel.moeda)}</p><p className="text-xs text-muted-foreground">Só entra na Carteira se você aceitar.</p></div><Button disabled={confirmMarketMutation.isPending} onClick={() => confirmMarketMutation.mutate()}>{confirmMarketMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Aceitar como valor atual</Button></div>}
+                  {marketQuery.data.observacao && <p className="text-xs text-muted-foreground">{marketQuery.data.observacao}</p>}
+                </div>
+              ) : <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{marketQuery.data?.resumo || "Ainda não há comparáveis suficientes para calcular uma referência."}</p>{canManage && !!marketQuery.data?.lacunas?.length && <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>Completar características</Button>}</div>}
             </div>
           </section>
           <section>

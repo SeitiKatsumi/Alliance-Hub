@@ -1551,10 +1551,17 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
 export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landbank" } = {}) {
   const { toast } = useToast();
   const searchParams = useSearch();
+  const [, navigate] = useLocation();
   const getTabsFromSearch = () => {
     if (forcedArea === "landbank") return { main: "landbank", rede: "membros", landBank: "land-bank" };
-    if (MEMBER_PORTFOLIO_V2_ENABLED) return { main: "bias", rede: "membros", landBank: "land-bank" };
-    const tab = new URLSearchParams(searchParams).get("tab");
+    const params = new URLSearchParams(searchParams);
+    const tab = params.get("tab");
+    if (MEMBER_PORTFOLIO_V2_ENABLED) {
+      if (tab === "comunidades") return { main: "comunidades", rede: "comunidades", landBank: "land-bank" };
+      if (tab === "ros" || (tab === "oportunidades" && params.get("tipo") === "ros")) return { main: "comunidades", rede: "comunidades", landBank: "land-bank" };
+      if (tab === "oportunidades") return { main: "oportunidades", rede: "membros", landBank: "land-bank" };
+      return { main: "bias", rede: "membros", landBank: "land-bank" };
+    }
     if (["membros", "comunidades", "aliados"].includes(tab || "")) {
       return { main: "rede", rede: tab!, landBank: "land-bank" };
     }
@@ -1635,12 +1642,18 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
     setActiveRedeTab(tabs.rede);
     setActiveLandBankTab(tabs.landBank);
     const params = new URLSearchParams(searchParams);
+    if (params.get("tab") === "ros" || (params.get("tab") === "oportunidades" && params.get("tipo") === "ros")) {
+      const communityId = params.get("community_id");
+      if (communityId) navigate(`/comunidade/${encodeURIComponent(communityId)}?tab=ros`, { replace: true });
+      else window.history.replaceState(null, "", "/area-aliancas?tab=comunidades");
+      return;
+    }
     if (params.get("tab") === "opas") {
       params.set("tab", "oportunidades");
       if (!params.get("tipo")) params.set("tipo", "obas");
       window.history.replaceState(null, "", `/area-aliancas?${params.toString()}`);
     }
-  }, [searchParams]);
+  }, [navigate, searchParams]);
 
   useEffect(() => {
     if (!landBankAssetsLoaded) return;
@@ -1822,13 +1835,21 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
       <Tabs value={activeTab} onValueChange={updateAreaTab} className="space-y-5">
         {!forcedArea && (
         <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
-          {!MEMBER_PORTFOLIO_V2_ENABLED && <TabsTrigger
+          <TabsTrigger
             value="oportunidades"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-oportunidades"
           >
             <Target className="h-4 w-4 shrink-0 text-cyan-500" />
             Oportunidades
+          </TabsTrigger>
+          {MEMBER_PORTFOLIO_V2_ENABLED && <TabsTrigger
+            value="comunidades"
+            className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
+            data-testid="tab-area-comunidades"
+          >
+            <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
+            Comunidades
           </TabsTrigger>}
           {!forcedArea && <TabsTrigger
             value="bias"
@@ -1868,6 +1889,9 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
           className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-bias-title']>div]:hidden"
         >
           {activeTab === "bias" && <BiasPage relatedOnly />}
+        </TabsContent>
+        <TabsContent value="comunidades" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='icon-comunidade-title']]:hidden">
+          {activeTab === "comunidades" && <ComunidadePage />}
         </TabsContent>
         <TabsContent value="rede" className="space-y-5">
           {activeTab === "rede" && (

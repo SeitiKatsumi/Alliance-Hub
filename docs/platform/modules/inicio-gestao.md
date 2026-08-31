@@ -11,6 +11,7 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 - Aura permanece acessivel pelos cards do Inicio e do resumo do Meu Perfil, sem modulo separado no menu lateral.
 - Area de Vitrine e Area de Aliancas aparecem diretamente no menu lateral, sem o agrupador Ambientes BUILT.
 - O painel inicial exibe somente os atalhos da Area de Vitrine e da Area de Aliancas; BUILT Capital nao aparece nessa navegacao.
+- No Inicio, Alertas e Proximas acoes ocupam a area operacional abaixo dos ambientes; os negocios permanecem concentrados na aba Negocios para voce.
 - O card de conclusao do perfil abre `/meu-perfil` diretamente no primeiro campo pendente informado pelo helper oficial de progresso.
 - `/agenda-alertas`: destino de Agenda, Alertas e Pendencias.
 - Navegacao e composicao: `client/src/App.tsx`, `client/src/components/app-sidebar.tsx` e `client/src/lib/dashboard-navigation.ts`.
@@ -18,6 +19,8 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 ## APIs e tarefas
 
 - `/api/me`, `/api/me/negocios`, `/api/agenda-alertas/*`, `/api/agenda`.
+- `/api/me/celulas` alimenta o resumo `Suas Celulas` no Inicio, na Gestao e no Meu Perfil, com link para a Comunidade de origem.
+- `/api/me/negocios` inclui ROs das Comunidades do usuario com texto humano, data, horario, formato e foco geral ou em Celula.
 - Contadores de convites, chamadas, aprovacoes, Carteira e pendencias de perfil.
 - Polling de 30 segundos em dados acionaveis; novas consultas devem reutilizar cache/chaves existentes.
 
@@ -42,6 +45,8 @@ Alertas sao `acionavel`, `em andamento`, `resolvido` ou `ignorado`, conforme o m
 
 - A explicacao do modulo usa um controle de informacao acionavel no cabecalho da pagina, sem poluir as abas ou o menu lateral.
 - Nenhum card pode revelar nome, valor ou documento de recurso sem acesso.
+- `Suas Celulas` lista apenas interesse ou participacao do proprio usuario e nao transforma preferencia de onboarding em vinculo.
+- A Home identifica RO como `Reuniao de Oportunidades da sua Comunidade` e nao revela link ou dados de convidados externos.
 - Um contador nunca pode somar itens que a lista correspondente omite.
 - Acao concluida deixa de aparecer sem apagar historico.
 - Redirecionamentos legados preservam filtros e aba selecionada quando aplicavel.

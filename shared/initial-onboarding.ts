@@ -61,6 +61,8 @@ export const INITIAL_ONBOARDING_API_ALLOWLIST = [
   "/api/convites",
   "/api/assets",
   "/api/taxonomy",
+  "/api/strategic-cell-types",
+  "/api/reunioes-oportunidades/convidado",
 ] as const;
 
 export function isInitialOnboardingApiAllowed(url: unknown): boolean {

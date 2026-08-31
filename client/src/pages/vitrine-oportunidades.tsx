@@ -146,6 +146,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
   const [state, setState] = useState("");
   const [country, setCountry] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [onlyMyCells, setOnlyMyCells] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [chamadaForm, setChamadaForm] = useState(emptyChamadaForm);
   const mode = props.mode || "vitrine";
@@ -166,9 +167,9 @@ export function VitrineOportunidadesPage(props: any = {}) {
     queryKey: [endpoint],
   });
   const { data: publicRegistry = [], isLoading: isLoadingRegistry } = useQuery<PublicOpportunityRegistry[]>({
-    queryKey: ["/api/rede/oportunidades", "oba", "publico"],
+    queryKey: ["/api/rede/oportunidades", "oba", "publico", onlyMyCells],
     queryFn: async () => {
-      const response = await fetch("/api/rede/oportunidades?tipo=oba&publico=1", { credentials: "include", cache: "no-store" });
+      const response = await fetch(`/api/rede/oportunidades?tipo=oba&publico=1${onlyMyCells ? "&minhas_celulas=1" : ""}`, { credentials: "include", cache: "no-store" });
       if (!response.ok) return [];
       return response.json();
     },
@@ -257,6 +258,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
         <div className="relative md:col-span-2 xl:col-span-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder={isCapital ? "Buscar chamada de capital..." : "Palavra-chave ou nome"} data-testid="input-vitrine-oportunidades-search" /></div>
         {!isCapital && <><Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Cidade" /><Input value={state} onChange={(event) => setState(event.target.value)} placeholder="Estado" /><Input value={country} onChange={(event) => setCountry(event.target.value)} placeholder="País" /><Input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Especialidade" /></>}
       </div>
+      {!isCapital && <Button variant={onlyMyCells ? "default" : "outline"} size="sm" onClick={() => setOnlyMyCells((value) => !value)}>Das minhas Células</Button>}
 
       {isLoading || (!isCapital && isLoadingRegistry) ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

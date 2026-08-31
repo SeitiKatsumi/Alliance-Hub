@@ -30,7 +30,16 @@ interface BiaDemand {
   responsavel_membro_id?: string | null;
   opa_id?: string | null;
   tipo_resolucao?: "DIRECT_HIRE" | "NETWORK_DEMAND" | "INTERNAL_BIA" | "OBA";
+  strategic_cell_id?: string | null;
+  market_code?: string | null;
   criado_em: string;
+}
+
+interface AvailableCell {
+  id: string;
+  name: string;
+  type_public_name: string;
+  markets: Array<{ code: string; public_name: string }>;
 }
 
 interface MemberOption {
@@ -51,6 +60,8 @@ interface DemandForm {
   fluxo_disparo: "imediato" | "gradual";
   tipo_resolucao: DemandResolutionMode;
   publicar: boolean;
+  strategic_cell_id: string;
+  market_code: string;
 }
 
 const emptyForm = (): DemandForm => ({
@@ -64,6 +75,8 @@ const emptyForm = (): DemandForm => ({
   fluxo_disparo: "imediato",
   tipo_resolucao: "NETWORK_DEMAND",
   publicar: false,
+  strategic_cell_id: "",
+  market_code: "",
 });
 
 const statusLabels: Record<string, string> = {
@@ -101,6 +114,8 @@ function toForm(demand: BiaDemand): DemandForm {
     fluxo_disparo: demand.fluxo_disparo === "gradual" ? "gradual" : "imediato",
     tipo_resolucao: resolutionMode(demand.tipo_resolucao),
     publicar: demand.visibilidade === "publicada" || demand.visibilidade === "restrita",
+    strategic_cell_id: demand.strategic_cell_id || "",
+    market_code: demand.market_code || "",
   };
 }
 
@@ -121,6 +136,11 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
   });
   const membersQuery = useQuery<MemberOption[]>({ queryKey: ["/api/membros"] });
   const members = useMemo(() => membersQuery.data || [], [membersQuery.data]);
+  const cellsQuery = useQuery<AvailableCell[]>({
+    queryKey: ["/api/bias", biaId, "celulas-disponiveis"],
+    queryFn: () => fetch(`/api/bias/${biaId}/celulas-disponiveis`, { credentials: "include" }).then((response) => response.ok ? response.json() : []),
+  });
+  const selectedCell = (cellsQuery.data || []).find((cell) => cell.id === form.strategic_cell_id);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -137,6 +157,8 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
         tipo_resolucao: form.tipo_resolucao,
         publicar: form.publicar,
         consentimento_publicacao: form.publicar,
+        strategic_cell_id: form.strategic_cell_id || null,
+        market_code: form.market_code || null,
       };
       const response = await apiRequest(editing ? "PATCH" : "POST", editing ? `/api/demandas/${editing.id}` : "/api/demandas", payload);
       return response.json();
@@ -210,6 +232,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
         <div className="divide-y border-y">
           {demandsQuery.data.map((demand) => {
             const editable = canEdit && !terminalStatuses.has(demand.status);
+            const demandCell = (cellsQuery.data || []).find((cell) => cell.id === demand.strategic_cell_id);
             return (
               <article key={demand.id} className="space-y-3 py-4">
                 <div className="flex flex-wrap items-start gap-3">
@@ -221,6 +244,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
                       {demand.codigo && <Badge variant="outline" className="font-mono text-[10px]">{demand.codigo}</Badge>}
                       <Badge variant="outline">{statusLabels[demand.status] || demand.status}</Badge>
                       <Badge variant="secondary">{DEMAND_RESOLUTION_LABELS[resolutionMode(demand.tipo_resolucao)]}</Badge>
+                      {demand.strategic_cell_id && <Badge variant="outline">{demandCell?.name || "Célula vinculada"}</Badge>}
                       {demand.visibilidade === "publicada" && <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Na Vitrine</Badge>}
                       {demand.visibilidade === "restrita" && <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Disparo gradual</Badge>}
                     </div>
@@ -267,7 +291,9 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
               <div className="space-y-2"><Label>Urgência</Label><Select value={form.urgencia} onValueChange={(value) => setForm({ ...form, urgencia: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div>
               <div className="space-y-2"><Label>Validade</Label><Input type="date" value={form.expira_em} onChange={(event) => setForm({ ...form, expira_em: event.target.value })} /></div>
               <div className="space-y-2"><Label>Responsável</Label><Select value={form.responsavel_membro_id || "automatico"} onValueChange={(value) => setForm({ ...form, responsavel_membro_id: value === "automatico" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="automatico">Pessoa criadora</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{memberName(member)}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-2"><Label>Distribuição</Label><Select value={form.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setForm({ ...form, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Fluxo territorial a cada 12h</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Distribuição</Label><Select value={form.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setForm({ ...form, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Célula, Comunidade e rede a cada 4h</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Célula da Comunidade</Label><Select value={form.strategic_cell_id || "_none"} onValueChange={(value) => setForm({ ...form, strategic_cell_id: value === "_none" ? "" : value, market_code: "" })}><SelectTrigger><SelectValue placeholder="Contexto opcional" /></SelectTrigger><SelectContent><SelectItem value="_none">Sem Célula específica</SelectItem>{(cellsQuery.data || []).map((cell) => <SelectItem key={cell.id} value={cell.id}>{cell.name || cell.type_public_name}</SelectItem>)}</SelectContent></Select></div>
+              {selectedCell && <div className="space-y-2"><Label>Tipo de negócio</Label><Select value={form.market_code || "_none"} onValueChange={(value) => setForm({ ...form, market_code: value === "_none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="_none">Todos os tipos da Célula</SelectItem>{selectedCell.markets.map((market) => <SelectItem key={market.code} value={market.code}>{market.public_name}</SelectItem>)}</SelectContent></Select></div>}
             </div>
             <div className="space-y-2"><Label>Especialidades</Label><Input value={form.especialidades} onChange={(event) => setForm({ ...form, especialidades: event.target.value })} placeholder="Jurídico, Engenharia, Avaliação..." /><p className="text-xs text-muted-foreground">Separe por vírgulas.</p></div>
             {!editing && <label className="flex items-start gap-3 rounded-md border p-3 text-sm"><Checkbox checked={form.publicar} onCheckedChange={(checked) => setForm({ ...form, publicar: checked === true })} /><span>Autorizo a publicação do resumo na rede. Endereço exato, documentos e contatos permanecem privados.</span></label>}

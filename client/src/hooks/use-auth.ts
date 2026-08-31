@@ -1,5 +1,5 @@
 ﻿import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, cacheAuthenticatedUser, queryClient } from "@/lib/queryClient";
 
 export interface AppUser {
   id: string;
@@ -85,9 +85,7 @@ export function useAuth() {
       if (!res.ok) throw new Error(data.error || "Credenciais inválidas");
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-    },
+    onSuccess: cacheAuthenticatedUser,
   });
 
   const logoutMutation = useMutation({

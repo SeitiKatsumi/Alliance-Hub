@@ -55,3 +55,8 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+export function cacheAuthenticatedUser(user: unknown) {
+  queryClient.setQueryData(["/api/me"], user);
+  void queryClient.invalidateQueries({ queryKey: ["/api/me"], refetchType: "active" });
+}

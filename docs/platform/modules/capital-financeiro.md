@@ -17,6 +17,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - `/api/fluxo-caixa*`, categorias, tipos de CPP e anexos.
 - `/api/bias/:id/aportes`, `/info-comercial`, `/banco*`.
 - Chamadas de capital geram tarefas deduplicadas para finalidade `capital` e/ou contribuicao `Aporte Financeiro`.
+- Saidas agendadas geram um unico lembrete por e-mail dois dias corridos antes do vencimento para o responsavel do lancamento ou, sem ele, para o Diretor de Capital.
 - Endpoints de percentuais/DM, valor de origem, cotas, transferencias, cobrancas e Pinbank.
 
 ## Dados e fontes de verdade
@@ -38,8 +39,10 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - DM/CPP usa um helper unico em calculadora, visao geral, analises e geracao de lancamentos.
 - Valor de origem preserva parcelas pagas ou com evidencia ao recalcular cronograma.
 - Entradas, saidas, saldo, custo total e indicadores por m2 devem declarar formula e base temporal.
+- O MAP revalida `fluxo_caixa` ao abrir ou retomar foco e considera como aporte somente a entrada vinculada a membro com status `pago`; pendente, agendado, parcial, vencido ou cancelado nao altera cotas.
 - A analise de preco por m2 valida o raio real de 20 km; quando o endereco completo nao e reconhecido, tenta bairro/cidade, cidade/estado e CEP cadastrados, sem dispensar a verificacao geografica.
 - No mobile, a navegacao do Capital permite rolagem horizontal sem sobrepor rotulos, os indicadores financeiros refluem sem cortar valores e cada lancamento aparece como cartao legivel; no desktop, a lista permanece em tabela.
+- O PDF do MAP usa a logomarca horizontal oficial e cabecalho branco, sem tarja ou fundo carregado, para preservar legibilidade e economia na impressao.
 - Transferencia de cotas totaliza exatamente 100%, com precisao definida e destinatarios pertencentes a BIA.
 - Webhook/cobranca e idempotente.
 
@@ -60,4 +63,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - `server/bia-origin-value.test.ts`
 - `server/quota-transfer.test.ts`
 - `server/market-comparables.test.ts`
+- `server/payment-reminders.test.ts`
+- `shared/member-portfolio.test.ts`
+- `client/src/pages/fluxo-caixa-mobile.test.ts`
 - Ao alterar: reconciliar manualmente o mesmo caso em calculadora, visao geral, financeiro e analises; testar zero, arredondamento, status e repeticao de webhook.

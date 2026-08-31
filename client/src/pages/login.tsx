@@ -264,6 +264,7 @@ export default function LoginPage() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetPassword2, setResetPassword2] = useState("");
   const [showResetPass, setShowResetPass] = useState(false);
+  const [showResetPass2, setShowResetPass2] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetDone, setResetDone] = useState(false);
   const [resetError, setResetError] = useState("");
@@ -290,6 +291,7 @@ export default function LoginPage() {
   const [regPassword, setRegPassword] = useState("");
   const [regPassword2, setRegPassword2] = useState("");
   const [showRegPass, setShowRegPass] = useState(false);
+  const [showRegPass2, setShowRegPass2] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
   const [regPreflightLoading, setRegPreflightLoading] = useState(false);
   const [regError, setRegError] = useState("");
@@ -965,14 +967,19 @@ export default function LoginPage() {
                             <Label className="text-sm text-white/75">Nova senha</Label>
                             <div className="relative">
                               <Input type={showResetPass ? "text" : "password"} value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Min. 4 chars" className={`${inputCls} pr-10`} required data-testid="input-reset-password" />
-                              <button type="button" onClick={() => setShowResetPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
+                              <button type="button" onClick={() => setShowResetPass(v => !v)} aria-label={showResetPass ? "Ocultar nova senha" : "Mostrar nova senha"} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
                                 {showResetPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                               </button>
                             </div>
                           </div>
                           <div className="space-y-2">
                             <Label className="text-sm text-white/75">Confirmar</Label>
-                            <Input type="password" value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${resetPassword2 && resetPassword !== resetPassword2 ? "border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
+                            <div className="relative">
+                              <Input type={showResetPass2 ? "text" : "password"} value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} pr-10 ${resetPassword2 && resetPassword !== resetPassword2 ? "border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
+                              <button type="button" onClick={() => setShowResetPass2(v => !v)} aria-label={showResetPass2 ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
+                                {showResetPass2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
                           </div>
                         </div>
                         {resetError && <p className="text-center text-sm text-red-400">{resetError}</p>}
@@ -998,7 +1005,7 @@ export default function LoginPage() {
                       <div className="relative">
                         <KeyRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
                         <Input id="password" name="password" data-testid="input-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" autoComplete="current-password" className={`${inputCls} pl-12 pr-11`} required />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/45 transition-colors hover:text-white/75">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/45 transition-colors hover:text-white/75">
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
@@ -1057,8 +1064,8 @@ export default function LoginPage() {
                       <div className="space-y-1.5"><Label className="text-sm text-white/75">E-mail</Label><Input type="email" value={regEmail} onChange={e => { setRegEmail(e.target.value); if (regInvalidField === "email") setRegInvalidField(""); }} placeholder="seu@email.com" className={`${inputCls} ${regInvalidField === "email" ? "border-red-500/70" : ""}`} data-testid="input-reg-email" required /></div>
                       <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome de usuario</Label><Input value={regUsername} onChange={e => { setRegUsername(e.target.value); if (regInvalidField === "username") setRegInvalidField(""); }} placeholder={regEmail ? regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"} className={`${inputCls} ${regInvalidField === "username" ? "border-red-500/70" : ""}`} data-testid="input-reg-username" /></div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Senha</Label><div className="relative"><Input type={showRegPass ? "text" : "password"} value={regPassword} onChange={e => { setRegPassword(e.target.value); if (regInvalidField === "password") setRegInvalidField(""); }} placeholder="Min. 4 chars" className={`${inputCls} pr-8 ${regInvalidField === "password" ? "border-red-500/70" : ""}`} data-testid="input-reg-password" required /><button type="button" onClick={() => setShowRegPass(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showRegPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button></div></div>
-                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Confirmar</Label><Input type="password" value={regPassword2} onChange={e => { setRegPassword2(e.target.value); if (regInvalidField === "password2") setRegInvalidField(""); }} placeholder="Repita" className={`${inputCls} ${((regPassword2 && regPassword !== regPassword2) || regInvalidField === "password2") ? "border-red-500/70" : ""}`} data-testid="input-reg-password2" required /></div>
+                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Senha</Label><div className="relative"><Input type={showRegPass ? "text" : "password"} value={regPassword} onChange={e => { setRegPassword(e.target.value); if (regInvalidField === "password") setRegInvalidField(""); }} placeholder="Min. 4 chars" className={`${inputCls} pr-8 ${regInvalidField === "password" ? "border-red-500/70" : ""}`} data-testid="input-reg-password" required /><button type="button" onClick={() => setShowRegPass(v => !v)} aria-label={showRegPass ? "Ocultar senha" : "Mostrar senha"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showRegPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button></div></div>
+                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Confirmar</Label><div className="relative"><Input type={showRegPass2 ? "text" : "password"} value={regPassword2} onChange={e => { setRegPassword2(e.target.value); if (regInvalidField === "password2") setRegInvalidField(""); }} placeholder="Repita" className={`${inputCls} pr-8 ${((regPassword2 && regPassword !== regPassword2) || regInvalidField === "password2") ? "border-red-500/70" : ""}`} data-testid="input-reg-password2" required /><button type="button" onClick={() => setShowRegPass2(v => !v)} aria-label={showRegPass2 ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showRegPass2 ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button></div></div>
                       </div>
                       {regError && <p className="text-center text-sm text-red-400">{regError}</p>}
                       <Button type="submit" data-testid="button-register" disabled={regLoading || regPreflightLoading || conviteChecking || conviteStatus === "invalid"} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]">

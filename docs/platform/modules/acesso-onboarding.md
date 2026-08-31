@@ -27,6 +27,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 ## Dados e fontes de verdade
 
 - PostgreSQL: `users`, `password_reset_tokens`, `convites_link`, `initial_onboarding_journeys`, `user_account_purposes`, `company_employee_accounts` e registros locais de aceite.
+- Quando o e-mail recebeu convite externo de RO, a jornada preserva em `responses.origem_ro` os campos `source_type`, `source_event_id`, `invited_by` e `source_community`; isso nao concede associacao automaticamente.
 - Directus: `cadastro_geral` para perfil do membro.
 - A etapa Configuracao grava a classificacao profissional nos campos oficiais `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas` de `cadastro_geral`.
 - Areas de contribuicao usam valores canonicos de `shared/contribution-areas.ts`; ramo e segmento usam `client/src/lib/ramos-segmentos.ts`; abrangencia e idiomas usam `shared/profile-taxonomy.ts`.
@@ -51,6 +52,10 @@ Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites depo
 Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback, refresh ou webhook nao pode criar outro usuario, pagamento ou aceite.
 
 ## Invariantes
+
+- Na etapa Configuracao o usuario seleciona somente `BusinessType`. O dominio deriva os tipos de Celula correspondentes e sincroniza a associacao de forma idempotente em todas as Comunidades do usuario, incluindo a comunidade de origem do convite ainda nao materializada no M2M.
+- Todo campo de senha permite mostrar ou ocultar seu proprio valor, sem alterar os demais campos do formulario.
+- A mesma preferencia pode ser alterada em Meu Perfil; remover uma escolha encerra apenas vinculos criados pela preferencia e preserva participacoes manuais previamente ativas.
 
 - E-mail normalizado nao pode identificar duas contas ativas diferentes.
 - O login local envia os valores efetivamente preenchidos no formulario, inclusive quando email e senha vierem do preenchimento automatico do navegador.
@@ -80,9 +85,11 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Selecao de finalidade nao publica perfil, imovel ou oportunidade.
 - Todo usuario autenticado consulta a Area de Vitrine sem ativar a publicacao do perfil; Area de Aliancas continua condicionada ao vinculo com uma alianca.
 - Aceite registra versao, identidade, data/hora e evidencia do momento.
+- Aceite de convidado de RO e publico apenas por token individual armazenado como hash, expira e nao substitui o onboarding ou a adesao comunitaria.
 - Localizacao do aceite e capturada pelo helper compartilhado com `status = capturada`, coordenadas validas, precisao e horario; perfil/endereco nao a substituem.
 - Falha de sincronizacao com Directus nao pode ser apresentada como cadastro concluido sem pendencia explicita.
 - Retornos publicos nunca incluem hash de senha, token interno ou dados pessoais desnecessarios.
+- Login confirmado libera a sessao no cliente com a propria resposta autenticada; `/api/me` complementa os dados em segundo plano sem exigir outro clique.
 
 ## Efeitos e dependencias
 

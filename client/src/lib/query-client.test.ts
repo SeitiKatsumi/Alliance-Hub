@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { apiRequest } from "./queryClient";
+import { apiRequest, cacheAuthenticatedUser, queryClient } from "./queryClient";
 
 test("resposta 503 não é tratada como dados válidos", async () => {
   const originalFetch = globalThis.fetch;
@@ -11,4 +11,13 @@ test("resposta 503 não é tratada como dados válidos", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("login libera a sessão no cliente sem aguardar uma nova consulta", () => {
+  const user = { id: "user-1", role: "user" };
+
+  cacheAuthenticatedUser(user);
+
+  assert.deepEqual(queryClient.getQueryData(["/api/me"]), user);
+  queryClient.removeQueries({ queryKey: ["/api/me"] });
 });

@@ -70,10 +70,15 @@ export function VitrineDemandasPage() {
   const [state, setState] = useState("");
   const [country, setCountry] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [onlyMyCells, setOnlyMyCells] = useState(false);
   const demandsQuery = useQuery<PublicDemand[]>({
-    queryKey: ["/api/vitrine/demandas", search],
+    queryKey: ["/api/vitrine/demandas", search, onlyMyCells],
     queryFn: async () => {
-      const response = await fetch(`/api/vitrine/demandas${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`, { credentials: "include", cache: "no-store" });
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("q", search.trim());
+      if (onlyMyCells) params.set("minhas_celulas", "1");
+      const query = params.toString();
+      const response = await fetch(`/api/vitrine/demandas${query ? `?${query}` : ""}`, { credentials: "include", cache: "no-store" });
       if (!response.ok) throw new Error("Não foi possível carregar as demandas.");
       return response.json();
     },
@@ -100,6 +105,7 @@ export function VitrineDemandasPage() {
         <Input value={country} onChange={(event) => setCountry(event.target.value)} placeholder="País" />
         <Input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Especialidade" />
       </div>
+      <Button variant={onlyMyCells ? "default" : "outline"} size="sm" onClick={() => setOnlyMyCells((value) => !value)}>Das minhas Células</Button>
       {demandsQuery.isLoading ? (
         <div className="flex min-h-56 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>
       ) : demands.length === 0 ? (

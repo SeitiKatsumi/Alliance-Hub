@@ -29,7 +29,7 @@ import {
   Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
   ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info, Eye, EyeOff,
-  Home, Landmark, Settings2, Circle
+  Home, Landmark, Settings2, Circle, Layers3, ArrowLeft, ArrowRight
 } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
@@ -40,6 +40,12 @@ import { COMPANY_ACCESS_KEYS, COMPANY_ACCESS_LABELS, normalizeCompanyAccess } fr
 import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
 import { usePublicLabels } from "@/hooks/use-public-labels";
 import {
+  getProfileCategoryPending,
+  getProfileCompletion,
+  getProfileCompletionCategory,
+  type ProfileDataCategory,
+} from "@/lib/profile-completion";
+import {
   INITIAL_ONBOARDING_OBJECTIVE_COPY,
   INITIAL_ONBOARDING_OBJECTIVES,
   normalizeAccountPurposeObjectives,
@@ -47,33 +53,35 @@ import {
   type AccountPurposeObjectives,
 } from "@shared/initial-onboarding";
 
-const PROFILE_FIELD_TARGETS: Record<string, { testId: string; formal?: boolean }> = {
-  foto: { testId: "btn-trocar-foto" },
-  nome: { testId: "input-perfil-nome" },
-  email: { testId: "input-perfil-email" },
-  nome_completo: { testId: "input-formalizacao-nome-completo", formal: true },
-  cpf: { testId: "input-formalizacao-cpf", formal: true },
-  telefone: { testId: "input-perfil-telefone" },
-  whatsapp: { testId: "input-perfil-whatsapp" },
-  nacionalidade: { testId: "input-perfil-nacionalidade", formal: true },
-  data_nascimento: { testId: "input-perfil-data-nascimento", formal: true },
-  rg: { testId: "input-perfil-rg", formal: true },
-  estado_civil: { testId: "select-perfil-estado-civil", formal: true },
-  localizacao: { testId: "btn-pick-location" },
-  endereco: { testId: "input-perfil-endereco", formal: true },
-  areas_contribuicao: { testId: "section-areas-contribuicao" },
-  cargo: { testId: "input-perfil-cargo" },
-  ramo_atuacao: { testId: "select-perfil-ramo" },
-  segmento: { testId: "select-perfil-segmento" },
-  area_atuacao: { testId: "select-perfil-area-atuacao" },
-  especialidade: { testId: "input-perfil-especialidade-livre" },
-  idiomas: { testId: "input-idioma-busca" },
-  biografia: { testId: "input-perfil-aliado" },
-  site: { testId: "input-perfil-link-site" },
-  cnpj: { testId: "input-perfil-cnpj" },
-  logo_empresa: { testId: "btn-trocar-logo-empresa" },
-  regime_comunhao: { testId: "select-perfil-regime-comunhao", formal: true },
-  conjuge_nome: { testId: "input-perfil-conjuge-nome", formal: true },
+type ProfileCategory = ProfileDataCategory | "account";
+
+const PROFILE_FIELD_TARGETS: Record<string, { testId: string; category: ProfileDataCategory; formal?: boolean }> = {
+  foto: { testId: "btn-trocar-foto", category: "identity" },
+  nome: { testId: "input-perfil-nome", category: "identity" },
+  email: { testId: "input-perfil-email", category: "identity" },
+  nome_completo: { testId: "input-formalizacao-nome-completo", category: "identity", formal: true },
+  cpf: { testId: "input-formalizacao-cpf", category: "identity", formal: true },
+  telefone: { testId: "input-perfil-telefone", category: "identity" },
+  whatsapp: { testId: "input-perfil-whatsapp", category: "identity" },
+  nacionalidade: { testId: "input-perfil-nacionalidade", category: "identity", formal: true },
+  data_nascimento: { testId: "input-perfil-data-nascimento", category: "identity", formal: true },
+  rg: { testId: "input-perfil-rg", category: "identity", formal: true },
+  estado_civil: { testId: "select-perfil-estado-civil", category: "identity", formal: true },
+  localizacao: { testId: "btn-pick-location", category: "identity" },
+  endereco: { testId: "input-perfil-endereco", category: "identity", formal: true },
+  areas_contribuicao: { testId: "section-areas-contribuicao", category: "activity" },
+  cargo: { testId: "input-perfil-cargo", category: "activity" },
+  ramo_atuacao: { testId: "select-perfil-ramo", category: "activity" },
+  segmento: { testId: "select-perfil-segmento", category: "activity" },
+  area_atuacao: { testId: "select-perfil-area-atuacao", category: "activity" },
+  especialidade: { testId: "input-perfil-especialidade-livre", category: "activity" },
+  idiomas: { testId: "input-idioma-busca", category: "activity" },
+  biografia: { testId: "input-perfil-aliado", category: "activity" },
+  site: { testId: "input-perfil-link-site", category: "activity" },
+  cnpj: { testId: "input-perfil-cnpj", category: "company" },
+  logo_empresa: { testId: "btn-trocar-logo-empresa", category: "company" },
+  regime_comunhao: { testId: "select-perfil-regime-comunhao", category: "identity", formal: true },
+  conjuge_nome: { testId: "input-perfil-conjuge-nome", category: "identity", formal: true },
 };
 
 interface NominatimResult {
@@ -755,6 +763,7 @@ export default function MeuPerfilPage() {
   const [saved, setSaved] = useState(false);
   const requestedProfileField = new URLSearchParams(window.location.search).get("campo");
   const requestedProfileTarget = requestedProfileField ? PROFILE_FIELD_TARGETS[requestedProfileField] : undefined;
+  const [activeCategory, setActiveCategory] = useState<ProfileCategory | null>(requestedProfileTarget?.category || null);
 
   const membroId = user?.membro_directus_id;
 
@@ -804,6 +813,36 @@ export default function MeuPerfilPage() {
     queryKey: ["/api/aura/score", membroId],
     enabled: !!membroId,
   });
+  const { data: minhasCelulas = [] } = useQuery<Array<{
+    id: string;
+    community_id: string;
+    community_name: string;
+    name: string;
+    membership_status: "INTERESTED" | "PENDING" | "ACTIVE" | "REJECTED";
+  }>>({
+    queryKey: ["/api/me/celulas"],
+    queryFn: () => fetch("/api/me/celulas", { credentials: "include" }).then((response) => response.ok ? response.json() : []),
+    enabled: !!user && !user.company_employee,
+  });
+  const { data: strategicCellTypes = [] } = useQuery<Array<{
+    code: string;
+    public_name: string;
+    short_description: string;
+    business_types: Array<{ code: string; public_name: string }>;
+  }>>({
+    queryKey: ["/api/strategic-cell-types"],
+    queryFn: () => fetch("/api/strategic-cell-types", { credentials: "include" }).then((response) => response.ok ? response.json() : []),
+    enabled: !!user && !user.company_employee,
+  });
+  const { data: strategicCellPreferences } = useQuery<{
+    strategic_cell_type_codes: string[];
+    business_type_codes: string[];
+  }>({
+    queryKey: ["/api/me/celulas-preferencias"],
+    queryFn: () => fetch("/api/me/celulas-preferencias", { credentials: "include" }).then((response) => response.ok ? response.json() : { strategic_cell_type_codes: [], business_type_codes: [] }),
+    enabled: !!membroId && !user?.company_employee,
+  });
+  const [strategicCellDraft, setStrategicCellDraft] = useState({ strategic_cell_type_codes: [] as string[], business_type_codes: [] as string[] });
   const [showPasswordFields, setShowPasswordFields] = useState({
     currentPassword: false,
     newPassword: false,
@@ -821,6 +860,10 @@ export default function MeuPerfilPage() {
   const [fotoCropNatural, setFotoCropNatural] = useState({ width: 1, height: 1 });
   const [fotoCropZoom, setFotoCropZoom] = useState(1);
   const [fotoCropOffset, setFotoCropOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (strategicCellPreferences) setStrategicCellDraft(strategicCellPreferences);
+  }, [strategicCellPreferences]);
 
   useEffect(() => {
     if (!accountPurposesData) return;
@@ -880,7 +923,7 @@ export default function MeuPerfilPage() {
       focusable?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [isLoading, requestedProfileTarget]);
+  }, [activeCategory, isLoading, requestedProfileTarget]);
 
   useEffect(() => {
     return () => {
@@ -968,6 +1011,27 @@ export default function MeuPerfilPage() {
     onError: (error: any) => {
       toast({ title: "Erro ao atualizar finalidades", description: error.message, variant: "destructive" });
     },
+  });
+
+  const updateStrategicCellPreferencesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/me/celulas-preferencias", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(strategicCellDraft),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível atualizar suas Células.");
+      return data;
+    },
+    onSuccess: (data) => {
+      setStrategicCellDraft({ strategic_cell_type_codes: data.strategic_cell_type_codes, business_type_codes: data.business_type_codes });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/celulas-preferencias"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/celulas"] });
+      toast({ title: "Células atualizadas", description: `Vínculos sincronizados em ${data.communities_linked} comunidade(s).` });
+    },
+    onError: (error: any) => toast({ title: "Erro ao atualizar Células", description: error.message, variant: "destructive" }),
   });
 
   function openPurposeConfiguration(purpose: AccountPurpose) {
@@ -1400,27 +1464,18 @@ export default function MeuPerfilPage() {
               <h2 className="text-sm font-bold">Alterar minha senha</h2>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <Input
-                type="password"
-                autoComplete="current-password"
-                placeholder="Senha atual"
-                value={passwordForm.currentPassword}
-                onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
-              />
-              <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Nova senha"
-                value={passwordForm.newPassword}
-                onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
-              />
-              <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Confirmar nova senha"
-                value={passwordForm.confirmPassword}
-                onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
-              />
+              <div className="relative">
+                <Input type={showPasswordFields.currentPassword ? "text" : "password"} autoComplete="current-password" placeholder="Senha atual" value={passwordForm.currentPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} className="pr-10" />
+                <button type="button" onClick={() => setShowPasswordFields((fields) => ({ ...fields, currentPassword: !fields.currentPassword }))} aria-label={showPasswordFields.currentPassword ? "Ocultar senha atual" : "Mostrar senha atual"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">{showPasswordFields.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+              </div>
+              <div className="relative">
+                <Input type={showPasswordFields.newPassword ? "text" : "password"} autoComplete="new-password" placeholder="Nova senha" value={passwordForm.newPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} className="pr-10" />
+                <button type="button" onClick={() => setShowPasswordFields((fields) => ({ ...fields, newPassword: !fields.newPassword }))} aria-label={showPasswordFields.newPassword ? "Ocultar nova senha" : "Mostrar nova senha"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">{showPasswordFields.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+              </div>
+              <div className="relative">
+                <Input type={showPasswordFields.confirmPassword ? "text" : "password"} autoComplete="new-password" placeholder="Confirmar nova senha" value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="pr-10" />
+                <button type="button" onClick={() => setShowPasswordFields((fields) => ({ ...fields, confirmPassword: !fields.confirmPassword }))} aria-label={showPasswordFields.confirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">{showPasswordFields.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+              </div>
             </div>
             <div className="mt-4 flex justify-end">
               <Button
@@ -1534,6 +1589,190 @@ export default function MeuPerfilPage() {
     prestadorSelecionado ? "Prestador de serviços, fornecedor ou profissional independente" : "",
     capitalSelecionado ? "Parceiro de Capital" : "",
   ].filter(Boolean);
+  const profileCompletion = getProfileCompletion(form);
+  const categoryPending = {
+    identity: getProfileCategoryPending(form, "identity"),
+    activity: getProfileCategoryPending(form, "activity"),
+    company: getProfileCategoryPending(form, "company"),
+  };
+  const recommendedCategory = profileCompletion.missing.length
+    ? getProfileCompletionCategory(profileCompletion.missing[0].key)
+    : "activity";
+  const recommendationCopy = {
+    identity: "Complete seus dados essenciais",
+    activity: "Complete sua atuação profissional",
+    company: "Complete os dados da sua empresa",
+  }[recommendedCategory];
+  const recommendationItems = categoryPending[recommendedCategory].slice(0, 2);
+  const categoryCopy: Record<ProfileCategory, { title: string; description: string }> = {
+    identity: { title: "Identidade e contato", description: "Informações básicas, foto, localização e formalização." },
+    activity: { title: "Atuação e interesses", description: "Sua atuação profissional, expertise e áreas de interesse." },
+    company: { title: "Empresa e Vitrine", description: "Informações da empresa e presença na Vitrine BUILT." },
+    account: { title: "Conta e segurança", description: "Acesso, senha e seu link pessoal de convite." },
+  };
+  const profileCategories = [
+    { key: "identity" as const, icon: User, pending: categoryPending.identity.length },
+    { key: "activity" as const, icon: Briefcase, pending: categoryPending.activity.length },
+    { key: "company" as const, icon: Store, pending: categoryPending.company.length },
+    { key: "account" as const, icon: ShieldCheck, pending: null },
+  ];
+
+  function openProfileCategory(category: ProfileCategory) {
+    setActiveCategory(category);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  }
+
+  function closeProfileCategory() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("campo");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    setActiveCategory(null);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  }
+
+  const profilePreview = (
+    <section className="profile-section p-4 sm:p-6" data-testid="profile-preview">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center">
+        <div className="flex min-w-0 flex-1 flex-col gap-5 sm:flex-row sm:items-center">
+          <span
+            className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-100 text-2xl font-bold text-[#001D34]"
+            data-testid="profile-preview-avatar"
+          >
+            {foto ? <img src={foto} alt={nome} className="h-full w-full object-cover" style={{ objectPosition: fotoPosition }} /> : getInitials(nome || "BU")}
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold leading-snug text-[#001D34] sm:text-xl">{nome || "Seu nome"}</p>
+                <p className="mt-2 text-sm text-slate-500">{form.cargo || form.especialidade || "Cargo"}</p>
+              </div>
+
+              {membroId && (
+                <a
+                  href={`/aura/${encodeURIComponent(membroId)}`}
+                  className="group inline-flex min-h-24 w-fit shrink-0 items-center gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-label="Abrir minha Aura"
+                  data-testid="profile-preview-aura"
+                >
+                  <AuraScore score={auraData?.score ?? null} size="md" showLabel={false} />
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+                    {auraData?.score != null ? (auraData.faixa || "Aura") : "Em formação"}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  </span>
+                </a>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2" aria-label="Áreas de contribuição selecionadas">
+              {tiposAliancaSelecionados.length > 0 ? tiposAliancaSelecionados.slice(0, 4).map((tipo) => (
+                <span key={tipo} className="rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
+              )) : <span className="text-xs text-slate-500">Nenhuma área selecionada</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-between xl:min-w-56 xl:border-l xl:border-t-0 xl:pl-8 xl:pt-0">
+          {user?.membership?.active && (
+            <div data-testid="membership-renewal-preview">
+              <p className="text-xs text-slate-500">Próxima renovação</p>
+              <p className="mt-2 text-lg font-bold text-[#001D34]">
+                {user.membership.next_renewal_at
+                  ? new Date(user.membership.next_renewal_at).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+                  : "Sem data definida"}
+              </p>
+            </div>
+          )}
+          <span className={profileCompletion.missing.length === 0
+            ? "inline-flex w-fit items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700"
+            : "inline-flex w-fit items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700"
+          }>
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {profileCompletion.missing.length === 0 ? "Completo" : `${profileCompletion.percentage}% completo`}
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+
+  const profileHub = (
+    <div className="w-full space-y-4" data-testid="profile-hub">
+      {profilePreview}
+
+        {profileCompletion.missing.length > 0 && <section className="profile-section p-4 sm:p-5">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full border-[10px] border-blue-100 text-2xl font-bold text-[#001D34]" aria-label={`Perfil ${profileCompletion.percentage}% completo`}>
+              {profileCompletion.percentage}%
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold text-[#001D34]">Seu perfil está {profileCompletion.percentage}% completo</p>
+              <p className="mt-1 max-w-md text-sm leading-relaxed text-slate-500">Informações completas geram recomendações, conexões e oportunidades melhores para você.</p>
+            </div>
+            <Button type="button" onClick={() => openProfileCategory(recommendedCategory)} className="shrink-0 bg-blue-600 text-white hover:bg-blue-700" data-testid="btn-continuar-perfil">
+              Continuar preenchimento
+            </Button>
+          </div>
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+            <div className="h-full rounded-full bg-blue-600" style={{ width: `${profileCompletion.percentage}%` }} />
+          </div>
+        </section>}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {profileCategories.map(({ key, icon: CategoryIcon, pending }) => {
+            const complete = pending === 0;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => openProfileCategory(key)}
+                className="profile-section group flex min-h-40 flex-col p-4 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:p-5"
+                data-testid={`profile-category-${key}`}
+              >
+                <span className="flex items-start gap-4">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600"><CategoryIcon className="h-6 w-6" /></span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-[#001D34]">{categoryCopy[key].title}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-slate-500">{categoryCopy[key].description}</span>
+                  </span>
+                </span>
+                <span className="mt-auto flex items-end justify-between gap-3 pt-5">
+                  {pending === null ? (
+                    <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">Revisar</span>
+                  ) : complete ? (
+                    <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"><CheckCircle2 className="h-3 w-3" />Completo</span>
+                  ) : (
+                    <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">{pending} {pending === 1 ? "item pendente" : "itens pendentes"}</span>
+                  )}
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700">Editar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {profileCompletion.missing.length > 0 && <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5" data-testid="profile-recommendation">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-600"><Flag className="h-6 w-6" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-slate-500">Próxima etapa recomendada</p>
+              <p className="mt-1 text-sm font-bold text-[#001D34]">{recommendationCopy}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {recommendationItems.length > 0 ? `Faltam apenas ${categoryPending[recommendedCategory].length} ${categoryPending[recommendedCategory].length === 1 ? "item" : "itens"} para fortalecer seu perfil.` : "Revise suas informações para mantê-las atualizadas."}
+              </p>
+            </div>
+            {recommendationItems.length > 0 && (
+              <ul className="min-w-36 space-y-1 text-xs text-slate-700">
+                {recommendationItems.map((item) => <li key={item.key} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-amber-400" />{item.label}</li>)}
+              </ul>
+            )}
+            <Button type="button" variant="outline" onClick={() => openProfileCategory(recommendedCategory)} className="shrink-0 border-amber-300 bg-white text-amber-700 hover:bg-amber-100" data-testid="btn-completar-recomendacao">
+              Completar agora
+            </Button>
+          </div>
+        </section>}
+    </div>
+  );
+
   const profileSummary = (
     <section className="profile-section p-4">
       <p className="text-sm font-bold text-[#001D34]">Resumo do seu perfil</p>
@@ -1579,6 +1818,19 @@ export default function MeuPerfilPage() {
             </span>
             <span className="shrink-0 text-sm font-semibold text-blue-700" aria-hidden="true">→</span>
           </a>
+        )}
+        {minhasCelulas.length > 0 && (
+          <div className="rounded-lg border bg-white p-3" data-testid="summary-minhas-celulas">
+            <p className="flex items-center gap-2 font-bold text-slate-700"><Layers3 className="h-4 w-4 text-blue-600" />Suas Células</p>
+            <div className="mt-2 space-y-1.5">
+              {minhasCelulas.map((cell) => (
+                <a key={cell.id} href={`/comunidade/${cell.community_id}#celulas`} className="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-slate-600 hover:bg-blue-50 hover:text-blue-700">
+                  <span className="min-w-0"><strong className="block truncate text-xs">{cell.name}</strong><span className="block truncate text-[10px] text-slate-500">{cell.community_name}</span></span>
+                  <span className="shrink-0 text-[10px]">{cell.membership_status === "ACTIVE" ? "Participante" : cell.membership_status === "PENDING" ? "Em análise" : "Interesse"}</span>
+                </a>
+              ))}
+            </div>
+          </div>
         )}
         <div>
           <p className="font-bold text-slate-700">Papel na BUILT</p>
@@ -1661,7 +1913,11 @@ export default function MeuPerfilPage() {
         .profile-light-page [data-testid^="chip-"],
         .profile-light-page [data-testid^="btn-rede-"] span { color: #1d4ed8 !important; }
         .profile-light-page [data-testid="btn-salvar-perfil"],
+        .profile-light-page [data-testid="btn-continuar-perfil"],
         .profile-light-page [data-testid="btn-add-company-employee"] { color: #ffffff !important; }
+        .profile-light-page [data-testid="profile-preview-aura"] svg circle:first-of-type {
+          stroke: #dbe3ee;
+        }
         .profile-light-page [data-testid="switch-perfil-na-vitrine"] {
           background: #cbd5e1 !important;
           border: 1px solid #94a3b8 !important;
@@ -1689,80 +1945,20 @@ export default function MeuPerfilPage() {
           }
         }
       `}</style>
-      {/* Header */}
-      <div
-        className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8"
-        style={{ background: "transparent" }}
-      >
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: "linear-gradient(rgba(215,187,125,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.03) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }} />
-        <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-brand-gold/40" />
-        <div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-brand-gold/40" />
-        <div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-brand-gold/40" />
-        <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-brand-gold/40" />
-
-        <p className="relative z-10 text-xs text-slate-500">Início / Meu perfil</p>
-        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-3 sm:gap-4">
-          {/* Avatar — click to upload */}
-          <div className="relative shrink-0">
-            <input
-              ref={fotoInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
-              className="hidden"
-              onChange={handleFotoChange}
-              data-testid="input-foto-perfil"
-            />
-            <button
-              type="button"
-              onClick={() => fotoInputRef.current?.click()}
-              disabled={uploadingFoto}
-              className="relative flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-blue-100 text-[#001D34] group/avatar"
-              style={{ background: "#dbeafe", boxShadow: "none" }}
-              title="Clique para trocar a foto"
-              data-testid="btn-trocar-foto"
-            >
-              {uploadingFoto ?(
-                <Loader2 className="w-6 h-6 text-brand-gold animate-spin" />
-              ) : foto ?(
-                <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: fotoPosition }} />
-              ) : (
-                <span className="text-lg font-bold text-[#001D34]">{getInitials(nome)}</span>
-              )}
-              {/* Hover overlay */}
-              {!uploadingFoto && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                  <Camera className="w-5 h-5 text-white" />
-                </div>
-              )}
-            </button>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-blue-200 flex items-center justify-center pointer-events-none">
-              {uploadingFoto
-                ?<Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
-                : <Camera className="w-3 h-3 text-blue-600" />
-              }
-            </div>
-          </div>
-
-          <div className="min-w-0">
-            <h1 className="flex items-start gap-2 text-xl font-bold leading-tight text-[#001D34] sm:items-center sm:gap-3 sm:text-2xl"><span aria-hidden="true" className="text-2xl sm:text-3xl">👋</span><span>Vamos personalizar sua experiência</span><ModuleInfo title="Meu Perfil" description="Controle o nome público, finalidades, áreas de contribuição, atuação, contatos e dados de formalização usados nos módulos da BUILT." /></h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Atualize suas informações para melhorar recomendações, conexões e oportunidades na BUILT.
-            </p>
-            <p className="mt-2 break-words text-base font-semibold text-[#001D34]">{nome || "—"}</p>
-            {(form.especialidade || form.cargo) && (
-              <p className="mt-0.5 break-words text-sm text-slate-500">{form.especialidade || form.cargo}</p>
-            )}
-            {form.empresa && (
-              <p className="mt-0.5 flex items-start gap-1 break-words text-xs text-slate-500">
-                <Building2 className="w-3 h-3" />{form.empresa}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      <header className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8">
+        {activeCategory && (
+          <button type="button" onClick={closeProfileCategory} className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" data-testid="btn-voltar-profile-hub">
+            <ArrowLeft className="h-4 w-4" /> Voltar para Meu Perfil
+          </button>
+        )}
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-[#001D34]">
+          {activeCategory ? categoryCopy[activeCategory].title : "Meu Perfil"}
+          <ModuleInfo title="Meu Perfil" description="Controle o nome público, finalidades, áreas de contribuição, atuação, contatos e dados de formalização usados nos módulos da BUILT." />
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500">
+          {activeCategory ? categoryCopy[activeCategory].description : "Gerencie suas informações por categoria."}
+        </p>
+      </header>
 
       {/* Form */}
       <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-4 sm:px-6 sm:py-6">
@@ -1770,13 +1966,16 @@ export default function MeuPerfilPage() {
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 bg-white/5" />)}
           </div>
+        ) : activeCategory === null ? (
+          profileHub
         ) : (
           <>
-            <div className="xl:hidden">
+            {activeCategory !== "account" && <div className="xl:hidden">
               {profileSummary}
-            </div>
+            </div>}
             <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,330px)]">
               <div className="min-w-0 space-y-4">
+                {activeCategory === "activity" && <>
                 <section className="profile-section p-4">
                   <h3 className="text-sm font-bold text-[#001D34]">1. Como você quer usar a BUILT?</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione um perfil e configure o que deseja fazer na plataforma.</p>
@@ -1884,6 +2083,29 @@ export default function MeuPerfilPage() {
                   <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {tiposAliancaSelecionados.length}</p>
                 </section>
 
+                <section className="profile-section p-4" data-testid="section-celulas-interesse">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-[#001D34]"><Layers3 className="h-4 w-4 text-blue-600" />3. Tipos de Negócio de interesse</h3>
+                  <p className="mt-1 text-xs text-slate-500">Selecione os negócios que interessam a você. O sistema vincula automaticamente cada escolha à Célula correspondente em todas as suas Comunidades.</p>
+                  <div className="mt-4 space-y-4">
+                    {strategicCellTypes.map((cell) => <div key={cell.code}>
+                      <p className="mb-2 text-[11px] font-semibold text-slate-500">{cell.public_name}</p>
+                      <div className="flex flex-wrap gap-2">{cell.business_types.map((businessType) => {
+                        const selected = strategicCellDraft.business_type_codes.includes(businessType.code);
+                        return <button key={businessType.code} type="button" aria-pressed={selected} onClick={() => setStrategicCellDraft((current) => {
+                          const businessTypeCodes = selected ? current.business_type_codes.filter((code) => code !== businessType.code) : [...current.business_type_codes, businessType.code];
+                          return {
+                            business_type_codes: businessTypeCodes,
+                            strategic_cell_type_codes: strategicCellTypes.filter((item) => item.business_types.some((type) => businessTypeCodes.includes(type.code))).map((item) => item.code),
+                          };
+                        })} className={`rounded-full border px-3 py-2 text-xs ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"}`}>{businessType.public_name}</button>;
+                      })}</div>
+                    </div>)}
+                  </div>
+                  <div className="mt-4 flex justify-end"><Button type="button" disabled={updateStrategicCellPreferencesMutation.isPending} onClick={() => updateStrategicCellPreferencesMutation.mutate()} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">{updateStrategicCellPreferencesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Salvar Tipos de Negócio</Button></div>
+                </section>
+                </>}
+
+            {activeCategory === "identity" && <>
             {/* Dados pessoais */}
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
@@ -1962,12 +2184,18 @@ export default function MeuPerfilPage() {
                 )}
               </CardContent>
             </Card>
+            </>}
 
             {/* Profissional */}
+            {activeCategory !== "account" &&
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
-                <SectionLabel icon={Briefcase} label="Dados complementares" />
+                <SectionLabel
+                  icon={activeCategory === "identity" ? User : activeCategory === "company" ? Building2 : Briefcase}
+                  label={activeCategory === "identity" ? "Formalização e foto" : activeCategory === "company" ? "Dados da empresa" : "Perfil profissional"}
+                />
 
+                {activeCategory === "identity" && <>
                 <DadosFormalizacaoSection
                   form={form}
                   setField={set}
@@ -1983,6 +2211,8 @@ export default function MeuPerfilPage() {
                   onChange={handleFotoChange}
                   data-testid="input-foto-perfil"
                 />
+                </>}
+                {activeCategory === "company" &&
                 <input
                   ref={logoInputRef}
                   type="file"
@@ -1991,7 +2221,9 @@ export default function MeuPerfilPage() {
                   onChange={handleLogoChange}
                   data-testid="input-logo-empresa"
                 />
+                }
 
+                {activeCategory === "identity" &&
                 <div className="profile-media-row flex flex-wrap items-center gap-3 rounded-lg p-3">
                   <button
                     type="button"
@@ -2024,7 +2256,9 @@ export default function MeuPerfilPage() {
                     {uploadingFoto ? "Enviando..." : foto ? "Trocar foto" : "Adicionar foto"}
                   </Button>
                 </div>
+                }
 
+                {activeCategory === "company" &&
                 <div className="profile-media-row flex flex-wrap items-center gap-3 rounded-lg p-3">
                   <button
                     type="button"
@@ -2076,8 +2310,10 @@ export default function MeuPerfilPage() {
                     )}
                   </div>
                 </div>
+                }
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {activeCategory === "company" && <>
                   <Field label="Empresa">
                     <Input
                       value={form.empresa || ""}
@@ -2096,6 +2332,8 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-cnpj"
                     />
                   </Field>
+                  </>}
+                  {activeCategory === "activity" && <>
                   <Field label="Ramo de Atuação">
                     <div className="space-y-2" data-testid="select-perfil-ramo">
                       <Popover open={ramoOpen} onOpenChange={(open) => {
@@ -2327,8 +2565,10 @@ export default function MeuPerfilPage() {
                       </SelectContent>
                     </Select>
                   </Field>
+                  </>}
                 </div>
 
+                {activeCategory === "activity" && <>
                 {/* Especialidade livre */}
                 <Field label="Especialidade (Descreva seus produtos e serviços)">
                   <Input
@@ -2533,11 +2773,12 @@ export default function MeuPerfilPage() {
                     Selecione selos para exibir no seu perfil.
                   </p>
                 </div>
+                </>}
               </CardContent>
-            </Card>
+            </Card>}
 
             {/* Vitrine BUILT */}
-            {prestadorSelecionado && <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
+            {activeCategory === "company" && prestadorSelecionado && <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Globe} label="Vitrine BUILT" />
                 <div
@@ -2565,7 +2806,95 @@ export default function MeuPerfilPage() {
               </CardContent>
             </Card>}
 
+            {activeCategory === "account" &&
+            <section className="profile-section p-4" data-testid="section-alterar-senha">
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-blue-600" />
+                <p className="text-sm font-bold text-[#001D34]">Alterar senha</p>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <Field label="Senha atual">
+                  <div className="relative">
+                    <Input
+                      type={showPasswordFields.currentPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={passwordForm.currentPassword}
+                      onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                      className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
+                      data-testid="input-senha-atual"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      onClick={() => setShowPasswordFields(f => ({ ...f, currentPassword: !f.currentPassword }))}
+                      aria-label={showPasswordFields.currentPassword ? "Ocultar senha atual" : "Mostrar senha atual"}
+                      data-testid="btn-toggle-senha-atual"
+                    >
+                      {showPasswordFields.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field label="Nova senha">
+                  <div className="relative">
+                    <Input
+                      type={showPasswordFields.newPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={passwordForm.newPassword}
+                      onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                      className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
+                      data-testid="input-nova-senha"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      onClick={() => setShowPasswordFields(f => ({ ...f, newPassword: !f.newPassword }))}
+                      aria-label={showPasswordFields.newPassword ? "Ocultar nova senha" : "Mostrar nova senha"}
+                      data-testid="btn-toggle-nova-senha"
+                    >
+                      {showPasswordFields.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field label="Confirmar nova senha">
+                  <div className="relative">
+                    <Input
+                      type={showPasswordFields.confirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={passwordForm.confirmPassword}
+                      onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                      className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
+                      data-testid="input-confirmar-nova-senha"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      onClick={() => setShowPasswordFields(f => ({ ...f, confirmPassword: !f.confirmPassword }))}
+                      aria-label={showPasswordFields.confirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                      data-testid="btn-toggle-confirmar-nova-senha"
+                    >
+                      {showPasswordFields.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Button
+                  type="button"
+                  onClick={handleChangePassword}
+                  disabled={changePasswordMutation.isPending}
+                  className="w-full gap-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 md:col-span-3"
+                  data-testid="btn-alterar-senha"
+                >
+                  {changePasswordMutation.isPending ?(
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="h-4 w-4" />
+                  )}
+                  {changePasswordMutation.isPending ? "Alterando..." : "Alterar senha"}
+                </Button>
+              </div>
+            </section>}
+
             {/* Meu Convite */}
+            {activeCategory === "account" &&
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -2631,15 +2960,14 @@ export default function MeuPerfilPage() {
                   </Button>
                 )}
               </CardContent>
-            </Card>
+            </Card>}
 
               </div>
 
               <aside className="min-w-0 space-y-4">
-                <div className="hidden xl:block">
-                  {profileSummary}
-                </div>
+                {activeCategory === "account" ? profileSummary : <div className="hidden xl:block">{profileSummary}</div>}
 
+                {activeCategory === "account" && <>
                 <section className="profile-section p-4">
                   <p className="text-sm font-bold text-[#001D34]">Informações atuais</p>
                   <div className="mt-3 space-y-2 text-xs text-slate-600">
@@ -2657,95 +2985,12 @@ export default function MeuPerfilPage() {
                   </div>
                 </section>
 
-                <section className="profile-section p-4">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="h-4 w-4 text-blue-600" />
-                    <p className="text-sm font-bold text-[#001D34]">Alterar senha</p>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <Field label="Senha atual">
-                      <div className="relative">
-                        <Input
-                          type={showPasswordFields.currentPassword ? "text" : "password"}
-                          autoComplete="current-password"
-                          value={passwordForm.currentPassword}
-                          onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
-                          className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
-                          data-testid="input-senha-atual"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                          onClick={() => setShowPasswordFields(f => ({ ...f, currentPassword: !f.currentPassword }))}
-                          aria-label={showPasswordFields.currentPassword ? "Ocultar senha atual" : "Mostrar senha atual"}
-                          data-testid="btn-toggle-senha-atual"
-                        >
-                          {showPasswordFields.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </Field>
-                    <Field label="Nova senha">
-                      <div className="relative">
-                        <Input
-                          type={showPasswordFields.newPassword ? "text" : "password"}
-                          autoComplete="new-password"
-                          value={passwordForm.newPassword}
-                          onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
-                          className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
-                          data-testid="input-nova-senha"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                          onClick={() => setShowPasswordFields(f => ({ ...f, newPassword: !f.newPassword }))}
-                          aria-label={showPasswordFields.newPassword ? "Ocultar nova senha" : "Mostrar nova senha"}
-                          data-testid="btn-toggle-nova-senha"
-                        >
-                          {showPasswordFields.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </Field>
-                    <Field label="Confirmar nova senha">
-                      <div className="relative">
-                        <Input
-                          type={showPasswordFields.confirmPassword ? "text" : "password"}
-                          autoComplete="new-password"
-                          value={passwordForm.confirmPassword}
-                          onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                          className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
-                          data-testid="input-confirmar-nova-senha"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                          onClick={() => setShowPasswordFields(f => ({ ...f, confirmPassword: !f.confirmPassword }))}
-                          aria-label={showPasswordFields.confirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
-                          data-testid="btn-toggle-confirmar-nova-senha"
-                        >
-                          {showPasswordFields.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </Field>
-                    <Button
-                      type="button"
-                      onClick={handleChangePassword}
-                      disabled={changePasswordMutation.isPending}
-                      className="w-full gap-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-                      data-testid="btn-alterar-senha"
-                    >
-                      {changePasswordMutation.isPending ?(
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <KeyRound className="h-4 w-4" />
-                      )}
-                      {changePasswordMutation.isPending ? "Alterando..." : "Alterar senha"}
-                    </Button>
-                  </div>
-                </section>
+                </>}
               </aside>
             </div>
 
             {/* Save button */}
+            {activeCategory !== "account" &&
             <div className="flex justify-end">
               <Button
                 onClick={handleSave}
@@ -2767,7 +3012,7 @@ export default function MeuPerfilPage() {
                 )}
                 {saved ?"Salvo!" : updateMutation.isPending ?"Salvando..." : "Salvar perfil"}
               </Button>
-            </div>
+            </div>}
           </>
         )}
       </div>

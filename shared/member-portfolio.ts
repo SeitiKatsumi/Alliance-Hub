@@ -22,16 +22,22 @@ export function isMembershipActive(
     && (Boolean(frozenAt && Number.isFinite(frozenAt.getTime())) || endsAt > now);
 }
 
-export type MapContribution = { memberId: string; name?: string; value: number };
+export type MapContribution = { memberId: string; name?: string; value: number; status: string };
+export type MapOriginAllocation = Omit<MapContribution, "status">;
 export type MapTransfer = { status?: string; fromMemberId: string; toMemberId: string; value: number };
 
-export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[], originAllocations: MapContribution[] = []) {
+export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[], originAllocations: MapOriginAllocation[] = []) {
   const values = new Map<string, { memberId: string; name: string; value: number }>();
-  for (const contribution of [...originAllocations, ...contributions]) {
-    if (!contribution.memberId || !Number.isFinite(contribution.value) || contribution.value <= 0) continue;
+  const addValue = (contribution: MapOriginAllocation) => {
+    if (!contribution.memberId || !Number.isFinite(contribution.value) || contribution.value <= 0) return;
     const current = values.get(contribution.memberId) || { memberId: contribution.memberId, name: contribution.name || "Membro", value: 0 };
     current.value += contribution.value;
     values.set(contribution.memberId, current);
+  };
+  for (const allocation of originAllocations) addValue(allocation);
+  for (const contribution of contributions) {
+    if (String(contribution.status).toLowerCase() !== "pago") continue;
+    addValue(contribution);
   }
   for (const transfer of transfers) {
     if (transfer.status !== "aceita" || transfer.fromMemberId === transfer.toMemberId) continue;

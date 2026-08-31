@@ -26,7 +26,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 ## Dados e fontes de verdade
 
-- PostgreSQL `inventario_imoveis`, `inventario_lancamentos`, `carteira_eventos`, `carteira_documentos`, `carteira_analises`, `carteira_alertas`, `carteira_demandas`, `carteira_cotacoes_cambio`, acessos e sessoes do assistente.
+- PostgreSQL `inventario_imoveis`, inclusive as caracteristicas opcionais de mercado em `data`, `inventario_lancamentos`, `carteira_eventos`, `carteira_documentos`, `carteira_analises`, `carteira_alertas`, `carteira_demandas`, `carteira_cotacoes_cambio`, acessos e sessoes do assistente.
 - PostgreSQL `carteira_imovel_socios` e a fonte oficial da copropriedade declarada e de seus aceites; `bia_imovel_origens` vincula um imovel a uma BIA e `bia_map_origem_alocacoes` congela o MAP inicial ativado.
 - PostgreSQL `bia_patrimonial_snapshots` e `bia_aporte_solicitacoes`; MAP deriva das alocacoes de origem, dos aportes oficiais do Directus e das transferencias aceitas no helper central.
 - Historico de evento e append-only; o snapshot atual nao substitui a trilha.
@@ -52,10 +52,11 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 - A Carteira le o financeiro oficial da BIA, mas nunca o altera sem solicitacao e aprovacao autorizada.
 - Somente MAP maior que zero e snapshot patrimonial confirmado entram no patrimonio consolidado.
-- `Patrimonio Total Estimado` e bruto: soma o valor estimado dos imoveis proprios, proporcional a propriedade, ao valor confirmado das participacoes em BIAs pelo MAP; dividas ficam separadas.
+- `Patrimonio Total Estimado` e bruto: soma somente o valor atual declarado ou confirmado dos imoveis proprios, proporcional a propriedade, ao valor confirmado das participacoes em BIAs pelo MAP; dividas ficam separadas.
 - `Valor de aquisicao` soma o valor pago proporcional dos imoveis aos aportes oficiais nas BIAs.
 - `Valorizacao registrada` considera somente ativos que possuam valor atual/estimado e base de aquisicao/aporte.
-- A estimativa automatica da aba Analise usa no minimo tres anuncios do mesmo tipo com distancia geocodificada de ate 20 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao humana.
+- A estimativa automatica da aba Analise usa no minimo tres anuncios do mesmo tipo, a menor distancia geocodificada viavel de ate 20 km e faixa proporcional de area; quando informados, padrao, idade, conservacao, quartos, banheiros e vagas eliminam comparaveis incompatíveis.
+- A referencia usa a mediana do preco por m2 depois de remover anuncios muito fora da curva; a confianca considera quantidade, raio e cobertura das caracteristicas. A sugestao vale por 30 dias, permanece separada dos cards e totais e so substitui o valor oficial depois de confirmacao humana.
 - O resumo nao chama servicos externos; pesquisas e cotacoes desatualizadas sao renovadas em segundo plano e resultados validos permanecem disponiveis durante falhas.
 - Consolidacoes multimoeda usam a ultima cotacao de venda PTAX persistida; sem cotacao, a moeda e identificada e excluida do total, nunca tratada silenciosamente como BRL.
 - Cada imovel registra a participacao percentual do usuario; aquisicao, valor atual, divida e concentracao usam essa fracao.

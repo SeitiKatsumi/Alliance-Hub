@@ -149,6 +149,8 @@ test("libera imagens necessárias no onboarding sem abrir APIs vizinhas", () => 
   assert.equal(isInitialOnboardingApiAllowed("/api/assets/foto-uuid?width=96"), true);
   assert.equal(isInitialOnboardingApiAllowed("/api/onboarding/etapas/conexoes"), true);
   assert.equal(isInitialOnboardingApiAllowed("/api/taxonomy/public-labels"), true);
+  assert.equal(isInitialOnboardingApiAllowed("/api/strategic-cell-types"), true);
+  assert.equal(isInitialOnboardingApiAllowed("/api/reunioes-oportunidades/convidado/token/confirmar"), true);
   assert.equal(isInitialOnboardingApiAllowed("/api/membros"), false);
   assert.equal(isInitialOnboardingApiAllowed("/api/admin"), false);
 });

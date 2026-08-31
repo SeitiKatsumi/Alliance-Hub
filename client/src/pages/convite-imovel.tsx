@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Building2, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Eye, EyeOff, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +14,7 @@ export default function ConviteImovelPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [form, setForm] = useState({ nome: "", password: "", aceite_termos: false, aceite_privacidade: false });
+  const [showPassword, setShowPassword] = useState(false);
   const invite = useQuery<any>({
     queryKey: ["/api/carteira/convites", token],
     queryFn: async () => {
@@ -53,7 +54,7 @@ export default function ConviteImovelPage() {
       {invite.data && <>
         <div className="rounded-md border bg-white p-4"><p className="font-semibold">{invite.data.imovel_nome}</p><p className="mt-1 text-sm text-slate-600">{invite.data.nome} · {Number(invite.data.map_percentual).toLocaleString("pt-BR")}% do MAP</p></div>
         {!invite.data.conta_existente && <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(event) => setForm({ ...form, nome: event.target.value })} placeholder={invite.data.nome} /></div>}
-        <div className="space-y-2"><Label>{invite.data.conta_existente ? "Senha da sua conta BUILT" : "Crie uma senha"}</Label><Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></div>
+        <div className="space-y-2"><Label>{invite.data.conta_existente ? "Senha da sua conta BUILT" : "Crie uma senha"}</Label><div className="relative"><Input type={showPassword ? "text" : "password"} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} className="pr-10" /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
         {!invite.data.conta_existente && <div className="space-y-3">
           <label className="flex items-start gap-3 text-sm"><Checkbox checked={form.aceite_termos} onCheckedChange={(checked) => setForm({ ...form, aceite_termos: checked === true })} /><span>Li e aceito os termos básicos de uso da conta limitada.</span></label>
           <label className="flex items-start gap-3 text-sm"><Checkbox checked={form.aceite_privacidade} onCheckedChange={(checked) => setForm({ ...form, aceite_privacidade: checked === true })} /><span>Li e aceito a política de privacidade.</span></label>

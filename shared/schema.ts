@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique, uniqueIndex, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { BiaAccessMatrix } from "./bia-access";
@@ -263,6 +263,14 @@ export const carteiraDemandas = pgTable("carteira_demandas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   imovel_id: text("imovel_id").references(() => inventarioImoveis.id, { onDelete: "cascade" }),
   bia_id: text("bia_id"),
+  community_id: text("community_id"),
+  source_type: text("source_type"),
+  source_event_id: text("source_event_id"),
+  strategic_cell_id: text("strategic_cell_id"),
+  strategic_cell_type_code: text("strategic_cell_type_code"),
+  market_code: text("market_code"),
+  contribution_area: text("contribution_area"),
+  primary_segment_code: text("primary_segment_code"),
   codigo: text("codigo").unique(),
   autor_tipo: text("autor_tipo").notNull().default("usuario"),
   autor_user_id: text("autor_user_id"),
@@ -656,10 +664,19 @@ export const opportunityMeetings = pgTable("opportunity_meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   codigo: text("codigo").notNull().unique(),
   titulo: text("titulo").notNull(),
+  event_type: text("event_type").notNull().default("RO"),
+  community_id: text("community_id"),
   data: date("data").notNull(),
   hora: text("hora"),
+  start_at: timestamp("start_at"),
+  end_at: timestamp("end_at"),
+  timezone: text("timezone").notNull().default("America/Sao_Paulo"),
   link: text("link"),
+  location_type: text("location_type").notNull().default("online"),
+  address: text("address"),
+  guest_policy: text("guest_policy").notNull().default("members_only"),
   pauta: text("pauta"),
+  strategic_cell_id: text("strategic_cell_id"),
   publico: text("publico").notNull().default("convidados"),
   ata: text("ata"),
   decisoes: jsonb("decisoes").$type<Array<Record<string, unknown>>>().notNull().default([]),
@@ -705,11 +722,25 @@ export const opportunityMeetingParticipants = pgTable("opportunity_meeting_parti
   user_id: text("user_id"),
   membro_id: text("membro_id"),
   nome: text("nome"),
+  email: text("email"),
+  external: boolean("external").notNull().default(false),
   papel: text("papel"),
   confirmacao: text("confirmacao").notNull().default("pendente"),
   presenca: text("presenca").notNull().default("nao_informada"),
   decisao: text("decisao"),
+  invited_by_user_id: text("invited_by_user_id"),
+  invited_by_membro_id: text("invited_by_membro_id"),
+  invite_token_hash: text("invite_token_hash"),
+  invite_expires_at: timestamp("invite_expires_at"),
+  guest_terms_version: text("guest_terms_version"),
+  guest_terms_accepted_at: timestamp("guest_terms_accepted_at"),
+  guest_terms_evidence: jsonb("guest_terms_evidence").$type<Record<string, unknown>>().notNull().default({}),
+  source_type: text("source_type"),
+  source_event_id: text("source_event_id"),
+  source_community: text("source_community"),
+  source_invited_by: text("source_invited_by"),
   criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
 });
 
 export const opportunityFeedback = pgTable("opportunity_feedback", {
@@ -1271,6 +1302,94 @@ export const contributionAreaSegments = pgTable("contribution_area_segments", {
 }, (table) => ({
   areaSegmentUnique: unique("contribution_area_segments_uniq").on(table.contribution_area_value, table.segment_code),
 }));
+
+export const strategicCellTypes = pgTable("strategic_cell_types", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  public_name: text("public_name").notNull(),
+  short_description: text("short_description").notNull(),
+  help_text: text("help_text"),
+  icon_key: text("icon_key"),
+  status: text("status").notNull().default("ACTIVE"),
+  display_order: integer("display_order").notNull().default(0),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const strategicCellMarkets = pgTable("strategic_cell_markets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  strategic_cell_type_id: varchar("strategic_cell_type_id").notNull().references(() => strategicCellTypes.id, { onDelete: "restrict" }),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  public_name: text("public_name").notNull(),
+  short_description: text("short_description"),
+  help_text: text("help_text"),
+  status: text("status").notNull().default("ACTIVE"),
+  display_order: integer("display_order").notNull().default(0),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const strategicCells = pgTable("strategic_cells", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  community_id: text("community_id").notNull(),
+  strategic_cell_type_id: varchar("strategic_cell_type_id").notNull().references(() => strategicCellTypes.id, { onDelete: "restrict" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  proposal_reason: text("proposal_reason"),
+  coordinator_user_id: varchar("coordinator_user_id"),
+  coordinator_membro_id: text("coordinator_membro_id"),
+  status: text("status").notNull().default("ACTIVE"),
+  created_by_user_id: text("created_by_user_id").notNull(),
+  created_by_membro_id: text("created_by_membro_id"),
+  approved_by_user_id: text("approved_by_user_id"),
+  approved_by_membro_id: text("approved_by_membro_id"),
+  approved_at: timestamp("approved_at"),
+  decision_reason: text("decision_reason"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  oneActiveTypePerCommunity: uniqueIndex("strategic_cells_active_type_uniq")
+    .on(table.community_id, table.strategic_cell_type_id)
+    .where(sql`${table.status} = 'ACTIVE'`),
+}));
+
+export const strategicCellMemberships = pgTable("strategic_cell_memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  strategic_cell_id: varchar("strategic_cell_id").notNull().references(() => strategicCells.id, { onDelete: "cascade" }),
+  user_id: text("user_id").notNull(),
+  membro_id: text("membro_id").notNull(),
+  source: text("source").notNull().default("manual"),
+  status: text("status").notNull().default("INTERESTED"),
+  joined_at: timestamp("joined_at").defaultNow().notNull(),
+  approved_at: timestamp("approved_at"),
+  approved_by_user_id: text("approved_by_user_id"),
+  approved_by_membro_id: text("approved_by_membro_id"),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  cellUserUnique: unique("strategic_cell_memberships_cell_user_uniq").on(table.strategic_cell_id, table.user_id),
+}));
+
+export const strategicCellPreferences = pgTable("strategic_cell_preferences", {
+  user_id: text("user_id").primaryKey(),
+  membro_id: text("membro_id").notNull(),
+  cell_type_codes: jsonb("cell_type_codes").$type<string[]>().notNull().default([]),
+  business_type_codes: jsonb("business_type_codes").$type<string[]>().notNull().default([]),
+  source: text("source").notNull().default("profile"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const strategicCellEvents = pgTable("strategic_cell_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  strategic_cell_id: varchar("strategic_cell_id").notNull().references(() => strategicCells.id, { onDelete: "cascade" }),
+  event_type: text("event_type").notNull(),
+  actor_user_id: text("actor_user_id"),
+  actor_membro_id: text("actor_membro_id"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
 
 export function getQuinzena(dateStr: string): { inicio: string; fim: string } {
   const [y, m, d] = dateStr.split("-").map(Number);

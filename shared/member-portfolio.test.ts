@@ -16,7 +16,7 @@ test("congelamento preserva acesso enquanto a contagem esta pausada", () => {
 
 test("MAP considera aportes e transferencias aceitas sem criar valor", () => {
   const rows = calculateMap(
-    [{ memberId: "a", value: 800 }, { memberId: "b", value: 200 }],
+    [{ memberId: "a", value: 800, status: "pago" }, { memberId: "b", value: 200, status: "pago" }],
     [{ status: "aceita", fromMemberId: "a", toMemberId: "b", value: 300 }],
   );
   assert.equal(rows.find((row) => row.memberId === "a")?.percent, 50);
@@ -48,9 +48,20 @@ test("patrimonio considera somente a fracao do imovel pertencente ao usuario", (
   assert.equal(result.estimatedTotal, 90);
 });
 
+test("MAP considera o aporte somente quando o pagamento acontece", () => {
+  const rows = calculateMap([
+    { memberId: "a", value: 100, status: "pago" },
+    { memberId: "b", value: 200, status: "agendado" },
+    { memberId: "c", value: 300, status: "pendente" },
+    { memberId: "d", value: 400, status: "vencido" },
+  ], []);
+
+  assert.deepEqual(rows.map((row) => [row.memberId, row.value, row.percent]), [["a", 100, 100]]);
+});
+
 test("MAP incorpora a alocacao inicial do imovel sem lancamento financeiro", () => {
   const rows = calculateMap(
-    [{ memberId: "a", value: 100 }],
+    [{ memberId: "a", value: 100, status: "pago" }],
     [],
     [{ memberId: "a", value: 600 }, { memberId: "b", value: 400 }],
   );

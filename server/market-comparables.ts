@@ -1,6 +1,13 @@
-export const MARKET_AREA_TOLERANCE_M2 = 30;
 export const MARKET_MIN_COMPARABLES = 3;
 export const MARKET_RADIUS_KM = 20;
+
+export function marketAreaRange(areaM2: number) {
+  const tolerance = Math.min(50, Math.max(15, areaM2 * 0.2));
+  return {
+    min: Math.max(1, Number((areaM2 - tolerance).toFixed(2))),
+    max: Number((areaM2 + tolerance).toFixed(2)),
+  };
+}
 
 export interface MarketComparable {
   titulo: string;
@@ -14,6 +21,12 @@ export interface MarketComparable {
   preco_m2: number;
   moeda: string;
   distancia_km?: number;
+  ano_construcao?: number;
+  padrao?: string;
+  estado_conservacao?: string;
+  quartos?: number;
+  banheiros?: number;
+  vagas?: number;
   trecho?: string;
 }
 
@@ -27,6 +40,12 @@ export interface MarketComparableTarget {
   moeda: string;
   raioMaxKm?: number;
   exigirDistancia?: boolean;
+  anoConstrucao?: number;
+  padrao?: string;
+  estadoConservacao?: string;
+  quartos?: number;
+  banheiros?: number;
+  vagas?: number;
 }
 
 interface MarketSource {
@@ -51,6 +70,10 @@ export interface MarketComparableAnalysis {
   referencia_m2_media?: number;
   diferenca_percentual?: number;
   confianca?: "baixa" | "media" | "alta";
+  raio_aplicado_km?: number;
+  metodo?: "mediana";
+  cobertura_caracteristicas_percentual?: number;
+  lacunas?: string[];
 }
 
 export function marketLocationCandidates(value: unknown): string[] {
@@ -104,6 +127,44 @@ function parsePositiveNumber(value: unknown): number {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function optionalInteger(value: unknown, min = 0, max = 100): number | undefined {
+  if (value == null || String(value).trim() === "") return undefined;
+  const parsed = Math.round(parsePositiveNumber(value));
+  if (!parsed && Number(value) !== 0) return undefined;
+  return parsed >= min && parsed <= max ? parsed : undefined;
+}
+
+const PROPERTY_CONDITIONS = ["reformar", "regular", "bom", "reformado", "novo"] as const;
+
+function normalizeStandard(value: unknown): string {
+  const normalized = normalizeText(value);
+  if (/luxo|luxury|altissimo/.test(normalized)) return "luxo";
+  if (/alto|premium|superior/.test(normalized)) return "alto";
+  if (/economico|popular|entrada/.test(normalized)) return "economico";
+  if (/medio|padrao/.test(normalized)) return "medio";
+  return "";
+}
+
+function normalizeCondition(value: unknown): string {
+  const normalized = normalizeText(value);
+  if (/novo|lancamento|recem construido/.test(normalized)) return "novo";
+  if (/reformado|renovado/.test(normalized)) return "reformado";
+  if (/bom/.test(normalized)) return "bom";
+  if (/regular/.test(normalized)) return "regular";
+  if (/reformar|reforma|ruim/.test(normalized)) return "reformar";
+  return "";
+}
+
+function rankDifference(values: readonly string[], left: string, right: string): number {
+  return Math.abs(values.indexOf(left) - values.indexOf(right));
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function canonicalUrl(value: unknown): string {
@@ -183,12 +244,25 @@ function normalizeComparable(
   const precoTotal = parsePositiveNumber(row.preco_total || row.valor || row.preco || row.price);
   const moeda = normalizeCurrency(row.moeda, target.moeda);
   const distanciaKm = Number(row.distancia_km);
+  const anoConstrucao = optionalInteger(row.ano_construcao || row.ano || row.year_built, 1800, new Date().getFullYear() + 2);
+  const padrao = normalizeStandard(row.padrao || row.standard || row.segmento);
+  const estadoConservacao = normalizeCondition(row.estado_conservacao || row.conservacao || row.condition);
+  const quartos = optionalInteger(row.quartos || row.dormitorios || row.bedrooms);
+  const banheiros = optionalInteger(row.banheiros || row.bathrooms);
+  const vagas = optionalInteger(row.vagas || row.garagens || row.parking_spaces);
 
   if (!url || !sameType(target.tipo, tipo) || (!target.exigirDistancia && !sameRegion(target, row))) return null;
   if (areaM2 < areaMin || areaM2 > areaMax || precoTotal <= 0) return null;
   if (moeda !== target.moeda.toUpperCase()) return null;
   if (target.exigirDistancia && (!Number.isFinite(distanciaKm) || distanciaKm < 0)) return null;
   if (Number.isFinite(distanciaKm) && distanciaKm > Number(target.raioMaxKm || MARKET_RADIUS_KM)) return null;
+  if (target.padrao && padrao && target.padrao !== padrao) return null;
+  if (target.anoConstrucao != null && anoConstrucao != null && Math.abs(target.anoConstrucao - anoConstrucao) > 12) return null;
+  if (target.quartos != null && quartos != null && Math.abs(target.quartos - quartos) > 1) return null;
+  if (target.banheiros != null && banheiros != null && Math.abs(target.banheiros - banheiros) > 1) return null;
+  if (target.vagas != null && vagas != null && Math.abs(target.vagas - vagas) > 1) return null;
+  if (target.estadoConservacao && estadoConservacao
+    && rankDifference(PROPERTY_CONDITIONS, target.estadoConservacao, estadoConservacao) > 1) return null;
 
   return {
     titulo: String(row.titulo || row.title || row.nome || "Imóvel comparável").trim().slice(0, 180),
@@ -202,6 +276,12 @@ function normalizeComparable(
     preco_m2: Number((precoTotal / areaM2).toFixed(2)),
     moeda,
     distancia_km: Number.isFinite(distanciaKm) ? Number(distanciaKm.toFixed(2)) : undefined,
+    ano_construcao: anoConstrucao,
+    padrao: padrao || undefined,
+    estado_conservacao: estadoConservacao || undefined,
+    quartos,
+    banheiros,
+    vagas,
     trecho: row.trecho || row.resumo ? String(row.trecho || row.resumo).trim().slice(0, 280) : undefined,
   };
 }
@@ -228,9 +308,17 @@ export function buildComparableMarketAnalysis(
   rawComparables: unknown,
   target: MarketComparableTarget,
 ): MarketComparableAnalysis {
-  const normalizedTarget = { ...target, moeda: normalizeCurrency(target.moeda, "BRL") };
-  const areaMin = Math.max(1, Number((target.areaM2 - MARKET_AREA_TOLERANCE_M2).toFixed(2)));
-  const areaMax = Number((target.areaM2 + MARKET_AREA_TOLERANCE_M2).toFixed(2));
+  const normalizedTarget: MarketComparableTarget = {
+    ...target,
+    moeda: normalizeCurrency(target.moeda, "BRL"),
+    anoConstrucao: optionalInteger(target.anoConstrucao, 1800, new Date().getFullYear() + 2),
+    padrao: normalizeStandard(target.padrao),
+    estadoConservacao: normalizeCondition(target.estadoConservacao),
+    quartos: optionalInteger(target.quartos),
+    banheiros: optionalInteger(target.banheiros),
+    vagas: optionalInteger(target.vagas),
+  };
+  const { min: areaMin, max: areaMax } = marketAreaRange(target.areaM2);
   const values = Array.isArray(rawComparables) ? rawComparables : [];
   const byUrl = new Map<string, MarketComparable>();
 
@@ -239,13 +327,62 @@ export function buildComparableMarketAnalysis(
     if (comparable && !byUrl.has(comparable.url)) byUrl.set(comparable.url, comparable);
   }
 
-  const comparaveis = Array.from(byUrl.values()).slice(0, 12);
+  const targetNeighborhood = normalizeText(target.bairro);
+  const candidates = Array.from(byUrl.values()).sort((left, right) => {
+    const leftSameNeighborhood = targetNeighborhood && normalizeText(left.bairro) === targetNeighborhood ? 1 : 0;
+    const rightSameNeighborhood = targetNeighborhood && normalizeText(right.bairro) === targetNeighborhood ? 1 : 0;
+    return rightSameNeighborhood - leftSameNeighborhood
+      || Number(left.distancia_km ?? Number.POSITIVE_INFINITY) - Number(right.distancia_km ?? Number.POSITIVE_INFINITY)
+      || Math.abs(left.area_m2 - target.areaM2) - Math.abs(right.area_m2 - target.areaM2);
+  });
+  const maxRadius = Number(target.raioMaxKm || MARKET_RADIUS_KM);
+  let appliedRadius = target.exigirDistancia ? maxRadius : undefined;
+  let comparaveis = candidates;
+  if (target.exigirDistancia) {
+    for (const radius of Array.from(new Set([5, 10, maxRadius])).sort((left, right) => left - right)) {
+      const nearby = candidates.filter((item) => Number(item.distancia_km) <= radius);
+      if (nearby.length >= MARKET_MIN_COMPARABLES || radius === maxRadius) {
+        comparaveis = nearby;
+        appliedRadius = radius;
+        break;
+      }
+    }
+  }
+  comparaveis = comparaveis.slice(0, 12);
+  if (comparaveis.length >= 4) {
+    const priceMedian = median(comparaveis.map((item) => item.preco_m2));
+    const medianDeviation = median(comparaveis.map((item) => Math.abs(item.preco_m2 - priceMedian)));
+    const withoutOutliers = medianDeviation > 0
+      ? comparaveis.filter((item) => Math.abs(item.preco_m2 - priceMedian) <= medianDeviation * 3)
+      : comparaveis;
+    if (withoutOutliers.length >= MARKET_MIN_COMPARABLES) comparaveis = withoutOutliers;
+  }
+
   const region = String(target.bairro || target.cidade || target.localizacao || "região informada").trim();
+  const residential = ["apartamento", "casa"].includes(typeFamily(target.tipo));
+  const characteristics = [
+    { label: "padrão", value: normalizedTarget.padrao, key: "padrao" as const },
+    { label: "ano de construção", value: normalizedTarget.anoConstrucao, key: "ano_construcao" as const },
+    { label: "estado de conservação", value: normalizedTarget.estadoConservacao, key: "estado_conservacao" as const },
+    ...(residential ? [
+      { label: "quartos", value: normalizedTarget.quartos, key: "quartos" as const },
+      { label: "banheiros", value: normalizedTarget.banheiros, key: "banheiros" as const },
+      { label: "vagas", value: normalizedTarget.vagas, key: "vagas" as const },
+    ] : []),
+  ];
+  const informedCharacteristics = characteristics.filter((item) => item.value !== undefined && item.value !== "");
+  const coveredCharacteristics = informedCharacteristics.length && comparaveis.length
+    ? comparaveis.reduce((sum, comparable) => sum + informedCharacteristics.filter((item) => comparable[item.key] != null).length, 0)
+      / (informedCharacteristics.length * comparaveis.length) * 100
+    : 0;
+  const lacunas = characteristics.filter((item) => item.value === undefined || item.value === "").map((item) => item.label);
   const fatores = [
     `mesmo tipo: ${target.tipo}`,
-    `mesma região: ${region}`,
+    `região de referência: ${region}`,
     `área entre ${areaMin.toLocaleString("pt-BR")} e ${areaMax.toLocaleString("pt-BR")} m²`,
-    ...(target.exigirDistancia ? [`distância de até ${Number(target.raioMaxKm || MARKET_RADIUS_KM).toLocaleString("pt-BR")} km do imóvel`] : []),
+    ...(target.exigirDistancia ? [`menor raio com amostra suficiente: até ${Number(appliedRadius).toLocaleString("pt-BR")} km`] : []),
+    ...informedCharacteristics.map((item) => `${item.label}: ${String(item.value)}`),
+    "referência calculada pela mediana do preço por m²",
   ];
   const fontes = comparaveis.map(({ titulo, url, trecho }) => ({ titulo, url, trecho }));
   const base = {
@@ -256,34 +393,43 @@ export function buildComparableMarketAnalysis(
     comparaveis,
     fontes,
     fatores,
+    raio_aplicado_km: appliedRadius,
+    metodo: "mediana" as const,
+    cobertura_caracteristicas_percentual: Number(coveredCharacteristics.toFixed(0)),
+    lacunas,
   };
 
   if (!base.amostra_suficiente) {
     return {
       ...base,
       resumo: `Foram encontrados ${comparaveis.length} de ${MARKET_MIN_COMPARABLES} imóveis comparáveis necessários.`,
-      observacao: "A média e a classificação ficam ocultas até haver anúncios públicos suficientes do mesmo tipo, região e faixa de área.",
+      observacao: "A referência fica oculta até haver anúncios públicos suficientes do mesmo tipo, região, faixa de área e características compatíveis.",
     };
   }
 
   const pricesM2 = comparaveis.map((item) => item.preco_m2);
-  const referenceAverage = pricesM2.reduce((sum, value) => sum + value, 0) / pricesM2.length;
-  const difference = ((target.precoM2 - referenceAverage) / referenceAverage) * 100;
-  const resultClassification = classification(target.precoM2, referenceAverage);
+  const referenceMedian = median(pricesM2);
+  const difference = ((target.precoM2 - referenceMedian) / referenceMedian) * 100;
+  const resultClassification = classification(target.precoM2, referenceMedian);
   const classificationText = resultClassification === "media"
     ? "na média"
     : resultClassification === "acima" ? "acima da média" : "abaixo da média";
-  const confidence = comparaveis.length >= 7 ? "alta" : comparaveis.length >= 5 ? "media" : "baixa";
+  const confidence = comparaveis.length >= 5 && Number(appliedRadius || 0) <= 5
+    && informedCharacteristics.length >= 3 && coveredCharacteristics >= 70
+    ? "alta"
+    : comparaveis.length >= 4 && informedCharacteristics.length >= 2 && coveredCharacteristics >= 50
+      ? "media"
+      : "baixa";
 
   return {
     ...base,
     classificacao: resultClassification,
     referencia_m2_min: Math.round(Math.min(...pricesM2)),
     referencia_m2_max: Math.round(Math.max(...pricesM2)),
-    referencia_m2_media: Math.round(referenceAverage),
+    referencia_m2_media: Math.round(referenceMedian),
     diferenca_percentual: Number(difference.toFixed(1)),
     confianca: confidence,
-    resumo: `O preço informado está ${classificationText}, com base em ${comparaveis.length} imóveis comparáveis em ${region}.`,
-    observacao: "Referência calculada com anúncios públicos de venda; não substitui laudo de avaliação.",
+    resumo: `O preço informado está ${classificationText} da referência mediana, com base em ${comparaveis.length} imóveis comparáveis em ${region}.`,
+    observacao: "A mediana reduz o efeito de anúncios fora da curva. Características ausentes diminuem a confiança; a referência não substitui laudo de avaliação.",
   };
 }

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getProfileCompletion, getProfileCompletionPath, type ProfileCompletionSource } from "./profile-completion";
+import {
+  getProfileCategoryPending,
+  getProfileCompletion,
+  getProfileCompletionCategory,
+  getProfileCompletionPath,
+  type ProfileCompletionSource,
+} from "./profile-completion";
 
 const completeProfile: ProfileCompletionSource = {
   foto_perfil: "foto-id",
@@ -79,4 +85,12 @@ test("empresa informada exige CNPJ e marca para completar o perfil", () => {
 test("pessoa casada recebe pendências específicas do cônjuge", () => {
   const result = getProfileCompletion({ ...completeProfile, estado_civil: "casado" });
   assert.deepEqual(result.missing.map((item) => item.key), ["regime_comunhao", "conjuge_nome"]);
+});
+
+test("central do perfil agrupa pendências na categoria que abre o formulário correto", () => {
+  const { area_atuacao: _area, perfil_aliado: _bio, ...profile } = completeProfile;
+  assert.deepEqual(getProfileCategoryPending(profile, "activity").map((item) => item.key), ["area_atuacao", "biografia"]);
+  assert.equal(getProfileCompletionCategory("biografia"), "activity");
+  assert.equal(getProfileCompletionCategory("cpf"), "identity");
+  assert.equal(getProfileCompletionCategory("logo_empresa"), "company");
 });

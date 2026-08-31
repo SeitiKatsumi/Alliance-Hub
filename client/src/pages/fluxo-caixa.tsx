@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
+import { calculateMap, type MapContribution } from "@shared/member-portfolio";
 import {
   Wallet,
   Plus,
@@ -1660,6 +1661,9 @@ export default function FluxoCaixaPage({
       if (!response.ok) throw new Error("Erro ao buscar lançamentos autorizados");
       return response.json();
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const { data: historico = [], isLoading: loadingHistorico } = useQuery<FluxoCaixaHistoricoItem[]>({
@@ -1986,82 +1990,58 @@ export default function FluxoCaixaPage({
     [destinatariosTransferencia]
   );
 
-  const aportesPorMembro = useMemo<AportePorMembro[]>(() => {
-    const entradas = fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
-    const map: Record<string, number> = {};
-    const nameMap: Record<string, string> = {};
-    entradas.forEach((i) => {
+  const mapContributions = useMemo<MapContribution[]>(() => {
+    return fluxoItemsContabeis.flatMap((i) => {
+      if (i.tipo !== "entrada") return [];
       const fav = (i.Favorecido || [])[0] as any;
       const mid = getRelId(fav);
-      if (mid) {
-        map[mid] = (map[mid] || 0) + (parseFloat(String(i.valor)) || 0);
-        if (!nameMap[mid] && typeof fav === "object" && fav !== null) {
-          const n = fav.Nome_de_usuario || fav.nome || fav.nome_completo || fav.razao_social;
-          if (n) nameMap[mid] = n;
-        }
-      }
+      if (!mid) return [];
+      const name = typeof fav === "object" && fav !== null
+        ? fav.Nome_de_usuario || fav.nome || fav.nome_completo || fav.razao_social
+        : undefined;
+      return [{ memberId: mid, name, value: parseFloat(String(i.valor)) || 0, status: i.status || "" }];
     });
-    const totalAportesComMembro = Object.values(map).reduce((s, v) => s + v, 0);
-    return Object.entries(map)
-      .map(([membroId, valor]) => ({
-        membroId,
-        inlineName: nameMap[membroId] || null,
-        valor,
-        percentual: totalAportesComMembro > 0 ?(valor / totalAportesComMembro) * 100 : 0,
-      }))
-      .sort((a, b) => b.valor - a.valor);
   }, [fluxoItemsContabeis]);
 
-  const aportesComTransferencias = useMemo(() => {
-    const map = new Map<string, AportePorMembro>();
-    aportesPorMembro.forEach((item) => map.set(item.membroId, { ...item }));
+  const aportesPorMembro = useMemo<AportePorMembro[]>(() => {
+    return calculateMap(mapContributions, [])
+      .map((item) => ({
+        membroId: item.memberId,
+        inlineName: item.name || null,
+        valor: item.value,
+        percentual: item.percent,
+      }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [mapContributions]);
 
+  const aportesComTransferencias = useMemo(() => {
     const papelPorMembro = new Map<string, PapelAlocacao>();
     parseMemberList(selectedBia?.socios_guardioes).forEach((id) => papelPorMembro.set(id, "guardioes"));
     parseMemberList(selectedBia?.socios_multiplicadores).forEach((id) => papelPorMembro.set(id, "multiplicadores"));
 
-    const nomePorMembro = new Map(membros.map((m) => [m.id, getMembroNome(m)]));
+    const mapTransfers = transferencias.map((transfer) => ({
+      status: transfer.status,
+      fromMemberId: transfer.membro_origem_id,
+      toMemberId: transfer.membro_destino_id,
+      value: parseFloat(String(transfer.valor_total || "0")) || 0,
+    }));
+    mapTransfers.filter((transfer) => transfer.status === "aceita").forEach((transfer) => {
+      if (!papelPorMembro.has(transfer.toMemberId)) {
+        papelPorMembro.set(transfer.toMemberId, papelPorMembro.get(transfer.fromMemberId) || "naoClassificados");
+      }
+    });
 
-    transferencias
-      .filter((transfer) => transfer.status === "aceita")
-      .forEach((transfer) => {
-        const origem = map.get(transfer.membro_origem_id);
-        if (!origem) return;
-
-        const valorSolicitado = parseFloat(String(transfer.valor_total || "0")) || 0;
-        const valorTransferido = Math.min(valorSolicitado, Math.max(0, origem.valor));
-        if (valorTransferido <= 0) return;
-
-        origem.valor = Math.max(0, origem.valor - valorTransferido);
-
-        const destino =
-          map.get(transfer.membro_destino_id) ||
-          {
-            membroId: transfer.membro_destino_id,
-            inlineName: nomePorMembro.get(transfer.membro_destino_id) || null,
-            valor: 0,
-            percentual: 0,
-          };
-
-        destino.valor += valorTransferido;
-        if (!map.has(destino.membroId)) map.set(destino.membroId, destino);
-
-        if (!papelPorMembro.has(destino.membroId)) {
-          papelPorMembro.set(destino.membroId, papelPorMembro.get(transfer.membro_origem_id) || "naoClassificados");
-        }
-      });
-
-    const total = Array.from(map.values()).reduce((sum, item) => sum + item.valor, 0);
-    const rows = Array.from(map.values())
-      .filter((item) => item.valor > 0.005)
+    const rows = calculateMap(mapContributions, mapTransfers)
       .map((item) => ({
-        ...item,
-        percentual: total > 0 ?(item.valor / total) * 100 : 0,
+        membroId: item.memberId,
+        inlineName: item.name || null,
+        valor: item.value,
+        percentual: item.percent,
       }))
       .sort((a, b) => b.valor - a.valor);
 
     return { rows, papelPorMembro };
-  }, [aportesPorMembro, membros, selectedBia, transferencias]);
+  }, [mapContributions, selectedBia, transferencias]);
 
   const alocacaoPorPapel = useMemo(() => {
     const { rows, papelPorMembro } = aportesComTransferencias;
@@ -2085,7 +2065,7 @@ export default function FluxoCaixaPage({
   }
 
   function handleExportAllocationPdf() {
-    const logoUrl = `${window.location.origin}/built-logo-horizontal-branca-email.png`;
+    const logoUrl = `${window.location.origin}/built-logo-horizontal-map.png`;
     const groups = [
       { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes },
       { title: "Sócios Multiplicadores", items: alocacaoPorPapel.multiplicadores },
@@ -2147,14 +2127,13 @@ export default function FluxoCaixaPage({
             * { box-sizing: border-box; }
             body { margin: 0; color: #08233b; font-family: Inter, Arial, Helvetica, sans-serif; background: #f4f7fb; }
             .document { background: #fff; min-height: 100vh; border: 1px solid #dfe6ef; }
-            .header { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; min-height: 142px; padding: 28px 32px 30px; color: #fff; background: linear-gradient(135deg, #001f35 0%, #06385b 58%, #0b4b78 100%); overflow: hidden; }
-            .header:after { content: ""; position: absolute; inset: auto -90px -110px auto; width: 280px; height: 280px; border: 1px solid rgba(217, 191, 115, 0.28); transform: rotate(35deg); }
-            .header-content { position: relative; z-index: 1; max-width: 560px; }
-            .logo { position: relative; z-index: 1; width: 168px; height: auto; object-fit: contain; margin-top: 2px; }
-            .eyebrow { color: #d9bf73; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; margin: 0 0 12px; }
-            h1 { margin: 0; font-size: 31px; line-height: 1.06; color: #fff; letter-spacing: 0; }
-            .subtitle { margin: 10px 0 0; color: #dce8f3; font-size: 14px; }
-            .meta { display: inline-flex; margin-top: 16px; padding: 6px 10px; border-radius: 999px; color: #f8fafc; background: rgba(255, 255, 255, 0.11); font-size: 11px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; min-height: 142px; padding: 28px 32px 30px; color: #08233b; background: #fff; border-bottom: 1px solid #dfe6ef; }
+            .header-content { max-width: 560px; }
+            .logo { width: 250px; height: auto; object-fit: contain; margin-top: 5px; filter: brightness(0) saturate(100%) invert(12%) sepia(22%) saturate(1750%) hue-rotate(163deg) brightness(89%) contrast(103%); }
+            .eyebrow { color: #b0882e; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; margin: 0 0 12px; }
+            h1 { margin: 0; font-size: 31px; line-height: 1.06; color: #08233b; letter-spacing: 0; }
+            .subtitle { margin: 10px 0 0; color: #52677a; font-size: 14px; }
+            .meta { display: inline-flex; margin-top: 16px; padding: 6px 10px; border: 1px solid #dfe6ef; border-radius: 6px; color: #52677a; background: #f8fafc; font-size: 11px; }
             .content { padding: 24px 32px 28px; }
             .card { margin-top: 18px; border: 1px solid #dfd2b8; border-radius: 12px; padding: 22px; background: #fff; box-shadow: 0 10px 24px rgba(8, 35, 59, 0.06); break-inside: avoid; }
             .card:first-child { margin-top: 0; }

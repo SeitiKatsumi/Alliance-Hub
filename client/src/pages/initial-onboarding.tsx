@@ -334,6 +334,25 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
   const publicLabel = usePublicLabels();
   const config = forms.configuracao || {};
   const set = (patch: any) => setForms((current: any) => ({ ...current, configuracao: { ...(current.configuracao || {}), ...patch } }));
+  const { data: cellTypes = [] } = useQuery<Array<{
+    code: string;
+    public_name: string;
+    short_description: string;
+    business_types: Array<{ code: string; public_name: string }>;
+  }>>({
+    queryKey: ["/api/strategic-cell-types"],
+    queryFn: () => fetch("/api/strategic-cell-types").then((response) => response.ok ? response.json() : []),
+  });
+  const selectedBusinessTypeCodes: string[] = Array.isArray(config.business_type_codes)
+    ? config.business_type_codes
+    : Array.isArray(config.market_codes) ? config.market_codes : [];
+  const toggleBusinessType = (code: string) => {
+    const businessTypeCodes = toggleList(selectedBusinessTypeCodes, code);
+    set({
+      business_type_codes: businessTypeCodes,
+      strategic_cell_type_codes: cellTypes.filter((cell) => cell.business_types.some((businessType) => businessTypeCodes.includes(businessType.code))).map((cell) => cell.code),
+    });
+  };
   return (
     <div className="space-y-5">
       <div>
@@ -345,6 +364,17 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
       </Panel>
       <Panel title="Áreas de atuação" subtitle="Use a mesma classificação do seu perfil BUILT.">
         <ProfileActivityFields value={config} onChange={set} />
+      </Panel>
+      <Panel title="Quais Tipos de Negócio interessam a você?" subtitle="Selecione quantos quiser. O sistema vinculará automaticamente cada escolha à Célula correspondente da sua Comunidade.">
+        <div className="space-y-5">
+          {cellTypes.map((cell) => <div key={cell.code}>
+            <p className="text-xs font-semibold text-slate-500">{cell.public_name}</p>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">{cell.business_types.map((businessType) => {
+              const selected = selectedBusinessTypeCodes.includes(businessType.code);
+              return <button type="button" key={businessType.code} aria-pressed={selected} onClick={() => toggleBusinessType(businessType.code)} className={`relative rounded-md border p-3 text-left text-sm transition ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "bg-white hover:border-blue-300"}`}><span className="block pr-6 font-semibold">{businessType.public_name}</span>{selected && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-blue-600" />}</button>;
+            })}</div>
+          </div>)}
+        </div>
       </Panel>
       <Panel title="Privacidade e visibilidade">
         <div className="grid gap-3 md:grid-cols-3">

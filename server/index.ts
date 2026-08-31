@@ -3,6 +3,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import cron from "node-cron";
 import { registerRoutes } from "./routes";
+import { processPaymentReminders } from "./payment-reminders";
 import { setupGoogleAuth } from "./auth-google";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -218,6 +219,14 @@ app.use((req, res, next) => {
       console.error("[cron] reminder job error:", e);
     }
   });
+
+  const runPaymentReminders = () => processPaymentReminders()
+    .then((result) => {
+      if (result.sent || result.retry) console.log(`[payment-reminders] enviados=${result.sent} retentativas=${result.retry}`);
+    })
+    .catch((error: any) => console.error("[payment-reminders] job falhou:", error?.message || error));
+  void runPaymentReminders();
+  cron.schedule("*/30 * * * *", runPaymentReminders);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

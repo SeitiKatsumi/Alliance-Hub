@@ -128,7 +128,49 @@ export function getProfileCompletion(profile?: ProfileCompletionSource | null): 
   };
 }
 
+export type ProfileDataCategory = "identity" | "activity" | "company";
+
+const PROFILE_FIELD_CATEGORIES: Record<string, ProfileDataCategory> = {
+  foto: "identity",
+  nome: "identity",
+  email: "identity",
+  nome_completo: "identity",
+  cpf: "identity",
+  telefone: "identity",
+  whatsapp: "identity",
+  nacionalidade: "identity",
+  data_nascimento: "identity",
+  rg: "identity",
+  estado_civil: "identity",
+  localizacao: "identity",
+  endereco: "identity",
+  regime_comunhao: "identity",
+  conjuge_nome: "identity",
+  areas_contribuicao: "activity",
+  cargo: "activity",
+  ramo_atuacao: "activity",
+  segmento: "activity",
+  area_atuacao: "activity",
+  especialidade: "activity",
+  idiomas: "activity",
+  biografia: "activity",
+  site: "activity",
+  cnpj: "company",
+  logo_empresa: "company",
+};
+
 export function getProfileCompletionPath(profile?: ProfileCompletionSource | null): string {
   const field = getProfileCompletion(profile).missing[0]?.key;
   return field ? `/meu-perfil?campo=${encodeURIComponent(field)}` : "/meu-perfil";
+}
+
+export function getProfileCompletionCategory(fieldKey?: string): ProfileDataCategory {
+  return PROFILE_FIELD_CATEGORIES[fieldKey || ""] || "identity";
+}
+
+export function getProfileCategoryPending(
+  profile: ProfileCompletionSource | null | undefined,
+  category: ProfileDataCategory,
+): ProfileCompletionItem[] {
+  return getProfileCompletion(profile).missing.filter((item) => PROFILE_FIELD_CATEGORIES[item.key] === category);
 }

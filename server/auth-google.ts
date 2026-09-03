@@ -57,6 +57,8 @@ export function setupGoogleAuth(app: Express) {
   );
 
   app.get("/auth/google", (req: Request, res: Response, next: NextFunction) => {
+    const inviteToken = String(req.query.convite || "").trim();
+    if (inviteToken) (req.session as any).pendingOpportunityInviteToken = inviteToken;
     passport.authenticate("google", {
       session: false,
       scope: ["profile", "email"],
@@ -170,8 +172,10 @@ export function setupGoogleAuth(app: Express) {
         (req.session as any).role = role;
         (req.session as any).permissions = permissions;
 
+        const inviteToken = String((req.session as any).pendingOpportunityInviteToken || "").trim();
+        delete (req.session as any).pendingOpportunityInviteToken;
         req.session.save(() => {
-          res.redirect("/");
+          res.redirect(inviteToken ? `/login?convite=${encodeURIComponent(inviteToken)}` : "/");
         });
       } catch (err) {
         console.error("[google-auth] callback error:", err);

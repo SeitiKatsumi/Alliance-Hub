@@ -4,7 +4,7 @@ import {
   ArrowLeft, MapPin, Target, Building2, Globe, Pencil,
   Layers, FileText, Paperclip, ExternalLink, CheckCircle2,
   XCircle, DollarSign, TrendingUp, ClipboardList, Users,
-  HandHeart, Loader2, Sparkles, UserCheck, Repeat2
+  HandHeart, Loader2, Sparkles, UserCheck, Repeat2, Share2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -291,6 +291,27 @@ export default function OpaDetalhePage() {
     },
   });
 
+  const compartilharMutation = useMutation({
+    mutationFn: async () => {
+      if (!opa?.id) throw new Error("OBA não encontrada");
+      const response = await apiRequest("POST", `/api/rede/oportunidades/${opa.codigo || opa.id}/convite`, {});
+      return response.json() as Promise<{ link: string }>;
+    },
+    onSuccess: async ({ link }) => {
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: `OBA: ${opa?.nome_oportunidade || "BUILT"}`, text: "Acesse esta OBA na plataforma BUILT.", url: link });
+          return;
+        }
+        await navigator.clipboard.writeText(link);
+        toast({ title: "Link da OBA copiado", description: "O convite é individual e válido por 24 horas." });
+      } catch (error: any) {
+        if (error?.name !== "AbortError") toast({ title: "Não foi possível compartilhar", description: "Tente novamente ou permita o acesso à área de transferência.", variant: "destructive" });
+      }
+    },
+    onError: (error: any) => toast({ title: "Não foi possível criar o convite", description: error?.message, variant: "destructive" }),
+  });
+
   const valor = n(opa?.valor_origem_opa);
   const mult = n(opa?.Minimo_esforco_multiplicador);
   const isClosed = opa?.status === "concluida" || opa?.status === "desistencia";
@@ -310,6 +331,7 @@ export default function OpaDetalhePage() {
   const canManageOpa =
     user?.role === "admin" ||
     user?.role === "manager" ||
+    user?.role === "superadmin" ||
     relationId(opa?.user_created) === String(user?.id || "") ||
     (!!opa?.criado_por_user_id && String(opa.criado_por_user_id) === String(user?.id || "")) ||
     (!!opa?.criado_por_membro_id && String(opa.criado_por_membro_id) === String((user as any)?.membro_directus_id || "")) ||
@@ -339,7 +361,7 @@ export default function OpaDetalhePage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       {/* Back + Edit */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -350,17 +372,16 @@ export default function OpaDetalhePage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para OBAs
         </Button>
-        {canManageOpa && (
-          <Button
-            size="sm"
-            className="gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white"
-            onClick={() => setEditDialog(true)}
-            data-testid="btn-edit-opa-detail"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Editar
+        {canManageOpa && <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" disabled={compartilharMutation.isPending} onClick={() => compartilharMutation.mutate()} data-testid="btn-share-opa">
+            {compartilharMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">Compartilhar OBA</span>
+            <span className="sr-only sm:hidden">Compartilhar OBA</span>
           </Button>
-        )}
+          <Button size="sm" className="gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white" onClick={() => setEditDialog(true)} data-testid="btn-edit-opa-detail">
+            <Pencil className="w-3.5 h-3.5" />Editar
+          </Button>
+        </div>}
       </div>
 
       <Tabs defaultValue="detalhes" className="space-y-5">
@@ -682,7 +703,7 @@ export default function OpaDetalhePage() {
 
         {canManageOpa && (
           <TabsContent value="gestao" className="space-y-5" data-testid="content-opa-gestao">
-            <Card><CardContent className="pt-5"><SectionTitle icon={Layers}>Distribuição da OBA</SectionTitle><OpportunityDistributionControls code={String(opa.id)} /></CardContent></Card>
+            <Card><CardContent className="pt-5"><SectionTitle icon={Layers}>Pulso da OBA</SectionTitle><OpportunityDistributionControls code={String(opa.id)} /></CardContent></Card>
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardContent className="pt-5 pb-4">

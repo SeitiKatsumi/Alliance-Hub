@@ -12,6 +12,8 @@ import {
   normalizeEconomicOpportunityStage,
   normalizeOpportunityStatus,
   normalizeRoDecisionAction,
+  opportunityInviteDestination,
+  opportunityInviteDestinationFromJourney,
   opportunityExpiry,
   publicOpportunityRegistryView,
 } from "./opportunity-platform";
@@ -57,6 +59,13 @@ test("new Pulse flows use five waves every four hours", () => {
   assert.equal(waves[1].audiencia, "regional");
   assert.equal(waves[1].agendada_em.toISOString(), "2026-08-17T04:00:00.000Z");
   assert.equal(waves[4].audiencia, "vitrine_geral");
+});
+
+test("OBA invitations resolve only internal OBA destinations", () => {
+  assert.equal(opportunityInviteDestination("oba", "oba-123"), "/vitrine/oportunidades/obas/oba-123");
+  assert.equal(opportunityInviteDestinationFromJourney("oba:oba-123"), "/vitrine/oportunidades/obas/oba-123");
+  assert.equal(opportunityInviteDestination("demanda", "123"), null);
+  assert.equal(opportunityInviteDestination("oba", "../admin"), null);
 });
 
 test("public opportunities exclude expired and terminal records", () => {

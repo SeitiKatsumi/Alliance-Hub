@@ -186,7 +186,7 @@ export default function InitialOnboardingPage() {
       await refetch();
       await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       if (result.redirect_url) {
-        navigate(onboardingReadyDestinationHref(options?.destination) || result.redirect_url || "/");
+        navigate(result.invite_redirect_url || onboardingReadyDestinationHref(options?.destination) || result.redirect_url || "/");
       } else {
         navigate(options?.destination ? onboardingAcceptanceUrl(options.destination) : result.next_url);
       }
@@ -209,7 +209,7 @@ export default function InitialOnboardingPage() {
         return;
       }
       const selectedDestination = onboardingReadyDestinationFromSearch(window.location.search);
-      navigate(onboardingReadyDestinationHref(selectedDestination) || result.redirect_url || "/");
+      navigate(result.invite_redirect_url || onboardingReadyDestinationHref(selectedDestination) || result.redirect_url || "/");
     },
     onError: (error: any) => toast({ title: "Não foi possível concluir", description: error.message, variant: "destructive" }),
   });

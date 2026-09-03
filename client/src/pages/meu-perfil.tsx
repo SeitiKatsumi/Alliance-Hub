@@ -52,8 +52,24 @@ import {
   type AccountPurpose,
   type AccountPurposeObjectives,
 } from "@shared/initial-onboarding";
+import { STRATEGIC_CELL_BUSINESS_TYPES, STRATEGIC_CELL_TYPES } from "@shared/strategic-cells";
 
 type ProfileCategory = ProfileDataCategory | "account";
+type StrategicCellTypeOption = {
+  code: string;
+  public_name: string;
+  short_description: string;
+  business_types: Array<{ code: string; public_name: string }>;
+};
+
+const DEFAULT_STRATEGIC_CELL_TYPES: StrategicCellTypeOption[] = STRATEGIC_CELL_TYPES.map((cell) => ({
+  code: cell.code,
+  public_name: cell.publicName,
+  short_description: cell.description,
+  business_types: STRATEGIC_CELL_BUSINESS_TYPES
+    .filter(([cellCode]) => cellCode === cell.code)
+    .map(([, code, , publicName]) => ({ code, public_name: publicName })),
+}));
 
 const PROFILE_FIELD_TARGETS: Record<string, { testId: string; category: ProfileDataCategory; formal?: boolean }> = {
   foto: { testId: "btn-trocar-foto", category: "identity" },
@@ -693,6 +709,14 @@ function buildProfilePayload(form: Partial<Membro>): Record<string, any> {
   return payload;
 }
 
+function profileSnapshot(form: Partial<Membro>): string {
+  return JSON.stringify(buildProfilePayload(form));
+}
+
+function sameCodeSet(left: string[] = [], right: string[] = []): boolean {
+  return [...left].sort().join("\u0000") === [...right].sort().join("\u0000");
+}
+
 function isEmailLikeValue(value?: string | null): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
@@ -760,7 +784,6 @@ export default function MeuPerfilPage() {
   const publicLabel = usePublicLabels();
   const isSuperAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
-  const [saved, setSaved] = useState(false);
   const requestedProfileField = new URLSearchParams(window.location.search).get("campo");
   const requestedProfileTarget = requestedProfileField ? PROFILE_FIELD_TARGETS[requestedProfileField] : undefined;
   const [activeCategory, setActiveCategory] = useState<ProfileCategory | null>(requestedProfileTarget?.category || null);
@@ -795,6 +818,8 @@ export default function MeuPerfilPage() {
   const hasConvitePermission = true;
 
   const [form, setForm] = useState<Partial<Membro>>({});
+  const profileBaselineRef = useRef("");
+  const pendingProfileSnapshotRef = useRef("");
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -824,14 +849,14 @@ export default function MeuPerfilPage() {
     queryFn: () => fetch("/api/me/celulas", { credentials: "include" }).then((response) => response.ok ? response.json() : []),
     enabled: !!user && !user.company_employee,
   });
-  const { data: strategicCellTypes = [] } = useQuery<Array<{
-    code: string;
-    public_name: string;
-    short_description: string;
-    business_types: Array<{ code: string; public_name: string }>;
-  }>>({
+  const { data: strategicCellTypes = [] } = useQuery<StrategicCellTypeOption[]>({
     queryKey: ["/api/strategic-cell-types"],
-    queryFn: () => fetch("/api/strategic-cell-types", { credentials: "include" }).then((response) => response.ok ? response.json() : []),
+    queryFn: async () => {
+      const response = await fetch("/api/strategic-cell-types", { credentials: "include" });
+      if (!response.ok) throw new Error("Falha ao carregar Tipos de Negocio");
+      return response.json();
+    },
+    placeholderData: DEFAULT_STRATEGIC_CELL_TYPES,
     enabled: !!user && !user.company_employee,
   });
   const { data: strategicCellPreferences } = useQuery<{
@@ -901,15 +926,24 @@ export default function MeuPerfilPage() {
   useEffect(() => {
     if (membro) {
       const tiposAlianca = uniqueContributionAreas(membro.tipos_alianca);
-      setForm({
+      const nextForm = {
         ...membro,
         nome_completo: membro.nome_completo || membro.nome || null,
         link_site: sanitizeLinkSite(membro.link_site),
         tipos_alianca: tiposAlianca,
         em_built_capital: hasAporteFinanceiro(tiposAlianca) ? true : membro.em_built_capital,
-      });
+      };
+      profileBaselineRef.current = profileSnapshot(nextForm);
+      setForm(nextForm);
     }
   }, [membro]);
+
+  const hasProfileChanges = Boolean(profileBaselineRef.current) && profileBaselineRef.current !== profileSnapshot(form);
+  const hasStrategicCellChanges = Boolean(strategicCellPreferences) && !sameCodeSet(
+    strategicCellDraft.business_type_codes,
+    strategicCellPreferences?.business_type_codes,
+  );
+  const hasUnsavedChanges = hasProfileChanges || hasStrategicCellChanges;
 
   useEffect(() => {
     if (isLoading || !requestedProfileTarget) return;
@@ -970,15 +1004,16 @@ export default function MeuPerfilPage() {
     mutationFn: (data: Partial<Membro>) =>
       apiRequest("PATCH", `/api/membros/${membroId}`, data),
     onSuccess: () => {
+      profileBaselineRef.current = pendingProfileSnapshotRef.current || profileSnapshot(form);
+      pendingProfileSnapshotRef.current = "";
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
       toast({ title: "Perfil atualizado com sucesso!" });
     },
     onError: (err: any) => {
+      pendingProfileSnapshotRef.current = "";
       toast({
         title: "Erro ao salvar",
         description: err?.message || "Não foi possível atualizar o perfil.",
@@ -1026,7 +1061,9 @@ export default function MeuPerfilPage() {
       return data;
     },
     onSuccess: (data) => {
-      setStrategicCellDraft({ strategic_cell_type_codes: data.strategic_cell_type_codes, business_type_codes: data.business_type_codes });
+      const nextPreferences = { strategic_cell_type_codes: data.strategic_cell_type_codes, business_type_codes: data.business_type_codes };
+      setStrategicCellDraft(nextPreferences);
+      queryClient.setQueryData(["/api/me/celulas-preferencias"], nextPreferences);
       queryClient.invalidateQueries({ queryKey: ["/api/me/celulas-preferencias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me/celulas"] });
       toast({ title: "Células atualizadas", description: `Vínculos sincronizados em ${data.communities_linked} comunidade(s).` });
@@ -1262,6 +1299,10 @@ export default function MeuPerfilPage() {
   }
 
   function handleSave() {
+    if (!hasProfileChanges) {
+      if (hasStrategicCellChanges) updateStrategicCellPreferencesMutation.mutate();
+      return;
+    }
     const normalizedTelefone = normalizePhoneValue(form.telefone);
     const normalizedWhatsapp = normalizePhoneValue(form.whatsapp);
     if (!String(form.email || "").trim()) {
@@ -1273,7 +1314,8 @@ export default function MeuPerfilPage() {
       return;
     }
     if (String(form.empresa || "").trim() && !String(form.cnpj || "").trim()) {
-      toast({ title: "CNPJ obrigatório", description: "Informe o CNPJ quando houver nome de empresa.", variant: "destructive" });
+      openProfileCategory("company");
+      toast({ title: "CNPJ obrigatório", description: "Preencha o CNPJ na seção Empresa e Vitrine que foi aberta.", variant: "destructive" });
       return;
     }
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
@@ -1296,8 +1338,10 @@ export default function MeuPerfilPage() {
       toast({ title: "Escolha uma finalidade", description: "Selecione ao menos uma finalidade para a sua conta.", variant: "destructive" });
       return;
     }
+    pendingProfileSnapshotRef.current = profileSnapshot(form);
     updateAccountPurposesMutation.mutate({ finalidades: accountPurposes, intencoes: accountObjectives });
     updateMutation.mutate(payload as any);
+    if (hasStrategicCellChanges) updateStrategicCellPreferencesMutation.mutate();
   }
 
   function handleChangePassword() {
@@ -1736,14 +1780,12 @@ export default function MeuPerfilPage() {
                   </span>
                 </span>
                 <span className="mt-auto flex items-end justify-between gap-3 pt-5">
-                  {pending === null ? (
-                    <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">Revisar</span>
-                  ) : complete ? (
+                  {pending === null ? null : complete ? (
                     <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"><CheckCircle2 className="h-3 w-3" />Completo</span>
                   ) : (
                     <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">{pending} {pending === 1 ? "item pendente" : "itens pendentes"}</span>
                   )}
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700">Editar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
+                  <span className="ml-auto inline-flex items-center gap-2 text-xs font-semibold text-blue-700">Editar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
                 </span>
               </button>
             );
@@ -2101,7 +2143,6 @@ export default function MeuPerfilPage() {
                       })}</div>
                     </div>)}
                   </div>
-                  <div className="mt-4 flex justify-end"><Button type="button" disabled={updateStrategicCellPreferencesMutation.isPending} onClick={() => updateStrategicCellPreferencesMutation.mutate()} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">{updateStrategicCellPreferencesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Salvar Tipos de Negócio</Button></div>
                 </section>
                 </>}
 
@@ -2989,28 +3030,20 @@ export default function MeuPerfilPage() {
               </aside>
             </div>
 
-            {/* Save button */}
-            {activeCategory !== "account" &&
-            <div className="flex justify-end">
+            {activeCategory !== "account" && hasUnsavedChanges &&
+            <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
               <Button
                 onClick={handleSave}
-                disabled={updateMutation.isPending}
-                className="gap-2 px-6"
-                style={{
-                  background: saved ?"rgba(74,222,128,0.15)" : "#0f62fe",
-                  color: saved ?"#16a34a" : "#ffffff",
-                  border: saved ?"1px solid rgba(74,222,128,0.3)" : "none",
-                }}
+                disabled={updateMutation.isPending || updateStrategicCellPreferencesMutation.isPending}
+                className="gap-2 bg-blue-600 px-6 text-white shadow-lg hover:bg-blue-700"
                 data-testid="btn-salvar-perfil"
               >
-                {updateMutation.isPending ?(
+                {updateMutation.isPending || updateStrategicCellPreferencesMutation.isPending ?(
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : saved ?(
-                  <CheckCircle2 className="w-4 h-4" />
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                {saved ?"Salvo!" : updateMutation.isPending ?"Salvando..." : "Salvar perfil"}
+                {updateMutation.isPending || updateStrategicCellPreferencesMutation.isPending ? "Salvando..." : "Salvar alterações"}
               </Button>
             </div>}
           </>

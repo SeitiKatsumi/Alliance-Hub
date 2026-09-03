@@ -81,6 +81,8 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     summary: "Estruturação de oportunidades, alianças, comunidades e projetos imobiliários.",
     features: [
       { id: "obas", title: "Oportunidades BUILT de Aliança (OBAs)", description: "Cadastro, edição, publicação, consulta e vinculação de oportunidades às BIAs.", status: "disponivel" },
+      { id: "pulso-obas", title: "Pulso de OBAs", description: "Distribuição em cinco ondas, da comunidade de origem à Vitrine geral, com notificação e e-mail por etapa.", status: "disponivel" },
+      { id: "compartilhar-obas", title: "Compartilhamento externo de OBA", description: "Convite individual e temporário que conduz usuários existentes ou novos até a OBA compartilhada.", status: "disponivel" },
       { id: "mapa-obas", title: "Mapa de oportunidades", description: "Visualização geográfica e filtragem das OBAs disponíveis.", status: "disponivel" },
       { id: "interesse-obas", title: "OBAs de interesse", description: "Registro e acompanhamento do interesse do usuário em oportunidades da rede.", status: "disponivel" },
       { id: "bias", title: "BIAs", description: "Criação e gestão das alianças imobiliárias com identificação pública rastreável.", status: "disponivel" },

@@ -166,6 +166,18 @@ export function buildPulseV2Schedule(start: Date = new Date(), intervalHours = 4
   }));
 }
 
+export function opportunityInviteDestination(sourceType: unknown, sourceId: unknown): string | null {
+  const type = String(sourceType || "").trim().toLowerCase();
+  const id = String(sourceId || "").trim();
+  if (type !== "oba" || !/^[a-zA-Z0-9-]{1,128}$/.test(id)) return null;
+  return `/vitrine/oportunidades/obas/${encodeURIComponent(id)}`;
+}
+
+export function opportunityInviteDestinationFromJourney(destination: unknown): string | null {
+  const [sourceType, sourceId] = String(destination || "").split(":", 2);
+  return opportunityInviteDestination(sourceType, sourceId);
+}
+
 export function isOpportunityEditable(status: unknown) {
   return !TERMINAL_OPPORTUNITY_STATUSES.has(normalizeOpportunityStatus(status));
 }

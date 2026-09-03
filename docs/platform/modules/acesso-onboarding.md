@@ -28,6 +28,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 
 - PostgreSQL: `users`, `password_reset_tokens`, `convites_link`, `initial_onboarding_journeys`, `user_account_purposes`, `company_employee_accounts` e registros locais de aceite.
 - Quando o e-mail recebeu convite externo de RO, a jornada preserva em `responses.origem_ro` os campos `source_type`, `source_event_id`, `invited_by` e `source_community`; isso nao concede associacao automaticamente.
+- Convite externo de OBA preserva `source_type=oba` e `source_id` em `convites_link` e na jornada; depois do login ou onboarding o usuario retorna para a OBA, sem ganhar interesse, proposta, BIA ou comunidade.
 - Directus: `cadastro_geral` para perfil do membro.
 - A etapa Configuracao grava a classificacao profissional nos campos oficiais `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas` de `cadastro_geral`.
 - Areas de contribuicao usam valores canonicos de `shared/contribution-areas.ts`; ramo e segmento usam `client/src/lib/ramos-segmentos.ts`; abrangencia e idiomas usam `shared/profile-taxonomy.ts`.
@@ -89,6 +90,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Localizacao do aceite e capturada pelo helper compartilhado com `status = capturada`, coordenadas validas, precisao e horario; perfil/endereco nao a substituem.
 - Falha de sincronizacao com Directus nao pode ser apresentada como cadastro concluido sem pendencia explicita.
 - Retornos publicos nunca incluem hash de senha, token interno ou dados pessoais desnecessarios.
+- Links externos de OBA sao individuais, expiram em 24 horas, usam token persistido somente em hash e aceitam resgate idempotente apenas pela mesma conta que os utilizou.
 - Login confirmado libera a sessao no cliente com a propria resposta autenticada; `/api/me` complementa os dados em segundo plano sem exigir outro clique.
 
 ## Efeitos e dependencias

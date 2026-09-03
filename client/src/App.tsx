@@ -1186,6 +1186,8 @@ function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const opportunityInviteToken = location === "/login" ? new URLSearchParams(window.location.search).get("convite") : null;
+  const [opportunityInviteError, setOpportunityInviteError] = useState("");
   const companyRouteModule = companyModuleForLocation(location);
   const companyRouteDenied = Boolean(
     user?.company_employee
@@ -1194,6 +1196,18 @@ function ProtectedApp() {
   );
   const vitrineRouteDenied = location.startsWith("/vitrine")
     && !environmentAccessFor(user, "vitrine").canAccess;
+
+  useEffect(() => {
+    if (!isAuthenticated || !opportunityInviteToken || user?.onboarding_required) return;
+    setOpportunityInviteError("");
+    fetch(`/api/convite-publico/${encodeURIComponent(opportunityInviteToken)}/resgatar`, { method: "POST", credentials: "include" })
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Não foi possível abrir o convite.");
+        navigate(result.redirect_url || "/");
+      })
+      .catch((error) => setOpportunityInviteError(error.message));
+  }, [isAuthenticated, navigate, opportunityInviteToken, user?.onboarding_required]);
 
   const { data: propertyOnboardingStatus } = useQuery<PropertyOnboardingStatus>({
     queryKey: ["/api/carteira/onboarding-status", user?.id],
@@ -1378,6 +1392,10 @@ function ProtectedApp() {
       window.history.replaceState(null, "", user.onboarding_next_url);
     }
     return <InitialOnboardingPage />;
+  }
+
+  if (opportunityInviteToken) {
+    return <div className="grid min-h-screen place-items-center bg-slate-50 p-6 text-center"><div>{opportunityInviteError ? <><p className="text-sm text-red-600">{opportunityInviteError}</p><Button className="mt-4" onClick={() => navigate("/")}>Ir para o início</Button></> : <><Loader2 className="mx-auto h-7 w-7 animate-spin text-blue-600" /><p className="mt-3 text-sm text-slate-600">Abrindo a OBA compartilhada...</p></>}</div></div>;
   }
 
   // Block pending vitrine users — route based on their current stage

@@ -22,11 +22,15 @@ import {
   auraAvaliacoes, type AuraAvaliacao,
   biaInfoComercial, type BiaInfoComercial,
 } from "@shared/schema";
-import { eq, desc, and, or, lte, gte, sql as sqlExpr } from "drizzle-orm";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { eq, desc, and, or, isNull, lte, gte, sql as sqlExpr } from "drizzle-orm";
+import { createHash, scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
+
+export function hashInviteToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
@@ -573,7 +577,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getConviteLinkByToken(token: string): Promise<ConviteLink | undefined> {
-    const [item] = await db.select().from(convitesLink).where(eq(convitesLink.token, token));
+    const [item] = await db.select().from(convitesLink).where(or(
+      eq(convitesLink.token, token),
+      eq(convitesLink.token_hash, hashInviteToken(token)),
+    ));
     return item;
   }
 
@@ -581,7 +588,7 @@ export class DatabaseStorage implements IStorage {
     const [item] = await db
       .select()
       .from(convitesLink)
-      .where(and(eq(convitesLink.gerador_user_id, userId), eq(convitesLink.status, "ativo")))
+      .where(and(eq(convitesLink.gerador_user_id, userId), eq(convitesLink.status, "ativo"), isNull(convitesLink.source_type)))
       .orderBy(desc(convitesLink.criado_em))
       .limit(1);
     return item;

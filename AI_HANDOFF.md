@@ -9,6 +9,12 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat mantem o CNPJ obrigatorio quando ha empresa, mas faz o aviso abrir automaticamente `Empresa e Vitrine`, onde o campo ja existe; nao duplica o dado nem altera a persistencia no Directus.
+- Este chat exibe os Tipos de Negocio do Meu Perfil imediatamente pela taxonomia compartilhada e executa a preparacao estrutural das Celulas apenas uma vez por processo; a API continua atualizando os nomes em segundo plano e as preferencias salvas permanecem inalteradas.
+- Este chat corrige a serializacao de listas usadas com `ANY(...)` no PostgreSQL; o erro aparecia ao salvar um unico Tipo de Negocio (`VALUE_RESALE`). A correcao fica em um helper SQL compartilhado e preserva a taxonomia, preferencias e sincronizacao de Celulas existentes.
+- Este chat torna visivel o Pulso da OBA sobre o motor `pulse-v2` existente, corrige sua contagem para cinco ondas e a deduplicacao de e-mail por onda; tambem adiciona compartilhamento externo individual da OBA pelo convite atual, com token em hash e retorno pos-login/onboarding, sem conceder interesse, BIA ou comunidade automaticamente.
+- Este chat unifica o salvamento do Meu Perfil: Tipos de Negocio usam o botao geral, que aparece fixo no canto apenas enquanto houver alteracoes nao salvas; nao altera endpoints nem regras de Celulas.
+- Este chat remove somente o aviso falso `Revisar` de Conta e seguranca no Meu Perfil; a categoria nao possui criterio de pendencia e continua acessivel por `Editar`, sem mudar senha, convite ou endpoints.
 - Este chat oculta a coordenacao nos cards de Celulas e adiciona o detalhe clicavel em `/comunidade/:id/celulas/:cellId`, reutilizando a API atual para exibir participantes e solicitacoes autorizadas; nao altera Tipos de Negocio, preferencias ou regras de participacao.
 - Este chat remove somente a exibicao dos Tipos de Negocio nos cards da aba Celulas da Comunidade; dados, preferencias, participacoes, coordenacao e APIs permanecem inalterados.
 - Este chat corrige somente o nome exibido e pesquisado no Cadastro Geral: `cadastro_geral.nome` volta a prevalecer sobre o e-mail de login; preserva filtros, permissoes, funcionarios e demais mudancas paralelas de Membros.

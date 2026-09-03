@@ -1,7 +1,7 @@
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import type { Response } from "express";
-import { storage } from "./storage";
+import { hashInviteToken, storage } from "./storage";
 import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaAprovacoes, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
@@ -100,6 +100,8 @@ import {
   normalizeOpportunityStatus,
   normalizeRoDecisionAction,
   normalizeOpportunityVisibility,
+  opportunityInviteDestination,
+  opportunityInviteDestinationFromJourney,
   opportunityExpiry,
   publicOpportunityRegistryView,
 } from "./opportunity-platform";
@@ -204,6 +206,10 @@ function getOpenAI() {
     });
   }
   return openaiClient;
+}
+
+function sqlTextArray(values: readonly unknown[]) {
+  return sql`ARRAY[${sql.join(values.map((value) => sql`${String(value)}`), sql`, `)}]::text[]`;
 }
 
 function parsePtBrMoney(value: string): number {
@@ -1611,7 +1617,17 @@ async function ensureTaxonomyTables() {
   `);
 }
 
-async function ensureStrategicCellTables() {
+let strategicCellTablesPromise: Promise<void> | null = null;
+
+function ensureStrategicCellTables() {
+  strategicCellTablesPromise ??= ensureStrategicCellTablesInternal().catch((error) => {
+    strategicCellTablesPromise = null;
+    throw error;
+  });
+  return strategicCellTablesPromise;
+}
+
+async function ensureStrategicCellTablesInternal() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS strategic_cell_types (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2556,7 +2572,17 @@ async function applyBusinessOpportunityTables() {
       metadata jsonb NOT NULL DEFAULT '{}'::jsonb
     )
   `);
-  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_opportunity_delivery_dedupe ON opportunity_distribution_deliveries (registry_id, membro_id, canal) WHERE membro_id IS NOT NULL`);
+  await db.execute(sql`
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_opportunity_delivery_dedupe' AND indexdef NOT LIKE '%wave_id%'
+      ) THEN
+        DROP INDEX idx_opportunity_delivery_dedupe;
+      END IF;
+    END $$
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_opportunity_delivery_dedupe ON opportunity_distribution_deliveries (wave_id, membro_id, canal) WHERE membro_id IS NOT NULL`);
 
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS opportunity_meetings (
@@ -3553,8 +3579,12 @@ async function ensureAgendaTarefasTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_agenda_tarefas_origem ON agenda_tarefas (origem_tarefa_id)`);
 }
 
-async function ensureConvitesLinkTipoField() {
+async function ensureConvitesLinkFields() {
   await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS tipo text DEFAULT 'vitrine' NOT NULL`);
+  await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS token_hash text`);
+  await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS source_type text`);
+  await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS source_id text`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS convites_link_token_hash_uniq ON convites_link (token_hash) WHERE token_hash IS NOT NULL`);
 }
 
 async function ensureBiaDiretorSolicitacoesTable() {
@@ -4010,7 +4040,7 @@ export async function registerRoutes(
   ensureEstudosViabilidadeCollection().catch(console.error);
   ensureNucleoTecnicoCollection().catch(console.error);
   ensureOpaInteressesCrmFields().catch(console.error);
-  ensureConvitesLinkTipoField().catch((err: any) => console.warn("[convites_link] Campo tipo nao sincronizado:", err?.message || err));
+  ensureConvitesLinkFields().catch((err: any) => console.warn("[convites_link] Campos nao sincronizados:", err?.message || err));
   ensureAgendaTarefasTable().catch((err: any) => console.warn("[agenda] Tabela nao sincronizada:", err?.message || err));
   ensureBiaDiretorSolicitacoesTable().catch((err: any) => console.warn("[bia-diretores] Tabela nao sincronizada:", err?.message || err));
   ensureBiaSocioSolicitacoesTable().catch((err: any) => console.warn("[bia-socios] Tabela nao sincronizada:", err?.message || err));
@@ -13959,6 +13989,15 @@ ${textContent}`;
         mensagem: req.body.mensagem || null,
         multiplicador,
       });
+      const registry = await getOpportunityRegistry(id).catch(() => null);
+      if (registry) {
+        await db.execute(sql`
+          UPDATE opportunity_distribution_flows
+          SET status = 'pausado', pausa_motivo = 'interesse_recebido', atualizado_em = now()
+          WHERE registry_id = ${registry.id} AND status = 'ativo'
+        `);
+        await recordOpportunityEvent(String(registry.id), req, "pulso_pausado_interesse", "Pulso pausado após manifestação de interesse", { interesse_id: item.id });
+      }
       res.json(item);
 
       // Fire-and-forget: notify Diretor de AlianÃ§a and Aliado BUILT of linked BIA
@@ -18350,6 +18389,24 @@ Deixe claro que premissas precisam de validação profissional.`,
     return String(registry.criador_user_id || "") === String(session.directusUserId || session.userId || "");
   }
 
+  async function resolveInviteOrigin(req: Request, biaId?: string | null) {
+    if (biaId) {
+      const communities = await loadComunidadesParaChamada().catch(() => []);
+      const community = communities.find((item: any) => extractComunidadeBiaIds(item).includes(String(biaId)));
+      if (community?.id) return { id: String(community.id), nome: community.nome || null };
+    }
+    const membroId = (req.session as any)?.membroId ? String((req.session as any).membroId) : null;
+    if (!membroId) return null;
+    const communities = await getMembroComunidadesLinks(membroId).catch(() => []);
+    const community = communities.find((item: any) => item.is_mae) || communities[0] || null;
+    if (community?.id) return { id: String(community.id), nome: community.nome || null };
+    const stored = await getStoredMembroComunidadeMae(membroId).catch(() => null);
+    if (!stored?.comunidade_id) return null;
+    const collection = await getComunidadeCol();
+    const item = await directusFetchOne(collection, String(stored.comunidade_id), "fields=id,nome").catch(() => null);
+    return { id: String(stored.comunidade_id), nome: item?.nome || null };
+  }
+
   app.get("/api/rede/oportunidades", async (req, res) => {
     try {
       await ensureBusinessOpportunityTables();
@@ -18632,7 +18689,7 @@ Deixe claro que premissas precisam de validação profissional.`,
           AND (
             meeting.organizador_user_id = ${actor.userId}
             OR meeting.organizador_membro_id = ${actor.membroId}
-            OR meeting.community_id = ANY(${meetingCommunityIds}::text[])
+            OR meeting.community_id = ANY(${sqlTextArray(meetingCommunityIds)})
             OR EXISTS (
               SELECT 1 FROM opportunity_meeting_participants participant
               WHERE participant.meeting_id = meeting.id
@@ -20262,7 +20319,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       ].filter(Boolean).map(String)));
       if (targetCellIds.length) {
         const cellMembers = await db.execute(sql`
-          SELECT membro_id FROM strategic_cell_memberships WHERE strategic_cell_id::text = ANY(${targetCellIds}::text[]) AND status = 'ACTIVE'
+          SELECT membro_id FROM strategic_cell_memberships WHERE strategic_cell_id::text = ANY(${sqlTextArray(targetCellIds)}) AND status = 'ACTIVE'
         `);
         for (const row of cellMembers.rows || []) targetIds.add(String((row as any).membro_id));
       } else if (flow.comunidade_id) {
@@ -20359,13 +20416,49 @@ Deixe claro que premissas precisam de validação profissional.`,
       const mode = req.body?.modo === "gradual" ? "gradual" : "imediato";
       const targetCellIds: string[] = Array.from(new Set<string>((Array.isArray(req.body?.strategic_cell_ids) ? req.body.strategic_cell_ids : []).map(String).filter(Boolean)));
       if (targetCellIds.length) {
-        const activeCells = await db.execute(sql`SELECT id::text FROM strategic_cells WHERE id::text = ANY(${targetCellIds}::text[]) AND status = 'ACTIVE'`);
+        const activeCells = await db.execute(sql`SELECT id::text FROM strategic_cells WHERE id::text = ANY(${sqlTextArray(targetCellIds)}) AND status = 'ACTIVE'`);
         if (activeCells.rows.length !== targetCellIds.length) return res.status(400).json({ error: "Uma ou mais Células de destino estão inativas ou não existem." });
         registry.metadata = { ...(registry.metadata || {}), target_strategic_cell_ids: targetCellIds };
         await db.execute(sql`UPDATE opportunity_registry SET metadata = ${JSON.stringify(registry.metadata)}::jsonb, atualizado_em = now() WHERE id = ${registry.id}`);
         await recordOpportunityEvent(String(registry.id), req, "celulas_distribuicao_definidas", "Células de destino definidas", { strategic_cell_ids: targetCellIds });
       }
       res.json(await createDistributionFlow(registry, req, mode));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/convite", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry || registry.tipo !== "oba") return res.status(404).json({ error: "OBA não encontrada." });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para compartilhar esta OBA." });
+      if (!isOpportunityEditable(registry.status)) return res.status(409).json({ error: "Esta OBA já foi encerrada e não pode gerar novos convites." });
+      const destination = opportunityInviteDestination(registry.tipo, registry.source_id);
+      if (!destination) return res.status(400).json({ error: "Destino da OBA inválido." });
+      const origin = await resolveInviteOrigin(req, registry.bia_id ? String(registry.bia_id) : null);
+      if (!origin) return res.status(400).json({ error: "Associe seu perfil a uma comunidade antes de compartilhar a OBA." });
+      const session = (req.session as any) || {};
+      const localUser = session.email ? await storage.getUserByEmail(String(session.email)) : null;
+      const rawToken = randomBytes(32).toString("base64url");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await storage.createConviteLink({
+        token_hash: hashInviteToken(rawToken),
+        gerador_user_id: String(localUser?.id || session.directusUserId || session.userId),
+        gerador_membro_id: session.membroId ? String(session.membroId) : null,
+        gerador_nome: session.nome || null,
+        comunidade_id: origin.id,
+        comunidade_nome: origin.nome,
+        tipo: "unificado",
+        source_type: "oba",
+        source_id: String(registry.source_id),
+        status: "ativo",
+        usado_por_user_id: null,
+        expires_at: expiresAt,
+      });
+      await recordOpportunityEvent(String(registry.id), req, "convite_externo_criado", "Link externo da OBA criado", { expires_at: expiresAt.toISOString() });
+      const domain = (process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com")).replace(/\/$/, "");
+      return res.status(201).json({ link: `${domain}/login?convite=${encodeURIComponent(rawToken)}`, expires_at: expiresAt, destination });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -22342,6 +22435,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   }
 
   function onboardingDestinationUrl(destination: unknown) {
+    const invitedOpportunity = opportunityInviteDestinationFromJourney(destination);
+    if (invitedOpportunity) return invitedOpportunity;
     const value = String(destination || "inicio");
     if (value === "imovel") return "/carteira/novo";
     if (value === "profissional") return "/meu-perfil";
@@ -22378,6 +22473,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (await storage.getUserByEmail(email)) return res.status(409).json({ error: "E-mail já cadastrado", field: "email" });
       if (await storage.getUserByUsername(username)) return res.status(409).json({ error: "Nome de usuário já em uso", field: "username" });
       const roAttribution = await getRoOnboardingAttribution(email);
+      const inviteDestination = opportunityInviteDestination((conviteLink as any).source_type, (conviteLink as any).source_id);
+      if ((conviteLink as any).source_type === "oba" && !inviteDestination) {
+        return res.status(400).json({ error: "A OBA vinculada ao convite não está disponível." });
+      }
 
       const profile = await directusCreate("cadastro_geral", {
         Nome_de_usuario: username, nome, email,
@@ -22404,8 +22503,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       });
       await ensureInitialOnboardingTable();
       await db.execute(sql`
-        INSERT INTO initial_onboarding_journeys (user_id, membro_id, convite_link_id, convite_id, flow_version, current_step, terms_ready_at, responses)
-        VALUES (${userId}, ${membroId}, ${String(conviteLink.id)}, ${String(onboardingInvite.id)}, 2, 'aceites', now(), ${JSON.stringify({ conta: { nome, email, username }, origem_ro: roAttribution })}::jsonb)
+        INSERT INTO initial_onboarding_journeys (user_id, membro_id, convite_link_id, convite_id, flow_version, current_step, start_destination, terms_ready_at, responses)
+        VALUES (${userId}, ${membroId}, ${String(conviteLink.id)}, ${String(onboardingInvite.id)}, 2, 'aceites', ${inviteDestination ? `oba:${String((conviteLink as any).source_id)}` : null}, now(), ${JSON.stringify({ conta: { nome, email, username }, origem_ro: roAttribution, origem_convite: inviteDestination ? { source_type: "oba", source_id: String((conviteLink as any).source_id) } : null })}::jsonb)
         ON CONFLICT (user_id) DO NOTHING
       `);
       if (roAttribution) {
@@ -22572,7 +22671,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           current_step = 'pronto', status = 'concluido', completed_at = now(), updated_at = now()
         WHERE user_id = ${String(userId)}
       `);
-      return res.json({ success: true, current_step: "pronto", redirect_url: onboardingDestinationUrl(journey.start_destination) });
+      const inviteRedirectUrl = opportunityInviteDestinationFromJourney(journey.start_destination);
+      return res.json({ success: true, current_step: "pronto", redirect_url: onboardingDestinationUrl(journey.start_destination), invite_redirect_url: inviteRedirectUrl });
     }
     const nextStep = step === "pronto" ? "aceites" : nextOnboardingStep(step, flowVersion);
     const status = step === "pronto" ? "aguardando_aceites" : "em_andamento";
@@ -22581,7 +22681,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         responses = ${JSON.stringify(mergedResponses)}::jsonb,
         completed_steps = ${JSON.stringify(completed)}::jsonb,
         current_step = ${nextStep}, status = ${status},
-        start_destination = ${step === "personalizacao" ? String(payload.start_destination || "") : journey.start_destination},
+        start_destination = ${step === "personalizacao" && !opportunityInviteDestinationFromJourney(journey.start_destination) ? String(payload.start_destination || "") : journey.start_destination},
         terms_ready_at = CASE WHEN ${step} = 'pronto' THEN now() ELSE terms_ready_at END,
         updated_at = now()
       WHERE user_id = ${String(userId)}
@@ -22620,7 +22720,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const journey = await getInitialOnboardingJourney(String(userId));
     if (!journey) return res.status(404).json({ error: "Jornada não encontrada." });
     if (journey.status === "concluido") {
-      return res.json({ success: true, redirect_url: onboardingDestinationUrl(journey.start_destination), idempotent: true });
+      return res.json({ success: true, redirect_url: onboardingDestinationUrl(journey.start_destination), invite_redirect_url: opportunityInviteDestinationFromJourney(journey.start_destination), idempotent: true });
     }
     if (journey.current_step !== "aceites") return res.status(409).json({ error: "Conclua as etapas anteriores.", next_url: onboardingStepUrl(journey.current_step) });
     const responses = journey.responses && typeof journey.responses === "object" ? journey.responses : {};
@@ -22681,7 +22781,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       return res.json({ success: true, next_url: "/onboarding/personalizacao" });
     }
     await db.execute(sql`UPDATE initial_onboarding_journeys SET status = 'concluido', completed_steps = ${JSON.stringify(allCompleted)}::jsonb, completed_at = now(), updated_at = now() WHERE user_id = ${String(userId)}`);
-    return res.json({ success: true, redirect_url: onboardingDestinationUrl(journey.start_destination) });
+    return res.json({ success: true, redirect_url: onboardingDestinationUrl(journey.start_destination), invite_redirect_url: opportunityInviteDestinationFromJourney(journey.start_destination) });
   });
 
   app.post("/api/register/validate", async (req, res) => {
@@ -25586,7 +25686,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         WHERE sm.strategic_cell_id = c.id
           AND sm.user_id = ${input.userId}
           AND sm.source LIKE 'preference:%'
-          AND NOT (t.code = ANY(${normalized.cellTypeCodes}::text[]))
+          AND NOT (t.code = ANY(${sqlTextArray(normalized.cellTypeCodes)}))
         RETURNING sm.strategic_cell_id::text
       `);
       let linked: any = { rows: [] };
@@ -25596,9 +25696,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           SELECT c.id, ${input.userId}, ${input.membroId}, ${`preference:${input.source}`}, 'ACTIVE', now()
           FROM strategic_cells c
           JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
-          WHERE c.community_id = ANY(${communityIds}::text[])
+          WHERE c.community_id = ANY(${sqlTextArray(communityIds)})
             AND c.status = 'ACTIVE'
-            AND t.code = ANY(${normalized.cellTypeCodes}::text[])
+            AND t.code = ANY(${sqlTextArray(normalized.cellTypeCodes)})
           ON CONFLICT (strategic_cell_id, user_id) DO UPDATE SET
             membro_id = EXCLUDED.membro_id,
             source = CASE
@@ -25767,7 +25867,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           ), '[]'::jsonb) AS markets
         FROM strategic_cells c
         JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
-        WHERE c.community_id = ANY(${communityIds}::text[]) AND c.status = 'ACTIVE'
+        WHERE c.community_id = ANY(${sqlTextArray(communityIds)}) AND c.status = 'ACTIVE'
         ORDER BY t.display_order, c.name
       `);
       return res.json(result.rows || []);
@@ -27301,48 +27401,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      // Any active community association authorizes the member to invite. The
-      // mother community only defines the preferred origin for the invite.
-      let comunidadeId: string | null = null;
-      let comunidadeNome: string | null = null;
-      if (membroId) {
-        try {
-          const comunidades = await getMembroComunidadesLinks(membroId);
-          const comunidadePreferidaId = req.body?.comunidade_id
-            ? String(req.body.comunidade_id)
-            : null;
-          const comunidade =
-            (comunidadePreferidaId
-              ? comunidades.find((item: any) => String(item.id) === comunidadePreferidaId)
-              : null)
-            || comunidades.find((item: any) => item.is_mae)
-            || comunidades[0]
-            || null;
-
-          if (comunidade?.id) {
-            comunidadeId = String(comunidade.id);
-            comunidadeNome = comunidade.nome || null;
-          }
-        } catch (e) {
-          console.warn("[meu-convite] community lookup failed:", e);
-        }
-
-        // A previously persisted mother-community link is valid evidence of
-        // association if Directus is temporarily unavailable.
-        if (!comunidadeId) {
-          const comunidadeMae = await getStoredMembroComunidadeMae(membroId);
-          if (comunidadeMae?.comunidade_id) {
-            comunidadeId = String(comunidadeMae.comunidade_id);
-            try {
-              const col = await getComunidadeCol();
-              const comunidade = await directusFetchOne(col, comunidadeId, "fields=id,nome");
-              comunidadeNome = comunidade?.nome || null;
-            } catch (e) {
-              console.warn("[meu-convite] stored community name lookup failed:", e);
-            }
-          }
-        }
-      }
+      const preferredCommunityId = req.body?.comunidade_id ? String(req.body.comunidade_id) : null;
+      const origin = preferredCommunityId
+        ? (await getMembroComunidadesLinks(String(membroId || "")).catch(() => [])).find((item: any) => String(item.id) === preferredCommunityId) || await resolveInviteOrigin(req)
+        : await resolveInviteOrigin(req);
+      const comunidadeId = origin?.id || null;
+      const comunidadeNome = origin?.nome || null;
 
       // Block invite generation if the member has no community â€” the registration
       // flow requires a valid comunidade_id to create the vitrine candidatura record.
@@ -27403,14 +27467,52 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
       if (convite.status !== "ativo") return res.status(400).json({ error: "Este convite jÃ¡ foi utilizado ou expirou." });
       if (new Date() > new Date(convite.expires_at)) return res.status(400).json({ error: "Este convite expirou." });
+      const sourceType = (convite as any).source_type || null;
+      const sourceId = (convite as any).source_id || null;
+      const registry = sourceType === "oba" && sourceId ? await getOpportunityRegistry(String(sourceId)) : null;
+      if (sourceType === "oba" && !registry) return res.status(404).json({ error: "A OBA deste convite não está mais disponível." });
       res.json({
         gerador_nome: convite.gerador_nome,
         comunidade_nome: convite.comunidade_nome,
         tipo: (convite as any).tipo || "vitrine",
         expires_at: convite.expires_at,
+        source_type: sourceType,
+        source_id: sourceId,
+        source_title: registry?.titulo || null,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/convite-publico/:token/resgatar", async (req, res) => {
+    try {
+      const session = (req.session as any) || {};
+      if (!session.directusUserId && !session.userId) return res.status(401).json({ error: "Entre na sua conta para abrir a OBA." });
+      const convite = await storage.getConviteLinkByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado." });
+      if (new Date() > new Date(convite.expires_at)) return res.status(400).json({ error: "Este convite expirou." });
+      const destination = opportunityInviteDestination((convite as any).source_type, (convite as any).source_id);
+      if (!destination) return res.status(400).json({ error: "Este convite não está vinculado a uma OBA." });
+      const localUser = session.email ? await storage.getUserByEmail(String(session.email)) : null;
+      const userId = String(localUser?.id || session.directusUserId || session.userId);
+      if (convite.status !== "ativo" && !(convite.status === "usado" && String(convite.usado_por_user_id || "") === userId)) {
+        return res.status(400).json({ error: "Este convite já foi utilizado." });
+      }
+      if (convite.status === "ativo") {
+        const claim = await db.execute(sql`
+          UPDATE convites_link
+          SET status = 'usado', usado_por_user_id = ${userId}, usado_em = now()
+          WHERE id = ${String(convite.id)} AND status = 'ativo'
+          RETURNING id
+        `);
+        if (!claim.rows?.[0]) return res.status(400).json({ error: "Este convite já foi utilizado." });
+        const registry = await getOpportunityRegistry(String((convite as any).source_id));
+        if (registry) await recordOpportunityEvent(String(registry.id), req, "convite_externo_utilizado", "Convite externo da OBA utilizado");
+      }
+      return res.json({ success: true, redirect_url: destination });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 

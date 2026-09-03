@@ -13,6 +13,7 @@ interface DistributionFlow {
   onda_atual: number;
   proxima_execucao_em?: string | null;
   strategic_cell_ids?: string[];
+  ondas?: Array<{ id: string; ordem: number; audiencia: string; status: string }>;
 }
 
 interface ActiveCell { id: string; name: string; type_public_name: string; }
@@ -46,25 +47,29 @@ export default function OpportunityDistributionControls({ code, onUpdated }: { c
       queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades", code, "disparo"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades"] });
       onUpdated?.();
-      toast({ title: "Distribuição para Células iniciada" });
+      toast({ title: "Pulso iniciado" });
     },
     onError: (error: any) => toast({ title: "Não foi possível distribuir", description: error?.message, variant: "destructive" }),
   });
   if (flowQuery.isLoading) return null;
+  const totalWaves = flow?.ondas?.length || 5;
+  const currentWave = flow?.status === "concluido" ? totalWaves : Math.min(totalWaves, Number(flow?.onda_atual || 0) + 1);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">O Pulso começa na comunidade de origem e avança pela rede a cada quatro horas até a Vitrine geral.</p>
+      {!flow && <Button disabled={distributeMutation.isPending} onClick={() => distributeMutation.mutate()}>{distributeMutation.isPending ? "Iniciando..." : "Iniciar Pulso"}</Button>}
       {flow && <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">Onda {Math.min(6, Number(flow.onda_atual || 0) + 1)} de 6</Badge>
+        <Badge variant="outline">Onda {currentWave} de {totalWaves}</Badge>
         {flow.proxima_execucao_em && flow.status === "ativo" && <span className="text-xs text-muted-foreground">Próxima em {new Date(flow.proxima_execucao_em).toLocaleString("pt-BR")}</span>}
         {flow.status === "ativo" ? <Button variant="ghost" size="sm" onClick={() => actionMutation.mutate("pausar")}><Pause className="mr-1.5 h-3.5 w-3.5" />Pausar</Button> : flow.status === "pausado" ? <Button variant="ghost" size="sm" onClick={() => actionMutation.mutate("retomar")}><Play className="mr-1.5 h-3.5 w-3.5" />Retomar</Button> : null}
         {flow.status !== "concluido" && <Button variant="ghost" size="sm" onClick={() => actionMutation.mutate("avancar")}><SkipForward className="mr-1.5 h-3.5 w-3.5" />Próxima onda</Button>}
         {flow.status !== "concluido" && <Button variant="outline" size="sm" onClick={() => actionMutation.mutate("publicar_agora")}><Globe2 className="mr-1.5 h-3.5 w-3.5" />Vitrine agora</Button>}
       </div>}
       {(cellsQuery.data || []).length > 0 && <details className="rounded-md border p-3">
-        <summary className="cursor-pointer text-sm font-medium"><Layers3 className="mr-2 inline h-4 w-4" />Distribuir para outras Células</summary>
+        <summary className="cursor-pointer text-sm font-medium"><Layers3 className="mr-2 inline h-4 w-4" />Incluir outras Células na primeira onda</summary>
         <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">{(cellsQuery.data || []).map((cell) => <label key={cell.id} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={selectedCells.includes(cell.id)} onCheckedChange={(checked) => setSelectedCells((current) => checked ? (current.includes(cell.id) ? current : [...current, cell.id]) : current.filter((id) => id !== cell.id))} /><span>{cell.name}</span><span className="text-xs text-muted-foreground">{cell.type_public_name}</span></label>)}</div>
-        <Button className="mt-3" size="sm" disabled={!selectedCells.length || distributeMutation.isPending} onClick={() => distributeMutation.mutate()}>Iniciar distribuição</Button>
+        <Button className="mt-3" size="sm" disabled={!selectedCells.length || distributeMutation.isPending} onClick={() => distributeMutation.mutate()}>{flow ? "Atualizar Células e reiniciar Pulso" : "Iniciar Pulso com estas Células"}</Button>
       </details>}
     </div>
   );

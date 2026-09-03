@@ -32,6 +32,9 @@ interface ConviteInfo {
   comunidade_nome: string | null;
   tipo?: "unificado" | "vitrine" | "capital" | "membros" | "associacao_completa" | null;
   expires_at: string | null;
+  source_type?: "oba" | null;
+  source_id?: string | null;
+  source_title?: string | null;
 }
 
 const CONVITE_INTERESSES: Record<string, string[]> = {
@@ -446,7 +449,17 @@ export default function LoginPage() {
         email: String(submitted.get("email") || email).trim(),
         password: String(submitted.get("password") || password),
       });
-      navigate("/");
+      let destination = "/";
+      if (regConviteToken && conviteInfo?.source_type === "oba") {
+        const response = await fetch(`/api/convite-publico/${encodeURIComponent(regConviteToken)}/resgatar`, {
+          method: "POST",
+          credentials: "include",
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result.redirect_url) destination = result.redirect_url;
+        else toast({ title: "Conta acessada, mas o convite não pôde ser aberto", description: result.error || "Solicite um novo link.", variant: "destructive" });
+      }
+      navigate(destination);
     } catch (err: any) {
       const msg = err?.message || "Credenciais inválidas";
       setError(msg);
@@ -1033,7 +1046,7 @@ export default function LoginPage() {
                     <span className="text-xs text-white/45">ou</span>
                     <div className="h-px flex-1 bg-white/15" />
                   </div>
-                  <Button type="button" data-testid="button-google-login" onClick={() => { window.location.href = "/auth/google"; }} className="h-12 w-full gap-3 border border-white/20 bg-transparent font-semibold text-white hover:bg-white/10" variant="ghost">
+                  <Button type="button" data-testid="button-google-login" onClick={() => { window.location.href = conviteInfo?.source_type === "oba" && regConviteToken ? `/auth/google?convite=${encodeURIComponent(regConviteToken)}` : "/auth/google"; }} className="h-12 w-full gap-3 border border-white/20 bg-transparent font-semibold text-white hover:bg-white/10" variant="ghost">
                     <SiGoogle className="h-5 w-5 text-[#EA4335]" />
                     Entrar com Google
                   </Button>
@@ -1057,7 +1070,7 @@ export default function LoginPage() {
                           {!conviteChecking && conviteStatus === "valid" && <CheckCircle className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-green-400" />}
                           {!conviteChecking && conviteStatus === "invalid" && <XCircle className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-red-400" />}
                         </div>
-                        {conviteStatus === "valid" && conviteInfo && <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs text-green-300">Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>{conviteInfo.comunidade_nome ? ` - ${conviteInfo.comunidade_nome}` : ""}</div>}
+                        {conviteStatus === "valid" && conviteInfo && <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs text-green-300">Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>{conviteInfo.comunidade_nome ? ` - ${conviteInfo.comunidade_nome}` : ""}{conviteInfo.source_title ? <span className="mt-1 block text-green-200">Para acessar a OBA: <strong>{conviteInfo.source_title}</strong></span> : null}</div>}
                         {conviteStatus === "invalid" && <p className="text-xs text-red-400">Codigo invalido ou ja utilizado.</p>}
                       </div>
                       <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome completo</Label><Input value={regNome} onChange={e => { setRegNome(e.target.value); if (regInvalidField === "nome") setRegInvalidField(""); }} placeholder="Seu nome" className={`${inputCls} ${regInvalidField === "nome" ? "border-red-500/70" : ""}`} data-testid="input-reg-nome" required /></div>

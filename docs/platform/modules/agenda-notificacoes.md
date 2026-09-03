@@ -17,6 +17,7 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 - APIs de convites, chamadas, aprovacoes, documentos, pagamentos e alertas da Carteira sao fontes.
 - Cron/timers e polling podem criar ou atualizar lembretes; deduplicacao e obrigatoria.
 - Proposta recebida, proposta aceita, conversao em OBA e encerramento de Demanda geram textos humanos sem dados privados e com chave idempotente de origem.
+- Cada onda do Pulso de Demanda ou OBA cria no maximo uma notificacao interna e um e-mail por destinatario; ondas diferentes podem notificar novamente conforme o avanco do Pulso.
 - Enquanto a aplicacao estiver visivel, contador, resumo e fontes de aprovacoes pendentes sao atualizados em ate 2 segundos, sem recarregar a pagina.
 
 ## Dados e fontes de verdade

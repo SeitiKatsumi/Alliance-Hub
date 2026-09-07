@@ -94,3 +94,9 @@ test("central do perfil agrupa pendências na categoria que abre o formulário c
   assert.equal(getProfileCompletionCategory("cpf"), "identity");
   assert.equal(getProfileCompletionCategory("logo_empresa"), "company");
 });
+
+test("perfil exclusivo de imóvel não exige área de contribuição", () => {
+  const { tipos_alianca: _areas, ...profile } = completeProfile;
+  assert.equal(getProfileCompletion(profile, ["imoveis"]).missing.some((item) => item.key === "areas_contribuicao"), false);
+  assert.equal(getProfileCompletion(profile, ["profissional"]).missing.some((item) => item.key === "areas_contribuicao"), true);
+});

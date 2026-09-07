@@ -9,6 +9,9 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat separa a aprovacao do `onboarding_inicial` da adesao paga: concluir a avaliacao libera apenas o acesso inicial, ainda condicionado ao fim do onboarding, sem criar cobranca nem enviar link de pagamento.
+- Este chat corrige o nome dos participantes no detalhe da Celula: a API passa a priorizar `cadastro_geral.nome` em lote e nunca exibe `membro_id` como nome; preserva participacoes, perfis e permissoes.
+- Este chat deixa de exigir e exibir areas de contribuicao quando `imoveis` e a unica finalidade ativa, tanto no onboarding quanto no Meu Perfil e nos indicadores de conclusao; preserva os dados ja salvos e as regras de Tipos de Negocio.
 - Este chat mantem o CNPJ obrigatorio quando ha empresa, mas faz o aviso abrir automaticamente `Empresa e Vitrine`, onde o campo ja existe; nao duplica o dado nem altera a persistencia no Directus.
 - Este chat exibe os Tipos de Negocio do Meu Perfil imediatamente pela taxonomia compartilhada e executa a preparacao estrutural das Celulas apenas uma vez por processo; a API continua atualizando os nomes em segundo plano e as preferencias salvas permanecem inalteradas.
 - Este chat corrige a serializacao de listas usadas com `ANY(...)` no PostgreSQL; o erro aparecia ao salvar um unico Tipo de Negocio (`VALUE_RESALE`). A correcao fica em um helper SQL compartilhado e preserva a taxonomia, preferencias e sincronizacao de Celulas existentes.

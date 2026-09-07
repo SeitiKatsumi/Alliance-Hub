@@ -44,6 +44,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## Invariantes
 
+- Aprovar a Aura de um `onboarding_inicial` nao cria cobranca; a anuidade nasce apenas no fluxo posterior de `associacao_completa`.
 - Webhook e reprocessamento sao idempotentes.
 - Planos gratuitos legados sao marcados para migracao e preservam o acesso ate adesao explicita ou corte administrativo comunicado.
 - Timeout/falha externa nao vira sucesso local silencioso.

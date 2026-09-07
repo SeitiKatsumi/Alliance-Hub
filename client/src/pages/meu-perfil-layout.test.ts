@@ -41,3 +41,11 @@ test("o salvamento geral do perfil flutua quando ha alteracoes e inclui Tipos de
   assert.match(page, /hasUnsavedChanges &&[\s\S]*?fixed bottom-4 right-4 z-50/);
   assert.match(page, /"Salvar alterações"/);
 });
+
+test("perfil exclusivo de imóvel oculta áreas de contribuição no onboarding e no Meu Perfil", () => {
+  const profile = readFileSync(new URL("./meu-perfil.tsx", import.meta.url), "utf8");
+  const onboarding = readFileSync(new URL("./initial-onboarding.tsx", import.meta.url), "utf8");
+
+  assert.match(profile, /contributionAreasRequired && <section[^>]+data-testid="section-areas-contribuicao"/);
+  assert.match(onboarding, /requiresContributionAreas\(purposes\) && <Panel title=\{publicLabel\("ContributionArea"\)\}/);
+});

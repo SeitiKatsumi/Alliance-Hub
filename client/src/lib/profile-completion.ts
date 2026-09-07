@@ -1,3 +1,5 @@
+import { requiresContributionAreas } from "@shared/initial-onboarding";
+
 export interface ProfileCompletionSource {
   nome?: unknown;
   nome_completo?: unknown;
@@ -64,7 +66,7 @@ function allFilled(...values: unknown[]): boolean {
   return values.every(hasValue);
 }
 
-export function getProfileCompletion(profile?: ProfileCompletionSource | null): ProfileCompletionResult {
+export function getProfileCompletion(profile?: ProfileCompletionSource | null, accountPurposes?: unknown): ProfileCompletionResult {
   const data = profile || {};
   const hasMainAddress = allFilled(data.endereco, data.numero, data.cidade, data.estado, data.pais);
   const hasFormalAddress = allFilled(
@@ -89,7 +91,9 @@ export function getProfileCompletion(profile?: ProfileCompletionSource | null): 
     { key: "estado_civil", label: "Estado civil", complete: hasValue(data.estado_civil) },
     { key: "localizacao", label: "Localização", complete: allFilled(data.cidade, data.estado, data.pais) },
     { key: "endereco", label: "Endereço completo", complete: hasMainAddress || hasFormalAddress },
-    { key: "areas_contribuicao", label: "Áreas de contribuição", complete: hasValue(data.tipos_alianca) },
+    ...(accountPurposes === undefined || requiresContributionAreas(accountPurposes)
+      ? [{ key: "areas_contribuicao", label: "Áreas de contribuição", complete: hasValue(data.tipos_alianca) }]
+      : []),
     { key: "cargo", label: "Cargo ou profissão", complete: hasValue(data.cargo) || hasValue(data.profissao) },
     { key: "ramo_atuacao", label: "Ramo de atuação", complete: hasValue(data.ramo_atuacao) },
     { key: "segmento", label: "Segmento", complete: hasValue(data.segmento) },
@@ -159,8 +163,8 @@ const PROFILE_FIELD_CATEGORIES: Record<string, ProfileDataCategory> = {
   logo_empresa: "company",
 };
 
-export function getProfileCompletionPath(profile?: ProfileCompletionSource | null): string {
-  const field = getProfileCompletion(profile).missing[0]?.key;
+export function getProfileCompletionPath(profile?: ProfileCompletionSource | null, accountPurposes?: unknown): string {
+  const field = getProfileCompletion(profile, accountPurposes).missing[0]?.key;
   return field ? `/meu-perfil?campo=${encodeURIComponent(field)}` : "/meu-perfil";
 }
 
@@ -171,6 +175,7 @@ export function getProfileCompletionCategory(fieldKey?: string): ProfileDataCate
 export function getProfileCategoryPending(
   profile: ProfileCompletionSource | null | undefined,
   category: ProfileDataCategory,
+  accountPurposes?: unknown,
 ): ProfileCompletionItem[] {
-  return getProfileCompletion(profile).missing.filter((item) => PROFILE_FIELD_CATEGORIES[item.key] === category);
+  return getProfileCompletion(profile, accountPurposes).missing.filter((item) => PROFILE_FIELD_CATEGORIES[item.key] === category);
 }

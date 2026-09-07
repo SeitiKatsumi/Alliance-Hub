@@ -154,6 +154,7 @@ import {
   INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
   type InitialOnboardingStep,
 } from "@shared/initial-onboarding";
+import { shouldStartMembershipPaymentAfterApproval } from "@shared/community-approval";
 import {
   buildCarteiraAlternativas,
   canDeleteCarteiraAsset,
@@ -25913,15 +25914,21 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if ((canManage || isMember) && cells.length) {
         const memberships = await db.execute(sql`
           SELECT sm.id::text, sm.strategic_cell_id::text, sm.user_id, sm.membro_id, sm.status,
-            sm.joined_at, sm.approved_at, COALESCE(u.nome, u.email, sm.membro_id) AS nome
+            sm.joined_at, sm.approved_at, COALESCE(u.nome, u.email) AS nome
           FROM strategic_cell_memberships sm
           JOIN strategic_cells c ON c.id = sm.strategic_cell_id
           LEFT JOIN users u ON u.id::text = sm.user_id
           WHERE c.community_id = ${req.params.id} AND c.status = 'ACTIVE' AND sm.status <> 'LEFT'
           ORDER BY sm.joined_at
         `);
+        const memberIds = Array.from(new Set((memberships.rows || []).map((membership: any) => String(membership.membro_id || "")).filter(Boolean)));
+        const memberProfiles = memberIds.length
+          ? await directusFetchScoped("cadastro_geral", `fields=id,nome&filter[id][_in]=${encodeURIComponent(memberIds.join(","))}`).catch(() => [])
+          : [];
+        const publicNamesByMemberId = new Map(memberProfiles.map((member: any) => [String(member.id), String(member.nome || "").trim()]));
         const byCell = new Map<string, any[]>();
         for (const membership of memberships.rows || []) {
+          (membership as any).nome = publicNamesByMemberId.get(String((membership as any).membro_id)) || (membership as any).nome || "Participante BUILT";
           const key = String((membership as any).strategic_cell_id);
           byCell.set(key, [...(byCell.get(key) || []), membership]);
         }
@@ -26687,6 +26694,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
       const isVitrine = ["vitrine", "capital"].includes(convite.tipo);
+      const shouldStartPayment = shouldStartMembershipPaymentAfterApproval(convite.tipo);
 
       let newStatus: string;
       let updated: any;
@@ -26746,6 +26754,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
               });
             }
           }
+        } else if (!shouldStartPayment) {
+          // Onboarding approval unlocks initial access; the unfinished journey remains enforced by middleware.
+          newStatus = "acesso_inicial_ativo";
+          updated = await storage.updateConvite(convite.id, { status: newStatus, expires_at: null });
         } else {
           // AssociaÃ§Ã£o Completa: terms + payment flow
           newStatus = "aprovado";

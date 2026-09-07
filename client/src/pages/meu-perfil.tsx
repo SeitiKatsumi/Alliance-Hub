@@ -49,6 +49,7 @@ import {
   INITIAL_ONBOARDING_OBJECTIVE_COPY,
   INITIAL_ONBOARDING_OBJECTIVES,
   normalizeAccountPurposeObjectives,
+  requiresContributionAreas,
   type AccountPurpose,
   type AccountPurposeObjectives,
 } from "@shared/initial-onboarding";
@@ -1627,17 +1628,19 @@ export default function MeuPerfilPage() {
   const fotoCropDraw = getCropDrawSize();
   const prestadorSelecionado = accountPurposes.includes("profissional");
   const capitalSelecionado = accountPurposes.includes("capital");
+  const completionPurposes = accountPurposes.length ? accountPurposes : user?.account_purposes;
+  const contributionAreasRequired = completionPurposes === undefined || requiresContributionAreas(completionPurposes);
   const tiposAliancaSelecionados = uniqueContributionAreas(form.tipos_alianca);
   const papeisBuilt = [
     accountPurposes.includes("imoveis") ? "Imóvel ou oportunidade" : "",
     prestadorSelecionado ? "Prestador de serviços, fornecedor ou profissional independente" : "",
     capitalSelecionado ? "Parceiro de Capital" : "",
   ].filter(Boolean);
-  const profileCompletion = getProfileCompletion(form);
+  const profileCompletion = getProfileCompletion(form, completionPurposes);
   const categoryPending = {
-    identity: getProfileCategoryPending(form, "identity"),
-    activity: getProfileCategoryPending(form, "activity"),
-    company: getProfileCategoryPending(form, "company"),
+    identity: getProfileCategoryPending(form, "identity", completionPurposes),
+    activity: getProfileCategoryPending(form, "activity", completionPurposes),
+    company: getProfileCategoryPending(form, "company", completionPurposes),
   };
   const recommendedCategory = profileCompletion.missing.length
     ? getProfileCompletionCategory(profileCompletion.missing[0].key)
@@ -1708,11 +1711,11 @@ export default function MeuPerfilPage() {
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2" aria-label="Áreas de contribuição selecionadas">
+            {contributionAreasRequired && <div className="mt-4 flex flex-wrap gap-2" aria-label="Áreas de contribuição selecionadas">
               {tiposAliancaSelecionados.length > 0 ? tiposAliancaSelecionados.slice(0, 4).map((tipo) => (
                 <span key={tipo} className="rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
               )) : <span className="text-xs text-slate-500">Nenhuma área selecionada</span>}
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -1878,14 +1881,14 @@ export default function MeuPerfilPage() {
           <p className="font-bold text-slate-700">Papel na BUILT</p>
           <p className="mt-1 break-words text-slate-600">{papeisBuilt.join(" + ") || "-"}</p>
         </div>
-        <div>
+        {contributionAreasRequired && <div>
           <p className="font-bold text-slate-700">Áreas de contribuição ({tiposAliancaSelecionados.length})</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tiposAliancaSelecionados.length > 0 ? tiposAliancaSelecionados.map(tipo => (
               <span key={tipo} className="max-w-full rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
             )) : <span className="text-slate-500">-</span>}
           </div>
-        </div>
+        </div>}
         <div className="grid grid-cols-[minmax(88px,110px)_minmax(0,1fr)] gap-2">
           <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{formatRamosDisplay(form.ramo_atuacao) || "-"}</p>
           <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{formatSegmentosDisplay(form.segmento) || "-"}</p>
@@ -2075,7 +2078,7 @@ export default function MeuPerfilPage() {
                   </div>
                 </section>
 
-                <section className="profile-section p-4" data-testid="section-areas-contribuicao">
+                {contributionAreasRequired && <section className="profile-section p-4" data-testid="section-areas-contribuicao">
                   <h3 className="text-sm font-bold text-[#001D34]">2. {publicLabel("ContributionArea")}</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
@@ -2123,10 +2126,10 @@ export default function MeuPerfilPage() {
                     })}
                   </div>
                   <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {tiposAliancaSelecionados.length}</p>
-                </section>
+                </section>}
 
                 <section className="profile-section p-4" data-testid="section-celulas-interesse">
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-[#001D34]"><Layers3 className="h-4 w-4 text-blue-600" />3. Tipos de Negócio de interesse</h3>
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-[#001D34]"><Layers3 className="h-4 w-4 text-blue-600" />{contributionAreasRequired ? "3" : "2"}. Tipos de Negócio de interesse</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione os negócios que interessam a você. O sistema vincula automaticamente cada escolha à Célula correspondente em todas as suas Comunidades.</p>
                   <div className="mt-4 space-y-4">
                     {strategicCellTypes.map((cell) => <div key={cell.code}>

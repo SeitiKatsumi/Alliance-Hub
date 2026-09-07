@@ -191,6 +191,11 @@ export function normalizeOnboardingPurposes(value: unknown): AccountPurpose[] {
   )));
 }
 
+export function requiresContributionAreas(purposes: unknown): boolean {
+  const normalized = normalizeOnboardingPurposes(purposes);
+  return normalized.includes("profissional") || normalized.includes("capital");
+}
+
 export function normalizeAccountPurposeObjectives(
   value: unknown,
   purposes: unknown = ACCOUNT_PURPOSES,

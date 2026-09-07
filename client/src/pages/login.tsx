@@ -25,6 +25,7 @@ import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
+import { requiresContributionAreas } from "@shared/initial-onboarding";
 import { usePublicLabels } from "@/hooks/use-public-labels";
 
 interface ConviteInfo {
@@ -346,7 +347,7 @@ export default function LoginPage() {
   const temFinalidadeImoveis = interessesSelecionados.includes("imoveis");
   const temFinalidadeProfissional = interessesSelecionados.includes("profissional");
   const temFinalidadeCapital = interessesSelecionados.includes("capital");
-  const temPerfilProfissional = temFinalidadeProfissional || temFinalidadeCapital;
+  const temPerfilProfissional = requiresContributionAreas(interessesSelecionados);
   const somenteFinalidadeCapital = temFinalidadeCapital && !temFinalidadeProfissional;
   const finalidadesProfissionaisLabel = [
     temFinalidadeProfissional ? "Profissional, fornecedor ou empresa" : "",

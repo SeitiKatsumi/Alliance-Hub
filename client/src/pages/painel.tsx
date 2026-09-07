@@ -685,7 +685,7 @@ export default function PainelPage() {
     queryKey: ["/api/membros", user?.membro_directus_id],
     enabled: !!user?.membro_directus_id && !user?.company_employee,
   });
-  const profileCompletion = useMemo(() => getProfileCompletion(profileDetails), [profileDetails]);
+  const profileCompletion = useMemo(() => getProfileCompletion(profileDetails, user?.account_purposes), [profileDetails, user?.account_purposes]);
   const canShowProfileCompletion = !!user?.membro_directus_id
     && !user.company_employee
     && !isProfileDetailsError;
@@ -696,7 +696,7 @@ export default function PainelPage() {
   const remainingProfileMissing = Math.max(0, profileCompletion.missing.length - visibleProfileMissing.length);
   const profileMissingText = visibleProfileMissing.map((item) => item.label).join(", ");
   const allProfileMissingText = profileCompletion.missing.map((item) => item.label).join(", ");
-  const profileCompletionPath = getProfileCompletionPath(profileDetails);
+  const profileCompletionPath = getProfileCompletionPath(profileDetails, user?.account_purposes);
 
   const { data: carteiraAlerts = [], isLoading: isLoadingCarteiraAlerts } = useQuery<CarteiraDashboardAlert[]>({
     queryKey: ["/api/carteira/alertas"],

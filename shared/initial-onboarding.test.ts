@@ -19,6 +19,7 @@ import {
   normalizeAccountPurposeObjectives,
   normalizeOnboardingPurposes,
   resolveInitialOnboardingInviteCompletion,
+  requiresContributionAreas,
   shouldOfferOnboardingCpf,
   validateOnboardingStepPayload,
 } from "./initial-onboarding";
@@ -157,6 +158,12 @@ test("libera imagens necessárias no onboarding sem abrir APIs vizinhas", () => 
 
 test("normaliza finalidades múltiplas sem duplicar valores", () => {
   assert.deepEqual(normalizeOnboardingPurposes(["imoveis", "capital", "imoveis", "desconhecido"]), ["imoveis", "capital"]);
+});
+
+test("área de contribuição só é necessária para atuação profissional ou capital", () => {
+  assert.equal(requiresContributionAreas(["imoveis"]), false);
+  assert.equal(requiresContributionAreas(["imoveis", "profissional"]), true);
+  assert.equal(requiresContributionAreas(["capital"]), true);
 });
 
 test("coloca os aceites antes do onboarding no fluxo novo", () => {

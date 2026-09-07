@@ -19,4 +19,7 @@ test("Comunidade mantém as seis Células oficiais em uma aba própria", () => {
   assert.match(routes, /async function ensureCommunityStrategicCells/);
   assert.match(routes, /await ensureCommunityStrategicCells\(req\.params\.id\)/);
   assert.match(routes, /canManage \? cellMemberships : cellMemberships\.filter/);
+  assert.match(routes, /directusFetchScoped\("cadastro_geral", `fields=id,nome&filter\[id\]\[_in\]/);
+  assert.match(routes, /publicNamesByMemberId\.get\(String\(\(membership as any\)\.membro_id\)\)/);
+  assert.doesNotMatch(routes, /COALESCE\(u\.nome, u\.email, sm\.membro_id\) AS nome/);
 });

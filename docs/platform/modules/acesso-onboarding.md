@@ -48,6 +48,8 @@ Contas novas: `credenciais validadas -> aceites -> personalizacao -> perfil -> c
 
 Quando a conta nasceu de convite com aliado conector identificado, a conclusao dos aceites cria de forma idempotente a solicitacao de Aura e muda o convite de `termos_aceitos` para `aguardando_avaliacao_aura`; o candidato continua normalmente as cinco etapas do onboarding. Convites legados com aceite registrado, mas ainda marcados como `termos_enviados`, sao reparados para a etapa de Aura e nao reenviam os termos. Sem conector, o acesso inicial e ativado ao concluir a etapa Pronto.
 
+A aprovacao da avaliacao de Aura de um convite `onboarding_inicial` libera somente o acesso inicial, que continua bloqueado ate a conclusao do onboarding. Ela nao inicia cobranca nem envia link de pagamento; a adesao paga pertence ao fluxo posterior `associacao_completa`.
+
 Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites depois da etapa Pronto.
 
 Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback, refresh ou webhook nao pode criar outro usuario, pagamento ou aceite.
@@ -64,6 +66,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Uma conta com `initial_onboarding_journeys.status != concluido` so acessa autenticacao, onboarding, aceites, upload autorizado e logout.
 - Etapas futuras nao podem ser gravadas antes da primeira pendencia; rascunhos e conclusoes sao retomaveis.
 - Perfil exclusivo de imovel ou oportunidade nao exige CPF.
+- Perfil exclusivo de imovel ou oportunidade nao exige nem exibe areas de contribuicao; a exigencia existe somente para finalidade profissional ou capital.
 - O campo de CPF permanece disponivel para preenchimento opcional em qualquer finalidade, inclusive no perfil exclusivo de imovel ou oportunidade.
 - Os blocos de intencao usam os titulos `Imovel ou oportunidade`, `Profissional, fornecedor ou empresa` e `Parceiro de capital`, cada um acompanhado de sua pergunta contextual oficial definida em `shared/initial-onboarding.ts`.
 - No Meu Perfil, selecionar um card ainda inativo ou configurar um card ativo abre o mesmo conjunto canonico de intencoes do onboarding e salva finalidade e intencoes na mesma operacao.

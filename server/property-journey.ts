@@ -216,6 +216,37 @@ export function mergePropertyExtraction(
   return { draft, conflicts };
 }
 
+function positiveMarketValue(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
+  let normalized = String(value ?? "").replace(/[^\d,.-]/g, "").trim();
+  if (!normalized) return null;
+  const comma = normalized.lastIndexOf(",");
+  const dot = normalized.lastIndexOf(".");
+  if (comma > dot) normalized = normalized.replace(/\./g, "").replace(",", ".");
+  else if (dot > comma && comma >= 0) normalized = normalized.replace(/,/g, "");
+  else if (comma >= 0) normalized = normalized.replace(",", ".");
+  else if ((normalized.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(normalized)) normalized = normalized.replace(/\./g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function applyConfirmedPropertyMarketEstimate(
+  draft: Record<string, any>,
+  marketSuggestion: Record<string, any> | null | undefined,
+  today = new Date().toISOString().slice(0, 10),
+): Record<string, any> {
+  if (draft.estimativa_mercado_confirmada !== true || marketSuggestion?.amostra_suficiente !== true) return { ...draft };
+  const value = positiveMarketValue(draft.valor_atual);
+  if (!value) return { ...draft };
+  const suggestionDate = String(marketSuggestion.data_base || "");
+  return {
+    ...draft,
+    valor_atual: value,
+    valor_origem: "comparaveis_confirmados",
+    valor_data_base: /^\d{4}-\d{2}-\d{2}$/.test(suggestionDate) ? suggestionDate : today,
+  };
+}
+
 export function hasUsefulPropertyDocumentText(value: unknown) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   const words = text.split(" ").filter((word) => /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(word));

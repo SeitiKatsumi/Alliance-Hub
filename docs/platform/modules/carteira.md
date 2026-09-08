@@ -16,6 +16,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 ## APIs
 
 - `/api/carteira/resumo` retorna `imoveis`, `aliancas` e totais consolidados; `/imoveis*`, `/lancamentos*`, `/documentos*`.
+- `/api/ai/preco-m2` aceita o cadastro assistido sem valor inicial e retorna minimo, sugerido e maximo a partir de comparaveis; demais origens continuam exigindo valor e area.
 - `/api/carteira/imoveis/:id/financiamento/preview|confirmar` separa extracao, revisao e gravacao idempotente.
 - `/api/carteira/imoveis/:id/socios*` mantem a composicao de coproprietarios; `/api/carteira/convites/:token` resolve o convite; `/api/carteira/imoveis/:id/origem-bia*` revisa, envia e cancela a origem.
 - `/api/bias/:id/patrimonio` e `/aporte-solicitacoes*` registram valor oficial e aportes sujeitos a decisao do diretor.
@@ -56,6 +57,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `Valor de aquisicao` soma o valor pago proporcional dos imoveis aos aportes oficiais nas BIAs.
 - `Valorizacao registrada` considera somente ativos que possuam valor atual/estimado e base de aquisicao/aporte.
 - A estimativa automatica da aba Analise usa no minimo tres anuncios do mesmo tipo, a menor distancia geocodificada viavel de ate 20 km e faixa proporcional de area; quando informados, padrao, idade, conservacao, quartos, banheiros e vagas eliminam comparaveis incompatíveis.
+- No cadastro assistido, o ViaCEP preenche os campos estruturados sem apagar a entrada manual em caso de falha; esses campos permanecem no `inventario_imoveis` e voltam preenchidos na edicao.
+- A estimativa do cadastro assistido nao vem da extracao generativa: minimo, sugerido e maximo usam comparaveis verificaveis, o valor sugerido e editavel com mascara monetaria `pt-BR` e somente a confirmacao humana grava `valor_atual` numerico e o snapshot em `carteira_analises`.
 - A referencia usa a mediana do preco por m2 depois de remover anuncios muito fora da curva; a confianca considera quantidade, raio e cobertura das caracteristicas. A sugestao vale por 30 dias, permanece separada dos cards e totais e so substitui o valor oficial depois de confirmacao humana.
 - O resumo nao chama servicos externos; pesquisas e cotacoes desatualizadas sao renovadas em segundo plano e resultados validos permanecem disponiveis durante falhas.
 - Consolidacoes multimoeda usam a ultima cotacao de venda PTAX persistida; sem cotacao, a moeda e identificada e excluida do total, nunca tratada silenciosamente como BRL.
@@ -89,6 +92,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `server/carteira-alertas.test.ts`
 - `server/property-journey.test.ts`
 - `server/market-comparables.test.ts`
+- `client/src/lib/property-address.test.ts`
+- `client/src/lib/pt-br-money.test.ts`
 - `client/src/pages/carteira-mobile-launch.test.ts`
 - `shared/property-ownership.test.ts`
 - Ao alterar: testar dono/convidado/nao autorizado, evento gerado, publicacao/retirada, documentos, alertas e viewport mobile.

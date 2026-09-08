@@ -9,6 +9,8 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat corrige o cadastro mobile de imoveis: ViaCEP preenche e persiste o endereco, a estimativa usa comparaveis reais sem exigir valor inicial e o valor confirmado vira o snapshot oficial; preserva as regras existentes de Carteira, MAP e permissoes.
+- O valor sugerido no cadastro assistido agora usa mascara monetaria `pt-BR` durante a digitacao e continua numerico ao confirmar.
 - Este chat separa a aprovacao do `onboarding_inicial` da adesao paga: concluir a avaliacao libera apenas o acesso inicial, ainda condicionado ao fim do onboarding, sem criar cobranca nem enviar link de pagamento.
 - Este chat corrige o nome dos participantes no detalhe da Celula: a API passa a priorizar `cadastro_geral.nome` em lote e nunca exibe `membro_id` como nome; preserva participacoes, perfis e permissoes.
 - Este chat deixa de exigir e exibir areas de contribuicao quando `imoveis` e a unica finalidade ativa, tanto no onboarding quanto no Meu Perfil e nos indicadores de conclusao; preserva os dados ja salvos e as regras de Tipos de Negocio.

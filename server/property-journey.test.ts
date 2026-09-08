@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyConfirmedPropertyMarketEstimate,
   hasUsefulPropertyDocumentText,
   isProfessionalPurpose,
   mergePropertyExtraction,
@@ -80,6 +81,35 @@ test("property extraction fills blanks and reports conflicts without replacing c
   assert.deepEqual(result.conflicts, {
     nome: { atual: "Lote 09", extraido: "Lote nove", fonte: "matricula.pdf" },
   });
+});
+
+test("confirmed market estimate becomes the official value without losing the address", () => {
+  const result = applyConfirmedPropertyMarketEstimate({
+    estimativa_mercado_confirmada: true,
+    valor_atual: "1.250.000,00",
+    cep: "30130-010",
+    endereco: "Avenida Afonso Pena",
+    numero: "120",
+    bairro: "Centro",
+    cidade: "Belo Horizonte",
+    estado: "MG",
+    pais: "Brasil",
+  }, { amostra_suficiente: true, data_base: "2026-09-08" });
+
+  assert.equal(result.valor_atual, 1_250_000);
+  assert.equal(result.valor_origem, "comparaveis_confirmados");
+  assert.equal(result.valor_data_base, "2026-09-08");
+  assert.equal(result.endereco, "Avenida Afonso Pena");
+  assert.equal(result.numero, "120");
+});
+
+test("estimate without a valid comparable sample never creates an official zero", () => {
+  const result = applyConfirmedPropertyMarketEstimate({
+    estimativa_mercado_confirmada: true,
+    valor_atual: "",
+  }, { amostra_suficiente: false }, "2026-09-08");
+  assert.equal(result.valor_atual, "");
+  assert.equal(result.valor_origem, undefined);
 });
 
 test("generic intent does not recommend unrelated BUILT members", () => {

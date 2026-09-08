@@ -43,6 +43,19 @@ test("usa faixa proporcional de área e calcula a mediana no servidor", () => {
   assert.equal(result.classificacao, "media");
 });
 
+test("calcula a referência sem exigir um preço inicial", () => {
+  const result = buildComparableMarketAnalysis([
+    comparable(1, 96, 480_000),
+    comparable(2, 120, 720_000),
+    comparable(3, 144, 1_008_000),
+  ], { ...target, precoM2: undefined });
+
+  assert.equal(result.amostra_suficiente, true);
+  assert.equal(result.referencia_m2_media, 6_000);
+  assert.equal(result.classificacao, undefined);
+  assert.equal(result.diferenca_percentual, undefined);
+});
+
 test("descarta área fora da faixa, outro tipo e outra região", () => {
   const result = buildComparableMarketAnalysis([
     comparable(1, 95, 475_000),

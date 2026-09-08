@@ -113,6 +113,7 @@ import {
   normalizeProposalAmount,
 } from "./demand-domain";
 import {
+  applyConfirmedPropertyMarketEstimate,
   hasUsefulPropertyDocumentText,
   isProfessionalPurpose,
   mergePropertyExtraction,
@@ -15627,8 +15628,8 @@ ${textContent}`;
         model: "gpt-4o-mini",
         messages: [{
           role: "user",
-          content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
-{"draft":{"nome":null,"tipo":null,"area_m2":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","matricula":null,"cartorio":null,"descricao":null},"intencao":"gerir|vender|alugar|reformar|construir|regularizar|estruturar_alianca","resumo":"texto curto","especialidades":["..."],"estimativa":{"min":null,"max":null,"moeda":"BRL","aviso":"Referência preliminar, não é proposta comercial."}}
+          content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados ou estime valor de mercado. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
+{"draft":{"nome":null,"tipo":null,"area_m2":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cartorio":null,"descricao":null},"intencao":"gerir|vender|alugar|reformar|construir|regularizar|estruturar_alianca","resumo":"texto curto","especialidades":["..."]}
 
 CONTEÚDO:
 ${inputText.slice(0, 18000)}`,
@@ -15653,7 +15654,6 @@ ${inputText.slice(0, 18000)}`,
         resumo: parsed.resumo || null,
         intencao: normalizePropertyIntent(parsed.intencao),
         especialidades: Array.isArray(parsed.especialidades) ? parsed.especialidades.slice(0, 12) : [],
-        estimativa: parsed.estimativa || null,
         fonte: sourceName,
         conflitos: { ...previousConflicts, ...mergedExtraction.conflicts },
       };
@@ -15781,7 +15781,11 @@ ${inputText.slice(0, 18000)}`,
       }
       const confirmed = req.body?.confirmado === true;
       if (!confirmed) return res.status(400).json({ error: "Revise e confirme os dados antes de salvar." });
-      const draft = { ...(current.draft || {}), ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}) };
+      const submittedDraft = { ...(current.draft || {}), ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}) };
+      const marketSuggestion = current.suggestions?.estimativa_mercado && typeof current.suggestions.estimativa_mercado === "object"
+        ? current.suggestions.estimativa_mercado as Record<string, unknown>
+        : null;
+      const draft = applyConfirmedPropertyMarketEstimate(submittedDraft, marketSuggestion);
       if (!String(draft.nome || draft.qualificacao || "").trim()) return res.status(400).json({ error: "Informe um nome ou qualificação para continuar." });
       if (current.path === "oportunidade") {
         const id = `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
@@ -15814,6 +15818,18 @@ ${inputText.slice(0, 18000)}`,
       await db.transaction(async (tx) => {
         await tx.execute(sql`INSERT INTO inventario_imoveis (id, data, owner_user_id, owner_membro_id) VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})`);
         await tx.execute(sql`UPDATE property_assistant_sessions SET status = 'concluido', step = 'concluido', property_id = ${id}, draft = ${JSON.stringify(draft)}::jsonb, confirmations = confirmations || ${JSON.stringify({ cadastro: true })}::jsonb, updated_at = now() WHERE id = ${current.id}`);
+        if (draft.estimativa_mercado_confirmada === true && marketSuggestion?.amostra_suficiente === true && Number(data.valor_atual) > 0) {
+          await tx.execute(sql`
+            INSERT INTO carteira_analises (
+              imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id
+            ) VALUES (
+              ${id}, 'avaliacao_confirmada', 'comparaveis-robustos-v2',
+              ${JSON.stringify(marketSuggestion)}::jsonb,
+              ${JSON.stringify({ valor_atual: data.valor_atual, data_base: data.valor_data_base, confirmado: true, valor_sugerido_original: marketSuggestion.valor_sugerido || null })}::jsonb,
+              ${actor.userId}, ${actor.membroId}
+            )
+          `);
+        }
       });
       try {
         await savePropertyPartners(data, actor, req, assistantPartners);
@@ -22037,9 +22053,9 @@ ${textContent.slice(0, 16000)}`;
     location: string;
     bairro: string;
     cidade: string;
-    valor: number;
+    valor?: number;
     areaM2: number;
-    precoM2: number;
+    precoM2?: number;
     moeda: string;
     anoConstrucao?: number | null;
     padrao?: string | null;
@@ -22059,7 +22075,7 @@ Dados do ativo:
 - Localização/endereço: ${params.location}
 - Região de referência: ${requiredRegion}
 - Raio máximo: ${MARKET_RADIUS_KM} km do endereço do ativo
-- Valor total informado: ${params.valor.toFixed(2)} ${params.moeda}
+- Valor total informado: ${Number(params.valor) > 0 ? `${Number(params.valor).toFixed(2)} ${params.moeda}` : "não informado"}
 - Área: ${params.areaM2.toFixed(2)} m²
 - Faixa de área permitida: ${areaMin.toFixed(2)} a ${areaMax.toFixed(2)} m², inclusive
 - Padrão: ${params.padrao || "não informado"}
@@ -22068,7 +22084,7 @@ Dados do ativo:
 - Quartos: ${params.quartos ?? "não informado"}
 - Banheiros: ${params.banheiros ?? "não informado"}
 - Vagas: ${params.vagas ?? "não informado"}
-- Preço informado por m²: ${params.precoM2.toFixed(2)} ${params.moeda}/m²
+- Preço informado por m²: ${Number(params.precoM2) > 0 ? `${Number(params.precoM2).toFixed(2)} ${params.moeda}/m²` : "não informado"}
 
 Instruções:
 - Use pesquisa web real e retorne somente anúncios individuais de venda com URL pública direta.
@@ -22111,17 +22127,22 @@ Instruções:
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const body = req.body || {};
-      if (String(body.origem || "").toLowerCase() === "bia") {
+      const origem = String(body.origem || "").toLowerCase();
+      if (origem === "bia") {
         if (!body.bia_id) return res.status(400).json({ error: "bia_id e obrigatorio para analisar uma BIA." });
         if (!await requireBiaModuleAccess(req, res, String(body.bia_id), "capital_analises", "edit")) return;
       }
       const areaM2 = parseAreaM2Server(body.area_m2);
       const valor = parseMarketValueServer(body.valor);
-      if (areaM2 <= 0 || valor <= 0) {
+      const assistantWithoutValue = origem === "carteira_assistente" && valor <= 0;
+      if (areaM2 <= 0) {
+        return res.status(400).json({ error: "Informe a área em m² para pesquisar imóveis comparáveis." });
+      }
+      if (!assistantWithoutValue && valor <= 0) {
         return res.status(400).json({ error: "Informe valor e área em m² para analisar o preço por m²." });
       }
 
-      const precoM2 = valor / areaM2;
+      const precoM2 = valor > 0 ? valor / areaM2 : undefined;
       const location = [
         body.endereco,
         body.numero,
@@ -22172,9 +22193,12 @@ Instruções:
       res.json({
         success: true,
         ...analysis,
-        preco_m2_informado: Math.round(precoM2),
-        valor_total: Math.round(valor),
+        preco_m2_informado: precoM2 ? Math.round(precoM2) : null,
+        valor_total: valor > 0 ? Math.round(valor) : null,
+        valor_minimo: analysis.referencia_m2_min ? Math.round(analysis.referencia_m2_min * areaM2) : null,
         valor_sugerido: analysis.referencia_m2_media ? Math.round(analysis.referencia_m2_media * areaM2) : null,
+        valor_maximo: analysis.referencia_m2_max ? Math.round(analysis.referencia_m2_max * areaM2) : null,
+        data_base: new Date().toISOString().slice(0, 10),
         area_m2: Number(areaM2.toFixed(2)),
         raio_km: analysis.raio_aplicado_km || MARKET_RADIUS_KM,
       });

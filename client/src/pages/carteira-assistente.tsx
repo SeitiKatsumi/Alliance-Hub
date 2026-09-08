@@ -38,6 +38,8 @@ import {
   formatRecordingTime,
   getAudioRecordingFilename,
 } from "@/lib/audio-recording";
+import { formatBrazilianCep, mergeViaCepAddress } from "@/lib/property-address";
+import { formatPtBrMoneyInput } from "@/lib/pt-br-money";
 
 type JourneyStep = "cadastro" | "intencao" | "analise" | "conexao";
 type JourneyMethod = "conversa" | "cartorio" | "documentos" | "manual";
@@ -77,6 +79,21 @@ type RecommendationResponse = {
   };
 };
 
+type MarketEstimateResponse = {
+  amostra_suficiente: boolean;
+  quantidade_comparaveis: number;
+  valor_minimo?: number | null;
+  valor_sugerido?: number | null;
+  valor_maximo?: number | null;
+  moeda?: string;
+  data_base?: string;
+  confianca?: "baixa" | "media" | "alta";
+  resumo?: string;
+  observacao?: string;
+  fontes?: Array<{ titulo?: string; url: string; trecho?: string }>;
+  [key: string]: any;
+};
+
 const STEPS: Array<{ id: JourneyStep; label: string }> = [
   { id: "intencao", label: "Intenção" },
   { id: "cadastro", label: "Cadastro" },
@@ -113,6 +130,12 @@ const FIELD_LABELS: Record<string, string> = {
   cidade: "Cidade",
   estado: "Estado",
   pais: "País",
+  padrao_imovel: "Padrão",
+  ano_construcao: "Ano de construção",
+  estado_conservacao: "Estado de conservação",
+  quartos: "Quartos",
+  banheiros: "Banheiros",
+  vagas: "Vagas",
   matricula: "Matrícula",
   cartorio: "Cartório",
   descricao: "Descrição",
@@ -124,6 +147,33 @@ function fetchJson(url: string) {
     if (!response.ok) throw new Error(json.error || "Não foi possível carregar esta etapa.");
     return json;
   });
+}
+
+function parseDraftNumber(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  let normalized = String(value ?? "").replace(/[^\d,.-]/g, "").trim();
+  if (!normalized) return 0;
+  const comma = normalized.lastIndexOf(",");
+  const dot = normalized.lastIndexOf(".");
+  if (comma > dot) normalized = normalized.replace(/\./g, "").replace(",", ".");
+  else if (dot > comma && comma >= 0) normalized = normalized.replace(/,/g, "");
+  else if (comma >= 0) normalized = normalized.replace(",", ".");
+  else if ((normalized.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(normalized)) normalized = normalized.replace(/\./g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function marketInputKey(draft: Record<string, any>) {
+  return JSON.stringify([
+    draft.tipo, draft.area_m2, draft.moeda, draft.cep, draft.endereco, draft.numero, draft.bairro,
+    draft.cidade, draft.estado, draft.pais, draft.padrao_imovel, draft.ano_construcao,
+    draft.estado_conservacao, draft.quartos, draft.banheiros, draft.vagas,
+  ]);
+}
+
+function formatMarketMoney(value: unknown, currency = "BRL") {
+  const parsed = parseDraftNumber(value);
+  return parsed > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(parsed) : "";
 }
 
 export default function CarteiraAssistentePage() {
@@ -144,6 +194,8 @@ export default function CarteiraAssistentePage() {
   const [recordedAudioReady, setRecordedAudioReady] = useState(false);
   const [micBlocked, setMicBlocked] = useState(false);
   const [micPermissionHelpOpen, setMicPermissionHelpOpen] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLElement | null>(null);
@@ -152,6 +204,9 @@ export default function CarteiraAssistentePage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
   const recordingSecondsRef = useRef(0);
+  const cepRequestRef = useRef("");
+  const marketAttemptKeyRef = useRef("");
+  const draftRef = useRef(draft);
 
   const sessionQuery = useQuery<AssistantSession>({
     queryKey: ["/api/carteira/assistente/sessoes", sessionId],
@@ -169,6 +224,10 @@ export default function CarteiraAssistentePage() {
     setDraft({ pais: "Brasil", moeda: "BRL", ...(session.draft || {}) });
     setSelectedMembers(Array.isArray(session.draft?.profissionais_recomendados) ? session.draft.profissionais_recomendados.map(String) : []);
   }, [session?.id]);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   useEffect(() => () => {
     if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
@@ -190,6 +249,32 @@ export default function CarteiraAssistentePage() {
   function stopRecording() {
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== "inactive") recorder.stop();
+  }
+
+  async function updateCep(raw: string) {
+    const { digits, formatted } = formatBrazilianCep(raw);
+    cepRequestRef.current = digits;
+    setCepError("");
+    setDraft((current) => ({ ...current, cep: formatted }));
+    if (digits.length !== 8) {
+      setCepLoading(false);
+      return;
+    }
+    setCepLoading(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      if (!response.ok) throw new Error("CEP indisponível");
+      const address = await response.json();
+      if (address?.erro) {
+        setCepError("CEP não encontrado. Você pode preencher o endereço manualmente.");
+        return;
+      }
+      setDraft((current) => formatBrazilianCep(current.cep).digits === digits ? mergeViaCepAddress(current, address) : current);
+    } catch {
+      setCepError("Não foi possível consultar o CEP. Seus dados manuais foram preservados.");
+    } finally {
+      if (cepRequestRef.current === digits) setCepLoading(false);
+    }
   }
 
   async function startRecording() {
@@ -363,6 +448,71 @@ export default function CarteiraAssistentePage() {
     onError: (error: Error) => toast({ title: "Não foi possível analisar", description: error.message, variant: "destructive" }),
   });
 
+  const marketEstimateMutation = useMutation({
+    mutationFn: async () => {
+      const inputKey = marketInputKey(draft);
+      const response = await fetch("/api/ai/preco-m2", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origem: "carteira_assistente",
+          nome: draft.nome,
+          tipo: draft.tipo,
+          area_m2: draft.area_m2,
+          moeda: draft.moeda || "BRL",
+          cep: draft.cep,
+          endereco: draft.endereco,
+          numero: draft.numero,
+          bairro: draft.bairro,
+          cidade: draft.cidade,
+          estado: draft.estado,
+          pais: draft.pais,
+          padrao_imovel: draft.padrao_imovel,
+          ano_construcao: draft.ano_construcao,
+          estado_conservacao: draft.estado_conservacao,
+          quartos: draft.quartos,
+          banheiros: draft.banheiros,
+          vagas: draft.vagas,
+        }),
+      });
+      const estimate = await response.json().catch(() => ({})) as MarketEstimateResponse & { error?: string };
+      if (!response.ok) throw new Error(estimate.error || "Não foi possível pesquisar o valor de mercado.");
+      if (marketInputKey(draftRef.current) !== inputKey) return null;
+
+      const nextDraft = {
+        ...draft,
+        estimativa_min: estimate.valor_minimo || "",
+        estimativa_sugerida: estimate.valor_sugerido
+          ? formatPtBrMoneyInput(estimate.valor_sugerido, true)
+          : formatPtBrMoneyInput(draft.valor_atual, true),
+        estimativa_max: estimate.valor_maximo || "",
+        estimativa_mercado_confirmada: false,
+        analise_revisada: false,
+      };
+      const sessionResponse = await fetch(`/api/carteira/assistente/sessoes/${sessionId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: "analise",
+          draft: nextDraft,
+          suggestions: { estimativa_mercado: { ...estimate, entrada_chave: inputKey } },
+        }),
+      });
+      const updated = await sessionResponse.json().catch(() => ({}));
+      if (!sessionResponse.ok) throw new Error(updated.error || "Não foi possível guardar a estimativa.");
+      return { updated: updated as AssistantSession, nextDraft, estimate };
+    },
+    onSuccess: (result) => {
+      if (!result) return;
+      const { updated, nextDraft, estimate } = result;
+      queryClient.setQueryData(["/api/carteira/assistente/sessoes", sessionId], updated);
+      setDraft(nextDraft);
+      if (estimate.amostra_suficiente) toast({ title: "Estimativa de mercado pronta", description: "Revise o valor sugerido antes de confirmar." });
+    },
+  });
+
   const recommendationsQuery = useQuery<RecommendationResponse>({
     queryKey: ["/api/carteira/assistente/recomendacoes", sessionId],
     queryFn: () => fetchJson(`/api/carteira/assistente/sessoes/${sessionId}/recomendacoes`),
@@ -420,6 +570,12 @@ export default function CarteiraAssistentePage() {
   const ownershipValid = path !== "imovel" || (Math.abs(ownershipTotal - 100) < 0.0001 && (draft.socios_adicionais || []).every((item: any) => item.nome && item.email && Number(item.map_percentual) > 0));
   const isAnalyzable = !recording && Boolean(file || sourceText.trim());
   const suggestions = session?.suggestions || {};
+  const marketEstimate = suggestions.estimativa_mercado as (MarketEstimateResponse & { entrada_chave?: string }) | undefined;
+  const currentMarketInputKey = marketInputKey(draft);
+  const currentMarketEstimate = marketEstimate?.entrada_chave === currentMarketInputKey ? marketEstimate : undefined;
+  const estimateCandidate = draft.estimativa_sugerida ?? currentMarketEstimate?.valor_sugerido ?? draft.valor_atual ?? "";
+  const hasMarketLocation = Boolean(draft.cep || draft.endereco || draft.bairro || draft.cidade);
+  const canResearchMarket = path === "imovel" && Boolean(String(draft.tipo || "").trim()) && parseDraftNumber(draft.area_m2) > 0 && hasMarketLocation;
   const conflicts = suggestions.conflitos && typeof suggestions.conflitos === "object" ? suggestions.conflitos : {};
   const visibleSources = (session?.sources || []).filter((source, index, items) => items.findIndex((item) => item.tipo === source.tipo && item.nome.trim().toLocaleLowerCase("pt-BR") === source.nome.trim().toLocaleLowerCase("pt-BR")) === index);
   const recommendations = recommendationsQuery.data?.recomendacoes || [];
@@ -428,6 +584,21 @@ export default function CarteiraAssistentePage() {
     : method === "conversa"
       ? "audio/*"
       : "image/*,.pdf,.txt,.doc,.docx";
+
+  useEffect(() => {
+    if (step !== "analise" || !sessionId || !canResearchMarket || marketEstimate?.entrada_chave === currentMarketInputKey) return;
+    if (marketAttemptKeyRef.current === currentMarketInputKey || marketEstimateMutation.isPending) return;
+    marketAttemptKeyRef.current = currentMarketInputKey;
+    setDraft((current) => current.analise_revisada || current.estimativa_mercado_confirmada
+      ? { ...current, analise_revisada: false, estimativa_mercado_confirmada: false }
+      : current);
+    marketEstimateMutation.mutate();
+  }, [step, sessionId, canResearchMarket, currentMarketInputKey, marketEstimate?.entrada_chave, marketEstimateMutation.isPending]);
+
+  function retryMarketEstimate() {
+    marketAttemptKeyRef.current = currentMarketInputKey;
+    marketEstimateMutation.mutate();
+  }
 
   const title = path === "oportunidade" ? "Cadastrar oportunidade identificada" : "Cadastrar meu imóvel";
 
@@ -662,11 +833,25 @@ export default function CarteiraAssistentePage() {
               <div className="sm:col-span-2"><Label>Nome ou identificação *</Label><Input className="mt-1" value={draft.nome || ""} onChange={(event) => setDraft({ ...draft, nome: event.target.value })} placeholder={path === "imovel" ? "Apartamento Jardim..." : "Prédio comercial identificado..."} /></div>
               <div><Label>Tipo</Label><Input className="mt-1" value={draft.tipo || ""} onChange={(event) => setDraft({ ...draft, tipo: event.target.value })} placeholder="Terreno, casa, galpão..." /></div>
               <div><Label>Área (m²)</Label><Input className="mt-1" inputMode="decimal" value={draft.area_m2 || ""} onChange={(event) => setDraft({ ...draft, area_m2: event.target.value })} /></div>
-              <div><Label>CEP</Label><Input className="mt-1" value={draft.cep || ""} onChange={(event) => setDraft({ ...draft, cep: event.target.value })} /></div>
+              <div className="sm:col-span-2"><Label>CEP</Label><div className="relative mt-1"><Input value={draft.cep || ""} inputMode="numeric" autoComplete="postal-code" aria-busy={cepLoading} onChange={(event) => void updateCep(event.target.value)} />{cepLoading && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-slate-400" />}</div>{cepError && <p className="mt-1 text-xs text-amber-700">{cepError}</p>}</div>
+              <div className="sm:col-span-2"><Label>Endereço</Label><Input className="mt-1" value={draft.endereco || ""} autoComplete="street-address" onChange={(event) => setDraft({ ...draft, endereco: event.target.value })} /></div>
+              <div><Label>Número</Label><Input className="mt-1" value={draft.numero || ""} onChange={(event) => setDraft({ ...draft, numero: event.target.value })} /></div>
+              <div><Label>Complemento</Label><Input className="mt-1" value={draft.complemento || ""} onChange={(event) => setDraft({ ...draft, complemento: event.target.value })} /></div>
+              <div><Label>Bairro</Label><Input className="mt-1" value={draft.bairro || ""} onChange={(event) => setDraft({ ...draft, bairro: event.target.value })} /></div>
               <div><Label>Cidade</Label><Input className="mt-1" value={draft.cidade || ""} onChange={(event) => setDraft({ ...draft, cidade: event.target.value })} /></div>
               <div><Label>Estado</Label><Input className="mt-1" value={draft.estado || ""} onChange={(event) => setDraft({ ...draft, estado: event.target.value })} /></div>
               <div><Label>País</Label><Input className="mt-1" value={draft.pais || "Brasil"} onChange={(event) => setDraft({ ...draft, pais: event.target.value })} /></div>
-              <div className="sm:col-span-2"><Label>Endereço</Label><Input className="mt-1" value={draft.endereco || ""} onChange={(event) => setDraft({ ...draft, endereco: event.target.value })} /></div>
+              {path === "imovel" && <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
+                <div><Label className="text-base">Características para estimativa</Label><p className="mt-1 text-xs text-muted-foreground">Opcionais, mas ajudam a comparar imóveis realmente semelhantes.</p></div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div><Label>Padrão</Label><Select value={draft.padrao_imovel || "nao_informado"} onValueChange={(value) => setDraft({ ...draft, padrao_imovel: value === "nao_informado" ? null : value })}><SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="nao_informado">Não informado</SelectItem><SelectItem value="economico">Econômico</SelectItem><SelectItem value="medio">Médio</SelectItem><SelectItem value="alto">Alto padrão</SelectItem><SelectItem value="luxo">Luxo</SelectItem></SelectContent></Select></div>
+                  <div><Label>Ano de construção</Label><Input className="mt-1 bg-white" type="number" min="1800" max={new Date().getFullYear() + 2} value={draft.ano_construcao ?? ""} onChange={(event) => setDraft({ ...draft, ano_construcao: event.target.value ? Number(event.target.value) : null })} /></div>
+                  <div><Label>Conservação</Label><Select value={draft.estado_conservacao || "nao_informado"} onValueChange={(value) => setDraft({ ...draft, estado_conservacao: value === "nao_informado" ? null : value })}><SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="nao_informado">Não informada</SelectItem><SelectItem value="novo">Novo</SelectItem><SelectItem value="reformado">Reformado</SelectItem><SelectItem value="bom">Bom estado</SelectItem><SelectItem value="regular">Regular</SelectItem><SelectItem value="reformar">Precisa reformar</SelectItem></SelectContent></Select></div>
+                  <div><Label>Quartos</Label><Input className="mt-1 bg-white" type="number" min="0" value={draft.quartos ?? ""} onChange={(event) => setDraft({ ...draft, quartos: event.target.value === "" ? null : Number(event.target.value) })} /></div>
+                  <div><Label>Banheiros</Label><Input className="mt-1 bg-white" type="number" min="0" value={draft.banheiros ?? ""} onChange={(event) => setDraft({ ...draft, banheiros: event.target.value === "" ? null : Number(event.target.value) })} /></div>
+                  <div><Label>Vagas</Label><Input className="mt-1 bg-white" type="number" min="0" value={draft.vagas ?? ""} onChange={(event) => setDraft({ ...draft, vagas: event.target.value === "" ? null : Number(event.target.value) })} /></div>
+                </div>
+              </div>}
               <div className="sm:col-span-2"><Label>Descrição</Label><Textarea className="mt-1" value={draft.descricao || ""} onChange={(event) => setDraft({ ...draft, descricao: event.target.value })} /></div>
               {path === "imovel" && <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
                 <div><Label className="text-base">Sócios e MAP de origem</Label><p className="mt-1 text-xs text-muted-foreground">Informe sua participação e convide coproprietários. A soma precisa fechar 100%.</p></div>
@@ -706,14 +891,17 @@ export default function CarteiraAssistentePage() {
             <Input className="mt-1" value={draft.especialidades_texto ?? (suggestions.especialidades || []).join(", ")} onChange={(event) => setDraft({ ...draft, especialidades_texto: event.target.value })} placeholder="Avaliação, arquitetura, engenharia..." />
           </section>
           <section className="rounded-md border border-blue-200 bg-blue-50 p-5">
-            <h2 className="font-semibold text-blue-950">Estimativa de referência</h2>
-            <p className="mt-1 text-sm text-blue-900/70">A faixa é editável e não representa proposta comercial.</p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_110px]">
-              <div><Label>Mínimo</Label><Input className="mt-1 bg-white" inputMode="decimal" value={draft.estimativa_min ?? suggestions.estimativa?.min ?? ""} onChange={(event) => setDraft({ ...draft, estimativa_min: event.target.value })} /></div>
-              <div><Label>Máximo</Label><Input className="mt-1 bg-white" inputMode="decimal" value={draft.estimativa_max ?? suggestions.estimativa?.max ?? ""} onChange={(event) => setDraft({ ...draft, estimativa_max: event.target.value })} /></div>
-              <div><Label>Moeda</Label><Select value={draft.moeda || "BRL"} onValueChange={(value) => setDraft({ ...draft, moeda: value })}><SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold text-blue-950">Estimativa de mercado</h2><p className="mt-1 text-sm text-blue-900/70">Referência por anúncios comparáveis; não substitui laudo de avaliação.</p></div><Select value={draft.moeda || "BRL"} onValueChange={(value) => setDraft({ ...draft, moeda: value })}><SelectTrigger className="w-24 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></div>
+            {!canResearchMarket && path === "imovel" && <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>Informe tipo, área e CEP ou endereço para pesquisar imóveis comparáveis.</p><Button className="mt-2" size="sm" variant="outline" onClick={() => setJourneyUrl({ step: "cadastro" })}>Completar cadastro</Button></div>}
+            {marketEstimateMutation.isPending && <div className="mt-4 flex items-center gap-2 text-sm text-blue-800"><Loader2 className="h-4 w-4 animate-spin" />Pesquisando anúncios comparáveis...</div>}
+            {marketEstimateMutation.isError && <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{(marketEstimateMutation.error as Error).message}</p><Button className="mt-2" size="sm" variant="outline" onClick={retryMarketEstimate}>Tentar novamente</Button></div>}
+            {currentMarketEstimate && <div className={`mt-4 rounded-md border p-3 text-sm ${currentMarketEstimate.amostra_suficiente ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}><p>{currentMarketEstimate.resumo || (currentMarketEstimate.amostra_suficiente ? "Estimativa calculada." : "Não há comparáveis suficientes para sugerir um valor.")}</p>{currentMarketEstimate.amostra_suficiente && <p className="mt-1 text-xs">{currentMarketEstimate.quantidade_comparaveis} anúncios válidos · confiança {currentMarketEstimate.confianca || "baixa"}</p>}{currentMarketEstimate.fontes?.length ? <div className="mt-2 flex flex-wrap gap-2">{currentMarketEstimate.fontes.slice(0, 4).map((source, index) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="text-xs font-medium underline">Comparável {index + 1}</a>)}</div> : null}</div>}
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div><Label>Mínimo</Label><Input className="mt-1 bg-slate-50" readOnly value={formatMarketMoney(draft.estimativa_min, draft.moeda || "BRL")} placeholder="Sem referência" /></div>
+              <div><Label>Valor sugerido *</Label><Input className="mt-1 bg-white font-semibold" inputMode="decimal" value={formatPtBrMoneyInput(estimateCandidate)} placeholder="Informe manualmente" onChange={(event) => setDraft({ ...draft, estimativa_sugerida: formatPtBrMoneyInput(event.target.value), analise_revisada: false, estimativa_mercado_confirmada: false })} onBlur={(event) => setDraft((current) => ({ ...current, estimativa_sugerida: formatPtBrMoneyInput(event.target.value, true) }))} /></div>
+              <div><Label>Máximo</Label><Input className="mt-1 bg-slate-50" readOnly value={formatMarketMoney(draft.estimativa_max, draft.moeda || "BRL")} placeholder="Sem referência" /></div>
             </div>
-            <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-blue-900"><Checkbox checked={Boolean(draft.analise_revisada)} onCheckedChange={(checked) => setDraft({ ...draft, analise_revisada: checked === true })} /><span>Revisei esta análise e entendo que ela é apenas uma referência preliminar.</span></div>
+            <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-blue-900"><Checkbox checked={Boolean(draft.analise_revisada)} disabled={marketEstimateMutation.isPending || parseDraftNumber(estimateCandidate) <= 0} onCheckedChange={(checked) => { const accepted = checked === true; const value = parseDraftNumber(estimateCandidate); const fromMarket = accepted && value > 0 && currentMarketEstimate?.amostra_suficiente === true; setDraft({ ...draft, estimativa_sugerida: estimateCandidate, valor_atual: accepted && value > 0 ? value : draft.valor_atual, valor_origem: fromMarket ? "comparaveis_confirmados" : (draft.valor_origem || "declarada"), valor_data_base: fromMarket ? (currentMarketEstimate?.data_base || new Date().toISOString().slice(0, 10)) : draft.valor_data_base, estimativa_mercado_confirmada: fromMarket, analise_revisada: accepted }); }} /><span>Confirmo este valor como estimativa atual inicial do imóvel e entendo que ele é uma referência revisável.</span></div>
           </section>
         </div>
       )}
@@ -755,7 +943,7 @@ export default function CarteiraAssistentePage() {
       <footer className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur">
         <Button variant="outline" disabled={currentIndex === 0 || updateMutation.isPending || recording} onClick={() => setJourneyUrl({ step: STEPS[Math.max(0, currentIndex - 1)].id })}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
         {step !== "conexao" ? (
-          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={recording || (step === "cadastro" && (!String(draft.nome || "").trim() || !ownershipValid)) || (step === "intencao" && !draft.intencao) || (step === "analise" && !draft.analise_revisada) || updateMutation.isPending} onClick={() => updateMutation.mutate({
+          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={recording || (step === "cadastro" && (!String(draft.nome || "").trim() || !ownershipValid)) || (step === "intencao" && !draft.intencao) || (step === "analise" && (marketEstimateMutation.isPending || !draft.analise_revisada || parseDraftNumber(estimateCandidate) <= 0)) || updateMutation.isPending} onClick={() => updateMutation.mutate({
             nextStep: STEPS[currentIndex + 1].id,
             payload: step === "intencao"
               ? { intencao: draft.intencao }

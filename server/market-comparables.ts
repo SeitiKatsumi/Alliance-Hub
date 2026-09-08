@@ -36,7 +36,7 @@ export interface MarketComparableTarget {
   cidade?: string;
   localizacao?: string;
   areaM2: number;
-  precoM2: number;
+  precoM2?: number;
   moeda: string;
   raioMaxKm?: number;
   exigirDistancia?: boolean;
@@ -409,27 +409,39 @@ export function buildComparableMarketAnalysis(
 
   const pricesM2 = comparaveis.map((item) => item.preco_m2);
   const referenceMedian = median(pricesM2);
-  const difference = ((target.precoM2 - referenceMedian) / referenceMedian) * 100;
-  const resultClassification = classification(target.precoM2, referenceMedian);
-  const classificationText = resultClassification === "media"
-    ? "na média"
-    : resultClassification === "acima" ? "acima da média" : "abaixo da média";
-  const confidence = comparaveis.length >= 5 && Number(appliedRadius || 0) <= 5
+  const confidence: "baixa" | "media" | "alta" = comparaveis.length >= 5 && Number(appliedRadius || 0) <= 5
     && informedCharacteristics.length >= 3 && coveredCharacteristics >= 70
     ? "alta"
     : comparaveis.length >= 4 && informedCharacteristics.length >= 2 && coveredCharacteristics >= 50
       ? "media"
       : "baixa";
 
-  return {
+  const marketReference = {
     ...base,
-    classificacao: resultClassification,
     referencia_m2_min: Math.round(Math.min(...pricesM2)),
     referencia_m2_max: Math.round(Math.max(...pricesM2)),
     referencia_m2_media: Math.round(referenceMedian),
-    diferenca_percentual: Number(difference.toFixed(1)),
     confianca: confidence,
-    resumo: `O preço informado está ${classificationText} da referência mediana, com base em ${comparaveis.length} imóveis comparáveis em ${region}.`,
     observacao: "A mediana reduz o efeito de anúncios fora da curva. Características ausentes diminuem a confiança; a referência não substitui laudo de avaliação.",
+  };
+
+  if (!(Number(target.precoM2) > 0)) {
+    return {
+      ...marketReference,
+      resumo: `Referência mediana calculada com base em ${comparaveis.length} imóveis comparáveis em ${region}.`,
+    };
+  }
+
+  const difference = ((Number(target.precoM2) - referenceMedian) / referenceMedian) * 100;
+  const resultClassification = classification(Number(target.precoM2), referenceMedian);
+  const classificationText = resultClassification === "media"
+    ? "na média"
+    : resultClassification === "acima" ? "acima da média" : "abaixo da média";
+
+  return {
+    ...marketReference,
+    classificacao: resultClassification,
+    diferenca_percentual: Number(difference.toFixed(1)),
+    resumo: `O preço informado está ${classificationText} da referência mediana, com base em ${comparaveis.length} imóveis comparáveis em ${region}.`,
   };
 }

@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { deleteFluxoBatch, fluxoDeleteError } from "@/lib/fluxo-delete";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
 import { calculateMap, type MapContribution } from "@shared/member-portfolio";
@@ -2502,25 +2503,32 @@ export default function FluxoCaixaPage({
       toast({ title: "Lançamento excluído" });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      toast({ title: "Lançamento não excluído", description: fluxoDeleteError(error), variant: "destructive" });
     },
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      await Promise.all(ids.map((id) => apiRequest("DELETE", `/api/fluxo-caixa/${id}`)));
-      return ids.length;
-    },
-    onSuccess: (count) => {
+    mutationFn: (ids: string[]) => deleteFluxoBatch(
+      ids,
+      (id) => apiRequest("DELETE", `/api/fluxo-caixa/${id}`),
+    ),
+    onSuccess: ({ deleted, failed }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
-      setSelectedLancamentoIds([]);
+      setSelectedLancamentoIds((current) => current.filter((id) => !deleted.includes(id)));
       setBulkDeleteConfirmOpen(false);
-      toast({
-        title: `${count} lançamento${count === 1 ?"" : "s"} excluído${count === 1 ?"" : "s"}`,
-      });
+      if (failed.length > 0) {
+        toast({
+          title: `${deleted.length} excluído(s); ${failed.length} não excluído(s)`,
+          description: [...new Set(failed.map((item) => item.message))].join(" "),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `${deleted.length} lançamento${deleted.length === 1 ? "" : "s"} excluído${deleted.length === 1 ? "" : "s"}` });
+      }
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao excluir lançamentos", description: error.message, variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      toast({ title: "Erro ao excluir lançamentos", description: fluxoDeleteError(error), variant: "destructive" });
     },
   });
 
@@ -4347,7 +4355,7 @@ export default function FluxoCaixaPage({
                   Apagar {selectedLancamentoIds.length} lançamento{selectedLancamentoIds.length === 1 ?"" : "s"}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. Os {selectedLancamentoIds.length} lançamentos selecionados serão excluídos permanentemente do Directus.
+                  Esta ação não pode ser desfeita. Lançamentos com pagamento, anexo ou cobrança vinculada serão preservados. Ao concluir, você verá quantos foram excluídos e quantos não puderam ser excluídos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

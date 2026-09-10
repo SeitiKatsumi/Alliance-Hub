@@ -30,6 +30,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 - Visualizacao/edicao dependem do papel e da matriz `bia_user_permissions`.
 - Operacoes financeiras exigem autorizacao no backend e registro do autor.
+- Exclusao em lote aguarda todos os resultados, atualiza a lista mesmo com falhas e mantém selecionados os itens nao excluidos. A interface informa os totais e o motivo devolvido pela API; nao remove a protecao financeira do backend.
 - Excecao de superadmin para DM abaixo de 1%, inclusive zero, deve ser explicita e testada.
 
 ## Calculos e invariantes

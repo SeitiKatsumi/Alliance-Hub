@@ -32,7 +32,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - PostgreSQL `membro_anuidades.ends_at` e `company_plan_subscriptions.current_period_end` sao as fontes da proxima renovacao exibida ao usuario.
 - Relacoes de comunidade sao muitos-para-muitos. A lista integral de vinculos e a fonte para regras de associacao.
 - ROs usam `community_id` como vinculo oficial com a Comunidade; `strategic_cell_id` e apenas um foco opcional dentro dela.
-- Antes da adesao completa, a comunidade registrada no convite original e uma evidencia valida de origem e alimenta a ancora `membro_comunidade_mae`; ela nao deve ser ignorada apenas porque o candidato ainda nao entrou no M2M de membros.
+- Antes da adesao completa, o primeiro convite e sua ancora `membro_comunidade_mae` sao gravados na mesma transacao. Essa origem nao concede associacao M2M nem deve ser ignorada enquanto o candidato conclui a adesao.
 
 ## Papeis e permissoes
 

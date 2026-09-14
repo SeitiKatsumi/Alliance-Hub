@@ -10,7 +10,7 @@ import {
   transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
   opaInteresses, type OpaInteresse, type InsertOpaInteresse,
   agendaTarefas, type AgendaTarefa, type InsertAgendaTarefa,
-  convitesComunidade, type ConviteComunidade, type InsertConviteComunidade,
+  convitesComunidade, membroComunidadeMae, type ConviteComunidade, type InsertConviteComunidade,
   convitesLink, type ConviteLink, type InsertConviteLink,
   anuncios, type Anuncio, type InsertAnuncio,
   passwordResetTokens, type PasswordResetToken,
@@ -22,7 +22,7 @@ import {
   auraAvaliacoes, type AuraAvaliacao,
   biaInfoComercial, type BiaInfoComercial,
 } from "@shared/schema";
-import { eq, desc, and, or, isNull, lte, gte, sql as sqlExpr } from "drizzle-orm";
+import { eq, asc, desc, and, or, isNull, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { createHash, scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -505,8 +505,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade> {
-    const [item] = await db.insert(convitesComunidade).values(data).returning();
-    return item;
+    return db.transaction(async (tx) => {
+      const [item] = await tx.insert(convitesComunidade).values(data).returning();
+      const [original] = await tx.select().from(convitesComunidade)
+        .where(eq(convitesComunidade.candidato_membro_id, item.candidato_membro_id))
+        .orderBy(asc(convitesComunidade.criado_em), asc(convitesComunidade.id)).limit(1);
+      await tx.insert(membroComunidadeMae).values({
+        membro_id: item.candidato_membro_id,
+        comunidade_id: original.comunidade_id,
+        source: "convite",
+        metadata: { convite_id: original.id, convidador_membro_id: original.invitador_membro_id },
+      }).onConflictDoNothing({ target: membroComunidadeMae.membro_id });
+      return item;
+    });
   }
 
   async getConviteByToken(token: string): Promise<ConviteComunidade | undefined> {

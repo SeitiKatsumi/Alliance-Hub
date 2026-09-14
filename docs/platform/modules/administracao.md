@@ -7,11 +7,13 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 ## Telas e URLs
 
 - `/admin` e abas por query string, incluindo dashboard, membros, configuracoes, pagamentos, estruturacao de BIAs e `?tab=politicas`.
+- `?tab=pinbank` oferece homologação DEV exclusiva de admin/superadmin. Resposta inválida ou backend indisponível mantém todos os controles bloqueados.
 - Implementacao principal: `client/src/pages/admin.tsx` e `client/src/components/bia-structuring-queue.tsx`.
 
 ## APIs
 
 - `/api/admin/usage-heatmap`, `/api/admin/monetization` e indicadores administrativos.
+- `/api/admin/pinbank/dev/*`: status e operações de homologação isoladas, com autorização no backend e confirmação separada.
 - CRUD administrativo de membros/comunidades e configuracoes.
 - `/api/bia-estruturacao-solicitacoes*` para fila compartilhada com os papeis operacionais.
 - `/api/admin/monetization/policies*`, `/api/admin/bias/:id/monetization*` e `/api/admin/taxonomy/*` para politicas versionadas, termos imutaveis e nomes publicos.
@@ -46,6 +48,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 - Logs e relatorios mascaram PII.
 - RIG exige minimo de 1%, aprovacao administrativa e inicio institucional explicito. Governanca de R$ 600/mes comeca na competencia do 25o mes, sem rateio diario, e para de gerar novas competencias quando suspensa ou encerrada.
 - Toda alteracao de renovacao, suspensao ou congelamento exige admin/superadmin no backend e registra executor, assinatura, acao e resultado em `user_usage_events`.
+- A homologação Pinbank não altera o financeiro real; operações ficam desabilitadas sem configuração DEV e armazenamento disponíveis.
 
 ## Efeitos e dependencias
 
@@ -55,5 +58,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 ## Testes e impacto
 
 - `client/src/data/platform-functional-report.test.ts`
+- `client/src/lib/pinbank-response.test.ts`
+- `server/pinbank/pinbank.test.ts`, `server/pinbank/http.test.ts` e `server/pinbank/recovery.test.ts`
 - Testes de dominio dos modulos administrados.
 - Ao alterar: testar admin/superadmin/nao admin, acesso direto por URL, mobile, escopo de dados, filtros e trilha de auditoria.

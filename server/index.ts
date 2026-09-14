@@ -8,6 +8,7 @@ import { setupGoogleAuth } from "./auth-google";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { Pool } from "pg";
+import { publicBankResponse } from "./pinbank/redact";
 
 const app = express();
 const httpServer = createServer(app);
@@ -122,7 +123,7 @@ app.use((req, res, next) => {
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
-    const normalizedBody = normalizeJsonText(bodyJson);
+    const normalizedBody = normalizeJsonText(/pinbank|\/banco(?:\/|$)/i.test(path) ? publicBankResponse(bodyJson) : bodyJson);
     capturedJsonResponse = normalizedBody;
     return originalResJson.apply(res, [normalizedBody, ...args]);
   };
@@ -131,7 +132,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      if (capturedJsonResponse && !/pinbank|\/banco(?:\/|$)/i.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

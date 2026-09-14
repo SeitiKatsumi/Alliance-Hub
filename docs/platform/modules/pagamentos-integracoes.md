@@ -17,7 +17,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 - Plano Empresa de R$ 3.836,40/ano: checkout Asaas ou Stripe; upgrade de membro vigente cobra R$ 639,40 e preserva a data de renovacao.
 - PostgreSQL `membro_anuidades` e a fonte de vigencia; `/api/me` separa usuario cadastrado, Membro BUILT, comunidades e permissoes.
 - `ends_at` e `current_period_end` sao as datas oficiais de renovacao. `billing_suspended` interrompe novas cobrancas iniciadas pela plataforma e `frozen_at` pausa a contagem sem revogar acesso.
-- Pinbank em `server/pinbank-client.ts`: onboarding, documentos, conta, saldo, extrato e cobrancas.
+- Pinbank DEV em `server/pinbank/`: transporte autenticado, intenções persistidas, conta PJ, documentos e consultas. A habilitação externa depende das credenciais de homologação no servidor.
 - OpenAI em rotas de audio, texto, arquivo e analise.
 - Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
 
@@ -51,6 +51,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 - Retentativa usa o mesmo identificador quando a operacao for a mesma.
 - Upload valida autenticacao, autorizacao, tamanho, MIME e propriedade.
 - A plataforma continua com mensagem acionavel quando servico opcional esta indisponivel.
+- O cliente valida `Content-Type` e JSON antes de usar respostas Pinbank. HTML, JSON inválido ou status incompatível informa indisponibilidade e mantém operações bloqueadas.
 
 ## Efeitos e dependencias
 
@@ -61,5 +62,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 - `server/aura-audio.test.ts`
 - `server/valor-origem-sync.test.ts`
+- `client/src/lib/pinbank-response.test.ts`
+- `server/pinbank/pinbank.test.ts`, `server/pinbank/http.test.ts` e `server/pinbank/recovery.test.ts`
 - Testes de webhook/idempotencia devem ser adicionados antes de alterar cobrancas.
 - Ao alterar: testar sucesso, timeout, resposta invalida, repeticao, assinatura ausente, arquivo malformado e provedor indisponivel.

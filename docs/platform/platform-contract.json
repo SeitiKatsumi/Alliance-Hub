@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-03",
+  "updatedAt": "2026-09-14",
   "description": "Matriz de impacto entre funcionalidades, interface, API, persistencia, invariantes e testes.",
   "modules": [
     {
@@ -148,14 +148,14 @@
       "name": "Pagamentos e integracoes",
       "doc": "docs/platform/modules/pagamentos-integracoes.md",
       "keywords": ["pagamento", "assinatura", "plano empresa", "upgrade", "stripe", "asaas", "pinbank", "openai", "directus", "webhook", "arquivo", "upload", "mapa", "geocodificacao", "email"],
-      "routes": ["/pagamento/:token", "/pagamento/sucesso", "/meu-perfil", "/bias/:id?tab=capital", "/admin"],
       "frontendFiles": ["client/src/pages/pagamento.tsx", "client/src/pages/pagamento-sucesso.tsx", "client/src/pages/meu-perfil.tsx", "client/src/components/admin-commercial-policies.tsx", "client/src/components/company-access-panel.tsx", "client/src/components/PagamentoModal.tsx", "client/src/components/browser-permission-help.tsx"],
       "backendFiles": ["server/routes.ts", "shared/member-portfolio.ts", "shared/monetization.ts", "shared/schema.ts", "server/pinbank-client.ts", "server/mailer.ts", "server/stripe.ts"],
       "apiPrefixes": ["/api/convites", "/api/empresa/plano/checkout", "/api/admin/subscriptions", "/api/opa/solicitar-adesao", "/api/stripe/webhook", "/api/webhooks/asaas", "/api/upload", "/api/files"],
       "dataStores": ["PostgreSQL membro_anuidades", "PostgreSQL company_plan_subscriptions", "PostgreSQL bia_billing_charges", "IDs externos persistidos", "eventos validados de provedor", "arquivos Directus", "variaveis de ambiente"],
       "roles": ["pagador", "participante autorizado", "operador financeiro", "admin"],
       "invariants": ["A anuidade de R$ 3.197 formaliza Membro BUILT somente depois de onboarding, Aura, pagamento e associacao comunitaria.", "Plano Empresa custa R$ 3.836,40 por ano; upgrade vigente cobra R$ 639,40 e mantem a renovacao.", "Plano Empresa so ativa por webhook confirmado e repeticao nao duplica ativacao.", "Planos gratuitos legados permanecem ativos ate adesao explicita ou corte comunicado.", "Cancelamento preserva acesso ate o fim pago; reembolso e chargeback encerram a vigencia.", "Suspender cobranca nao revoga acesso; congelar prazo preserva acesso e a retomada desloca a renovacao pelo tempo pausado.", "Webhook e retentativa sao idempotentes.", "Falha externa nao vira sucesso silencioso.", "Segredos e PII nao chegam ao cliente ou logs."],
-      "tests": ["shared/monetization.test.ts", "server/aura-audio.test.ts", "server/valor-origem-sync.test.ts"]
+      "routes": ["/pagamento/:token", "/pagamento/sucesso", "/meu-perfil", "/bias/:id?tab=capital", "/admin", "/admin?tab=pinbank"],
+      "tests": ["shared/monetization.test.ts", "server/aura-audio.test.ts", "server/valor-origem-sync.test.ts", "client/src/lib/pinbank-response.test.ts", "server/pinbank/pinbank.test.ts", "server/pinbank/http.test.ts", "server/pinbank/recovery.test.ts"]
     }
   ],
   "crossCutting": [

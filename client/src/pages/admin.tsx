@@ -1,5 +1,5 @@
 import MembrosPage from "./membros";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { BadgeDollarSign, Network, Users } from "lucide-react";
 import { BiaStructuringQueue } from "@/components/bia-structuring-queue";
 import { AdminCommercialPolicies } from "@/components/admin-commercial-policies";
@@ -10,7 +10,7 @@ export default function AdminPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const canHomologate = !!user && !user.company_employee && ["admin", "superadmin"].includes(user.role);
-  const requestedTab = new URLSearchParams(window.location.search).get("tab");
+  const requestedTab = new URLSearchParams(useSearch()).get("tab");
   const active = requestedTab === "pinbank" || requestedTab === "estruturacao-bias" || requestedTab === "politicas" ? requestedTab : "membros";
   return (
     <div>

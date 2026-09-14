@@ -70,3 +70,6 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Antes de editar arquivos ja modificados, rode `git status --short` e leia o trecho atual.
 - Nao reverta mudancas que voce nao fez.
 - Se precisar tocar nos mesmos arquivos do outro chat, registre aqui em 1-2 linhas antes.
+
+## Publicação das correções desta conversa
+- Inclui confirmação adicional de exclusão financeira, correção/reversão auditada de cotas, retomada do onboarding e nome completo persistido no Meu Perfil. Preserva integrações e alterações paralelas fora deste pacote. Migração aditiva 20260915_quota_corrections.sql; nenhuma operação financeira real foi executada nos testes.

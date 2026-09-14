@@ -253,3 +253,16 @@ test("configuração exige visibilidade explícita", () => {
   assert.equal(validateOnboardingStepPayload("configuracao", {}), "Defina a visibilidade inicial.");
   assert.equal(validateOnboardingStepPayload("configuracao", { visibility: "private" }), null);
 });
+
+
+test("aceites iniciais não reabrem depois do avanço; fluxo legado preserva aceites finais", () => {
+  assert.equal(canAccessOnboardingStep("aceites", "aceites", 2), true);
+  for (const step of ["personalizacao", "perfil", "configuracao", "conexoes", "pronto"] as const) {
+    assert.equal(canAccessOnboardingStep(step, "aceites", 2), false);
+  }
+  assert.equal(canAccessOnboardingStep("aceites", "personalizacao", 2), false);
+  assert.equal(canAccessOnboardingStep("configuracao", "perfil", 2), true);
+  assert.equal(canAccessOnboardingStep("pronto", "aceites", 1), false);
+  assert.equal(canAccessOnboardingStep("aceites", "aceites", 1), true);
+  assert.equal(canAccessOnboardingStep("aceites", "perfil", 1), true);
+});

@@ -929,7 +929,7 @@ export default function MeuPerfilPage() {
       const tiposAlianca = uniqueContributionAreas(membro.tipos_alianca);
       const nextForm = {
         ...membro,
-        nome_completo: membro.nome_completo || membro.nome || null,
+        nome_completo: membro.nome_completo || null,
         link_site: sanitizeLinkSite(membro.link_site),
         tipos_alianca: tiposAlianca,
         em_built_capital: hasAporteFinanceiro(tiposAlianca) ? true : membro.em_built_capital,
@@ -3254,6 +3254,12 @@ function DadosFormalizacaoSection({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Nome completo">
           <Input value={form.nome_completo || ""} onChange={e => setField("nome_completo", e.target.value)} data-testid="input-formalizacao-nome-completo" />
+          {!form.nome_completo?.trim() && form.nome?.trim() && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setField("nome_completo", form.nome!.trim())} data-testid="button-usar-nome-perfil">
+              Usar nome do perfil
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground">Informe o nome completo e clique em Salvar alterações para atualizar o cadastro.</p>
         </Field>
         <Field label="Nacionalidade">
           <Input value={form.nacionalidade || ""} onChange={e => setField("nacionalidade", e.target.value)} data-testid="input-perfil-nacionalidade" />

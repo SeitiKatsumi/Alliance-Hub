@@ -1,3 +1,4 @@
+import { canCorrectQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -17,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { deleteFluxoBatch, fluxoDeleteError } from "@/lib/fluxo-delete";
+import { deleteFluxoBatch, fluxoDeleteError, fluxoDeleteNeedsConfirmation } from "@/lib/fluxo-delete";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
 import { calculateMap, type MapContribution } from "@shared/member-portfolio";
@@ -97,12 +98,14 @@ interface TransferenciaCotas {
   membro_destino_id: string;
   valor_total: string | null;
   percentual_transferencia: string | null;
-  status: "pendente" | "aceita" | "rejeitada";
+  status: "pendente" | "aceita" | "rejeitada" | "revertida";
   solicitado_por: string | null;
   observacoes: string | null;
   anexos?: (AnexoFile | string)[] | null;
   motivo_rejeicao: string | null;
   criado_em: string;
+  atualizado_em: string;
+  correcoes?: QuotaCorrectionRecord[];
 }
 
 interface Membro {
@@ -1539,6 +1542,7 @@ export default function FluxoCaixaPage({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [selectedLancamentoIds, setSelectedLancamentoIds] = useState<string[]>([]);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [protectedDeleteIds, setProtectedDeleteIds] = useState<string[]>([]);
   const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
   const [anexosModal, setAnexosModal] = useState<{ id: string; anexos: any[] } | null>(null);
   const [historicoItem, setHistoricoItem] = useState<FluxoCaixaItem | null>(null);
@@ -1570,6 +1574,28 @@ export default function FluxoCaixaPage({
   const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  const [correctingTransfer, setCorrectingTransfer] = useState<TransferenciaCotas | null>(null);
+  const [reversingTransfer, setReversingTransfer] = useState(false);
+  const [correctionValue, setCorrectionValue] = useState("");
+  const [correctionPercent, setCorrectionPercent] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const correctTransferMutation = useMutation({
+    mutationFn: async () => {
+      if (!correctingTransfer) throw new Error("Selecione a transferência");
+      const payload = quotaCorrectionSchema.parse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer.atualizado_em } : {
+        valor_total: parseBRLToNumber(correctionValue), percentual_transferencia: Number(correctionPercent),
+        motivo: correctionReason, atualizado_em: correctingTransfer.atualizado_em,
+      });
+      return apiRequest("PATCH", `/api/transferencia-cotas/${correctingTransfer.id}/correcao`, payload);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas"] });
+      setCorrectingTransfer(null);
+      toast({ title: reversingTransfer ? "Transferência revertida" : "Transferência corrigida", description: "O MAP foi recalculado e a operação ficou registrada no histórico." });
+    },
+    onError: (error: Error) => toast({ title: "Correção não salva", description: fluxoDeleteError(error), variant: "destructive" }),
+  });
 
   // Transferência de cotas state
   interface Destinatario { membroId: string; percentual: number; }
@@ -2091,6 +2117,8 @@ export default function FluxoCaixaPage({
       const statusLabel =
         transfer.status === "aceita"
           ?"Aceita"
+          : transfer.status === "revertida"
+          ?"Revertida"
           : transfer.status === "rejeitada"
           ?"Rejeitada"
           : "Pendente";
@@ -2502,27 +2530,33 @@ export default function FluxoCaixaPage({
       setSelectedLancamentoIds((current) => current.filter((itemId) => itemId !== id));
       toast({ title: "Lançamento excluído" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, id) => {
+      if (fluxoDeleteNeedsConfirmation(error)) {
+        setProtectedDeleteIds([id]);
+        return;
+      }
       toast({ title: "Lançamento não excluído", description: fluxoDeleteError(error), variant: "destructive" });
     },
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (ids: string[]) => deleteFluxoBatch(
+    mutationFn: ({ ids, confirmed = false }: { ids: string[]; confirmed?: boolean }) => deleteFluxoBatch(
       ids,
-      (id) => apiRequest("DELETE", `/api/fluxo-caixa/${id}`),
+      (id) => apiRequest("DELETE", `/api/fluxo-caixa/${id}`, confirmed ? { confirmar_exclusao_protegida: true } : undefined),
     ),
     onSuccess: ({ deleted, failed }) => {
+      setProtectedDeleteIds(failed.filter((item) => item.confirmationRequired).map((item) => item.id));
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       setSelectedLancamentoIds((current) => current.filter((id) => !deleted.includes(id)));
       setBulkDeleteConfirmOpen(false);
-      if (failed.length > 0) {
+      const errors = failed.filter((item) => !item.confirmationRequired);
+      if (errors.length > 0) {
         toast({
-          title: `${deleted.length} excluído(s); ${failed.length} não excluído(s)`,
-          description: [...new Set(failed.map((item) => item.message))].join(" "),
+          title: `${deleted.length} excluído(s); ${errors.length} não excluído(s)`,
+          description: Array.from(new Set(errors.map((item) => item.message))).join(" "),
           variant: "destructive",
         });
-      } else {
+      } else if (failed.length === 0 || deleted.length > 0) {
         toast({ title: `${deleted.length} lançamento${deleted.length === 1 ? "" : "s"} excluído${deleted.length === 1 ? "" : "s"}` });
       }
     },
@@ -3419,6 +3453,36 @@ export default function FluxoCaixaPage({
             </AlertDialogContent>
           </AlertDialog>
 
+          <Dialog open={!!correctingTransfer} onOpenChange={(open) => { if (!open && !correctTransferMutation.isPending) setCorrectingTransfer(null); }}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{reversingTransfer ? "Reverter transferência de cotas" : "Corrigir transferência de cotas"}</DialogTitle>
+                <DialogDescription>{reversingTransfer ? "Esta transferência deixará de afetar o MAP. As demais movimentações serão recalculadas e o registro ficará como Revertida, com seu usuário, data e motivo. Não estorna pagamentos nem movimenta dinheiro." : "Confira os novos valores antes de confirmar. A correção altera o MAP e será registrada com seu usuário, data e motivo. Não movimenta dinheiro."}</DialogDescription>
+              </DialogHeader>
+              <p className="text-sm">{membroMap[correctingTransfer?.membro_origem_id || ""]} → {membroMap[correctingTransfer?.membro_destino_id || ""]}</p>
+              <p className="text-sm text-muted-foreground">Atual: {formatBRL(Number(correctingTransfer?.valor_total || 0))} · {correctingTransfer?.percentual_transferencia}%</p>
+              <div className="space-y-2">
+                {!reversingTransfer && <>
+                <Label htmlFor="correction-value">Novo valor (R$)</Label>
+                <Input id="correction-value" inputMode="decimal" value={correctionValue} onChange={event => setCorrectionValue(formatInputBRL(event.target.value))} />
+                <Label htmlFor="correction-percent">Percentual da transferência (%)</Label>
+                <Input id="correction-percent" type="number" min="0.01" max="100" step="0.01" value={correctionPercent} onChange={event => setCorrectionPercent(event.target.value)} />
+                </>}
+                <Label htmlFor="correction-reason">Motivo {reversingTransfer ? "da reversão" : "da correção"}</Label>
+                <Textarea id="correction-reason" maxLength={2000} value={correctionReason} onChange={event => setCorrectionReason(event.target.value)} />
+              </div>
+              <Button type="button" variant="ghost" className={reversingTransfer ? "justify-start" : "justify-start text-red-600"} disabled={correctTransferMutation.isPending} onClick={() => { setReversingTransfer(!reversingTransfer); setCorrectionReason(""); }} data-testid="button-toggle-transfer-reversal">
+                {reversingTransfer ? "Voltar para corrigir valores" : "Reverter transferência"}
+              </Button>
+              <DialogFooter>
+                <Button variant="outline" disabled={correctTransferMutation.isPending} onClick={() => setCorrectingTransfer(null)}>Cancelar</Button>
+                <Button variant={reversingTransfer ? "destructive" : "default"} disabled={correctTransferMutation.isPending || !quotaCorrectionSchema.safeParse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em } : { valor_total: parseBRLToNumber(correctionValue), percentual_transferencia: Number(correctionPercent), motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em }).success} onClick={() => correctTransferMutation.mutate()}>
+                  {correctTransferMutation.isPending ? "Salvando…" : reversingTransfer ? "Confirmar reversão" : "Confirmar correção"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Painel de Movimentação de Cotas */}
           {cotasOnly && selectedBiaId && (
             <Card data-testid="panel-transferencias">
@@ -3452,6 +3516,8 @@ export default function FluxoCaixaPage({
                     const statusConfig =
                       t.status === "aceita"
                         ?{ label: "Aceita", cls: "text-green-600 bg-green-500/10 border-green-500/40" }
+                        : t.status === "revertida"
+                        ?{ label: "Revertida", cls: "text-muted-foreground bg-muted border-border" }
                         : t.status === "rejeitada"
                         ?{ label: "Rejeitada", cls: "text-red-600 bg-red-500/10 border-red-500/40" }
                         : { label: "Pendente", cls: "text-amber-600 bg-amber-500/10 border-amber-500/40" };
@@ -3504,8 +3570,27 @@ export default function FluxoCaixaPage({
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        {!!t.correcoes?.length && (
+                          <details className="text-xs max-w-sm break-words">
+                            <summary className="cursor-pointer">Histórico de ajustes ({t.correcoes.length})</summary>
+                            {t.correcoes.map((entry, index) => <p key={index} className="mt-2 whitespace-pre-wrap">
+                              {entry.acao === "reverter" ? "Reversão" : "Correção"} · {new Date(entry.data).toLocaleString("pt-BR")}: {formatBRL(Number(entry.antes.valor_total))} ({entry.antes.percentual_transferencia}%) → {formatBRL(Number(entry.depois.valor_total))} ({entry.depois.percentual_transferencia}%). {entry.motivo}
+                            </p>)}
+                          </details>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <Badge variant="outline" className={`text-xs ${statusConfig.cls}`}>{statusConfig.label}</Badge>
+                          {!readOnly && t.status === "aceita" && canCorrectQuotaTransfer(currentUser?.role, myMembroId, selectedBia?.diretor_alianca, selectedBia?.aliado_built, t.membro_origem_id) && (
+                            <>
+                            <Button size="sm" variant="outline" data-testid={`btn-corrigir-transfer-${t.id}`} onClick={() => {
+                              setReversingTransfer(false);
+                              setCorrectingTransfer(t);
+                              setCorrectionValue(Number(t.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                              setCorrectionPercent(t.percentual_transferencia || "");
+                              setCorrectionReason("");
+                            }}><Pencil className="w-3.5 h-3.5 mr-1" />Corrigir</Button>
+                            </>
+                          )}
                           {canEdit && (
                             <Button
                               size="sm"
@@ -4325,7 +4410,7 @@ export default function FluxoCaixaPage({
                   Excluir lançamento
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. O lançamento será excluído permanentemente do Directus.
+                  Esta ação não pode ser desfeita. O lançamento será excluído permanentemente.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -4355,7 +4440,7 @@ export default function FluxoCaixaPage({
                   Apagar {selectedLancamentoIds.length} lançamento{selectedLancamentoIds.length === 1 ?"" : "s"}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. Lançamentos com pagamento, anexo ou cobrança vinculada serão preservados. Ao concluir, você verá quantos foram excluídos e quantos não puderam ser excluídos.
+                  Esta ação não pode ser desfeita. Lançamentos com pagamento, anexo ou cobrança vinculada exigirão uma segunda confirmação. Ao concluir, você verá quantos foram excluídos e quantos não puderam ser excluídos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -4366,7 +4451,7 @@ export default function FluxoCaixaPage({
                   className="bg-red-600 hover:bg-red-700 text-white"
                   onClick={() => {
                     if (selectedLancamentoIds.length > 0) {
-                      bulkDeleteMutation.mutate(selectedLancamentoIds);
+                      bulkDeleteMutation.mutate({ ids: selectedLancamentoIds });
                     }
                   }}
                   disabled={bulkDeleteMutation.isPending || selectedLancamentoIds.length === 0}
@@ -4374,6 +4459,34 @@ export default function FluxoCaixaPage({
                 >
                   {bulkDeleteMutation.isPending ?<RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
                   Confirmar exclusão
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={protectedDeleteIds.length > 0} onOpenChange={(open) => { if (!open && !bulkDeleteMutation.isPending) setProtectedDeleteIds([]); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir mesmo com registros financeiros?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {protectedDeleteIds.length} lançamento(s) possuem pagamento, validação, anexo ou cobrança vinculada.
+                  A exclusão é permanente e pode alterar saldos, relatórios e cotas.
+                  Ela não cancela cobranças nem estorna pagamentos no banco.
+                  Sua confirmação e os dados anteriores ficarão registrados no histórico.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={bulkDeleteMutation.isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  disabled={bulkDeleteMutation.isPending}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    bulkDeleteMutation.mutate({ ids: protectedDeleteIds, confirmed: true });
+                  }}
+                  data-testid="button-confirm-protected-delete"
+                >
+                  {bulkDeleteMutation.isPending ? "Excluindo…" : "Sim, tenho certeza. Excluir"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

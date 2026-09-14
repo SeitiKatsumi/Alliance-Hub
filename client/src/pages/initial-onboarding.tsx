@@ -156,10 +156,13 @@ export default function InitialOnboardingPage() {
       configuracao: { visibility: "private", ...((data.journey.responses || {}).configuracao || {}) },
       conexoes: { connections: true, opportunities: true, capital: true, messages: true, ...((data.journey.responses || {}).conexoes || {}) },
     });
-    if (data.required && data.next_url && !canAccessOnboardingStep(data.journey.current_step, step, data.journey.flow_version)) {
+  }, [data?.journey?.updated_at, data?.journey?.current_step]);
+
+  useEffect(() => {
+    if (data?.required && data.next_url && data.journey && !canAccessOnboardingStep(data.journey.current_step, step, data.journey.flow_version)) {
       navigate(data.next_url);
     }
-  }, [data?.journey?.updated_at, data?.journey?.current_step]);
+  }, [step, data?.required, data?.next_url, data?.journey?.current_step, data?.journey?.flow_version, navigate]);
 
   const purposes: string[] = forms.personalizacao?.purposes || [];
   const updateStep = (key: string, value: any) => setForms((current: any) => ({
@@ -199,10 +202,20 @@ export default function InitialOnboardingPage() {
   const finishMutation = useMutation({
     mutationFn: async () => {
       const locationEvidence = await captureRequiredAcceptanceLocation();
-      const response = await apiRequest("POST", "/api/onboarding/finalizar-aceites", { termos_aceitos: termsAccepted, aceite_localizacao: locationEvidence });
-      return response.json();
+      const response = await fetch("/api/onboarding/finalizar-aceites", {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ termos_aceitos: termsAccepted, aceite_localizacao: locationEvidence }),
+      });
+      const result = await response.json();
+      if (response.status === 409 && INITIAL_ONBOARDING_STEPS.some((item) => result.next_url === `/onboarding/${item}`)) {
+        return { next_url: result.next_url, resumed: true };
+      }
+      if (!response.ok) throw new Error(result.error || "Não foi possível registrar os aceites.");
+      return result;
     },
     onSuccess: async (result) => {
+      await refetch();
+      if (result.resumed) toast({ title: "Cadastro retomado", description: "Continue pela etapa pendente. Seu progresso foi preservado." });
       await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       if (result.next_url) {
         navigate(result.next_url);

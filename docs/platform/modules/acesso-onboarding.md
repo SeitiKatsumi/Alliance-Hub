@@ -108,3 +108,5 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - `shared/company-access.test.ts`
 - `shared/initial-onboarding.test.ts`
 - Ao alterar: testar login local/Google, convite novo/reutilizado/expirado, aceite com e sem permissao, recuperacao de senha, perfil parcial, desktop e mobile.
+
+- No fluxo v2, aceites iniciais só abrem enquanto forem a etapa atual. Retorno por URL ou histórico após avanço retoma a etapa indicada pela API. Conflito 409 ao enviar aceites atualiza a jornada e segue o next_url de onboarding, sem repetir aceite ou marcar etapas como concluídas. O fluxo legado preserva aceites finais.

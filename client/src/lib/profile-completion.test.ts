@@ -100,3 +100,18 @@ test("perfil exclusivo de imóvel não exige área de contribuição", () => {
   assert.equal(getProfileCompletion(profile, ["imoveis"]).missing.some((item) => item.key === "areas_contribuicao"), false);
   assert.equal(getProfileCompletion(profile, ["profissional"]).missing.some((item) => item.key === "areas_contribuicao"), true);
 });
+
+// Regressão do formulário: nome público preenchido não pode mascarar nome formal ausente.
+test("Meu Perfil carrega nome formal persistido e oferece cópia explícita", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../pages/meu-perfil.tsx", import.meta.url), "utf8");
+  assert.ok(source.includes("nome_completo: membro.nome_completo || null"));
+  assert.ok(!source.includes("nome_completo: membro.nome_completo || membro.nome"));
+  assert.ok(source.includes('setField("nome_completo", form.nome!.trim())'));
+  for (const nome of ["João d’Ávila & Cia + \"Sul\"", "Maria Conceição"]) {
+    const before = { ...completeProfile, nome, nome_completo: null };
+    assert.ok(getProfileCompletion(before).missing.some(item => item.key === "nome_completo"));
+    const saved = JSON.parse(JSON.stringify({ ...before, nome_completo: nome }));
+    assert.equal(getProfileCompletion(saved).percentage,100);
+  }
+});

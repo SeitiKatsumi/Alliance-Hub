@@ -1,3 +1,4 @@
+import { canCorrectQuotaTransfer, quotaCorrectionSchema } from "../shared/quota-correction";
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import type { Response } from "express";
@@ -13315,7 +13316,9 @@ ${textContent}`;
       const flowAccess = await requireFluxoAccess(req, res, req.params.id, "edit");
       if (!flowAccess) return;
       const antes = flowAccess.snapshot;
-      if (isProtectedValorOrigemEntry(antes)) {
+      const protegido = isProtectedValorOrigemEntry(antes);
+      const confirmado = req.body?.confirmar_exclusao_protegida === true;
+      if (protegido && !confirmado) {
         await registrarFluxoHistorico({
           fluxoId: req.params.id,
           acao: "exclusao_bloqueada",
@@ -13324,7 +13327,8 @@ ${textContent}`;
           payload: { id: req.params.id, motivo: "lancamento_financeiro_protegido" },
         });
         return res.status(409).json({
-          error: "Este lancamento possui pagamento, validacao ou evidencia financeira. Registre um estorno em vez de exclui-lo.",
+          code: "FLUXO_DELETE_CONFIRMATION_REQUIRED",
+          error: "Este lançamento possui pagamento, validação ou evidência financeira. Confirme novamente para excluí-lo.",
         });
       }
       await registrarFluxoHistorico({
@@ -13332,7 +13336,7 @@ ${textContent}`;
         acao: "excluido",
         req,
         antes,
-        payload: { id: req.params.id },
+        payload: { id: req.params.id, exclusao_protegida_confirmada: protegido && confirmado },
       });
       // Limpa relaÃ§Ãµes M2M primeiro para evitar violaÃ§Ã£o de foreign key
       await directusUpdate("fluxo_caixa", req.params.id, {
@@ -25179,6 +25183,42 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     .catch((err: any) => {
       console.warn(`[transferencias_cotas] Campo anexos nao sincronizado: ${err.message}`);
     });
+
+  await db.execute(sql`ALTER TABLE transferencias_cotas ADD COLUMN IF NOT EXISTS correcoes jsonb NOT NULL DEFAULT '[]'::jsonb`);
+
+  app.patch("/api/transferencia-cotas/:id/correcao", async (req, res) => {
+    try {
+      const actor = (req.session as any).directusUserId;
+      if (!actor) return res.status(401).json({ error: "Não autenticado" });
+      const transfer = await storage.getTransferenciaCotas(req.params.id);
+      if (!transfer) return res.status(404).json({ error: "Transferência não encontrada" });
+      if (!await requireBiaModuleAccess(req, res, transfer.bia_id, "capital_financeiro", "edit")) return;
+      const bia = await directusFetchOne("bias_projetos", transfer.bia_id, "fields=diretor_alianca,aliado_built");
+      if (!canCorrectQuotaTransfer((req.session as any).role, (req.session as any).membroId, bia?.diretor_alianca, bia?.aliado_built, transfer.membro_origem_id)) {
+        return res.status(403).json({ error: "Somente a administração, o diretor da aliança ou o aliado BUILT podem corrigir uma transferência aceita" });
+      }
+      if (transfer.status !== "aceita") return res.status(409).json({ error: "Apenas transferências aceitas podem ser corrigidas. Para pendentes, use Editar." });
+      const parsed = quotaCorrectionSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Informe valores válidos e motivo para corrigir, ou confirme a reversão com um motivo" });
+      const input = parsed.data;
+      if (!transfer.atualizado_em || new Date(transfer.atualizado_em).toISOString() !== input.atualizado_em) {
+        return res.status(409).json({ error: "A transferência foi alterada. Atualize a página antes de corrigir." });
+      }
+      const reverter = "acao" in input && input.acao === "reverter";
+      const depois = "valor_total" in input
+        ? { valor_total: input.valor_total.toFixed(2), percentual_transferencia: input.percentual_transferencia.toFixed(2), status: "aceita" }
+        : { valor_total: transfer.valor_total, percentual_transferencia: transfer.percentual_transferencia, status: "revertida" };
+      const updated = await storage.correctTransferenciaCotas(transfer.id, new Date(input.atualizado_em), {
+        ...depois,
+        correcoes: [...(transfer.correcoes || []), {
+          acao: reverter ? "reverter" : "corrigir", autor_id: actor, data: new Date().toISOString(), motivo: input.motivo,
+          antes: { valor_total: transfer.valor_total, percentual_transferencia: transfer.percentual_transferencia, status: transfer.status }, depois,
+        }],
+      });
+      if (!updated) return res.status(409).json({ error: "A transferência foi alterada. Atualize a página antes de corrigir." });
+      res.json(updated);
+    } catch (error: any) { res.status(500).json({ error: "Não foi possível salvar a correção" }); }
+  });
 
   app.get("/api/transferencia-cotas", async (req, res) => {
     try {

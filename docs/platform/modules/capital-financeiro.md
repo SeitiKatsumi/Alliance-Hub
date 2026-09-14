@@ -30,7 +30,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 - Visualizacao/edicao dependem do papel e da matriz `bia_user_permissions`.
 - Operacoes financeiras exigem autorizacao no backend e registro do autor.
-- Exclusao em lote aguarda todos os resultados, atualiza a lista mesmo com falhas e mantém selecionados os itens nao excluidos. A interface informa os totais e o motivo devolvido pela API; nao remove a protecao financeira do backend.
+- Exclusao em lote aguarda todos os resultados, atualiza a lista mesmo com falhas e mantém selecionados os itens nao excluidos. A interface informa os totais e o motivo devolvido pela API; itens protegidos exigem uma segunda confirmação explícita (`confirmar_exclusao_protegida: true`). A API revalida a autorização e registra autor, snapshot e confirmação no histórico antes da exclusão. Cancelar a segunda confirmação preserva esses itens; exclusão não cancela cobranças nem estorna pagamentos externos.
 - Excecao de superadmin para DM abaixo de 1%, inclusive zero, deve ser explicita e testada.
 
 ## Calculos e invariantes
@@ -68,3 +68,9 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - `shared/member-portfolio.test.ts`
 - `client/src/pages/fluxo-caixa-mobile.test.ts`
 - Ao alterar: reconciliar manualmente o mesmo caso em calculadora, visao geral, financeiro e analises; testar zero, arredondamento, status e repeticao de webhook.
+
+- Transferências aceitas podem ter valor e percentual corrigidos pela administração (admin/superadmin), diretor da aliança ou aliado BUILT com acesso de edição ao financeiro da BIA. O membro de origem não corrige a própria transferência, preservando a separação de aprovação. Motivo obrigatório; histórico JSONB registra autor, data, antes/depois no mesmo UPDATE. Controle de concorrência rejeita versão desatualizada. Origem, destino, anexos, status e data original permanecem; MAP/PDF usam o valor corrigido, sem movimentar dinheiro ou alterar o Directus. Migração: `20260915_quota_corrections.sql`.
+
+- A reversão usa as mesmas permissões e histórico da correção, exige motivo e confirmação explícita e altera somente o status da transferência aceita para `revertida`, atomicamente com a auditoria. Reversões não são reaplicáveis nem editáveis; continuam na lista/PDF, fora do cálculo do MAP. Demais transferências são recalculadas pelo motor atual, sem estorno bancário ou exclusão do registro.
+
+- Na lista, a ação única é `Corrigir`. O diálogo contém `Reverter transferência`, com opção de voltar à correção de valores; mudar a opção não envia a operação e exige informar o motivo novamente.

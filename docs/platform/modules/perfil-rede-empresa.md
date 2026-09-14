@@ -89,3 +89,5 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - `client/src/pages/comunidade-celulas.test.ts`
 - `server/member-business-feed.test.ts`
 - Ao alterar: testar membro em 0/1/varias comunidades, comunidade mae diferente da ativa, empresa e funcionario, perfis publico/privado e remocao parcial.
+
+- Meu Perfil não preenche `nome_completo` automaticamente com `nome`: o campo e o indicador usam o valor persistido. `Usar nome do perfil` é uma escolha explícita que marca o formulário como alterado; o botão geral salva e invalida a consulta compartilhada com o Início.

@@ -261,7 +261,8 @@ export function firstPendingOnboardingStep(completed: unknown, flowVersion: unkn
 
 export function canAccessOnboardingStep(current: InitialOnboardingStep, requested: InitialOnboardingStep, flowVersion: unknown = 2) {
   const steps = getInitialOnboardingSteps(flowVersion);
-  return steps.indexOf(requested) <= steps.indexOf(current);
+  if (requested === "aceites" && Number(flowVersion || 1) >= 2) return current === "aceites";
+  return steps.indexOf(requested) >= 0 && steps.indexOf(current) >= 0 && steps.indexOf(requested) <= steps.indexOf(current);
 }
 
 export function getInitialOnboardingVisibleStepNumber(step: InitialOnboardingStep, flowVersion: unknown = 2): number | null {

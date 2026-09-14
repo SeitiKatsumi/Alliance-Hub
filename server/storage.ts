@@ -97,6 +97,7 @@ export interface IStorage {
   createTransferenciaCotas(data: InsertTransferenciaCotas): Promise<TransferenciaCotas>;
   getTransferenciaCotas(id: string): Promise<TransferenciaCotas | undefined>;
   getTransferenciasCotasByBia(biaId: string): Promise<TransferenciaCotas[]>;
+  correctTransferenciaCotas(id: string, expectedUpdatedAt: Date, patch: Pick<TransferenciaCotas, "valor_total" | "percentual_transferencia" | "correcoes" | "status">): Promise<TransferenciaCotas | undefined>;
   updateTransferenciaCotas(id: string, data: Partial<TransferenciaCotas>): Promise<TransferenciaCotas | undefined>;
 
   getInteressesByOpa(opaId: string): Promise<OpaInteresse[]>;
@@ -400,6 +401,14 @@ export class DatabaseStorage implements IStorage {
       .from(transferenciasCotas)
       .where(eq(transferenciasCotas.bia_id, biaId))
       .orderBy(desc(transferenciasCotas.criado_em));
+  }
+
+  async correctTransferenciaCotas(id: string, expectedUpdatedAt: Date, patch: Pick<TransferenciaCotas, "valor_total" | "percentual_transferencia" | "correcoes" | "status">): Promise<TransferenciaCotas | undefined> {
+    const [item] = await db.update(transferenciasCotas)
+      .set({ ...patch, atualizado_em: new Date() })
+      .where(and(eq(transferenciasCotas.id, id), eq(transferenciasCotas.status, "aceita"), sqlExpr`date_trunc('milliseconds', ${transferenciasCotas.atualizado_em}) = ${expectedUpdatedAt.toISOString()}::timestamp`, sqlExpr`jsonb_array_length(${transferenciasCotas.correcoes}) = ${(patch.correcoes || []).length - 1}`))
+      .returning();
+    return item;
   }
 
   async updateTransferenciaCotas(id: string, data: Partial<TransferenciaCotas>): Promise<TransferenciaCotas | undefined> {

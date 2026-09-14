@@ -1,3 +1,4 @@
+import type { QuotaCorrectionRecord } from "./quota-correction";
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique, uniqueIndex, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -1126,6 +1127,7 @@ export const transferenciasCotas = pgTable("transferencias_cotas", {
   observacoes: text("observacoes"),
   anexos: text("anexos").array().default([]),
   motivo_rejeicao: text("motivo_rejeicao"),
+  correcoes: jsonb("correcoes").$type<QuotaCorrectionRecord[]>().notNull().default([]),
   criado_em: timestamp("criado_em").defaultNow(),
   atualizado_em: timestamp("atualizado_em").defaultNow(),
 });

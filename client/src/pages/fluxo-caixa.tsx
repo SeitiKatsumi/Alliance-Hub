@@ -274,7 +274,7 @@ function formatQuotaTransferValue(value: number | string | null | undefined): st
 
 function formatQuotaPercent(value: number | string | null | undefined): string {
   const percent = Number(value || 0);
-  return Number.isFinite(percent) ? percent.toFixed(5) : "0.00000";
+  return Number.isFinite(percent) ? formatPercentDisplay(percent) : "0";
 }
 
 function fluxoValorToNumber(value: number | string): number {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "./member-portfolio";
+import { allocateQuotaTransferAmounts, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "./member-portfolio";
 
 test("cancelamento preserva acesso ate o fim da vigencia", () => {
   const startsAt = new Date("2026-08-21T00:00:00Z");
@@ -21,6 +21,27 @@ test("MAP considera aportes e transferencias aceitas sem criar valor", () => {
   );
   assert.equal(rows.find((row) => row.memberId === "a")?.percent, 50);
   assert.equal(rows.find((row) => row.memberId === "b")?.percent, 50);
+});
+
+test("distribui dois centavos com cinco casas sem zerar destinatarios nem criar valor", () => {
+  const percentages = Array(10).fill(9.0909).concat(9.091);
+  const amounts = allocateQuotaTransferAmounts(0.02, percentages);
+  assert.equal(Number(amounts.reduce((sum, value) => sum + value, 0).toFixed(5)), 0.02);
+  assert.ok(amounts.every((value) => value > 0));
+
+  const rows = calculateMap(
+    [{ memberId: "leia", value: 0.02, status: "pago" }],
+    amounts.map((value, index) => ({ status: "aceita", fromMemberId: "leia", toMemberId: `destino-${index}`, value })),
+  );
+  assert.equal(rows.find((row) => row.memberId === "leia"), undefined);
+  assert.equal(rows.length, 11);
+  assert.equal(Number(rows.reduce((sum, row) => sum + row.value, 0).toFixed(5)), 0.02);
+});
+
+test("rejeita rateio de cotas invalido", () => {
+  assert.throws(() => allocateQuotaTransferAmounts(0.02, [0, 100]), /Percentual inválido/);
+  assert.throws(() => allocateQuotaTransferAmounts(0.02, [60, 50]), /exceder/);
+  assert.throws(() => allocateQuotaTransferAmounts(0.00001, [50, 50]), /insuficiente/);
 });
 
 test("patrimonio soma imoveis liquidos e apenas participacoes confirmadas", () => {

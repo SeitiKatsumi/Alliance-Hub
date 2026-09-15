@@ -44,7 +44,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - A analise de preco por m2 valida o raio real de 20 km; quando o endereco completo nao e reconhecido, tenta bairro/cidade, cidade/estado e CEP cadastrados, sem dispensar a verificacao geografica.
 - No mobile, a navegacao do Capital permite rolagem horizontal sem sobrepor rotulos, os indicadores financeiros refluem sem cortar valores e cada lancamento aparece como cartao legivel; no desktop, a lista permanece em tabela.
 - O PDF do MAP usa a logomarca horizontal oficial e cabecalho branco, sem tarja ou fundo carregado, para preservar legibilidade e economia na impressao.
-- Transferencia de cotas totaliza exatamente 100%, com precisao definida e destinatarios pertencentes a BIA.
+- Transferencia de cotas totaliza exatamente 100%, preserva valores e percentuais com cinco casas decimais e exige destinatarios pertencentes a BIA. O rateio por percentual conserva o total mesmo abaixo de um centavo por destinatario; valores zerados nao podem ser gravados.
 - Webhook/cobranca e idempotente.
 
 ## Estados e transicoes

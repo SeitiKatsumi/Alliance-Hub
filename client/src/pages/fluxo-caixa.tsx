@@ -21,7 +21,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { deleteFluxoBatch, fluxoDeleteError, fluxoDeleteNeedsConfirmation } from "@/lib/fluxo-delete";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
-import { calculateMap, type MapContribution } from "@shared/member-portfolio";
+import { allocateQuotaTransferAmounts, calculateMap, type MapContribution } from "@shared/member-portfolio";
 import {
   Wallet,
   Plus,
@@ -259,6 +259,22 @@ function formatBRL(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+function formatQuotaTransferValue(value: number | string | null | undefined): string {
+  const amount = Number(value || 0);
+  const hasFractionalCents = Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001;
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: hasFractionalCents ? 5 : 2,
+  }).format(amount);
+}
+
+function formatQuotaPercent(value: number | string | null | undefined): string {
+  const percent = Number(value || 0);
+  return Number.isFinite(percent) ? percent.toFixed(5) : "0.00000";
 }
 
 function fluxoValorToNumber(value: number | string): number {
@@ -1584,7 +1600,7 @@ export default function FluxoCaixaPage({
     mutationFn: async () => {
       if (!correctingTransfer) throw new Error("Selecione a transferência");
       const payload = quotaCorrectionSchema.parse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer.atualizado_em } : {
-        valor_total: parseBRLToNumber(correctionValue), percentual_transferencia: Number(correctionPercent),
+        valor_total: Number(correctionValue), percentual_transferencia: Number(correctionPercent),
         motivo: correctionReason, atualizado_em: correctingTransfer.atualizado_em,
       });
       return apiRequest("PATCH", `/api/transferencia-cotas/${correctingTransfer.id}/correcao`, payload);
@@ -1718,6 +1734,13 @@ export default function FluxoCaixaPage({
   const totalPercentual = Number(destinatarios.reduce((s, d) => s + (d.percentual || 0), 0).toFixed(5));
   const destValidos = destinatarios.every((d) => d.membroId !== "");
   const hasDuplicateDest = destinatarios.length !== new Set(destinatarios.map((d) => d.membroId).filter(Boolean)).size;
+  const valoresDestinatarios = useMemo(() => {
+    try {
+      return allocateQuotaTransferAmounts(transferValorRef, destinatarios.map((dest) => dest.percentual));
+    } catch {
+      return destinatarios.map(() => 0);
+    }
+  }, [destinatarios, transferValorRef]);
 
   const createTransferMutation = useMutation({
     mutationFn: async () => {
@@ -1737,7 +1760,7 @@ export default function FluxoCaixaPage({
         const anexos = [...transferExistingAnexos.map((a) => a.id), ...newFileIds];
         if (editingTransferId) {
           const dest = destinatarios[0];
-          const valor = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+          const [valor] = allocateQuotaTransferAmounts(transferValorRef, [dest.percentual]);
           await apiRequest("PATCH", `/api/transferencia-cotas/${editingTransferId}`, {
             action: "editar",
             membro_destino_id: dest.membroId,
@@ -1748,8 +1771,10 @@ export default function FluxoCaixaPage({
           });
           return;
         }
-        for (const dest of destinatarios) {
-          const valor = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+        const valores = allocateQuotaTransferAmounts(transferValorRef, destinatarios.map((dest) => dest.percentual));
+        for (let index = 0; index < destinatarios.length; index += 1) {
+          const dest = destinatarios[index];
+          const valor = valores[index];
           await apiRequest("POST", "/api/transferencia-cotas", {
             bia_id: selectedBiaId,
             membro_origem_id: transferOrigemId,
@@ -2106,8 +2131,8 @@ export default function FluxoCaixaPage({
           <div class="row">
             <div class="name">${escapePdfHtml(membroMap[item.membroId] || item.inlineName || "Membro desconhecido")}</div>
             <div class="bar"><div style="width: ${Math.max(0, Math.min(100, item.percentual)).toFixed(2)}%"></div></div>
-            <div class="value">${escapePdfHtml(formatBRL(item.valor))}</div>
-            <div class="percent">${item.percentual.toFixed(1)}%</div>
+            <div class="value">${escapePdfHtml(formatQuotaTransferValue(item.valor))}</div>
+            <div class="percent">${formatQuotaPercent(item.percentual)}%</div>
           </div>
         `).join("")}
       </section>
@@ -2138,8 +2163,8 @@ export default function FluxoCaixaPage({
             </div>
             ${transfer.observacoes ?`<div class="movement-note">"${escapePdfHtml(transfer.observacoes)}"</div>` : ""}
           </td>
-          <td class="movement-data">${transfer.percentual_transferencia ?`${parseFloat(transfer.percentual_transferencia).toFixed(1)}%` : "-"}</td>
-          <td class="movement-data">${transfer.valor_total ?escapePdfHtml(formatBRL(parseFloat(transfer.valor_total))) : "-"}</td>
+          <td class="movement-data">${transfer.percentual_transferencia ?`${formatQuotaPercent(transfer.percentual_transferencia)}%` : "-"}</td>
+          <td class="movement-data">${transfer.valor_total ?escapePdfHtml(formatQuotaTransferValue(transfer.valor_total)) : "-"}</td>
           <td class="movement-data">${transfer.criado_em ?new Date(transfer.criado_em).toLocaleDateString("pt-BR") : "-"}</td>
           <td><span class="movement-status ${statusClass}">${statusLabel}</span></td>
         </tr>
@@ -3130,9 +3155,9 @@ export default function FluxoCaixaPage({
                           <span className="truncate">{membroMap[item.membroId] || item.inlineName || "Membro desconhecido"}</span>
                         </span>
                         <span className="flex flex-wrap items-center gap-2 sm:justify-end">
-                          <span className="text-muted-foreground">{formatBRL(item.valor)}</span>
+                          <span className="text-muted-foreground">{formatQuotaTransferValue(item.valor)}</span>
                           <Badge variant="outline" className="border-brand-gold/50 text-brand-gold bg-brand-gold/10 min-w-[60px] justify-center" data-testid={`text-perc-membro-${item.membroId}`}>
-                            {item.percentual.toFixed(1)}%
+                            {formatQuotaPercent(item.percentual)}%
                           </Badge>
                         </span>
                       </div>
@@ -3230,7 +3255,7 @@ export default function FluxoCaixaPage({
                   </div>
 
                   {destinatarios.map((dest, idx) => {
-                    const valorDest = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+                    const valorDest = valoresDestinatarios[idx] || 0;
                     const isDuplicate = hasDuplicateDest && dest.membroId !== "" &&
                       destinatarios.findIndex((d, i) => i !== idx && d.membroId === dest.membroId) !== -1;
                     return (
@@ -3292,7 +3317,7 @@ export default function FluxoCaixaPage({
                             <span className="text-xs text-brand-gold font-semibold">%</span>
                           </div>
                           <span className="text-xs text-muted-foreground shrink-0 w-24 text-right">
-                            {formatBRL(valorDest)}
+                            {formatQuotaTransferValue(valorDest)}
                           </span>
                         </div>
                         {isDuplicate && (
@@ -3390,8 +3415,8 @@ export default function FluxoCaixaPage({
 
                 <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
                   {destinatarios.length === 1
-                    ?<>Serão movimentados <strong>{formatPercentDisplay(destinatarios[0].percentual)}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
-                    : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{formatPercentDisplay(totalPercentual)}%</strong> das cotas ({formatBRL(parseFloat(((totalPercentual / 100) * transferValorRef).toFixed(2)))}).</>
+                    ?<>Serão movimentados <strong>{formatQuotaPercent(destinatarios[0].percentual)}% das cotas</strong> ({formatQuotaTransferValue(valoresDestinatarios[0])}) para o destinatário selecionado.</>
+                    : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{formatQuotaPercent(totalPercentual)}%</strong> das cotas ({formatQuotaTransferValue(valoresDestinatarios.reduce((sum, value) => sum + value, 0))}).</>
                   } Necessária aprovação do Diretor de Aliança ou Aliado BUILT.
                 </div>
               </div>
@@ -3460,13 +3485,13 @@ export default function FluxoCaixaPage({
                 <DialogDescription>{reversingTransfer ? "Esta transferência deixará de afetar o MAP. As demais movimentações serão recalculadas e o registro ficará como Revertida, com seu usuário, data e motivo. Não estorna pagamentos nem movimenta dinheiro." : "Confira os novos valores antes de confirmar. A correção altera o MAP e será registrada com seu usuário, data e motivo. Não movimenta dinheiro."}</DialogDescription>
               </DialogHeader>
               <p className="text-sm">{membroMap[correctingTransfer?.membro_origem_id || ""]} → {membroMap[correctingTransfer?.membro_destino_id || ""]}</p>
-              <p className="text-sm text-muted-foreground">Atual: {formatBRL(Number(correctingTransfer?.valor_total || 0))} · {correctingTransfer?.percentual_transferencia}%</p>
+              <p className="text-sm text-muted-foreground">Atual: {formatQuotaTransferValue(correctingTransfer?.valor_total)} · {formatQuotaPercent(correctingTransfer?.percentual_transferencia)}%</p>
               <div className="space-y-2">
                 {!reversingTransfer && <>
                 <Label htmlFor="correction-value">Novo valor (R$)</Label>
-                <Input id="correction-value" inputMode="decimal" value={correctionValue} onChange={event => setCorrectionValue(formatInputBRL(event.target.value))} />
+                <Input id="correction-value" type="number" min="0.00001" step="0.00001" value={correctionValue} onChange={event => setCorrectionValue(event.target.value)} />
                 <Label htmlFor="correction-percent">Percentual da transferência (%)</Label>
-                <Input id="correction-percent" type="number" min="0.01" max="100" step="0.01" value={correctionPercent} onChange={event => setCorrectionPercent(event.target.value)} />
+                <Input id="correction-percent" type="number" min="0.00001" max="100" step="0.00001" value={correctionPercent} onChange={event => setCorrectionPercent(event.target.value)} />
                 </>}
                 <Label htmlFor="correction-reason">Motivo {reversingTransfer ? "da reversão" : "da correção"}</Label>
                 <Textarea id="correction-reason" maxLength={2000} value={correctionReason} onChange={event => setCorrectionReason(event.target.value)} />
@@ -3476,7 +3501,7 @@ export default function FluxoCaixaPage({
               </Button>
               <DialogFooter>
                 <Button variant="outline" disabled={correctTransferMutation.isPending} onClick={() => setCorrectingTransfer(null)}>Cancelar</Button>
-                <Button variant={reversingTransfer ? "destructive" : "default"} disabled={correctTransferMutation.isPending || !quotaCorrectionSchema.safeParse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em } : { valor_total: parseBRLToNumber(correctionValue), percentual_transferencia: Number(correctionPercent), motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em }).success} onClick={() => correctTransferMutation.mutate()}>
+                <Button variant={reversingTransfer ? "destructive" : "default"} disabled={correctTransferMutation.isPending || !quotaCorrectionSchema.safeParse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em } : { valor_total: Number(correctionValue), percentual_transferencia: Number(correctionPercent), motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em }).success} onClick={() => correctTransferMutation.mutate()}>
                   {correctTransferMutation.isPending ? "Salvando…" : reversingTransfer ? "Confirmar reversão" : "Confirmar correção"}
                 </Button>
               </DialogFooter>
@@ -3533,11 +3558,11 @@ export default function FluxoCaixaPage({
                           <div className="flex items-center gap-2 mt-0.5">
                             {t.percentual_transferencia && (
                               <Badge variant="outline" className="text-xs border-brand-gold/40 text-brand-gold bg-brand-gold/10 px-1.5 py-0">
-                                {parseFloat(t.percentual_transferencia).toFixed(0)}%
+                                {formatQuotaPercent(t.percentual_transferencia)}%
                               </Badge>
                             )}
                             {t.valor_total && (
-                              <span className="text-xs text-muted-foreground">{formatBRL(parseFloat(t.valor_total))}</span>
+                              <span className="text-xs text-muted-foreground">{formatQuotaTransferValue(t.valor_total)}</span>
                             )}
                             <span className="text-xs text-muted-foreground">
                               {new Date(t.criado_em).toLocaleDateString("pt-BR")}
@@ -3574,7 +3599,7 @@ export default function FluxoCaixaPage({
                           <details className="text-xs max-w-sm break-words">
                             <summary className="cursor-pointer">Histórico de ajustes ({t.correcoes.length})</summary>
                             {t.correcoes.map((entry, index) => <p key={index} className="mt-2 whitespace-pre-wrap">
-                              {entry.acao === "reverter" ? "Reversão" : "Correção"} · {new Date(entry.data).toLocaleString("pt-BR")}: {formatBRL(Number(entry.antes.valor_total))} ({entry.antes.percentual_transferencia}%) → {formatBRL(Number(entry.depois.valor_total))} ({entry.depois.percentual_transferencia}%). {entry.motivo}
+                              {entry.acao === "reverter" ? "Reversão" : "Correção"} · {new Date(entry.data).toLocaleString("pt-BR")}: {formatQuotaTransferValue(entry.antes.valor_total)} ({formatQuotaPercent(entry.antes.percentual_transferencia)}%) → {formatQuotaTransferValue(entry.depois.valor_total)} ({formatQuotaPercent(entry.depois.percentual_transferencia)}%). {entry.motivo}
                             </p>)}
                           </details>
                         )}
@@ -3585,7 +3610,7 @@ export default function FluxoCaixaPage({
                             <Button size="sm" variant="outline" data-testid={`btn-corrigir-transfer-${t.id}`} onClick={() => {
                               setReversingTransfer(false);
                               setCorrectingTransfer(t);
-                              setCorrectionValue(Number(t.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                              setCorrectionValue(Number(t.valor_total || 0).toFixed(5));
                               setCorrectionPercent(t.percentual_transferencia || "");
                               setCorrectionReason("");
                             }}><Pencil className="w-3.5 h-3.5 mr-1" />Corrigir</Button>

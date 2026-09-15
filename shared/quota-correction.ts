@@ -1,8 +1,16 @@
 import { z } from "zod";
 
-const quotaValueCorrectionSchema = z.object({
-  valor_total: z.number().finite().positive().max(1e12).refine(value => Math.abs(value * 100 - Math.round(value * 100)) < 0.001, "Use no máximo duas casas decimais"),
-  percentual_transferencia: z.number().finite().positive().max(100).refine(value => Math.abs(value * 100 - Math.round(value * 100)) < 0.001, "Use no máximo duas casas decimais"),
+const fiveDecimalNumber = (schema: z.ZodNumber) => schema.refine(
+  value => Math.abs(value * 100_000 - Math.round(value * 100_000)) < 0.000001,
+  "Use no máximo cinco casas decimais",
+);
+
+export const quotaTransferAmountsSchema = z.object({
+  valor_total: fiveDecimalNumber(z.number().finite().positive().max(1e12)),
+  percentual_transferencia: fiveDecimalNumber(z.number().finite().positive().max(100)),
+}).strict();
+
+const quotaValueCorrectionSchema = quotaTransferAmountsSchema.extend({
   motivo: z.string().trim().min(1).max(2000),
   atualizado_em: z.string().datetime(),
 });

@@ -26,6 +26,26 @@ export type MapContribution = { memberId: string; name?: string; value: number; 
 export type MapOriginAllocation = Omit<MapContribution, "status">;
 export type MapTransfer = { status?: string; fromMemberId: string; toMemberId: string; value: number };
 
+export const QUOTA_DECIMAL_PLACES = 5;
+
+export function allocateQuotaTransferAmounts(total: number, percentages: number[]): number[] {
+  const scale = 10 ** QUOTA_DECIMAL_PLACES;
+  if (!Number.isFinite(total) || total <= 0 || percentages.length === 0) throw new Error("Valor total inválido");
+  if (percentages.some((percent) => !Number.isFinite(percent) || percent <= 0 || percent > 100)) throw new Error("Percentual inválido");
+  const percentTotal = percentages.reduce((sum, percent) => sum + percent, 0);
+  if (percentTotal > 100.000001) throw new Error("A soma dos percentuais não pode exceder 100%");
+
+  const requestedUnits = Math.round(total * scale * percentTotal / 100);
+  const rawUnits = percentages.map((percent) => total * scale * percent / 100);
+  const units = rawUnits.map(Math.floor);
+  let remainder = requestedUnits - units.reduce((sum, value) => sum + value, 0);
+  const order = rawUnits.map((value, index) => ({ index, fraction: value - units[index] }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+  for (let index = 0; index < remainder; index += 1) units[order[index % order.length].index] += 1;
+  if (units.some((value) => value <= 0)) throw new Error("Valor insuficiente para distribuir entre todos os destinatários");
+  return units.map((value) => value / scale);
+}
+
 export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[], originAllocations: MapOriginAllocation[] = []) {
   const values = new Map<string, { memberId: string; name: string; value: number }>();
   const addValue = (contribution: MapOriginAllocation) => {
@@ -50,7 +70,9 @@ export function calculateMap(contributions: MapContribution[], transfers: MapTra
     target.value += moved;
     values.set(transfer.toMemberId, target);
   }
-  const rows = Array.from(values.values()).filter((row) => row.value > 0.005);
+  const rows = Array.from(values.values())
+    .map((row) => ({ ...row, value: Number(row.value.toFixed(QUOTA_DECIMAL_PLACES)) }))
+    .filter((row) => row.value > 0);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   return rows.map((row) => ({ ...row, percent: total ? (row.value / total) * 100 : 0 }));
 }

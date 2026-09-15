@@ -7,13 +7,24 @@ import { eq, and, sql } from "drizzle-orm";
 import express from "express";
 import { transformSync } from "esbuild";
 import { transferenciasCotas } from "../shared/schema";
-import { canCorrectQuotaTransfer, quotaCorrectionSchema } from "../shared/quota-correction";
+import { canCorrectQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { calculateMap } from "../shared/member-portfolio";
+
+test("valida valor e percentual de cotas com cinco casas", () => {
+  assert.equal(quotaTransferAmountsSchema.safeParse({ valor_total: 0.00667, percentual_transferencia: 33.33333 }).success, true);
+  for (const input of [
+    { valor_total: 0, percentual_transferencia: 100 },
+    { valor_total: 0.000001, percentual_transferencia: 100 },
+    { valor_total: 0.01, percentual_transferencia: 0 },
+    { valor_total: 0.01, percentual_transferencia: 33.333333 },
+  ]) assert.equal(quotaTransferAmountsSchema.safeParse(input).success, false);
+});
 
 test("corrige pela API com histórico atômico, revalida permissões e preserva caixa", async () => {
   const pg = new PGlite();
   await pg.exec(`CREATE TABLE transferencias_cotas (id varchar PRIMARY KEY, bia_id varchar NOT NULL, membro_origem_id varchar NOT NULL, membro_destino_id varchar NOT NULL, valor_total numeric, percentual_transferencia numeric(5,2), status text NOT NULL, solicitado_por varchar, observacoes text, anexos text[], motivo_rejeicao text, criado_em timestamp DEFAULT now(), atualizado_em timestamp DEFAULT now());`);
   await pg.exec(readFileSync(new URL("../migrations/20260915_quota_corrections.sql", import.meta.url), "utf8"));
+  await pg.exec(readFileSync(new URL("../migrations/20260915_quota_precision.sql", import.meta.url), "utf8"));
   const db = drizzle(pg);
   await db.insert(transferenciasCotas).values({ id: "test", bia_id: "bia", membro_origem_id: "origem", membro_destino_id: "destino", valor_total: "349.89", percentual_transferencia: "100", status: "aceita", anexos: ["anexo-ç.pdf"], observacoes: "Original" });
   const storageSource = readFileSync(new URL("./storage.ts", import.meta.url), "utf8");
@@ -38,26 +49,27 @@ test("corrige pela API com histórico atômico, revalida permissões e preserva 
   const patch = (body: any, headers: Record<string,string> = { "x-role": "admin" }) => fetch(`${base}/api/transferencia-cotas/test/correcao`, { method:"PATCH", headers:{"Content-Type":"application/json", ...headers}, body:JSON.stringify(body) });
   try {
     const original = await read();
-    const input = { valor_total: 174.94, percentual_transferencia: 50, motivo: 'Correção João d’Ávila & Cia + "Sul"\nvalor digitado errado', atualizado_em: original.atualizado_em };
+    const input = { valor_total: 174.94321, percentual_transferencia: 50.12345, motivo: 'Correção João d’Ávila & Cia + "Sul"\nvalor digitado errado', atualizado_em: original.atualizado_em };
     assert.equal((await patch(input, {})).status, 401);
     assert.equal((await patch(input, {"x-role":"user", "x-member":"origem"})).status, 403);
     assert.equal((await patch(input, {"x-role":"admin", "x-member":"origem"})).status, 403);
     assert.equal((await patch(input, {"x-role":"admin", "x-denied":"yes"})).status, 403);
-    for (const bad of [{valor_total:0}, {valor_total:-1}, {valor_total:"174,94"}, {valor_total:1.001}, {percentual_transferencia:101}, {motivo:" "}]) assert.equal((await patch({...input,...bad})).status, 400);
+    for (const bad of [{valor_total:0}, {valor_total:-1}, {valor_total:"174,94"}, {valor_total:1.000001}, {percentual_transferencia:101}, {percentual_transferencia:1.000001}, {motivo:" "}]) assert.equal((await patch({...input,...bad})).status, 400);
     assert.deepEqual(await read(), original);
     assert.equal((await patch(input, {"x-role":"user", "x-member":"diretor"})).status, 200);
     const corrected = await read();
-    assert.equal(corrected.valor_total, "174.94");
+    assert.equal(corrected.valor_total, "174.94321");
+    assert.equal(corrected.percentual_transferencia, "50.12345");
     assert.equal(corrected.status, "aceita");
     assert.equal(corrected.criado_em, original.criado_em);
     assert.deepEqual(corrected.anexos, original.anexos);
-    assert.equal(corrected.correcoes[0].antes.valor_total, "349.89");
+    assert.equal(corrected.correcoes[0].antes.valor_total, "349.89000");
     assert.equal(corrected.correcoes[0].autor_id, "test-user");
     assert.equal(corrected.correcoes[0].motivo, input.motivo);
     assert.equal((await patch(input)).status, 409);
     const contributions = [{memberId:"origem", value:1000, status:"pago"}];
     const map = calculateMap(contributions, [{status:corrected.status, fromMemberId:corrected.membro_origem_id, toMemberId:corrected.membro_destino_id, value:Number(corrected.valor_total)}]);
-    assert.equal(map.find(row=>row.memberId==="destino")?.value, 174.94);
+    assert.equal(map.find(row=>row.memberId==="destino")?.value, 174.94321);
     assert.equal(map.reduce((sum,row)=>sum+row.value,0),1000);
     assert.deepEqual(contributions,[{memberId:"origem",value:1000,status:"pago"}]);
     const retry = {...input, atualizado_em:corrected.atualizado_em, valor_total:200};

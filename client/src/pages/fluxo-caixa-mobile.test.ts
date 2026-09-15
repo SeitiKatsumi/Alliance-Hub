@@ -21,4 +21,7 @@ test("MAP revalida os aportes e reutiliza o calculo compartilhado", () => {
   assert.match(query, /refetchOnMount:\s*"always"/);
   assert.match(query, /refetchOnWindowFocus:\s*true/);
   assert.match(source, /calculateMap\(mapContributions, mapTransfers\)/);
+  assert.match(source, /allocateQuotaTransferAmounts\(transferValorRef/);
+  assert.match(source, /formatQuotaPercent\(item\.percentual\)/);
+  assert.doesNotMatch(source, /transferValorRef\)\.toFixed\(2\)/);
 });

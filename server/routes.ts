@@ -1,4 +1,4 @@
-import { canCorrectQuotaTransfer, quotaCorrectionSchema } from "../shared/quota-correction";
+import { canCorrectQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import type { Response } from "express";
@@ -25206,7 +25206,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       }
       const reverter = "acao" in input && input.acao === "reverter";
       const depois = "valor_total" in input
-        ? { valor_total: input.valor_total.toFixed(2), percentual_transferencia: input.percentual_transferencia.toFixed(2), status: "aceita" }
+        ? { valor_total: input.valor_total.toFixed(5), percentual_transferencia: input.percentual_transferencia.toFixed(5), status: "aceita" }
         : { valor_total: transfer.valor_total, percentual_transferencia: transfer.percentual_transferencia, status: "revertida" };
       const updated = await storage.correctTransferenciaCotas(transfer.id, new Date(input.atualizado_em), {
         ...depois,
@@ -25244,6 +25244,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatÃ³rios: bia_id, membro_origem_id, membro_destino_id" });
       }
+      const amounts = quotaTransferAmountsSchema.safeParse({
+        valor_total: Number(valor_total),
+        percentual_transferencia: Number(percentual_transferencia),
+      });
+      if (!amounts.success) return res.status(400).json({ error: "Informe valor e percentual positivos com no máximo cinco casas decimais" });
       if (!await requireBiaModuleAccess(req, res, String(bia_id), "capital_financeiro", "edit")) return;
       const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
       if (!observacao) {
@@ -25270,8 +25275,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         bia_id,
         membro_origem_id,
         membro_destino_id,
-        valor_total: valor_total != null ? String(valor_total) : null,
-        percentual_transferencia: percentual_transferencia != null ? String(percentual_transferencia) : null,
+        valor_total: amounts.data.valor_total.toFixed(5),
+        percentual_transferencia: amounts.data.percentual_transferencia.toFixed(5),
         status: "pendente",
         solicitado_por: sessionDirectusUserId,
         observacoes: observacao,
@@ -25323,6 +25328,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         if (transfer.membro_origem_id === destino) {
           return res.status(400).json({ error: "Origem e destino nÃ£o podem ser o mesmo membro" });
         }
+        const amounts = quotaTransferAmountsSchema.safeParse({
+          valor_total: Number(valor_total ?? transfer.valor_total),
+          percentual_transferencia: Number(percentual_transferencia ?? transfer.percentual_transferencia),
+        });
+        if (!amounts.success) return res.status(400).json({ error: "Informe valor e percentual positivos com no máximo cinco casas decimais" });
         const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
         if (!observacao) {
           return res.status(400).json({ error: "ObservaÃ§Ã£o Ã© obrigatÃ³ria" });
@@ -25332,8 +25342,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           : [];
         const updated = await storage.updateTransferenciaCotas(req.params.id, {
           membro_destino_id: destino,
-          valor_total: valor_total != null ? String(valor_total) : transfer.valor_total,
-          percentual_transferencia: percentual_transferencia != null ? String(percentual_transferencia) : transfer.percentual_transferencia,
+          valor_total: amounts.data.valor_total.toFixed(5),
+          percentual_transferencia: amounts.data.percentual_transferencia.toFixed(5),
           observacoes: observacao,
           anexos: safeAnexos,
         });
@@ -28937,4 +28947,3 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   return httpServer;
 }
-

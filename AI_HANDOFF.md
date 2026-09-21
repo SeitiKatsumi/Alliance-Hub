@@ -9,6 +9,7 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- 2026-09-21: Código de Ética atualizado conforme DOCX enviado: fonte única shared/code-of-ethics.ts, seis cláusulas e versão BUILT JUR - 1 — 2026-09-21. App/adesão/API compartilham texto; PDFs de aceites antigos usam versão legada, desconhecidas não recebem texto novo. Sem novo aceite retroativo ou alteração de registros. 275 testes/build aprovados, mesmos 66 erros TS; API local validada. Modal autenticado desktop/mobile e PDF real não retestados por falta de sessão. Relatório docs/audit/CODE_OF_ETHICS_2026-09-21.md. Sem deploy.
 - Este chat corrige o cadastro mobile de imoveis: ViaCEP preenche e persiste o endereco, a estimativa usa comparaveis reais sem exigir valor inicial e o valor confirmado vira o snapshot oficial; preserva as regras existentes de Carteira, MAP e permissoes.
 - O valor sugerido no cadastro assistido agora usa mascara monetaria `pt-BR` durante a digitacao e continua numerico ao confirmar.
 - Este chat separa a aprovacao do `onboarding_inicial` da adesao paga: concluir a avaliacao libera apenas o acesso inicial, ainda condicionado ao fim do onboarding, sem criar cobranca nem enviar link de pagamento.

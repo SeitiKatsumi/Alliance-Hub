@@ -89,6 +89,8 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Selecao de finalidade nao publica perfil, imovel ou oportunidade.
 - Todo usuario autenticado consulta a Area de Vitrine sem ativar a publicacao do perfil; Area de Aliancas continua condicionada ao vinculo com uma alianca.
 - Aceite registra versao, identidade, data/hora e evidencia do momento.
+- Código de Ética: fonte única em `shared/code-of-ethics.ts`, transcrita do DOCX recebido em 21/09/2026, versão `BUILT JUR - 1 — 2026-09-21`. API, cadastro e fallback exibem as mesmas seis cláusulas. Não exige novo aceite retroativo.
+- Comprovantes do Código de Ética resolvem o texto pela versão aceita; `BUILT JUR - 1` preserva o texto anterior. Versão ausente/desconhecida não recebe o texto vigente. A auditoria tem prioridade sobre fallbacks de cadastro/convite.
 - Aceite de convidado de RO e publico apenas por token individual armazenado como hash, expira e nao substitui o onboarding ou a adesao comunitaria.
 - Localizacao do aceite e capturada pelo helper compartilhado com `status = capturada`, coordenadas validas, precisao e horario; perfil/endereco nao a substituem.
 - Falha de sincronizacao com Directus nao pode ser apresentada como cadastro concluido sem pendencia explicita.
@@ -107,6 +109,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - `client/src/lib/profile-completion.test.ts`
 - `shared/company-access.test.ts`
 - `shared/initial-onboarding.test.ts`
+- `shared/code-of-ethics.test.ts`
 - Ao alterar: testar login local/Google, convite novo/reutilizado/expirado, aceite com e sem permissao, recuperacao de senha, perfil parcial, desktop e mobile.
 
 - No fluxo v2, aceites iniciais só abrem enquanto forem a etapa atual. Retorno por URL ou histórico após avanço retoma a etapa indicada pela API. Conflito 409 ao enviar aceites atualiza a jornada e segue o next_url de onboarding, sem repetir aceite ou marcar etapas como concluídas. O fluxo legado preserva aceites finais.

@@ -1,3 +1,4 @@
+import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
 import { canCorrectQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
@@ -9298,23 +9299,9 @@ export async function registerRoutes(
   const TERMOS_ACEITE_BUILT: Record<string, { titulo: string; versao: string; origem: string; body: string }> = {
     codigo_etica: {
       titulo: "Código de Ética BUILT",
-      versao: "BUILT JUR - 1",
+      versao: CODIGO_ETICA_BUILT_VERSAO,
       origem: "Cadastro inicial",
-      body: [
-        "CÓDIGO DE ÉTICA BUILT",
-        "",
-        "Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.",
-        "",
-        "Eu agirei com transparência, lealdade e respeito em todas as relações.",
-        "",
-        "Eu protegerei a confiança construída e a reputação coletiva.",
-        "",
-        "Eu assumirei responsabilidade integral por minhas ações, decisões e conduta.",
-        "",
-        "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.",
-        "",
-        "Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.",
-      ].join("\n"),
+      body: CODIGO_ETICA_BUILT,
     },
     politicas_participacao_protecao: {
       titulo: "PolÃ­ticas de ParticipaÃ§Ã£o e ProteÃ§Ã£o BUILT",
@@ -9557,12 +9544,14 @@ export async function registerRoutes(
       const term = TERMOS_ACEITE_BUILT[key];
       if (!term) return;
       const id = `termo-${key}`;
+      // A auditoria é a evidência prioritária; convites/cadastro são apenas fallback.
+      if (key === "codigo_etica" && docs.has(id)) return;
       docs.set(id, {
         id,
         tipo: "termo",
         chave: key,
         titulo: term.titulo,
-        versao: version || term.versao,
+        versao: version || (key === "codigo_etica" ? null : term.versao),
         aceito_em: acceptedDocDate(acceptedAt),
         origem: origem || term.origem,
         aceite_localizacao: aceiteLocalizacao ?? aceiteLocationByTerm.get(key) ?? null,
@@ -9734,7 +9723,7 @@ export async function registerRoutes(
         ];
       } else {
         const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
-        const body = term?.body || [
+        const body = (documento.chave === "codigo_etica" ? codigoEticaPorVersao(documento.versao) : term?.body) || [
           "Documento hist\u00F3rico de aceite.",
           "",
           "O texto completo desta vers\u00E3o n\u00E3o est\u00E1 mapeado no sistema atual. Este comprovante preserva os metadados do aceite registrado.",

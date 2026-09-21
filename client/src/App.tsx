@@ -1,5 +1,6 @@
 ﻿import { Switch, Route, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO } from "@shared/code-of-ethics";
 import { apiRequest, queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -202,15 +203,6 @@ function LegacyVitrineCatalogRedirect({ type, detail = false }: { type: "demanda
 
 const BUILT_CAPITAL_NUCLEO = "Núcleo de Capital";
 const BUILT_CAPITAL_TIPO = "Alianças de Aporte Financeiro";
-const CODIGO_ETICA_BUILT_VERSAO = "BUILT JUR - 1";
-const CODIGO_ETICA_BUILT = [
-  "Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.",
-  "Eu agirei com transparência, lealdade e respeito em todas as relações.",
-  "Eu protegerei a confiança construída e a reputação coletiva.",
-  "Eu assumirei responsabilidade integral por minhas ações, decisões e conduta.",
-  "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.",
-  "Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.",
-];
 const POLITICAS_PARTICIPACAO_BUILT_VERSAO = "BUILT JUR - 1";
 const POLITICAS_PARTICIPACAO_BUILT = `
 POLÍTICAS DE PARTICIPAÇÃO E PROTEÇÃO - BUILT
@@ -641,7 +633,7 @@ function PerfilOnboardingModal({
     ? {
       titulo: termoRemoto?.titulo || "Código de Ética BUILT",
       descricao: "Antes de entrar na plataforma, confirme o aceite do Código de Ética BUILT.",
-      texto: termoRemoto?.body || CODIGO_ETICA_BUILT.join("\n\n"),
+      texto: termoRemoto?.body || CODIGO_ETICA_BUILT,
       checked: codigoEticaAceito,
       setChecked: setCodigoEticaAceito,
       checkboxTestId: "checkbox-onboarding-codigo-etica",

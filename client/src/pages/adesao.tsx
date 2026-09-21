@@ -1,5 +1,6 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO } from "@shared/code-of-ethics";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles, Store, TrendingUp, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -191,22 +192,6 @@ e) usar o nome BUILT para assumir obrigações com terceiros sem autorização.
 10.2. Em caso de risco relevante, a BUILT poderá adotar medidas cautelares imediatas.
 `.trim();
 
-const CODIGO_ETICA_BUILT = `
-CÓDIGO DE ÉTICA BUILT
-
-Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.
-
-Eu agirei com transparência, lealdade e respeito em todas as relações.
-
-Eu protegerei a confiança construída e a reputação coletiva.
-
-Eu assumirei responsabilidade integral por minhas ações, decisões e conduta.
-
-Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.
-
-Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.
-`.trim();
-
 const POLITICAS_PARTICIPACAO_PROTECAO = `
 POLÍTICAS DE PARTICIPAÇÃO E PROTEÇÃO — BUILT
 
@@ -393,7 +378,7 @@ export const TERM_CONFIG: Record<TermKey, {
   codigo_etica: {
     title: "Código de Ética BUILT",
     label: "Código de Ética BUILT",
-    version: "BUILT JUR - 1",
+    version: CODIGO_ETICA_BUILT_VERSAO,
     body: CODIGO_ETICA_BUILT,
     icon: Shield,
   },

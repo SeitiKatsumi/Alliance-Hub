@@ -89,6 +89,8 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 ## Testes e impacto
 
+- `server/migration-runner.test.ts` executa o `migrate.cjs` de produção em PostgreSQL isolado: arquivos SQL inteiros (incluindo `DO $$` e funções), ordem base MAP antes de aportes, idempotência e rollback sem registrar migração incompleta. O executor não divide SQL por ponto-e-vírgula.
+
 - `client/src/pages/dm-map-navigation.test.ts`: separacao, links antigos, zero/CPP ausente, revisao do rascunho, falha segura e protecao de navegacao. Reorganizacao de interface nao modifica formulas, criacao de BIA, persistencia, aceites ou gera lancamentos.
 
 - Cadastro simplificado de Nova BIA usa DM (%) + equivalente calculado pelo mesmo helper do MAP, com tipos Guardiao/Multiplicador explicitos. Guardiao expande valor; mudar para Multiplicador zera so capital (confirmacao se positivo), sem apagar indice ou CPP da contribuicao. Cargos e detalhes patrimoniais ficam recolhidos, mas classificacoes positivas continuam obrigatorias. Edicao da Calculadora existente e contratos financeiros preservados; teste em `shared/member-portfolio.test.ts` cobre equivalencia, zero, precisao e troca de tipo sem restaurar valor antigo.

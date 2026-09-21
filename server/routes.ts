@@ -1,7 +1,7 @@
 import { canCorrectQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
-import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
+import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications } from "@shared/initial-contributions";
@@ -10653,6 +10653,78 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // Composição original revisada: registro histórico, sem converter o motor legado.
+  function legacyZeroView(bia: any, version: any, canEdit: boolean, draft: any[] = []) {
+    const base = version?.snapshot?.base;
+    return {
+      id: version?.id || "", biaId: String(bia.id), modeloCalculo: 3,
+      revisao: Number(version?.numero || 0), canEdit, ativa: mapIsActive(bia, null),
+      status: "rascunho", historicoLegado: true,
+      valorOrigem: Number(base?.valor_origem ?? bia.valor_origem ?? 0),
+      moeda: base?.moeda || bia.moeda || "BRL",
+      divisorMultiplicador: Number(base?.divisor_multiplicador || 0),
+      baseEconomicaInicial: Number(base?.base_economica_inicial || 0),
+      participantes: base?.participantes || draft,
+      registradoEm: version?.criado_em || null, snapshotHash: version?.hash || null,
+    };
+  }
+
+  app.get("/api/bias/:id/map-zero-legado", async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
+      if (await loadInitialMapSnapshot(String(bia.id))) return res.status(409).json({ error: "Esta BIA já usa o MAP Zero atual." });
+      const access = await resolveBiaAccessForRequest(bia, req);
+      const canEdit = mapIsActive(bia, null) ? canReviewLegacyMapBase(bia, (req.session as any).membroId, (req.session as any).role)
+        : hasBiaAccess(access.permissions, "configuracao_bia", "edit");
+      const version = (await db.execute(sql`SELECT * FROM bia_map_versoes WHERE bia_id = ${String(bia.id)}
+        AND tipo = 'zero' ORDER BY numero DESC LIMIT 1`)).rows[0];
+      // A equipe atual é apenas sugestão. Índices/capital históricos não são inferidos.
+      const draft = version ? [] : (await draftMapParticipants(bia)).map(p => ({
+        ...p, capitalComprometido: p.tipo === "multiplicador" ? 0 : null,
+        naturezaCapital: p.tipo === "multiplicador" ? "nao_caixa" : null,
+      }));
+      return res.json(legacyZeroView(bia, version, canEdit, draft));
+    } catch { return res.status(503).json({ error: "Não foi possível consultar a composição original. Tente novamente." }); }
+  });
+
+  app.put("/api/bias/:id/map-zero-legado", async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
+      if (mapIsActive(bia, null)) {
+        if (!canReviewLegacyMapBase(bia, (req.session as any).membroId, (req.session as any).role)) return res.status(403).json({ error: "Somente o superadmin, Diretor da Aliança ou Aliado BUILT vinculado pode confirmar a composição." });
+      } else if (!await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
+      const reason = String(req.body?.motivo || "").trim();
+      if (req.body?.confirmarRevisao !== true || !reason) return res.status(400).json({ error: "Revise a composição original, confirme a revisão e informe a fonte dos dados." });
+      const calculation = await calculateSubmittedInitialMap(req.body, 3);
+      const moeda = String(req.body?.moeda || bia.moeda || "BRL").toUpperCase();
+      if (moeda !== String(bia.moeda || "BRL").toUpperCase()) return res.status(400).json({ error: "Use a moeda cadastrada na BIA." });
+      const base = { valor_origem: calculation.valorOrigem, moeda,
+        divisor_multiplicador: calculation.divisorMultiplicador,
+        base_economica_inicial: calculation.baseEconomicaInicial, participantes: calculation.participantes };
+      const version = await withMapLock(String(bia.id), async (tx, current) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"legacy-zero:" + bia.id}))`);
+        if (current) throw Object.assign(new Error("Esta BIA já usa o MAP Zero atual."), { statusCode: 409 });
+        const freshBia = await directusFetchOne("bias_projetos", String(bia.id), "fields=*");
+        if (mapIsActive(freshBia, null) && !canReviewLegacyMapBase(freshBia, (req.session as any).membroId, (req.session as any).role))
+          throw Object.assign(new Error("Confirmação não autorizada."), { statusCode: 403 });
+        const prior: any = (await tx.execute(sql`SELECT * FROM bia_map_versoes WHERE bia_id = ${String(bia.id)}
+          AND tipo = 'zero' ORDER BY numero DESC LIMIT 1`)).rows[0];
+        if (prior?.hash === mapContentHash(mapBaseContent(base))) return prior;
+        assertMapRevision(Number(prior?.numero || 0), req.body?.revisaoEsperada);
+        return appendMapVersion(tx, { biaId: String(bia.id), tipo: "zero", base,
+          rows: mapRowsFromBase(base), eventId: randomUUID(),
+          reason: "Composição original revisada de BIA legada — " + reason,
+          actor: mapActor(), biaName: freshBia.nome_bia || String(bia.id),
+          footer: "" });
+      });
+      return res.json(legacyZeroView(bia, version, true));
+    } catch (error: any) { return res.status(error?.statusCode || 400).json({ error: error.message }); }
   });
 
   app.get("/api/bias/:id/map-inicial", async (req, res) => {

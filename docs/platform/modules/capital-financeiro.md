@@ -8,6 +8,11 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 ## Telas e URLs
 
+- BIAs legadas podem registrar uma composição original revisada em MAP → MAP Zero. Equipe/Valor de Origem atuais são sugestões, não evidência histórica: índices e capital ausentes ficam pendentes. Confirmação exige classificações, fonte dos dados, revisão explícita e revisão esperada. Registro fica apenas em `bia_map_versoes`, com data real, autor, motivo e hash; não cria snapshot operacional, altera MAP Atual, aceites, DM legado, parcelas ou Directus. Revisões anteriores/PDFs permanecem imutáveis. Não é conversão automática nem reconstrução de histórico não registrado.
+- `GET|PUT /api/bias/:id/map-zero-legado`: consulta autenticada com acesso à BIA; configuração durante formação, superadmin ou Diretor/Aliado vinculado após ativação (admin/manager isolados não recebem essa exceção). Confirmações serializam por BIA, repetição sem mudança retorna a mesma versão e conflito retorna 409. A comparação com MAP Atual é informativa. Teste: `server/bia-legacy-zero.test.ts`.
+
+- Editar BIA, antiga ou nova, não contém aba DM: oferece atalho para Núcleo de Capital → DM. Salvamento geral não reenvia percentuais, Valor de Origem ou cronograma ocultos. O modelo legado continua usando os mesmos cálculos e endpoints, sem conversão.
+
 - Capital exibe **DM** (chaves tecnicas `capital=calculadora` e `capital_calculadora` preservadas). Novas BIAs exibem referencia do Valor de Origem, DM total/equivalente e uma linha/cartao por pessoa com unico indice editavel. Salvar DM reutiliza a composicao e revisao de origem; CPP positiva sem classificacao bloqueia salvar e orienta MAP Zero, sem inferencia automatica.
 - `/movimentacao-cotas/:biaId?view=atual|zero|historico`: MAP Atual e entrada padrao, preservando mapa e movimentacoes. MAP Zero inicia em leitura; Editar composicao reutiliza o formulario e salvamento de DM. Comparacao e expansivel; Historico conserva versoes/PDFs. BIAs legadas nao recebem base retroativa.
 - Financeiro abre em Lancamentos; `capital=financeiro&financeiro=aportes` abre Aportes e parcelas somente no modelo 3. O componente de cronogramas existe apenas aqui. O link antigo `capital=calculadora#aportes-iniciais` redireciona para esta secao.

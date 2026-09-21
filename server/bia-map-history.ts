@@ -73,6 +73,10 @@ export function assertMapRevision(current: number, expected: unknown) {
   }
 }
 
+export function canReviewLegacyMapBase(bia: any, memberId: unknown, role: unknown): boolean {
+  return String(role || "").toLowerCase() === "superadmin" || canCorrectMapBase(bia, memberId);
+}
+
 export async function appendMapVersion(tx: any, input: {
   biaId: string; tipo: "zero" | "atual"; base: any; rows: MapHistoryRow[];
   eventId: string; reason: string; actor: MapHistoryActor; biaName: string; footer: string;

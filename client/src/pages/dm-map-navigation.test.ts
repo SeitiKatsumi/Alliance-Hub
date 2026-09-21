@@ -5,10 +5,24 @@ import ts from "typescript";
 import { transformSync } from "esbuild";
 import { calculateInitialMap, initialMapContributionValue } from "../../../shared/member-portfolio";
 import { validateInitialClassifications } from "../../../shared/initial-contributions";
+import { BIA_MAP_ECONOMIC_FIELDS } from "../../../shared/member-portfolio";
 
 const read = (file: string) => readFileSync(new URL(file, import.meta.url), "utf8");
 const calculator = read("./bias-calculadora.tsx");
 const editor = calculator.slice(calculator.indexOf("function MapInicialCalculator("), calculator.indexOf("export default function BiasCalculadoraPage"));
+
+test("Editar BIA padroniza o atalho DM e não reenvia economia nem parcelas antigas", () => {
+  const source = read("./bias.tsx");
+  assert.doesNotMatch(source, /value="cpp"|tab-cpp|canEditLegacyDm|<PagamentoModal/);
+  assert.match(source, /isEdit && <p[^\n]+Núcleo de Capital → DM/);
+  assert.match(source, /grid-cols-2 sm:grid-cols-4/);
+  const guard = expression(source, (n, f) => ts.isIfStatement(n) && n.getText(f).includes("delete payload[field]"));
+  for (const usesMapZero of [true, false]) {
+    const payload: Record<string, unknown> = { nome_bia: "Nome atualizado", perc_autor_opa: 2, valor_origem: 100, _forma_pagamento: "parcelado", _valores_parcelas: [100] };
+    new Function("isEdit", "usesMapZero", "payload", "BIA_MAP_ECONOMIC_FIELDS", guard)(true, usesMapZero, payload, BIA_MAP_ECONOMIC_FIELDS);
+    assert.deepEqual(payload, { nome_bia: "Nome atualizado" });
+  }
+});
 function expression(source: string, predicate: (node: ts.Node, file: ts.SourceFile) => boolean) {
   const file = ts.createSourceFile("test.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let result = "";
@@ -50,7 +64,7 @@ test("revalidação não sobrescreve o rascunho e edições obedecem ambas as pe
     assert.equal(calls.length, dirty ? 0 : 3);
   }
   assert.match(editor, /readOnly = readOnly \|\| !snapshot.canEdit/);
-  assert.match(editor, /snapshot.ativa && !motivo.trim\(\)/);
+  assert.match(editor, /\(snapshot.ativa \|\| historical\) && !motivo.trim\(\)/);
 });
 
 test("somente 404 explicitamente legado habilita calculadora antiga", async () => {

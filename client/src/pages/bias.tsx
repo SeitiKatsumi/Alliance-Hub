@@ -48,7 +48,6 @@ import {
   X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard, ImageIcon,
   Clock, CheckCircle, XCircle, Bell, Ticket, Copy, RefreshCw, Target
 } from "lucide-react";
-import { PagamentoModal } from "@/components/PagamentoModal";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -1827,7 +1826,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   });
   const usesMapZero = isEdit && !!editMapQuery.data;
   const mapCheckPending = isEdit && (editMapQuery.isPending || editMapQuery.isFetching);
-  const canEditLegacyDm = isEdit && editMapQuery.isSuccess && !usesMapZero;
 
   const EMPTY_INFO = {
     razao_social: "",
@@ -2056,7 +2054,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   });
 
   // Forma de pagamento do ativo de origem
-  const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState("");
   const [numeroParcelas, setNumeroParcelas] = useState("");
   const [vencimento, setVencimento] = useState("");
@@ -2470,7 +2467,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       setCppSummary(null);
       if (mapCheckPending || (isEdit && editMapQuery.isError)) throw new Error("Aguarde a conferência do MAP Zero antes de salvar.");
       if (!isEdit && newMapPreview.error) throw new Error(newMapPreview.error);
-      if (!usesMapZero && formaPagamento === "parcelado") {
+      if (!isEdit && formaPagamento === "parcelado") {
         if (numParcelasInt <= 1) {
           throw new Error("Informe a quantidade de parcelas do ativo de origem.");
         }
@@ -2481,7 +2478,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
           throw new Error("Preencha a data de vencimento de todas as parcelas antes de salvar.");
         }
       }
-      if (!usesMapZero && formaPagamento === "a_vista" && valorAVista <= 0) {
+      if (!isEdit && formaPagamento === "a_vista" && valorAVista <= 0) {
         throw new Error("Informe um valor de origem maior que zero.");
       }
       setUploading(pendingFiles.length > 0);
@@ -2549,7 +2546,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         for (const key of Object.keys(payload)) if (key.startsWith("perc_")) payload[key] = null;
       }
       if (shouldSubmitValorOrigem) payload.valor_origem = valorOrigem;
-      if (usesMapZero) {
+      if (isEdit) {
         for (const field of BIA_MAP_ECONOMIC_FIELDS) delete payload[field];
         for (const field of Object.keys(payload)) if (field.startsWith("_")) delete payload[field];
       }
@@ -2769,12 +2766,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
             </div>
           )}
           {isEdit && editMapQuery.isError && <p role="alert" className="mt-4 text-sm text-red-600">Não foi possível conferir o MAP Zero. O salvamento está bloqueado para proteger os valores. <button type="button" className="underline" onClick={() => editMapQuery.refetch()}>Tentar novamente</button></p>}
-          {usesMapZero && <p className="mt-4 rounded-md border p-3 text-sm">Percentuais são editados em <a className="font-medium underline" href={`${getBiaUrl(bia!)}?tab=capital&capital=calculadora`}>Núcleo de Capital → DM</a>. Pessoas, cargos e capital ficam em <a className="font-medium underline" href={`/movimentacao-cotas/${bia!.id}?view=zero`}>MAP → MAP Zero → Editar composição</a>.</p>}
+          {isEdit && <p className="mt-4 rounded-md border p-3 text-sm">Percentuais são editados em <a className="font-medium underline" href={`${getBiaUrl(bia!)}?tab=capital&capital=calculadora`}>Núcleo de Capital → DM</a>.{usesMapZero && <> Pessoas, cargos e capital ficam em <a className="font-medium underline" href={`/movimentacao-cotas/${bia!.id}?view=zero`}>MAP → MAP Zero → Editar composição</a>.</>}</p>}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className={`grid h-auto grid-cols-2 ${canEditLegacyDm ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
+            <TabsList className="grid h-auto grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
-              {canEditLegacyDm && <TabsTrigger value="cpp" data-testid="tab-cpp">DM</TabsTrigger>}
               <TabsTrigger value="receita" data-testid="tab-receita">Análises</TabsTrigger>
               <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
             </TabsList>
@@ -3145,121 +3141,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               </>}
             </TabsContent>
 
-            {/* Tab CPP */}
-            {canEditLegacyDm && <TabsContent value="cpp" className="space-y-4 mt-4">
-              {/* Forma de Pagamento do Ativo de Origem */}
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setPagamentoModalOpen(true)}
-                  className="w-full rounded-lg border border-dashed border-brand-gold/40 bg-brand-gold/5 hover:bg-brand-gold/10 transition-colors p-3 text-left space-y-1"
-                  data-testid="button-open-pagamento-bia"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1.5 text-brand-gold">
-                      <CreditCard className="w-3.5 h-3.5" />
-                      Forma de Pagamento do Ativo de Origem
-                    </span>
-                    {formaPagamento && <span className="text-[10px] text-muted-foreground">✎ editar</span>}
-                  </div>
-                  {formaPagamento ?(
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      <div>{formaPagamento === "a_vista" ?"À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
-                      {formaPagamento === "parcelado" && numParcelasInt > 0 && (
-                        <div>{vencimentosParcelas.filter(v => v).length}/{numParcelasInt} datas · {valoresParcelas.filter(v => v > 0).length}/{numParcelasInt} valores</div>
-                      )}
-                      {formaPagamento === "a_vista" && vencimento && (
-                        <div>Vence: {new Date(vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground/60">Clique para definir forma de pagamento e valores</p>
-                  )}
-                </button>
-
-                {/* Valor de Origem derivado */}
-                <div className="rounded-lg bg-muted/30 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    Valor de Origem
-                    {formaPagamento === "parcelado" && " (soma das parcelas)"}
-                    {formaPagamento === "a_vista" && " (valor à vista)"}
-                    {!formaPagamento && " (manual)"}
-                  </span>
-                  <span className="font-semibold tabular-nums text-brand-gold" data-testid="text-valor-origem-bia">
-                    {brl(valorOrigem)}
-                  </span>
-                </div>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais DM (% sobre Valor de Origem)</p>
-                <p className="text-xs text-muted-foreground">
-                  Range aplicado a Aliado BUILT, BUILT e Diretor de Aliança:{" "}
-                  <span className="font-semibold text-foreground">
-                    {institutionalPercent !== null ? `${institutionalPercent.toFixed(2)}%` : "sob proposta"}
-                  </span>
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                <PercField label="Autor da Oportunidade" field="perc_autor_opa" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="BUILT" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Diretor de Aliança" field="perc_dir_alianca" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Diretor Técnico" field="perc_dir_tecnico" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Diretor de Obras" field="perc_dir_obras" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Diretor Comercial" field="perc_dir_comercial" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Diretor de Capital" field="perc_dir_capital" form={form} setForm={setForm} baseValue={valorOrigem} />
-              </div>
-              {valorOrigem > 0 && (
-                <div className="rounded-lg bg-muted/40 p-3 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Total DM (Î£ percentuais = {percTotal.toFixed(2)}%)</span>
-                  <span className="font-semibold text-orange-600 tabular-nums">{brl(custoOrigemPreview - valorOrigem)}</span>
-                </div>
-              )}
-              {formaPagamento && valorOrigem > 0 && (
-                <div className={`rounded-lg border px-3 py-2 text-xs ${hasIncompleteInstallments ?"border-amber-300 bg-amber-50 text-amber-800" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
-                  <div className="flex items-start gap-2">
-                    <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        Serão gerados {estimatedEntries} lançamento{estimatedEntries !== 1 ?"s" : ""} no financeiro
-                      </p>
-                      <p>
-                        {estimatedBaseEntries} parcela{estimatedBaseEntries !== 1 ?"s" : ""} do Valor de Origem + {estimatedCppEntries} lançamento{estimatedCppEntries !== 1 ?"s" : ""} CPP. Tempo estimado: {estimatedLabel}.
-                      </p>
-                      {hasIncompleteInstallments && (
-                        <p className="font-medium">Preencha todas as datas e valores das parcelas para gerar corretamente.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {saveMutation.isPending && formaPagamento && (
-                <div className="rounded-lg border border-brand-gold/40 bg-brand-gold/10 px-3 py-2 text-xs text-amber-800">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Gerando lançamentos no financeiro. Não feche esta janela.
-                  </div>
-                </div>
-              )}
-              {cppError && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>Erro ao gerar lançamentos: {cppError}</span>
-                  </div>
-                </div>
-              )}
-              {cppSummary && !cppError && (
-                <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{cppSummary.cppCount} lançamento{cppSummary.cppCount !== 1 ?"s" : ""} CPP gerado{cppSummary.cppCount !== 1 ?"s" : ""} para {cppSummary.parcelas} parcela{cppSummary.parcelas !== 1 ?"s" : ""}.</span>
-                  </div>
-                </div>
-              )}
-
-            </TabsContent>}
 
             {/* Tab Receita */}
             <TabsContent value="receita" className="space-y-4 mt-4">
@@ -3638,11 +3519,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 </Button>
                 {!readOnly && <Button
                   onClick={handleSaveClick}
-                  disabled={saveMutation.isPending || uploading || isLoading || mapCheckPending || (isEdit && editMapQuery.isError) || (!usesMapZero && hasIncompleteInstallments)}
+                  disabled={saveMutation.isPending || uploading || isLoading || mapCheckPending || (isEdit && editMapQuery.isError) || (!isEdit && hasIncompleteInstallments)}
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
                   data-testid="btn-save-bia"
                 >
-                  {uploading ?"Enviando arquivos..." : saveMutation.isPending && formaPagamento ?"Gerando lançamentos..." : saveMutation.isPending ?"Salvando..." : isEdit ?"Salvar alterações" : "Criar BIA"}
+                  {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : isEdit ?"Salvar alterações" : "Criar BIA"}
                 </Button>}
               </div>
             </div>
@@ -3913,24 +3794,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         </DialogContent>
       </Dialog>
 
-      <PagamentoModal
-        open={pagamentoModalOpen}
-        onClose={() => setPagamentoModalOpen(false)}
-        initialFormaPagamento={formaPagamento}
-        initialNumeroParcelas={numeroParcelas}
-        initialVencimento={vencimento}
-        initialVencimentosParcelas={vencimentosParcelas}
-        initialValoresParcelas={valoresParcelas}
-        initialValorAVista={valorAVista}
-        onConfirm={(d) => {
-          setFormaPagamento(d.formaPagamento);
-          setNumeroParcelas(d.numeroParcelas);
-          setVencimento(d.vencimento);
-          setVencimentosParcelas(d.vencimentosParcelas);
-          setValoresParcelas(d.valoresParcelas);
-          setValorAVista(d.valorAVista);
-        }}
-      />
     </>
   );
 }

@@ -348,6 +348,8 @@ function PercInput({
 }
 
 export interface InitialMapSnapshotApi {
+  historicoLegado?: boolean;
+  registradoEm?: string | null;
   modeloCalculo?: number;
   revisao: number;
   canEdit: boolean;
@@ -395,8 +397,20 @@ export function BiaMapZero({ biaId }: { biaId: string }) {
   const { data: membros = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
   if (query.isPending) return <p>Carregando MAP Zero…</p>;
   if (query.isError && !query.data) return <p role="alert">{query.error.message} <Button onClick={() => query.refetch()}>Tentar novamente</Button></p>;
-  if (!query.data) return <p>Esta BIA usa o MAP legado e não possui MAP Zero. Nenhum histórico foi reconstruído.</p>;
+  if (!query.data) return <LegacyMapZero biaId={biaId} membros={membros} />;
   return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros} embedded readOnly={false} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
+}
+
+function LegacyMapZero({ biaId, membros }: { biaId: string; membros: Membro[] }) {
+  const query = useQuery<InitialMapSnapshotApi>({
+    queryKey: ["/api/bias", biaId, "map-zero-legado"],
+    queryFn: async () => (await apiRequest("GET", `/api/bias/${biaId}/map-zero-legado`)).json(),
+    refetchOnMount: "always", refetchOnWindowFocus: "always",
+  });
+  if (query.isPending) return <p>Preparando composição para revisão…</p>;
+  if (!query.data) return <p role="alert">Não foi possível carregar a composição. <Button onClick={() => query.refetch()}>Tentar novamente</Button></p>;
+  return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros}
+    embedded readOnly={false} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
 }
 
 export function MapZeroFields({
@@ -446,14 +460,6 @@ export function MapZeroFields({
     indiceContribuicao:NaN, pesoCapital:creationTeam ? 0 : NaN,
     ...(byValue ? {capitalComprometido:creationTeam ? 0 : NaN,naturezaCapital:"caixa" as const} : {}),
   }]);
-  const addBuilt = () => {
-    if (participantes.some(item => item.institutionCode === "BUILT")) return;
-    setParticipantes(current => [...current, {
-      participantId:"institution:BUILT", institutionCode:"BUILT", nome:"BUILT", cargos:["Instituição"],
-      tipo:"multiplicador", indiceContribuicao:NaN, pesoCapital:0,
-      ...(byValue ? {capitalComprometido:0,naturezaCapital:"nao_caixa" as const} : {}),
-    }]);
-  };
   const mapCard = (item:InitialMapParticipantInput, index:number) => {
     const calculated = calculatedById.get(String(item.participantId));
     return <div key={item.participantId || index} className="min-w-0 rounded-md bg-muted/60 p-3 text-sm break-words">
@@ -487,7 +493,7 @@ export function MapZeroFields({
       <Card>
         <CardHeader className="gap-3">
           <div><CardTitle className="text-lg">Participantes</CardTitle><p className="mt-1 text-sm text-muted-foreground">{creationTeam ? "Uma ficha por pessoa. Cada cargo tem um único responsável." : "Cargos são informativos e não duplicam o índice da pessoa."}</p></div>
-          {!readOnly && <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={addMember}><Plus className="mr-2 h-4 w-4" />Pessoa</Button>{!creationTeam && <Button type="button" variant="outline" onClick={addBuilt}><Plus className="mr-2 h-4 w-4" />BUILT</Button>}</div>}
+          {!readOnly && <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={addMember}><Plus className="mr-2 h-4 w-4" />Pessoa</Button></div>}
         </CardHeader>
         <CardContent className="space-y-3">
           {!participantes.length && <p className="text-sm text-muted-foreground">Adicione os participantes.</p>}
@@ -501,7 +507,7 @@ export function MapZeroFields({
             const missingDetails = (Number(item.capitalComprometido)>0 && !item.tipoCppCapital?.id) || (item.indiceContribuicao>0 && !item.tipoCppContribuicao?.id);
             const dmField = <label className="min-w-0 space-y-1 text-sm">{creationTeam ? "DM (%)" : "Índice %"}<Input aria-label={`Índice de ${item.nome || "participante"}`} type="number" min="0" step="0.00001" placeholder="Preencher" value={Number.isFinite(item.indiceContribuicao)?item.indiceContribuicao:""} onChange={e=>updateParticipant(index,{indiceContribuicao:e.target.value===""?NaN:Number(e.target.value)})} />{creationTeam && <span className="block text-sm font-medium tabular-nums">{dmValue === null ? "Informe o Valor de Origem e a %" : `= ${formatBRL(dmValue)}`}</span>}</label>;
             const cppFields = <>
-              {(!creationTeam || Number(item.capitalComprometido)>0) && <label className="min-w-0 space-y-1 text-sm">Natureza do capital<select className="block w-full min-w-0 rounded border bg-background p-2" value={item.naturezaCapital || "caixa"} onChange={e=>updateParticipant(index,{naturezaCapital:e.target.value as "caixa"|"nao_caixa"})}><option value="caixa">Dinheiro</option><option value="nao_caixa">Propriedade, bens ou direitos — sem caixa</option></select></label>}
+              {(!creationTeam || Number(item.capitalComprometido)>0) && <label className="min-w-0 space-y-1 text-sm">Natureza do capital<select className="block w-full min-w-0 rounded border bg-background p-2" value={item.naturezaCapital || ""} onChange={e=>updateParticipant(index,{naturezaCapital:e.target.value as "caixa"|"nao_caixa"})}><option value="" disabled>Selecione a natureza</option><option value="caixa">Dinheiro</option><option value="nao_caixa">Propriedade, bens ou direitos — sem caixa</option></select></label>}
               {(["tipoCppCapital","tipoCppContribuicao"] as const).filter(field=>!creationTeam || Number(field==="tipoCppCapital"?item.capitalComprometido:item.indiceContribuicao)>0).map(field=><label key={field} className="min-w-0 space-y-1 text-sm">{field==="tipoCppCapital"?"CPP do capital comprometido":"CPP da contribuição econômica"}<select className="block w-full min-w-0 rounded border bg-background p-2" value={item[field]?.id || ""} onChange={e=>{const type=cppTypes.data?.find(t=>String(t.id)===e.target.value);updateParticipant(index,{[field]:type?{id:String(type.id),nome:type.Nome}:undefined});}}><option value="">Selecione o tipo</option>{cppTypes.data?.map(t=><option key={t.id} value={String(t.id)}>{t.Nome}</option>)}</select></label>)}
             </>;
             return <div key={item.participantId || index} className={`grid min-w-0 gap-3 rounded-lg border p-3 ${creationTeam ? "sm:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`} data-testid={`map-participant-${index}`}>
@@ -602,7 +608,9 @@ function MapInicialCalculator({
 }) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [editing, setEditing] = useState(false);
+  const historical = !!snapshot.historicoLegado;
+  const [editing, setEditing] = useState(historical && snapshot.revisao === 0);
+  const [reviewed, setReviewed] = useState(false);
   const [base, setBase] = useState(snapshot);
   const [valorOrigem, setValorOrigem] = useState(Number(snapshot.valorOrigem || 0));
   const [participantes, setParticipantes] = useState<InitialMapParticipantInput[]>(snapshot.participantes || []);
@@ -642,19 +650,21 @@ function MapInicialCalculator({
     }
   }
   const saveMutation = useMutation({
-    mutationFn: async () => (await apiRequest("PUT", `/api/bias/${bia.id}/map-inicial`, {
+    mutationFn: async () => (await apiRequest("PUT", `/api/bias/${bia.id}/${snapshot.historicoLegado ? "map-zero-legado" : "map-inicial"}`, {
       valorOrigem,
       moeda: base.moeda || "BRL",
       participantes,
       revisaoEsperada: base.revisao,
       motivo,
+      ...(snapshot.historicoLegado ? { confirmarRevisao: reviewed } : {}),
     })).json(),
     onSuccess: (data: InitialMapSnapshotApi) => {
       setBase(data);
       setValorOrigem(Number(data.valorOrigem));
       setParticipantes(data.participantes);
       setEditing(false);
-      queryClient.setQueryData(["/api/bias", bia.id, "map-inicial"], data);
+      queryClient.setQueryData(["/api/bias", bia.id, data.historicoLegado ? "map-zero-legado" : "map-inicial"], data);
+      setReviewed(false);
       queryClient.invalidateQueries({ queryKey: ["/api/bias", bia.id, "map"] });
       queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/aportes-iniciais`] });
       queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/map/versoes`] });
@@ -700,6 +710,12 @@ function MapInicialCalculator({
       </div>
 
       {readOnly && <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Acesso somente para visualização.</div>}
+      {historical && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <strong>{base.revisao ? "Composição original revisada" : "Composição original pendente de revisão"}</strong>
+        <p>A equipe e o Valor de Origem atuais são apenas sugestões: confira com os documentos originais. Preencha os índices, valores e classificações ausentes. Nenhum valor foi deduzido de pagamentos.</p>
+        <p>Confirmar registra o MAP Zero no histórico com a data de hoje, sem alterar o MAP Atual, aportes, transferências ou MOUs assinados. Não converte o cálculo legado.</p>
+        {snapshot.registradoEm && <p>Registrado em: {new Date(snapshot.registradoEm).toLocaleString("pt-BR")}</p>}
+      </div>}
       {queryFailed && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Não foi possível atualizar a composição. Seus campos foram preservados; o salvamento aguarda uma consulta bem-sucedida. <Button variant="outline" onClick={retryQuery}>Tentar novamente</Button></p>}
       {snapshot.status === "bloqueado" && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -714,7 +730,8 @@ function MapInicialCalculator({
         <p className="text-sm text-muted-foreground">DM não é a participação final. Pessoas, cargos e capital são alterados em MAP → MAP Zero → Editar composição.</p>
         {preview.error && <p role="alert" className="text-sm text-amber-700">{preview.error} Complete a composição em <a className="underline" href={`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}?view=zero`}>MAP → MAP Zero → Editar composição</a>.</p>}
       </>}
-      {mode === "zero" && !editing && <>
+      {historical && !base.revisao && !editing && !readOnly && <Button onClick={() => setEditing(true)}>Revisar composição original</Button>}
+      {mode === "zero" && !editing && !(historical && !base.revisao) && <>
         <Card><CardHeader><CardTitle>Composição inicial · revisão {snapshot.revisao}</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-3 sm:grid-cols-3"><div>Valor de Origem<strong className="block">{formatBRL(snapshot.valorOrigem)}</strong></div><div>DM<strong className="block">{snapshot.divisorMultiplicador.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</strong></div><div>BEI<strong className="block">{formatBRL(snapshot.baseEconomicaInicial)}</strong></div></div>{snapshot.participantes.map(p => <div key={String(p.participantId)} className="rounded border p-3 text-sm"><strong>{p.nome}</strong><p className="text-muted-foreground">{p.cargos?.join(", ")} · {p.tipo === "guardiao" ? "Guardião" : "Multiplicador"}</p><div className="mt-2 grid gap-2 sm:grid-cols-3"><span>DM: {p.indiceContribuicao.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</span><span>{p.tipoCppCapital?.nome || "CPP Capital"}: {formatBRL(Number(p.cppCapital || 0))}</span><span>{p.tipoCppContribuicao?.nome || "CPP Origem"}: {formatBRL(Number(p.cppOrigem || 0))}</span><span>CPP Total: {formatBRL(Number(p.cppTotal || 0))}</span><span>Participação: {Number(p.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</span></div></div>)}</CardContent></Card>
         {!readOnly && <Button onClick={() => setEditing(true)}>Editar composição</Button>}
       </>}
@@ -722,12 +739,13 @@ function MapInicialCalculator({
         <MapZeroFields valorOrigem={valorOrigem} setValorOrigem={setValorOrigem} participantes={participantes} setParticipantes={setParticipantes} membros={membros} byValue={byValue} readOnly={readOnly || locked} />
       </fieldset>}
       {(mode === "dm" || editing) && <div className="space-y-3">
-        {snapshot.ativa && !readOnly && <label className="block space-y-2 text-sm">Motivo da correção<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Explique o que precisa ser corrigido" /></label>}
-        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || (snapshot.ativa && !motivo.trim())}>{saveMutation.isPending ? "Salvando…" : mode === "dm" ? "Salvar DM" : "Salvar MAP Zero"}</Button>}
+        {(snapshot.ativa || historical) && !readOnly && <label className="block space-y-2 text-sm">{historical ? "Fonte dos dados originais e motivo da revisão" : "Motivo da correção"}<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={historical ? "Ex.: composição conferida no MOU original" : "Explique o que precisa ser corrigido"} /></label>}
+        {historical && !readOnly && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={reviewed} disabled={saveMutation.isPending} onChange={e => setReviewed(e.target.checked)} />Revisei a composição original e entendo que este registro não altera o MAP Atual.</label>}
+        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || ((snapshot.ativa || historical) && !motivo.trim()) || (historical && !reviewed)}>{saveMutation.isPending ? "Salvando…" : historical ? "Confirmar composição original" : mode === "dm" ? "Salvar DM" : "Salvar MAP Zero"}</Button>}
         {mode === "dm" ? <Button variant="outline" onClick={() => navigate(`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}`)}>Abrir MAP</Button> : <Button variant="outline" disabled={saveMutation.isPending} onClick={() => { if (confirmDiscardChanges()) { setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setBase(snapshot); setMotivo(""); setEditing(false); } }}>Cancelar edição</Button>}</div>
       </div>}
 
-      {mode === "zero" && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Comparar MAP Zero × MAP Atual</summary>
+      {mode === "zero" && (!historical || base.revisao > 0) && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Comparar MAP Zero × MAP Atual</summary>
       <Card>
         <CardHeader><CardTitle className="text-lg">MAP Zero × MAP Atual</CardTitle></CardHeader>
         <CardContent className="space-y-3">

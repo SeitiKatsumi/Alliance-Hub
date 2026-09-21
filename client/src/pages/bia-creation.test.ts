@@ -5,10 +5,10 @@ import ts from "typescript";
 import { transformSync } from "esbuild";
 import { QueryClient } from "@tanstack/react-query";
 
-test("Nova BIA mantém adicionar Pessoa, mas não oferece o atalho + BUILT", () => {
+test("Nova BIA e editor MAP Zero mantêm adicionar Pessoa, sem o atalho + BUILT", () => {
   const source = readFileSync(new URL("./bias-calculadora.tsx", import.meta.url), "utf8");
   assert.match(source, /onClick=\{addMember\}[^]*?Pessoa<\/Button>/);
-  assert.match(source, /\{!creationTeam && <Button[^>]*onClick=\{addBuilt\}/);
+  assert.doesNotMatch(source, /addBuilt|onClick=\{[^}]+\}[^>]*>[^\n]*\/\>BUILT<\/Button>/);
 });
 
 test("ações da BIA quebram linha no celular sem esconder Editar ou Ativar", () => {

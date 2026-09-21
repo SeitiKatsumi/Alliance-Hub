@@ -8,6 +8,8 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 
 ## Telas e URLs
 
+- MAP Zero em BIA legada admite composição original revisada explicitamente, registrada somente no histórico. Não converte a BIA para o modelo novo nem altera participações vigentes ou documentos assinados; autorização, pendências e confirmação estão no contrato de Capital.
+
 - Na BIA, Capital -> DM edita apenas os indices individuais. Composicao fica em MAP -> MAP Zero -> Editar composicao (`/movimentacao-cotas/:biaId?view=zero`); Financeiro -> Aportes e parcelas concentra cronogramas. Criacao de BIA, regras de equipe, revisoes, MOU e aceites permanecem inalterados.
 
 - `/area-aliancas`, `/area-aliancas/oportunidades/:codigo`.
@@ -89,10 +91,10 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 
 ## Testes e impacto
 
-- Nova BIA -> Equipe oferece somente o atalho `+ Pessoa`, sem `+ BUILT`. O editor de composicao das BIAs existentes e participantes institucionais ja registrados permanecem inalterados; nao ha exclusao ou reclassificacao de dados.
+- Nova BIA -> Equipe e todos os editores de MAP Zero oferecem somente o atalho `+ Pessoa`, sem `+ BUILT`. Participantes institucionais ja registrados e o cargo Aliado BUILT permanecem preservados; nao ha exclusao ou reclassificacao de dados.
 
 - Nova BIA mostra pessoa + DM (%) e equivalente em reais, usando `initialMapContributionValue`, o mesmo calculo do MAP. Cargos ficam recolhidos com resumo. Tipo de participante exibe explicitamente Guardiao e Multiplicador, com explicacao curta; Guardiao revela valor obrigatorio (ausente nao vira zero). Novas fichas comecam como Multiplicador. Retirar um aporte positivo exige confirmacao, preserva DM/cargos/CPP da contribuicao e limpa apenas o capital e sua classificacao. A primeira selecao em ficha vazia nao pede confirmacao; dados economicos preenchidos continuam protegidos. DM ausente pede preenchimento, sem acusar valor negativo. Natureza e CPPs positivas ficam em Detalhes da participacao, com pendencia visivel e validacao obrigatoria; nao sao inferidas pelos cargos. Ver composicao inicial (MAP Zero) permanece somente leitura.
-- Editar BIA consulta o modelo antes de salvar. Com MAP Zero, nao mostra o DM legado nem envia campos economicos ou cronograma antigo; orienta para Capital. Erro de consulta bloqueia salvamento com tentativa novamente. BIAs legadas preservam a aba DM. O PATCH de dados gerais nao recalcula a base nova pelos percentuais legados e continua recusando alteracao economica pelo endpoint errado. `BIA_MAP_ECONOMIC_FIELDS` compartilha a fronteira de campos entre tela e API.
+- Editar BIA tem somente Geral, Equipe, Análises e Informações, inclusive nas BIAs legadas. O atalho Núcleo de Capital → DM centraliza os percentuais; o modal não envia campos econômicos nem cronogramas em nenhuma edição. Com MAP Zero, orienta também para a composição no MAP. Consulta do modelo continua obrigatória; falha bloqueia salvar. Não converte BIAs antigas, cria snapshots ou altera as regras financeiras e permissões. Regressão em `client/src/pages/dm-map-navigation.test.ts`.
 - Salvamento da BIA e Informacoes comerciais sao etapas distintas. Falha HTTP ou de rede na segunda etapa exibe aviso de salvamento parcial e orienta reabrir Informacoes da BIA existente; nunca repete automaticamente a criacao.
 - Na criacao, o Aliado vinculado a comunidade de origem permanece elegivel mesmo sem o selo no cadastro resumido, inclusive apos desmarcar e remarcar. Checkbox e seletor compartilham `isBiaAllyCandidate`; elegibilidade nao concede permissao de editar nem permite dois responsaveis. A autorizacao e a validacao do Aliado no POST permanecem inalteradas.
 - Nova BIA concentra a composicao na aba Equipe, sem aba separada de MAP Zero. Uma unica lista de fichas fornece participantes, cargos canonicos, tipo, Contribuicao no DM (%), capital, natureza e CPPs. O Aliado da comunidade continua automatico e protegido; cada cargo tem um responsavel, e cargos acumulados nao somam indices. Campos ausentes mantem Composicao pendente; zero explicito e valido. Ver MAP Zero expande apenas uma previa calculada, com os mesmos campos/calculo da Calculadora. Trocar a pessoa limpa seus valores; remover ficha preenchida exige confirmacao. Mobile usa fichas empilhadas.

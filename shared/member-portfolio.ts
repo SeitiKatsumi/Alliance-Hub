@@ -22,11 +22,154 @@ export function isMembershipActive(
     && (Boolean(frozenAt && Number.isFinite(frozenAt.getTime())) || endsAt > now);
 }
 
-export type MapContribution = { memberId: string; name?: string; value: number; status: string };
+export type MapContribution = { memberId: string; name?: string; value: number; status: string; finalidade?: string; natureza?: string };
 export type MapOriginAllocation = Omit<MapContribution, "status">;
 export type MapTransfer = { status?: string; fromMemberId: string; toMemberId: string; value: number };
 
 export const QUOTA_DECIMAL_PLACES = 5;
+// MAP Zero owns these fields; the general BIA editor must not submit legacy DM values.
+export const BIA_MAP_ECONOMIC_FIELDS = [
+  "valor_origem", "divisor_multiplicador", "perc_autor_opa", "perc_aliado_built",
+  "perc_built", "perc_dir_alianca", "perc_dir_tecnico", "perc_dir_obras",
+  "perc_dir_comercial", "perc_dir_capital", "cpp_autor_opa", "cpp_aliado_built",
+  "cpp_built", "cpp_dir_alianca", "cpp_dir_tecnico", "cpp_dir_obras",
+  "cpp_dir_comercial", "cpp_dir_capital", "custo_origem_bia", "custo_final_previsto",
+] as const;
+export const MAP_DYNAMIC_FOOTER = "Este Mapa de Alocação Patrimonial é anexo acessório ao MoU Padrão BUILT e/ou ao instrumento jurídico pertinente à respectiva aliança. Possui finalidade exclusivamente informativa, estratégica e de governança, não constituindo contrato autônomo, promessa de participação, garantia de retorno, cessão de direitos ou obrigação definitiva, nem substituindo ou prevalecendo sobre contratos, atos societários, deliberações formais ou instrumentos jurídicos assinados. Qualquer participação, direito patrimonial, CPP, alocação econômica ou obrigação dependerá da validação e formalização previstas no instrumento jurídico aplicável. Em caso de dúvidas, divergências ou necessidade de interpretação, prevalecerão o instrumento jurídico pertinente, as deliberações formais da aliança e a orientação da Diretoria da Aliança.";
+
+export type InitialMapParticipantInput = {
+  participantId?: string;
+  memberId?: string | null;
+  institutionCode?: string | null;
+  nome: string;
+  cargos?: string[];
+  tipo: "guardiao" | "multiplicador";
+  indiceContribuicao: number;
+  pesoCapital: number;
+  capitalComprometido?: number;
+  naturezaCapital?: "caixa" | "nao_caixa";
+  tipoCppCapital?: { id: string; nome: string };
+  tipoCppContribuicao?: { id: string; nome: string };
+};
+
+export type InitialMapParticipant = InitialMapParticipantInput & {
+  participantId: string;
+  cargos: string[];
+  cppOrigem: number;
+  cppCapital: number;
+  cppTotal: number;
+  mapPercentual: number;
+};
+
+export type InitialMapCalculation = {
+  valorOrigem: number;
+  divisorMultiplicador: number;
+  baseEconomicaInicial: number;
+  pesoCapitalTotal: number;
+  participantes: InitialMapParticipant[];
+};
+
+// Display the approved calculation; never reconstruct new BIAs from legacy role percentages.
+export function initialMapEconomicSummary(snapshot: Pick<InitialMapCalculation, "valorOrigem" | "divisorMultiplicador" | "baseEconomicaInicial" | "participantes">) {
+  return {
+    rows: snapshot.participantes.map(p => ({ label: p.nome, perc: p.indiceContribuicao, cpp: p.cppOrigem })),
+    divisor: snapshot.divisorMultiplicador,
+    cppTotal: roundQuota(snapshot.baseEconomicaInicial - snapshot.valorOrigem),
+    custoOrigem: snapshot.baseEconomicaInicial,
+  };
+}
+
+const INITIAL_MAP_PERCENT_EPSILON = 0.0001;
+
+function roundQuota(value: number): number {
+  return Number(value.toFixed(QUOTA_DECIMAL_PLACES));
+}
+
+export function initialMapContributionValue(valorOrigem: number, indice: number): number {
+  return roundQuota(valorOrigem * roundQuota(indice) / 100);
+}
+
+export function withInitialCapitalParticipation(participant: InitialMapParticipantInput, suppliesCapital: boolean): InitialMapParticipantInput {
+  return suppliesCapital
+    ? {...participant, tipo:"guardiao", capitalComprometido:participant.tipo === "guardiao" ? participant.capitalComprometido : NaN}
+    : {...participant, tipo:"multiplicador", capitalComprometido:0, pesoCapital:0, tipoCppCapital:undefined};
+}
+
+export function calculateInitialMap(
+  valorOrigem: number,
+  participantesInput: InitialMapParticipantInput[],
+): InitialMapCalculation {
+  if (!Number.isFinite(valorOrigem) || valorOrigem <= 0) throw new Error("Informe um Valor de Origem maior que zero.");
+  if (!Array.isArray(participantesInput) || participantesInput.length === 0) throw new Error("Adicione pelo menos um participante ao MAP Zero.");
+
+  const seen = new Set<string>();
+  const byValue = participantesInput.some((p) => p.capitalComprometido !== undefined);
+  const participantes = participantesInput.map((item) => {
+    const memberId = String(item.memberId || "").trim() || null;
+    const institutionCode = String(item.institutionCode || "").trim().toUpperCase() || null;
+    const participantId = String(item.participantId || (memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : "")).trim();
+    if (!participantId) throw new Error("Todo participante precisa de uma identidade válida.");
+    const identity = memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : participantId;
+    if (seen.has(identity)) throw new Error("A mesma pessoa não pode aparecer mais de uma vez no MAP Zero.");
+    seen.add(identity);
+
+    if (item.tipo !== "guardiao" && item.tipo !== "multiplicador") throw new Error("Escolha Guardião ou Multiplicador para cada participante.");
+    if (item.indiceContribuicao == null || (!byValue && item.pesoCapital == null)) throw new Error("Preencha o Índice de Contribuição e a composição de capital de cada participante.");
+    const indiceContribuicao = Number(item.indiceContribuicao);
+    const capital = Number(item.capitalComprometido);
+    if (byValue && (item.capitalComprometido == null || !Number.isFinite(capital) || capital < 0)) throw new Error("Informe o capital comprometido de cada participante, inclusive zero.");
+    const pesoCapital = byValue ? capital / valorOrigem * 100 : Number(item.pesoCapital);
+    if (!Number.isFinite(indiceContribuicao)) throw new Error("Preencha o DM (%) de cada participante (índice individual), inclusive zero.");
+    if (indiceContribuicao < 0) throw new Error("O Índice de Contribuição não pode ser negativo.");
+    if (!Number.isFinite(pesoCapital) || pesoCapital < 0) throw new Error("O Peso de Capital não pode ser negativo.");
+    if (item.tipo === "multiplicador" && (byValue ? capital !== 0 : Math.abs(pesoCapital) > INITIAL_MAP_PERCENT_EPSILON)) throw new Error("Sócio Multiplicador não recebe Peso de Capital.");
+
+    return {
+      participantId,
+      memberId,
+      institutionCode,
+      nome: String(item.nome || "").trim() || (institutionCode === "BUILT" ? "BUILT" : "Participante"),
+      cargos: Array.from(new Set((item.cargos || []).map((role) => String(role).trim()).filter(Boolean))),
+      tipo: item.tipo,
+      indiceContribuicao: roundQuota(indiceContribuicao),
+      pesoCapital: item.tipo === "guardiao" ? roundQuota(pesoCapital) : 0,
+      ...(byValue ? { capitalComprometido: roundQuota(capital), naturezaCapital: item.naturezaCapital,
+        tipoCppCapital: item.tipoCppCapital, tipoCppContribuicao: item.tipoCppContribuicao } : {}),
+    };
+  });
+
+  const guardioes = participantes.filter((item) => item.tipo === "guardiao");
+  const pesoCapitalTotal = roundQuota(guardioes.reduce((sum, item) => sum + item.pesoCapital, 0));
+  if (!guardioes.length || (byValue ? Math.round(participantes.reduce((sum, p) => sum + Number(p.capitalComprometido), 0) * 100000) !== Math.round(valorOrigem * 100000) : Math.abs(pesoCapitalTotal - 100) > INITIAL_MAP_PERCENT_EPSILON)) {
+    throw new Error(byValue ? "Os valores comprometidos devem somar exatamente o Valor de Origem (100%)." : "Os Pesos de Capital dos Sócios Guardiões devem totalizar 100%.");
+  }
+
+  const positiveWeights = guardioes.filter((item) => byValue ? Number(item.capitalComprometido) > 0 : item.pesoCapital > 0);
+  const capitalValues = byValue ? positiveWeights.map((p) => Number(p.capitalComprometido)) : allocateQuotaTransferAmounts(valorOrigem, positiveWeights.map((item) => item.pesoCapital));
+  const capitalByParticipant = new Map(positiveWeights.map((item, index) => [item.participantId, capitalValues[index]]));
+  const divisorMultiplicador = roundQuota(participantes.reduce((sum, item) => sum + item.indiceContribuicao, 0));
+  const withCpp = participantes.map((item) => {
+    const cppOrigem = initialMapContributionValue(valorOrigem, item.indiceContribuicao);
+    const cppCapital = roundQuota(capitalByParticipant.get(item.participantId) || 0);
+    return { ...item, cppOrigem, cppCapital, cppTotal: roundQuota(cppOrigem + cppCapital), mapPercentual: 0 };
+  });
+  const baseEconomicaInicial = roundQuota(valorOrigem + withCpp.reduce((sum, item) => sum + item.cppOrigem, 0));
+  const positiveRows = withCpp.filter((item) => item.cppTotal > 0);
+  const roundedPercents = positiveRows.map((item) => roundQuota(item.cppTotal / baseEconomicaInicial * 100));
+  if (roundedPercents.length) {
+    const diff = roundQuota(100 - roundedPercents.reduce((sum, value) => sum + value, 0));
+    roundedPercents[roundedPercents.length - 1] = roundQuota(roundedPercents[roundedPercents.length - 1] + diff);
+  }
+  const percentByParticipant = new Map(positiveRows.map((item, index) => [item.participantId, roundedPercents[index]]));
+
+  return {
+    valorOrigem: roundQuota(valorOrigem),
+    divisorMultiplicador,
+    baseEconomicaInicial,
+    pesoCapitalTotal,
+    participantes: withCpp.map((item) => ({ ...item, mapPercentual: percentByParticipant.get(item.participantId) || 0 })),
+  };
+}
 
 export function allocateQuotaTransferAmounts(total: number, percentages: number[]): number[] {
   const scale = 10 ** QUOTA_DECIMAL_PLACES;
@@ -46,7 +189,7 @@ export function allocateQuotaTransferAmounts(total: number, percentages: number[
   return units.map((value) => value / scale);
 }
 
-export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[], originAllocations: MapOriginAllocation[] = []) {
+export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[], originAllocations: MapOriginAllocation[] = [], strictTransfers = false) {
   const values = new Map<string, { memberId: string; name: string; value: number }>();
   const addValue = (contribution: MapOriginAllocation) => {
     if (!contribution.memberId || !Number.isFinite(contribution.value) || contribution.value <= 0) return;
@@ -56,12 +199,16 @@ export function calculateMap(contributions: MapContribution[], transfers: MapTra
   };
   for (const allocation of originAllocations) addValue(allocation);
   for (const contribution of contributions) {
+    if (contribution.finalidade === "integralizacao_inicial" || contribution.natureza === "nao_caixa") continue;
     if (String(contribution.status).toLowerCase() !== "pago") continue;
     addValue(contribution);
   }
   for (const transfer of transfers) {
     if (transfer.status !== "aceita" || transfer.fromMemberId === transfer.toMemberId) continue;
     const source = values.get(transfer.fromMemberId);
+    if (strictTransfers && (!Number.isFinite(transfer.value) || transfer.value <= 0 || Math.round((source?.value || 0) * 100000) < Math.round(transfer.value * 100000))) {
+      throw new Error("A composição do MAP não cobre uma transferência aceita. Revise a base e as movimentações antes de continuar.");
+    }
     if (!source) continue;
     const moved = Math.min(Math.max(0, transfer.value), Math.max(0, source.value));
     if (!moved) continue;

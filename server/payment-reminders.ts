@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+import { decorateInitialEntries } from "./initial-contributions";
+import { isCashEntry } from "../shared/initial-contributions";
 
 const PAYMENT_REMINDER_ACTION = "lembrete_vencimento_2d";
 const PAYMENT_REMINDER_TIME_ZONE = "America/Sao_Paulo";
@@ -175,7 +177,7 @@ export async function processPaymentReminders(now = new Date()) {
   ]);
   await ensurePaymentReminderIndex(db);
   const targetDate = paymentReminderTargetDate(now);
-  const items = (await fetchPaymentReminderItems(targetDate)).filter((item) => isPaymentReminderCandidate(item, targetDate));
+  const items = (await decorateInitialEntries(db, await fetchPaymentReminderItems(targetDate))).filter(isCashEntry).filter((item) => isPaymentReminderCandidate(item, targetDate));
   const totals = { candidates: items.length, sent: 0, duplicate: 0, retry: 0, skipped: 0 };
 
   for (const item of items) {

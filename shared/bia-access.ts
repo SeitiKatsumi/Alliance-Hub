@@ -106,6 +106,12 @@ export function relationId(value: unknown): string | null {
   return String(value).trim() || null;
 }
 
+/** Candidate eligibility, not permission to edit the BIA's ally assignment. */
+export function isBiaAllyCandidate(member: {id: unknown; Outras_redes_as_quais_pertenco?: string[] | null} | undefined, communityAllyId: unknown): boolean {
+  const id = relationId(member?.id);
+  return !!id && (id === relationId(communityAllyId) || !!member?.Outras_redes_as_quais_pertenco?.includes("BUILT_ALLIANCE_PARTNER"));
+}
+
 export function parseBiaParticipantList(value: unknown): string[] {
   if (Array.isArray(value)) {
     return Array.from(new Set(value.map(relationId).filter((id): id is string => Boolean(id))));
@@ -134,6 +140,29 @@ export function collectBiaParticipantRoles(bia: Record<string, any>): Map<string
   for (const id of parseBiaParticipantList(bia.socios_multiplicadores)) add(id, "socio_multiplicador");
   for (const id of parseBiaParticipantList(bia.terceiros)) add(id, "terceiro");
   return participants;
+}
+
+/** Project the single creation roster onto the existing Directus role fields. */
+export function biaTeamFromMapParticipants(participants: Array<{
+  memberId?: string | null; institutionCode?: string | null; cargos?: string[]; tipo: string;
+}>) {
+  const fields = Object.fromEntries(Object.values(BIA_PARTICIPANT_ROLE_FIELDS).map(field => [field, null])) as Record<(typeof BIA_PARTICIPANT_ROLE_FIELDS)[keyof typeof BIA_PARTICIPANT_ROLE_FIELDS], string | null>;
+  const socios_guardioes: string[] = [], socios_multiplicadores: string[] = [];
+  const seen = new Set<string>();
+  for (const participant of participants) {
+    if (participant.institutionCode === "BUILT" && !participant.memberId) continue;
+    const id = relationId(participant.memberId);
+    if (!id) throw new Error("Selecione a pessoa de cada ficha da Equipe.");
+    if (seen.has(id)) throw new Error("Cada pessoa deve ter apenas uma ficha na Equipe.");
+    seen.add(id);
+    for (const [role, field] of Object.entries(BIA_PARTICIPANT_ROLE_FIELDS)) {
+      if (!(participant.cargos || []).includes(BIA_PARTICIPANT_ROLE_LABELS[role as keyof typeof BIA_PARTICIPANT_ROLE_FIELDS])) continue;
+      if (fields[field] && fields[field] !== id) throw new Error("Cada cargo deve ter apenas um responsável.");
+      fields[field] = id;
+    }
+    (participant.tipo === "guardiao" ? socios_guardioes : socios_multiplicadores).push(id);
+  }
+  return {...fields, socios_guardioes, socios_multiplicadores};
 }
 
 export function defaultBiaAccessForRoles(roles: BiaParticipantRole[]): BiaAccessMatrix {

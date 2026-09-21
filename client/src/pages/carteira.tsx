@@ -1606,7 +1606,14 @@ function DetailPage({ id }: { id: string }) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [originOpen, setOriginOpen] = useState(false);
-  const [originForm, setOriginForm] = useState({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {} as Record<string, "guardiao" | "multiplicador"> });
+  const [originForm, setOriginForm] = useState({
+    nome_bia: "",
+    valor_origem: "",
+    ciente_divida: false,
+    papeis: {} as Record<string, "guardiao" | "multiplicador">,
+    indices_contribuicao: {} as Record<string, number>,
+    pesos_capital: {} as Record<string, number>,
+  });
   const [transferIdentifier, setTransferIdentifier] = useState("");
   const [pulseForm, setPulseForm] = useState({ ocupacao: "", receita: "", despesa: "", acontecimento: "", objetivo: "", data_referencia: new Date().toISOString().slice(0, 10) });
   const [pulseOpen, setPulseOpen] = useState(() => new URLSearchParams(window.location.search).get("tab") === "pulso");
@@ -1667,6 +1674,8 @@ function DetailPage({ id }: { id: string }) {
       nome_bia: current.nome_bia || `BIA ${preview.imovel?.nome || "Imóvel"}`,
       valor_origem: current.valor_origem || String(preview.valor_origem_sugerido || ""),
       papeis: Object.keys(current.papeis).length ? current.papeis : Object.fromEntries((preview.socios || []).map((item: ImovelSocio) => [String(item.id), "guardiao"])),
+      indices_contribuicao: current.indices_contribuicao,
+      pesos_capital: Object.keys(current.pesos_capital).length ? current.pesos_capital : Object.fromEntries((preview.socios || []).map((item: ImovelSocio) => [String(item.id), Number(item.map_percentual || 0)])),
     }));
   }, [originOpen, originPreviewQuery.data]);
   const launchesQuery = useQuery<CarteiraLancamento[]>({
@@ -1696,6 +1705,16 @@ function DetailPage({ id }: { id: string }) {
   });
   const imovel = detailQuery.data;
   const diagnostic = imovel?.diagnostico;
+  const originSocios: ImovelSocio[] = originPreviewQuery.data?.socios || [];
+  const originWeightTotal = originSocios.reduce((total, socio) => {
+    const key = String(socio.id);
+    return total + (originForm.papeis[key] === "guardiao" ? Number(originForm.pesos_capital[key] || 0) : 0);
+  }, 0);
+  const originDm = originSocios.reduce((total, socio) => total + Number(originForm.indices_contribuicao[String(socio.id)] || 0), 0);
+  const originMapValid = originSocios.length > 0
+    && originSocios.every((socio) => ["guardiao", "multiplicador"].includes(originForm.papeis[String(socio.id)]))
+    && originSocios.every((socio) => Number.isFinite(originForm.indices_contribuicao[String(socio.id)]) && originForm.indices_contribuicao[String(socio.id)] >= 0)
+    && Math.abs(originWeightTotal - 100) < 0.00001;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1765,7 +1784,7 @@ function DetailPage({ id }: { id: string }) {
     onSuccess: (data: any) => {
       setOriginOpen(false);
       invalidateAll();
-      toast({ title: data.status === "aguardando_aprovacao" ? "Solicitação enviada para aprovação" : "Convites de MOU enviados", description: "O MAP inicial será ativado uma única vez após todos os aceites." });
+      toast({ title: data.status === "aguardando_aprovacao" ? "Solicitação enviada para aprovação" : "Convites de MOU enviados", description: "O MAP Zero será bloqueado na primeira assinatura; a BIA será ativada após todos os aceites." });
     },
     onError: (error: any) => toast({ title: "Não foi possível originar a BIA", description: error?.message, variant: "destructive" }),
   });
@@ -2634,9 +2653,9 @@ function DetailPage({ id }: { id: string }) {
       </Tabs>
 
       <PropertyFormDialog open={editOpen} onOpenChange={setEditOpen} initial={imovel} onSave={(payload) => editMutation.mutate(payload)} saving={editMutation.isPending} />
-      <Dialog open={originOpen} onOpenChange={(open) => { setOriginOpen(open); if (!open) setOriginForm({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {} }); }}>
+      <Dialog open={originOpen} onOpenChange={(open) => { setOriginOpen(open); if (!open) setOriginForm({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {}, indices_contribuicao: {}, pesos_capital: {} }); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader><DialogTitle>Originar uma BIA deste imóvel</DialogTitle><DialogDescription>O imóvel e seu histórico permanecem na Carteira. O MAP abaixo será congelado após todos aceitarem o MOU.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Originar uma BIA deste imóvel</DialogTitle><DialogDescription>O imóvel permanece na Carteira. O MAP Zero será bloqueado na primeira assinatura do MOU; a BIA só será ativada após todos aceitarem.</DialogDescription></DialogHeader>
           {originPreviewQuery.isLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : (
             <div className="space-y-4">
               {!!originPreviewQuery.data?.impedimentos?.length && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Antes de continuar:</p><ul className="mt-1 list-disc pl-5">{originPreviewQuery.data.impedimentos.map((item: string) => <li key={item}>{item}</li>)}</ul></div>}
@@ -2644,11 +2663,29 @@ function DetailPage({ id }: { id: string }) {
                 <div className="space-y-2"><Label>Nome da BIA</Label><Input value={originForm.nome_bia} onChange={(event) => setOriginForm({ ...originForm, nome_bia: event.target.value })} /></div>
                 <div className="space-y-2"><Label>Valor de origem bruto</Label><Input inputMode="decimal" value={originForm.valor_origem} onChange={(event) => setOriginForm({ ...originForm, valor_origem: event.target.value })} /></div>
               </div>
-              <div className="space-y-2"><Label>Papel de cada participante</Label>{(originPreviewQuery.data?.socios || []).map((socio: ImovelSocio) => <div key={socio.id} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_130px_180px] sm:items-center"><div><p className="font-medium">{socio.nome}</p><p className="text-xs text-muted-foreground">{socio.map_percentual}% do MAP</p></div><Badge variant="outline">{socio.status}</Badge><Select value={originForm.papeis[String(socio.id)] || ""} onValueChange={(value: "guardiao" | "multiplicador") => setOriginForm({ ...originForm, papeis: { ...originForm.papeis, [String(socio.id)]: value } })}><SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger><SelectContent><SelectItem value="guardiao">Guardião</SelectItem><SelectItem value="multiplicador">Multiplicador</SelectItem></SelectContent></Select></div>)}</div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <Label>Participantes do MAP Zero</Label>
+                  <p className={`text-xs ${originMapValid ? "text-emerald-700" : "text-amber-700"}`}>DM: {originDm.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}% · Peso dos Guardiões: {originWeightTotal.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p>
+                </div>
+                {originSocios.map((socio) => {
+                  const key = String(socio.id);
+                  const tipo = originForm.papeis[key] || "guardiao";
+                  return (
+                    <div key={socio.id} className="grid gap-3 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-[minmax(160px,1fr)_145px_120px_120px] lg:items-end">
+                      <div><p className="font-medium">{socio.nome}</p><p className="text-xs text-muted-foreground">Copropriedade aceita: {socio.map_percentual}%</p><Badge className="mt-1" variant="outline">{socio.status}</Badge></div>
+                      <div className="space-y-1"><Label className="text-xs">Tipo</Label><Select value={tipo} onValueChange={(value: "guardiao" | "multiplicador") => setOriginForm((current) => ({ ...current, papeis: { ...current.papeis, [key]: value }, pesos_capital: { ...current.pesos_capital, [key]: value === "multiplicador" ? 0 : current.pesos_capital[key] ?? Number(socio.map_percentual || 0) } }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="guardiao">Guardião</SelectItem><SelectItem value="multiplicador">Multiplicador</SelectItem></SelectContent></Select></div>
+                      <div className="space-y-1"><Label className="text-xs">Índice %</Label><Input type="number" min="0" step="0.00001" placeholder="Preencher" value={Number.isFinite(originForm.indices_contribuicao[key]) ? originForm.indices_contribuicao[key] : ""} onChange={(event) => setOriginForm((current) => ({ ...current, indices_contribuicao: { ...current.indices_contribuicao, [key]: event.target.value === "" ? NaN : Number(event.target.value) } }))} /></div>
+                      <div className="space-y-1"><Label className="text-xs">Peso %</Label><Input type="number" min="0" step="0.00001" disabled={tipo === "multiplicador"} value={originForm.pesos_capital[key] ?? 0} onChange={(event) => setOriginForm((current) => ({ ...current, pesos_capital: { ...current.pesos_capital, [key]: Number(event.target.value) } }))} /></div>
+                    </div>
+                  );
+                })}
+                {!originMapValid && originSocios.length > 0 && <p className="text-xs text-amber-700">Preencha o índice de cada pessoa (zero é permitido). Os pesos dos Guardiões precisam totalizar exatamente 100%. Multiplicadores não recebem peso de capital.</p>}
+              </div>
               {Number(originPreviewQuery.data?.divida || 0) > 0 && <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3"><Checkbox checked={originForm.ciente_divida} onCheckedChange={(checked) => setOriginForm({ ...originForm, ciente_divida: checked === true })} /><span className="text-sm">Estou ciente de que o valor de origem é bruto e que o saldo devedor de {money(originPreviewQuery.data.divida, imovel.moeda)} permanecerá registrado separadamente.</span></label>}
             </div>
           )}
-          <DialogFooter><Button variant="outline" onClick={() => setOriginOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!originPreviewQuery.data?.pronto || !originForm.nome_bia.trim() || !(parseNumber(originForm.valor_origem) > 0) || (Number(originPreviewQuery.data?.divida || 0) > 0 && !originForm.ciente_divida) || Object.keys(originForm.papeis).length !== (originPreviewQuery.data?.socios || []).length || originMutation.isPending} onClick={() => originMutation.mutate()}>{originMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar e solicitar MOUs</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOriginOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!originPreviewQuery.data?.pronto || !originForm.nome_bia.trim() || !(parseNumber(originForm.valor_origem) > 0) || (Number(originPreviewQuery.data?.divida || 0) > 0 && !originForm.ciente_divida) || !originMapValid || originMutation.isPending} onClick={() => originMutation.mutate()}>{originMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar e solicitar MOUs</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       <NewLaunchDialog open={launchOpen} onOpenChange={setLaunchOpen} imovelId={id} onSaved={invalidateAll} />

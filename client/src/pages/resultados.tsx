@@ -1,5 +1,7 @@
 ﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { isCashEntry } from "@shared/initial-contributions";
+import { initialMapEconomicSummary, type InitialMapCalculation } from "@shared/member-portfolio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,7 @@ import {
 
 // ---- Types ----
 interface BiasProjeto {
+  map_inicial?: InitialMapCalculation | null;
   id: string;
   nome_bia: string;
   valor_origem?: string | number;
@@ -67,6 +70,8 @@ interface BiasProjeto {
 }
 
 interface FluxoItem {
+  natureza?: string;
+  conciliacao_pendente?: boolean;
   id: string;
   bia: string;
   tipo: "entrada" | "saida";
@@ -407,10 +412,10 @@ export default function ResultadosPage({
     }
   }, [biasRaw, selectedBiaId, initialBiaId, embedded]);
 
-  const bia = useMemo(
-    () => (biasRaw as BiasProjeto[]).find((b) => b.id === selectedBiaId),
-    [biasRaw, selectedBiaId]
-  );
+  const { data: bia, isLoading: loadingDetail, isError: detailError, refetch: refetchDetail } = useQuery<BiasProjeto>({
+    queryKey: ["/api/bias", selectedBiaId],
+    enabled: Boolean(selectedBiaId),
+  });
 
   // Load editable values when BIA changes
   useEffect(() => {
@@ -481,7 +486,7 @@ export default function ResultadosPage({
   const totalAportesPagos = useMemo(() => {
     if (!selectedBiaId) return 0;
     return (fluxoRaw as FluxoItem[])
-      .filter((i) => i.bia === selectedBiaId && i.tipo === "entrada" && i.status === "pago")
+      .filter((i) => isCashEntry(i) && i.bia === selectedBiaId && i.tipo === "entrada" && i.status === "pago")
       .reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
   }, [fluxoRaw, selectedBiaId]);
 
@@ -489,7 +494,7 @@ export default function ResultadosPage({
   const totalSaidasPagas = useMemo(() => {
     if (!selectedBiaId) return 0;
     return (fluxoRaw as FluxoItem[])
-      .filter((i) => i.bia === selectedBiaId && i.tipo === "saida" && i.status === "pago")
+      .filter((i) => isCashEntry(i) && i.bia === selectedBiaId && i.tipo === "saida" && i.status === "pago")
       .reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
   }, [fluxoRaw, selectedBiaId]);
 
@@ -509,11 +514,12 @@ export default function ResultadosPage({
     { value: bia?.perc_dir_capital, member: bia?.diretor_capital },
   ];
   const hasPercentFields = percentItems.some(({ value }) => value !== null && value !== undefined && String(value) !== "");
-  const divisorMultiplicador = hasPercentFields
+  const mapSummary = bia?.map_inicial ? initialMapEconomicSummary(bia.map_inicial) : null;
+  const divisorMultiplicador = mapSummary?.divisor ?? (hasPercentFields
     ? percentItems.reduce((sum, item) => sum + (item.member ? n(item.value) : 0), 0)
-    : n(bia?.divisor_multiplicador);
-  const custoCPP = divisorMultiplicador > 0 ? valorOrigem * divisorMultiplicador / 100 : 0;
-  const custoOrigem = valorOrigem + custoCPP;
+    : n(bia?.divisor_multiplicador));
+  const custoCPP = mapSummary?.cppTotal ?? (divisorMultiplicador > 0 ? valorOrigem * divisorMultiplicador / 100 : 0);
+  const custoOrigem = mapSummary?.custoOrigem ?? (valorOrigem + custoCPP);
 
   // Previsto (%)
   const comissaoPct         = n(bia?.comissao_prevista_corretor);
@@ -577,7 +583,9 @@ export default function ResultadosPage({
   const percVGV = vgv > 0 ?(valorRealizado / vgv) * 100 : 0;
   const caixaLiquidoReal = totalAportesPagos - totalSaidasPagas;
 
-  const loading = loadingBias || loadingFluxo;
+  const loading = loadingBias || loadingFluxo || (Boolean(selectedBiaId) && loadingDetail);
+
+  if (selectedBiaId && detailError) return <p role="alert">Não foi possível consultar a composição da BIA. <Button variant="outline" onClick={() => refetchDetail()}>Tentar novamente</Button></p>;
 
   if (loading) {
     return (

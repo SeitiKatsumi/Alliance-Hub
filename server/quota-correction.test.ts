@@ -38,9 +38,10 @@ test("corrige pela API com histórico atômico, revalida permissões e preserva 
   const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
   const start = source.indexOf('  app.patch("/api/transferencia-cotas/:id/correcao"');
   const route = source.slice(start, source.indexOf('  app.get("/api/transferencia-cotas"', start));
-  new Function("app", "storage", "requireBiaModuleAccess", "directusFetchOne", "canCorrectQuotaTransfer", "quotaCorrectionSchema", transformSync(route, { loader: "ts" }).code)(app, storage,
+  new Function("app", "storage", "requireBiaModuleAccess", "directusFetchOne", "canCorrectQuotaTransfer", "quotaCorrectionSchema", "writeMapTransfer", transformSync(route, { loader: "ts" }).code)(app, storage,
     async (req: any, res: any) => { if (req.headers["x-denied"]) { res.status(403).json({error:"Sem acesso à BIA"}); return false; } return true; },
-    async () => ({ diretor_alianca: { id: "diretor" }, aliado_built: "aliado" }), canCorrectQuotaTransfer, quotaCorrectionSchema);
+    async () => ({ diretor_alianca: { id: "diretor" }, aliado_built: "aliado" }), canCorrectQuotaTransfer, quotaCorrectionSchema,
+    async (_biaId: string, _event: string, _reason: string, operation: (tx: any) => Promise<unknown>) => db.transaction(operation)); // BIA legada.
   app.get("/fixture", async (_req, res) => res.json(await storage.getTransferenciaCotas("test")));
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));

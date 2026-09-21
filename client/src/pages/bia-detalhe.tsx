@@ -1,5 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useParams, useLocation } from "wouter";
+import { confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
+import { useParams, useLocation, useSearch } from "wouter";
+import { initialMapEconomicSummary, type InitialMapCalculation } from "@shared/member-portfolio";
 import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
   Wallet, TrendingDown, Target, Building2, Globe,
@@ -42,6 +44,7 @@ interface AnexoFile {
 }
 
 interface BiasProjeto {
+  map_inicial?: InitialMapCalculation | null;
   id: string;
   situacao?: "ativa" | "em_formacao" | null;
   codigo_publico?: string | null;
@@ -296,7 +299,7 @@ const ACCESS_GROUPS: Array<{ label: string; items: Array<{ key: BiaAccessKey; la
       { key: "capital_banco", label: "Banco" },
       { key: "capital_financeiro", label: "Financeiro" },
       { key: "capital_analises", label: "Análises" },
-      { key: "capital_calculadora", label: "Calculadora DM" },
+      { key: "capital_calculadora", label: "DM" },
     ],
   },
 ];
@@ -522,6 +525,14 @@ function normalizeDetailTab(search: string) {
 export default function BiaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
+  const search = useSearch();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("capital") === "calculadora" && window.location.hash === "#aportes-iniciais") {
+      params.set("tab", "capital"); params.set("capital", "financeiro"); params.set("financeiro", "aportes");
+      navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+    }
+  }, [search, navigate]);
   const { toast } = useToast();
   const [activeDetailTab, setActiveDetailTab] = useState(() => normalizeDetailTab(window.location.search));
   const [editOpen, setEditOpen] = useState(false);
@@ -620,10 +631,10 @@ export default function BiaDetalhePage() {
   }, [bia, id, navigate]);
 
   useEffect(() => {
-    const rawParams = new URLSearchParams(window.location.search);
+    const rawParams = new URLSearchParams(search);
     const rawTab = rawParams.get("tab") || "visao";
-    const legacyModule = documentModuleFromSearch(window.location.search);
-    const tab = normalizeDetailTab(window.location.search);
+    const legacyModule = documentModuleFromSearch(search);
+    const tab = normalizeDetailTab(search);
     if (legacyModule && rawTab !== "documentos") {
       rawParams.set("tab", "documentos");
       rawParams.set("nucleo", legacyModule);
@@ -632,7 +643,7 @@ export default function BiaDetalhePage() {
       return;
     }
     if (tab !== activeDetailTab) setActiveDetailTab(tab);
-  }, [activeDetailTab, location, navigate]);
+  }, [activeDetailTab, location, search, navigate]);
 
   const membros = useMemo(() => {
     const m: Record<string, string> = {};
@@ -659,6 +670,7 @@ export default function BiaDetalhePage() {
   }, [bia]);
 
   const dmSummary = useMemo(() => {
+    if (bia?.map_inicial) return initialMapEconomicSummary(bia.map_inicial);
     const valorOrigem = n(bia?.valor_origem);
     const rows = [
       { label: "Autor da Oportunidade", perc: n(bia?.perc_autor_opa) },
@@ -729,6 +741,7 @@ export default function BiaDetalhePage() {
   }, [accessMatrix, allowedDocumentModules, bia, hasCapitalAccess]);
   const canAccessNucleos = allowedNucleoTabs.length > 0;
   const updateDetailTab = (value: string) => {
+    if (!confirmDiscardChanges()) return;
     setActiveDetailTab(value);
     const params = new URLSearchParams(window.location.search);
     if (value === "visao") {
@@ -736,7 +749,7 @@ export default function BiaDetalhePage() {
     } else {
       params.set("tab", value);
     }
-    if (value !== "capital") params.delete("capital");
+    if (value !== "capital") { params.delete("capital"); params.delete("financeiro"); }
     if (value !== "documentos") params.delete("nucleo");
     const query = params.toString();
     navigate(`${window.location.pathname}${query ? `?${query}` : ""}`, { replace: true });
@@ -745,15 +758,16 @@ export default function BiaDetalhePage() {
     const params = new URLSearchParams(window.location.search);
     params.set("tab", "capital");
     params.set("capital", value);
+    if (value !== "financeiro") params.delete("financeiro");
     navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
   };
   useEffect(() => {
-    if (!bia) return;
+    if (!bia || loadingAccess || !accessData) return;
     if (activeDetailTab !== "visao" && !allowedNucleoTabs.some((tab) => tab.value === activeDetailTab)) {
       toast({ title: "Acesso atualizado", description: "Você não possui mais acesso a esta área da BIA." });
       updateDetailTab("visao");
     }
-  }, [activeDetailTab, allowedNucleoTabs, bia]);
+  }, [activeDetailTab, allowedNucleoTabs, bia, loadingAccess, accessData]);
 
   if (loadingBia || (bia && loadingAccess)) {
     return (
@@ -830,7 +844,7 @@ export default function BiaDetalhePage() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Back + actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button
           variant="ghost"
           size="sm"
@@ -841,7 +855,7 @@ export default function BiaDetalhePage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para BIAs
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canEditBia && bia.situacao === "em_formacao" && (
             <Button
               size="sm"
@@ -1244,7 +1258,7 @@ export default function BiaDetalhePage() {
                   <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-3">
                     <TabsTrigger value="financeiro" data-testid="tab-bia-financeiro">Financeiro</TabsTrigger>
                     <TabsTrigger value="analises" data-testid="tab-bia-analises">Análises</TabsTrigger>
-                    <TabsTrigger value="calculadora" data-testid="tab-bia-calculadora">Calculadora DM</TabsTrigger>
+                    <TabsTrigger value="calculadora" data-testid="tab-bia-calculadora">DM</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="financeiro" className="space-y-4">

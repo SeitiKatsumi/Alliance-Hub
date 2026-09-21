@@ -7,7 +7,10 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
-import { isBiaPlatformAdminRole } from "@shared/bia-access";
+import { isBiaPlatformAdminRole, biaTeamFromMapParticipants, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS } from "@shared/bia-access";
+import { BIA_MAP_ECONOMIC_FIELDS, calculateInitialMap, type InitialMapParticipantInput } from "@shared/member-portfolio";
+import { validateInitialClassifications } from "@shared/initial-contributions";
+import { MapZeroFields } from "./bias-calculadora";
 import { getInstitutionalPercentageRange, loadDmRanges } from "@/lib/dm-ranges";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -1810,6 +1813,21 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const membroLogadoId = user?.membro_directus_id || "";
   const isSuperAdmin = user?.role === "admin" || user?.role === "manager" || user?.role === "superadmin" || user?.role === "master";
   const canEditAliadoBuilt = user?.role === "admin" || user?.role === "manager";
+  const editMapQuery = useQuery({
+    queryKey: ["/api/bias", bia?.id, "map-inicial"],
+    enabled: open && isEdit,
+    retry: false,
+    queryFn: async () => {
+      const response = await fetch(`/api/bias/${bia!.id}/map-inicial`, { credentials: "include" });
+      const data = await response.json();
+      if (response.status === 404 && data.code === "LEGACY_BIA_MAP") return null;
+      if (!response.ok) throw new Error(data.error || "Não foi possível conferir o MAP Zero.");
+      return data;
+    },
+  });
+  const usesMapZero = isEdit && !!editMapQuery.data;
+  const mapCheckPending = isEdit && (editMapQuery.isPending || editMapQuery.isFetching);
+  const canEditLegacyDm = isEdit && editMapQuery.isSuccess && !usesMapZero;
 
   const EMPTY_INFO = {
     razao_social: "",
@@ -1844,6 +1862,19 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [infoForm, setInfoForm] = useState<InfoComercialForm>(EMPTY_INFO);
   const [activeTab, setActiveTab] = useState("geral");
+  const [mapValorOrigem, setMapValorOrigem] = useState(0);
+  const [mapParticipantes, setMapParticipantes] = useState<InitialMapParticipantInput[]>([]);
+  const initializedCreationRoles = useRef(new Set<string>());
+  const newMapPreview = useMemo(() => {
+    try {
+      const team = biaTeamFromMapParticipants(mapParticipantes);
+      if (!team.autor_bia) throw new Error("Defina o Autor da Oportunidade na Equipe.");
+      if (!team.aliado_built || !team.diretor_alianca) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança na Equipe.");
+      const calculation = calculateInitialMap(mapValorOrigem, mapParticipantes);
+      validateInitialClassifications(calculation.participantes);
+      return {calculation, error:null};
+    } catch (error: any) { return {calculation:null,error:String(error.message)}; }
+  }, [mapValorOrigem, mapParticipantes]);
   const [institutionalRanges] = useState(() => loadDmRanges());
   const [quickMemberOpen, setQuickMemberOpen] = useState(false);
   const [quickMemberName, setQuickMemberName] = useState("");
@@ -2038,6 +2069,9 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   useEffect(() => {
     if (open) {
       setForm(bia ?biaToForm(bia) : EMPTY_FORM);
+      setMapValorOrigem(0);
+      setMapParticipantes([]);
+      initializedCreationRoles.current.clear();
       setInfoForm(EMPTY_INFO);
       setActiveTab("geral");
       setExistingAnexos(bia?.Anexos ?? []);
@@ -2093,15 +2127,26 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   useEffect(() => {
     if (!open || isEdit) return;
     const aliadoId = relationId(comunidadeMaeDoMembro?.aliado);
-    const diretorId = membroLogadoId;
-    if (!aliadoId && !diretorId) return;
-
-    setForm((current) => ({
-      ...current,
-      aliado_built: current.aliado_built || aliadoId || "",
-      diretor_alianca: current.diretor_alianca || diretorId || "",
-    }));
-  }, [open, isEdit, comunidadeMaeDoMembro, membroLogadoId]);
+    const defaults = {autor:membroLogadoId, diretor_alianca:membroLogadoId, aliado:aliadoId};
+    const rolesToAdd = Object.entries(defaults).filter(([role,id]) => id && !initializedCreationRoles.current.has(role));
+    rolesToAdd.forEach(([role]) => initializedCreationRoles.current.add(role));
+    if (!rolesToAdd.length) return;
+    setMapParticipantes(current => {
+      const next = [...current];
+      for (const [role,id] of rolesToAdd) {
+        const label = BIA_PARTICIPANT_ROLE_LABELS[role as keyof typeof BIA_PARTICIPANT_ROLE_FIELDS];
+        if (next.some(p => p.cargos?.includes(label))) continue;
+        const index = next.findIndex(p => p.memberId === id);
+        if (index >= 0) next[index] = {...next[index],cargos:[...(next[index].cargos || []),label]};
+        else {
+          const member = membros.find(m => String(m.id) === id);
+          next.push({participantId:`member:${id}`,memberId:id,nome:member ? getMembroNome(member) : "Participante",
+            cargos:[label],tipo:"multiplicador",indiceContribuicao:NaN,pesoCapital:0,capitalComprometido:0,naturezaCapital:"caixa"});
+        }
+      }
+      return next;
+    });
+  }, [open, bia, isEdit, comunidadeMaeDoMembro, membroLogadoId, membros]);
 
   useEffect(() => {
     if (pendingFlowBypassed || !open || !bia?.id || diretorSolicitacoesPendentes.length === 0) return;
@@ -2216,6 +2261,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   // valorOrigem é derivado da forma de pagamento (se definida) ou do campo manual
   const numParcelasInt = parseInt(numeroParcelas) || 0;
   const valorOrigem = (() => {
+    if (!isEdit) return mapValorOrigem;
     if (formaPagamento === "parcelado") return valoresParcelas.reduce((s, v) => s + (v || 0), 0);
     if (formaPagamento === "a_vista") return valorAVista;
     return parseBRLToNumber(form.valor_origem);
@@ -2422,7 +2468,9 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     mutationFn: async () => {
       setCppError(null);
       setCppSummary(null);
-      if (formaPagamento === "parcelado") {
+      if (mapCheckPending || (isEdit && editMapQuery.isError)) throw new Error("Aguarde a conferência do MAP Zero antes de salvar.");
+      if (!isEdit && newMapPreview.error) throw new Error(newMapPreview.error);
+      if (!usesMapZero && formaPagamento === "parcelado") {
         if (numParcelasInt <= 1) {
           throw new Error("Informe a quantidade de parcelas do ativo de origem.");
         }
@@ -2433,7 +2481,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
           throw new Error("Preencha a data de vencimento de todas as parcelas antes de salvar.");
         }
       }
-      if (formaPagamento === "a_vista" && valorAVista <= 0) {
+      if (!usesMapZero && formaPagamento === "a_vista" && valorAVista <= 0) {
         throw new Error("Informe um valor de origem maior que zero.");
       }
       setUploading(pendingFiles.length > 0);
@@ -2495,7 +2543,16 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         imagem_directus_id: form.imagem_directus_id || null,
         moeda: form.moeda || "BRL",
       };
+      if (!isEdit) {
+        Object.assign(payload, biaTeamFromMapParticipants(mapParticipantes));
+        payload.map_inicial = {valorOrigem:mapValorOrigem,participantes:mapParticipantes,moeda:form.moeda || "BRL"};
+        for (const key of Object.keys(payload)) if (key.startsWith("perc_")) payload[key] = null;
+      }
       if (shouldSubmitValorOrigem) payload.valor_origem = valorOrigem;
+      if (usesMapZero) {
+        for (const field of BIA_MAP_ECONOMIC_FIELDS) delete payload[field];
+        for (const field of Object.keys(payload)) if (field.startsWith("_")) delete payload[field];
+      }
       if (pendingFiles.length > 0 || allAnexoIds.length > 0) {
         payload.Anexos = allAnexoIds;
       }
@@ -2508,13 +2565,14 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     onSuccess: async (response: Response) => {
       const saved = await response.json().catch(() => null);
       const biaId = saved?.id ?? bia?.id;
+      let commercialInfoFailed = false;
       if (biaId) {
         await fetch(`/api/bias/${biaId}/info-comercial`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(infoForm),
-        }).catch(() => {});
+        }).then(response => { commercialInfoFailed = !response.ok; }).catch(() => { commercialInfoFailed = true; });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       if (biaId) queryClient.invalidateQueries({ queryKey: ["/api/bias", biaId] });
@@ -2524,6 +2582,15 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       if (biaId) {
         queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/bia", biaId] });
         queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/bia", biaId] });
+      }
+      if (commercialInfoFailed) {
+        toast({
+          title: "BIA salva; Informações não foram salvas",
+          description: "Não crie outra BIA. Abra Editar BIA → Informações para conferir e reenviar os dados do ativo e da empresa.",
+          variant: "destructive",
+        });
+        onClose();
+        return;
       }
       if (saved?._cppError) {
         const msg = String(saved._cppError).slice(0, 240);
@@ -2607,8 +2674,8 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   function getMissingRequiredFields(): string[] {
     const missing: string[] = [];
     if (!form.nome_bia.trim()) missing.push("Nome da BIA");
-    if (!form.aliado_built) missing.push("Aliado BUILT");
-    if (!form.diretor_alianca) missing.push("Diretor de Aliança");
+    if (isEdit && !form.aliado_built) missing.push("Aliado BUILT");
+    if (isEdit && !form.diretor_alianca) missing.push("Diretor de Aliança");
     if (!infoForm.ativo_qualificacao.trim()) missing.push("Qualificação do ativo");
     if (!infoForm.ativo_area_m2.trim()) missing.push("Área do ativo");
     if (!infoForm.ativo_endereco.trim()) missing.push("Endereço do ativo");
@@ -2671,6 +2738,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       });
       return;
     }
+    if (!isEdit && newMapPreview.error) {
+      setActiveTab("equipe");
+      toast({title:"Preencha o MAP Zero",description:newMapPreview.error,variant:"destructive"});
+      return;
+    }
     saveMutation.mutate();
   }
 
@@ -2696,11 +2768,13 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               Acesso somente para visualização.
             </div>
           )}
+          {isEdit && editMapQuery.isError && <p role="alert" className="mt-4 text-sm text-red-600">Não foi possível conferir o MAP Zero. O salvamento está bloqueado para proteger os valores. <button type="button" className="underline" onClick={() => editMapQuery.refetch()}>Tentar novamente</button></p>}
+          {usesMapZero && <p className="mt-4 rounded-md border p-3 text-sm">Percentuais são editados em <a className="font-medium underline" href={`${getBiaUrl(bia!)}?tab=capital&capital=calculadora`}>Núcleo de Capital → DM</a>. Pessoas, cargos e capital ficam em <a className="font-medium underline" href={`/movimentacao-cotas/${bia!.id}?view=zero`}>MAP → MAP Zero → Editar composição</a>.</p>}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className="grid grid-cols-5">
+            <TabsList className={`grid h-auto grid-cols-2 ${canEditLegacyDm ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
-              <TabsTrigger value="cpp" data-testid="tab-cpp">DM</TabsTrigger>
+              {canEditLegacyDm && <TabsTrigger value="cpp" data-testid="tab-cpp">DM</TabsTrigger>}
               <TabsTrigger value="receita" data-testid="tab-receita">Análises</TabsTrigger>
               <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
             </TabsList>
@@ -2987,6 +3061,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4">
+              {!isEdit ? <>
+                <MapZeroFields valorOrigem={mapValorOrigem} setValorOrigem={setMapValorOrigem}
+                  participantes={mapParticipantes} setParticipantes={setMapParticipantes} membros={membros}
+                  readOnly={readOnly} creationTeam={{canEditAlly:canEditAliadoBuilt, communityAllyId:relationId(comunidadeMaeDoMembro?.aliado)}} />
+              </> : <>
               <MembroSelect
                 label="Autor da Oportunidade"
                 field="autor_bia"
@@ -3063,10 +3142,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 />
                 {renderDispararAliancaButton("socios_multiplicadores")}
               </div>
+              </>}
             </TabsContent>
 
             {/* Tab CPP */}
-            <TabsContent value="cpp" className="space-y-4 mt-4">
+            {canEditLegacyDm && <TabsContent value="cpp" className="space-y-4 mt-4">
               {/* Forma de Pagamento do Ativo de Origem */}
               <div className="space-y-3">
                 <button
@@ -3179,7 +3259,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 </div>
               )}
 
-            </TabsContent>
+            </TabsContent>}
 
             {/* Tab Receita */}
             <TabsContent value="receita" className="space-y-4 mt-4">
@@ -3558,7 +3638,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 </Button>
                 {!readOnly && <Button
                   onClick={handleSaveClick}
-                  disabled={saveMutation.isPending || uploading || isLoading || hasIncompleteInstallments}
+                  disabled={saveMutation.isPending || uploading || isLoading || mapCheckPending || (isEdit && editMapQuery.isError) || (!usesMapZero && hasIncompleteInstallments)}
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
                   data-testid="btn-save-bia"
                 >
@@ -3901,7 +3981,8 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
 
   const biasEndpoint = relatedOnly ? "/api/bias?scope=related" : "/api/bias";
   const { data: biasRaw = [], isLoading: loadingBias, isError: biasLoadError, error: biasLoadErrorInfo } = useQuery<BiasProjeto[]>({
-    queryKey: [biasEndpoint],
+    queryKey: relatedOnly ? ["/api/bias", { scope: "related" }] : ["/api/bias"],
+    queryFn: async () => (await apiRequest("GET", biasEndpoint)).json(),
   });
 
   const { data: membrosRaw = [], isLoading: loadingMembros } = useQuery<Membro[]>({

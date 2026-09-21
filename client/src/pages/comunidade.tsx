@@ -331,13 +331,14 @@ interface ChamadaAlianca {
 }
 
 type MouPendente = {
-  tipo: "diretor" | "socio";
+  tipo: "diretor" | "socio" | "revisao";
   id: string;
   titulo: string;
   versao: string;
   bia_id?: string;
   bia_nome?: string | null;
   texto: string;
+  map_revisao?: number;
 };
 
 type MouDadosContratuais = Record<string, string | boolean>;
@@ -1386,14 +1387,16 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       if (currentMembro?.id && !isLimitedCoOwner) {
         await apiRequest("PATCH", `/api/membros/${currentMembro.id}`, pickMouDadosProfilePayload(mouDadosForm));
       }
-      return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, {
+      return apiRequest(mouPendente.tipo === "revisao" ? "POST" : "PATCH", mouPendente.tipo === "revisao" ? `/api/bias/${mouPendente.id}/mou/aceitar` : `/api/${base}/${mouPendente.id}/aceitar`, {
         aceitar_mou: true,
+        map_revisao: mouPendente.map_revisao,
         dados_contratuais_mou: mouDadosForm,
         aceite_localizacao,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-mou/minhas-pendencias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -1489,6 +1492,19 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   const [auraMicBlocked, setAuraMicBlocked] = useState(false);
   const [auraMicPromptOpen, setAuraMicPromptOpen] = useState(false);
   const [mouPendente, setMouPendente] = useState<MouPendente | null>(null);
+  const { data: mouRevisoes = [], isError: mouRevisoesError } = useQuery<Array<{ id: string; bia_nome: string; map_revisao: number }>>({
+    queryKey: ["/api/bia-mou/minhas-pendencias"],
+    enabled: !!user && (convitesOnly || activeTab === "convites"),
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
+  });
+  const revisarMouMutation = useMutation({
+    mutationFn: async (id: string) => ({ id, data: await (await apiRequest("POST", `/api/bias/${id}/mou/aceitar`, {})).json() }),
+    onSuccess: ({ id, data }) => {
+      if (data?.mou) { setMouPendente({ tipo: "revisao", id, ...data.mou }); setMouAceito(false); }
+      else queryClient.invalidateQueries({ queryKey: ["/api/bia-mou/minhas-pendencias"] });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível abrir o MOU", description: error.message, variant: "destructive" }),
+  });
   const [mouAceito, setMouAceito] = useState(false);
   const [mouDadosOpen, setMouDadosOpen] = useState(false);
   const [mouDadosForm, setMouDadosForm] = useState<MouDadosContratuais>(EMPTY_MOU_DADOS);
@@ -1932,6 +1948,13 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   return (
     <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"} ${convitesOnly ?"notifications-page" : ""}`}>
       {/* Header */}
+      {(convitesOnly || activeTab === "convites") && <div className="space-y-3">
+        {mouRevisoesError && <p role="alert" className="text-sm text-red-600">Não foi possível carregar as revisões pendentes do MOU.</p>}
+        {mouRevisoes.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="font-semibold">Revise o MOU · {item.bia_nome}</p><p className="text-sm text-muted-foreground">MAP Zero — revisão {item.map_revisao}. É necessário aceitar esta revisão antes da ativação.</p></div>
+          <Button onClick={() => revisarMouMutation.mutate(item.id)} disabled={revisarMouMutation.isPending}>Ler e aceitar</Button>
+        </div>)}
+      </div>}
       {!embedded && <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div

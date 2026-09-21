@@ -44,6 +44,8 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## Invariantes
 
+- A cobranca bancaria vinculada a lancamento valida a BIA, natureza de caixa e conciliacao antes de chamar o provedor, serializada por BIA. Propriedade e direitos do MAP Zero nao geram cobranca; esta entrega nao modifica precos, repasses ou monetizacao existentes.
+
 - Aprovar a Aura de um `onboarding_inicial` nao cria cobranca; a anuidade nasce apenas no fluxo posterior de `associacao_completa`.
 - Webhook e reprocessamento sao idempotentes.
 - Planos gratuitos legados sao marcados para migracao e preservam o acesso ate adesao explicita ou corte administrativo comunicado.

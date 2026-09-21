@@ -76,3 +76,25 @@ export function buildPropertyOriginAllocations(
   }
   return allocations;
 }
+
+export function buildPropertyInitialMapParticipants(
+  partners: PropertyPartnerInput[],
+  roles: Record<string, "guardiao" | "multiplicador">,
+  contributionIndices: Record<string, number> = {},
+  capitalWeights: Record<string, number> = {},
+): InitialMapParticipantInput[] {
+  return partners.filter((partner) => partner.status === "aceito" && partner.membro_id).map((partner) => {
+    const key = String(partner.id || partner.membro_id);
+    const type = roles[key] || roles[String(partner.membro_id)];
+    return {
+      participantId: `member:${String(partner.membro_id)}`,
+      memberId: String(partner.membro_id),
+      nome: String(partner.nome || partner.email || "Coproprietário"),
+      cargos: ["Coproprietário"],
+      tipo: type,
+      indiceContribuicao: contributionIndices[key] == null ? NaN : Number(contributionIndices[key]),
+      pesoCapital: type === "guardiao" ? Number(capitalWeights[key] ?? partner.map_percentual ?? 0) : 0,
+    };
+  });
+}
+import type { InitialMapParticipantInput } from "./member-portfolio";

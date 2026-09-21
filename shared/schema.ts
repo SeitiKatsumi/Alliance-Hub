@@ -1,10 +1,11 @@
 import type { QuotaCorrectionRecord } from "./quota-correction";
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique, uniqueIndex, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, boolean, jsonb, timestamp, serial, numeric, date, unique, uniqueIndex, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { BiaAccessMatrix } from "./bia-access";
 import type { CompanyAccessMatrix } from "./company-access";
+import type { InitialMapParticipant } from "./member-portfolio";
 
 export const MODULE_KEYS = [
   "oportunidades",
@@ -829,6 +830,83 @@ export const biaMapOrigemAlocacoes = pgTable("bia_map_origem_alocacoes", {
   origemMembroUniq: unique("bia_map_origem_origem_membro_uniq").on(t.origem_id, t.membro_id),
 }));
 
+export const biaMapInicialSnapshots = pgTable("bia_map_inicial_snapshots", {
+  modelo_calculo: integer("modelo_calculo").notNull().default(1),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull().unique(),
+  origem_id: varchar("origem_id").references(() => biaImovelOrigens.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("rascunho"),
+  valor_origem: numeric("valor_origem", { precision: 18, scale: 5 }).notNull().default("0"),
+  moeda: text("moeda").notNull().default("BRL"),
+  divisor_multiplicador: numeric("divisor_multiplicador", { precision: 12, scale: 5 }).notNull().default("0"),
+  base_economica_inicial: numeric("base_economica_inicial", { precision: 18, scale: 5 }).notNull().default("0"),
+  participantes: jsonb("participantes").$type<InitialMapParticipant[]>().notNull().default([]),
+  snapshot_hash: text("snapshot_hash"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  bloqueado_por_user_id: text("bloqueado_por_user_id"),
+  bloqueado_por_membro_id: text("bloqueado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+  bloqueado_em: timestamp("bloqueado_em"),
+  revisao: integer("revisao").notNull().default(0),
+  ativado_em: timestamp("ativado_em"),
+});
+
+export const biaAportesIniciais = pgTable("bia_aportes_iniciais", {
+  bia_id: text("bia_id").primaryKey(),
+  revisao: integer("revisao").notNull().default(0),
+  revisao_map: integer("revisao_map").notNull(),
+  modalidade: text("modalidade").notNull(),
+  compromissos: jsonb("compromissos").notNull(),
+  estado: text("estado").notNull().default("rascunho"),
+  autor: jsonb("autor").notNull(),
+  atualizado_em: timestamp("atualizado_em").notNull().defaultNow(),
+});
+
+export const biaAportesParcelas = pgTable("bia_aportes_parcelas", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bia_id: text("bia_id").notNull().references(()=>biaAportesIniciais.bia_id),
+  revisao: integer("revisao").notNull(),
+  chave: text("chave").notNull(),
+  numero: integer("numero").notNull(),
+  natureza: text("natureza").notNull(),
+  componente: text("componente").notNull(),
+  valor: numeric("valor",{precision:18,scale:2}).notNull(),
+  vencimento: date("vencimento").notNull(),
+  movimentos: jsonb("movimentos").notNull(),
+  vigente: boolean("vigente").notNull().default(true),
+  pendente: boolean("pendente").notNull().default(true),
+  historico: jsonb("historico").notNull().default([]),
+},table=>[uniqueIndex("bia_aportes_parcelas_revisao_unique").on(table.bia_id,table.revisao,table.chave,table.numero)]);
+
+export const biaMapVersoes = pgTable("bia_map_versoes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bia_id: text("bia_id").notNull(),
+  tipo: text("tipo").notNull(),
+  numero: integer("numero").notNull(),
+  revisao_base: integer("revisao_base").notNull(),
+  snapshot: jsonb("snapshot").notNull(),
+  hash: text("hash").notNull(),
+  evento_id: text("evento_id").notNull(),
+  motivo: text("motivo").notNull(),
+  autor: jsonb("autor").notNull(),
+  criado_em: timestamp("criado_em").notNull().defaultNow(),
+}, (table) => ({
+  versionUnique: unique().on(table.bia_id, table.tipo, table.numero),
+  eventUnique: unique().on(table.bia_id, table.evento_id, table.tipo),
+}));
+
+export const biaMapEventos = pgTable("bia_map_eventos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bia_id: text("bia_id").notNull(),
+  motivo: text("motivo").notNull(),
+  autor: jsonb("autor").notNull(),
+  antes: jsonb("antes").notNull(),
+  concluido_em: timestamp("concluido_em"),
+  criado_em: timestamp("criado_em").notNull().defaultNow(),
+});
+
 export type InventarioImovel = typeof inventarioImoveis.$inferSelect;
 export type InventarioLancamento = typeof inventarioLancamentos.$inferSelect;
 export type CarteiraEvento = typeof carteiraEventos.$inferSelect;
@@ -841,6 +919,7 @@ export type CarteiraAcesso = typeof carteiraAcessos.$inferSelect;
 export type CarteiraImovelSocio = typeof carteiraImovelSocios.$inferSelect;
 export type BiaImovelOrigem = typeof biaImovelOrigens.$inferSelect;
 export type BiaMapOrigemAlocacao = typeof biaMapOrigemAlocacoes.$inferSelect;
+export type BiaMapInicialSnapshot = typeof biaMapInicialSnapshots.$inferSelect;
 
 export const membroComunidadeMae = pgTable("membro_comunidade_mae", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1556,9 +1635,12 @@ export const biaMouAceites = pgTable("bia_mou_aceites", {
   mou_titulo: text("mou_titulo").notNull(),
   dados_contratuais: jsonb("dados_contratuais"),
   aceite_localizacao: jsonb("aceite_localizacao").$type<Record<string, unknown> | null>(),
+  map_inicial_snapshot_id: text("map_inicial_snapshot_id"),
+  map_inicial_hash: text("map_inicial_hash"),
+  map_revisao: integer("map_revisao").notNull().default(0),
   aceito_em: timestamp("aceito_em").defaultNow(),
 }, (table) => ({
-  uniqueBiaMembroVersao: unique().on(table.bia_id, table.membro_id, table.mou_versao),
+  uniqueBiaMembroVersao: unique().on(table.bia_id, table.membro_id, table.mou_versao, table.map_revisao),
 }));
 
 export type BiaMouAceite = typeof biaMouAceites.$inferSelect;

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   EMPTY_BIA_ACCESS,
+  biaTeamFromMapParticipants,
+  isBiaAllyCandidate,
+  BIA_PARTICIPANT_ROLE_LABELS as roleLabels,
   canConfigureBiaParticipantAccess,
   canManageBiaAccess,
   collectBiaParticipantRoles,
@@ -12,6 +15,31 @@ import {
   normalizeBiaAccessMatrix,
   resolveBiaParticipantPermissions,
 } from "./bia-access";
+
+test("Aliado da comunidade continua elegível sem selo e sem depender do checkbox", () => {
+  const member = {id:"7",Outras_redes_as_quais_pertenco:[]};
+  assert.equal(isBiaAllyCandidate(member,{id:7}),true);
+  assert.equal(isBiaAllyCandidate(member,"7"),true);
+  assert.equal(isBiaAllyCandidate(member,"outro"),false);
+  assert.equal(isBiaAllyCandidate({id:"8",Outras_redes_as_quais_pertenco:["BUILT_ALLIANCE_PARTNER"]},"7"),true);
+  assert.equal(isBiaAllyCandidate(undefined,undefined),false);
+  assert.equal(isBiaAllyCandidate({id:""},""),false);
+});
+
+test("equipe única projeta cargos acumulados sem duplicar pessoas ou responsáveis", () => {
+  const rows = [{memberId:"a",tipo:"guardiao",cargos:[roleLabels.autor,roleLabels.diretor_alianca]},
+    {memberId:"b",tipo:"multiplicador",cargos:[roleLabels.aliado]},
+    {institutionCode:"BUILT",tipo:"multiplicador",cargos:["Instituição"]}];
+  const team = biaTeamFromMapParticipants(rows);
+  assert.equal(team.autor_bia,"a");
+  assert.equal(team.diretor_alianca,"a");
+  assert.equal(team.aliado_built,"b");
+  assert.deepEqual(team.socios_guardioes,["a"]);
+  assert.deepEqual(team.socios_multiplicadores,["b"]);
+  assert.throws(()=>biaTeamFromMapParticipants([...rows,rows[0]]),/uma ficha/);
+  assert.throws(()=>biaTeamFromMapParticipants([...rows,{memberId:"c",tipo:"guardiao",cargos:[roleLabels.autor]}]),/um responsável/);
+  assert.throws(()=>biaTeamFromMapParticipants([{tipo:"guardiao"}]),/Selecione/);
+});
 
 test("aplica os padrões de acesso de cada papel", () => {
   assert.equal(defaultBiaAccessForRoles(["autor"]).diretoria, "view");

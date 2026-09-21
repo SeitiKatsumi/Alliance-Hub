@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useLocation, useSearch } from "wouter";
+import { confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
+import { InitialContributions } from "@/components/initial-contributions";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, BarChart3, Banknote, Calculator, CheckCircle2, FileText,
@@ -13,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import type { AliancaDocsPageConfig } from "./alianca-docs-page";
 import FluxoCaixaPage from "./fluxo-caixa";
 import ResultadosPage from "./resultados";
-import BiasCalculadoraPage from "./bias-calculadora";
+import BiasCalculadoraPage, { useInitialMapSnapshot } from "./bias-calculadora";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
@@ -755,7 +758,7 @@ export default function NucleoCapitalPage({
     { key: "banco", label: "Banco", icon: Banknote, testId: "tab-capital-banco" },
     { key: "financeiro", label: "Financeiro", icon: Wallet, testId: "tab-capital-financeiro" },
     { key: "analises", label: "Análises", icon: BarChart3, testId: "tab-capital-analises" },
-    { key: "calculadora", label: "Calculadora DM", icon: Calculator, testId: "tab-capital-calculadora" },
+    { key: "calculadora", label: "DM", icon: Calculator, testId: "tab-capital-calculadora" },
   ] as const;
   const allowedTabs = tabDefinitions.filter((tab) => {
     const level = access?.[tab.key] || (access ? "none" : "edit");
@@ -775,6 +778,7 @@ export default function NucleoCapitalPage({
   }, [controlledActiveTab, allowedTabKey]);
 
   const handleTabChange = (value: string) => {
+    if (!confirmDiscardChanges()) return;
     const next = resolveAllowedTab(value);
     setActiveTab(next);
     onTabChange?.(next);
@@ -794,7 +798,7 @@ export default function NucleoCapitalPage({
           Núcleo de Capital
         </h1>
         <p className="text-sm text-muted-foreground">
-          Banco, financeiro, análises e calculadora DM em uma visão única.
+          Banco, financeiro, análises e DM em uma visão única.
         </p>
       </div>}
 
@@ -814,7 +818,7 @@ export default function NucleoCapitalPage({
           </TabsTrigger>}
           {allowedTabs.some((tab) => tab.key === "calculadora") && <TabsTrigger value="calculadora" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-calculadora">
             <Calculator className="h-4 w-4" />
-            Calculadora DM
+            DM
           </TabsTrigger>}
         </TabsList>
 
@@ -822,7 +826,7 @@ export default function NucleoCapitalPage({
           {activeTab === "banco" && <BancoBiaPage biaId={initialBiaId} readOnly={access?.banco === "view"} />}
         </TabsContent>
         <TabsContent value="financeiro" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "financeiro" && <FluxoCaixaPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.financeiro === "view"} />}
+          {activeTab === "financeiro" && <FinanceiroBia initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.financeiro === "view"} />}
         </TabsContent>
         <TabsContent value="analises" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
           {activeTab === "analises" && <ResultadosPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.analises === "view"} />}
@@ -833,4 +837,21 @@ export default function NucleoCapitalPage({
       </Tabs>
     </div>
   );
+}
+
+function FinanceiroBia({ initialBiaId, embedded, readOnly }: { initialBiaId?: string | null; embedded: boolean; readOnly: boolean }) {
+  const snapshot = useInitialMapSnapshot(initialBiaId);
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const section = new URLSearchParams(search).get("financeiro") === "aportes" ? "aportes" : "lancamentos";
+  const compatible = snapshot.data?.modeloCalculo === 3;
+  const membros = useQuery<Array<{ id: string; nome?: string; Nome_de_usuario?: string | null }>>({ queryKey: ["/api/membros"], enabled: compatible && section === "aportes" });
+  return <Tabs value={section} onValueChange={value => {
+    const params = new URLSearchParams(search); params.set("financeiro", value);
+    navigate(`${window.location.pathname}?${params.toString()}`);
+  }} className="space-y-4">
+    <TabsList className="flex h-auto flex-wrap"><TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>{compatible && <TabsTrigger value="aportes">Aportes e parcelas</TabsTrigger>}</TabsList>
+    <TabsContent value="lancamentos">{section === "lancamentos" && <FluxoCaixaPage initialBiaId={initialBiaId} embedded={embedded} readOnly={readOnly} />}</TabsContent>
+    <TabsContent value="aportes">{section === "aportes" && (snapshot.isPending ? <p>Carregando aportes…</p> : snapshot.isError ? <p role="alert">Não foi possível consultar o modelo da BIA. <Button onClick={() => snapshot.refetch()}>Tentar novamente</Button></p> : compatible && initialBiaId ? <InitialContributions key={initialBiaId} biaId={initialBiaId} membros={membros.data || []} readOnly={readOnly} /> : <p>Esta BIA não usa o modelo de aportes iniciais. Seus lançamentos continuam disponíveis na seção Lançamentos.</p>)}</TabsContent>
+  </Tabs>;
 }

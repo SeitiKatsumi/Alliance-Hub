@@ -1,5 +1,10 @@
-import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
 import { canCorrectQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
+import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
+import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
+import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
+import { isCashEntry, isAdditionalContribution, validateInitialClassifications } from "@shared/initial-contributions";
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import type { Response } from "express";
@@ -39,7 +44,7 @@ import {
 import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
-import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type PortfolioExchangeRate } from "@shared/member-portfolio";
+import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateInitialMap, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type InitialMapCalculation, type InitialMapParticipantInput, type PortfolioExchangeRate } from "@shared/member-portfolio";
 import {
   BIA_GOVERNANCE_MONTHLY_CENTS,
   BIA_MINIMUM_RIG_RATE,
@@ -69,7 +74,7 @@ import {
   normalizeStrategicCellPreferences,
 } from "@shared/strategic-cells";
 import { RAMOS_SEGMENTOS } from "../client/src/lib/ramos-segmentos";
-import { buildPropertyOriginAllocations, normalizePropertyPartners, propertyMapIsComplete, PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, type PropertyPartnerInput } from "@shared/property-ownership";
+import { buildPropertyInitialMapParticipants, buildPropertyOriginAllocations, normalizePropertyPartners, propertyMapIsComplete, PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, type PropertyPartnerInput } from "@shared/property-ownership";
 import { canAccessBuiltEnvironment, canPublishVitrineProfile } from "@shared/environment-access";
 import {
   attachObjectToRegistryTraces,
@@ -169,6 +174,8 @@ import {
 import {
   BIA_ACCESS_KEYS,
   BIA_PARTICIPANT_ROLE_LABELS,
+  BIA_PARTICIPANT_ROLE_FIELDS,
+  biaTeamFromMapParticipants,
   EMPTY_BIA_ACCESS,
   FULL_BIA_ACCESS,
   canConfigureBiaParticipantAccess,
@@ -979,7 +986,7 @@ async function directusFetch(collection: string, params: string = "") {
       throw new Error(`Directus retornou ${contentType || "conteudo nao JSON"}`);
     }
     const json = await res.json();
-    return json.data || [];
+    return collection === "fluxo_caixa" ? await initialEntryMetadata(json.data || []) : json.data || [];
   } catch (error: any) {
     const fallback = await fetchProductionCollectionFallback(collection);
     if (fallback) return fallback;
@@ -989,6 +996,7 @@ async function directusFetch(collection: string, params: string = "") {
 
 // Like directusFetch but does NOT prepend fields=* â€” for targeted queries with explicit fields + filters
 async function directusFetchScoped(collection: string, params: string) {
+  if (collection === "fluxo_caixa") params = params.replace("fields=", "fields=id,");
   const hasLimit = /(^|&)limit=/.test(params);
   const url = `${DIRECTUS_URL}/items/${collection}?${hasLimit ? "" : "limit=-1&"}${params}`;
   try {
@@ -1002,7 +1010,7 @@ async function directusFetchScoped(collection: string, params: string) {
       throw new Error(`Directus retornou ${contentType || "conteudo nao JSON"}`);
     }
     const json = await res.json();
-    return json.data || [];
+    return collection === "fluxo_caixa" ? await initialEntryMetadata(json.data || []) : json.data || [];
   } catch (error: any) {
     const fallback = await fetchProductionCollectionFallback(collection);
     if (fallback) return fallback;
@@ -1168,7 +1176,7 @@ async function directusFetchOne(collection: string, id: string, params: string =
       throw new Error(`Directus retornou ${contentType || "conteudo nao JSON"}`);
     }
     const json = await res.json();
-    return json.data || null;
+    return collection === "fluxo_caixa" && json.data ? (await initialEntryMetadata([json.data]))[0] : json.data || null;
   } catch (error: any) {
     const fallback = await fetchProductionItemFallback(collection, id);
     if (fallback) return fallback;
@@ -1178,6 +1186,11 @@ async function directusFetchOne(collection: string, id: string, params: string =
 
 async function directusBulkCreate(collection: string, items: Record<string, any>[]) {
   if (items.length === 0) return [];
+  if (collection === "fluxo_caixa" && mapFinancialWrite) {
+    const created = [];
+    for (const item of items) created.push(await directusCreate(collection, item));
+    return created;
+  }
   const url = `${DIRECTUS_URL}/items/${collection}`;
   const res = await fetch(url, {
     method: "POST",
@@ -1197,6 +1210,10 @@ async function directusBulkCreate(collection: string, items: Record<string, any>
 
 async function directusBulkPatch(collection: string, ids: (string | number)[], data: Record<string, any>) {
   if (ids.length === 0) return;
+  if (collection === "fluxo_caixa" && mapFinancialWrite) {
+    for (const id of ids) await directusUpdate(collection, String(id), data);
+    return;
+  }
   const url = `${DIRECTUS_URL}/items/${collection}`;
   const res = await fetch(url, {
     method: "PATCH",
@@ -1214,6 +1231,10 @@ async function directusBulkPatch(collection: string, ids: (string | number)[], d
 
 async function directusBulkDelete(collection: string, ids: (string | number)[]) {
   if (ids.length === 0) return;
+  if (collection === "fluxo_caixa" && mapFinancialWrite) {
+    for (const id of ids) await directusDelete(collection, String(id));
+    return;
+  }
   const url = `${DIRECTUS_URL}/items/${collection}`;
   const res = await fetch(url, {
     method: "DELETE",
@@ -1229,7 +1250,27 @@ async function directusBulkDelete(collection: string, ids: (string | number)[]) 
   }
 }
 
-async function directusCreate(collection: string, data: Record<string, any>) {
+const mapOperationContext = new AsyncLocalStorage<{ biaId?: string; tx?: any; req?: any; initialContributionWrite?: boolean }>();
+
+async function initialEntryMetadata(entries: any[]) {
+  await ensureBiaMapInicialSnapshotsTable();
+  return decorateInitialEntries(mapOperationContext.getStore()?.tx || db, entries);
+}
+
+async function protectInitialEntry(id: string, data: any) {
+  if (mapOperationContext.getStore()?.initialContributionWrite) return;
+  const [entry] = await initialEntryMetadata([{id}]);
+  if (!entry?.parcela_inicial_id) return;
+  const paymentOnly = data && Object.keys(data).every(k => k.startsWith("pagamento_") || ["status","data_pagamento"].includes(k));
+  if (entry.natureza === "caixa" && paymentOnly) return;
+  throw Object.assign(new Error("Gerencie esta parcela em Aportes e parcelas; movimentos vinculados não podem ser alterados isoladamente."), {statusCode:409});
+}
+let mapFinancialWrite: null | ((collection: string, id: string | null, data: any, operation: () => Promise<any>) => Promise<any>) = null;
+let mapBiaActivation: null | ((id: string, data: any, operation: () => Promise<any>) => Promise<any>) = null;
+async function directusCreate(collection: string, data: Record<string, any>): Promise<any> {
+  if (mapFinancialWrite && collection === "fluxo_caixa" && !mapOperationContext.getStore()?.tx) {
+    return mapFinancialWrite(collection, null, data, () => directusCreate(collection, data));
+  }
   const url = `${DIRECTUS_URL}/items/${collection}`;
   const res = await fetch(url, {
     method: "POST",
@@ -1247,7 +1288,14 @@ async function directusCreate(collection: string, data: Record<string, any>) {
   return json.data;
 }
 
-async function directusUpdate(collection: string, id: string, data: Record<string, any>) {
+async function directusUpdate(collection: string, id: string, data: Record<string, any>): Promise<any> {
+  if (collection === "fluxo_caixa") await protectInitialEntry(id, data);
+  if (mapBiaActivation && collection === "bias_projetos" && data.situacao === "ativa" && !mapOperationContext.getStore()?.tx) {
+    return mapBiaActivation(id, data, () => directusUpdate(collection, id, data));
+  }
+  if (mapFinancialWrite && collection === "fluxo_caixa" && !mapOperationContext.getStore()?.tx) {
+    return mapFinancialWrite(collection, id, data, () => directusUpdate(collection, id, data));
+  }
   const url = `${DIRECTUS_URL}/items/${collection}/${id}`;
   const res = await fetch(url, {
     method: "PATCH",
@@ -1385,7 +1433,11 @@ async function normalizeDirectusPatchPayload(collection: string, payload: Record
   return normalized;
 }
 
-async function directusDelete(collection: string, id: string) {
+async function directusDelete(collection: string, id: string): Promise<any> {
+  if (collection === "fluxo_caixa") await protectInitialEntry(id, null);
+  if (mapFinancialWrite && collection === "fluxo_caixa" && !mapOperationContext.getStore()?.tx) {
+    return mapFinancialWrite(collection, id, null, () => directusDelete(collection, id));
+  }
   const url = `${DIRECTUS_URL}/items/${collection}/${id}`;
   const res = await fetch(url, {
     method: "DELETE",
@@ -3655,7 +3707,46 @@ async function ensureBiaMouAceitesTable() {
   `);
   await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS dados_contratuais jsonb`);
   await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS aceite_localizacao jsonb`);
+  await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS map_inicial_snapshot_id text`);
+  await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS map_inicial_hash text`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_mou_aceites_bia_membro ON bia_mou_aceites (bia_id, membro_id, mou_versao)`);
+}
+
+let biaMapInicialTablePromise: Promise<void> | null = null;
+async function ensureBiaMapInicialSnapshotsTable() {
+  if (biaMapInicialTablePromise) return biaMapInicialTablePromise;
+  biaMapInicialTablePromise = (async () => {
+    await ensureInventarioTables();
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bia_map_inicial_snapshots (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        bia_id text NOT NULL UNIQUE,
+        origem_id uuid REFERENCES bia_imovel_origens(id) ON DELETE SET NULL,
+        status text NOT NULL DEFAULT 'rascunho' CHECK (status IN ('rascunho', 'bloqueado')),
+        valor_origem numeric(18,5) NOT NULL DEFAULT 0 CHECK (valor_origem >= 0),
+        moeda text NOT NULL DEFAULT 'BRL',
+        divisor_multiplicador numeric(12,5) NOT NULL DEFAULT 0 CHECK (divisor_multiplicador >= 0),
+        base_economica_inicial numeric(18,5) NOT NULL DEFAULT 0 CHECK (base_economica_inicial >= 0),
+        participantes jsonb NOT NULL DEFAULT '[]'::jsonb,
+        snapshot_hash text,
+        criado_por_user_id text,
+        criado_por_membro_id text,
+        bloqueado_por_user_id text,
+        bloqueado_por_membro_id text,
+        criado_em timestamp DEFAULT now() NOT NULL,
+        atualizado_em timestamp DEFAULT now() NOT NULL,
+        bloqueado_em timestamp
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_map_inicial_status ON bia_map_inicial_snapshots (bia_id, status)`);
+    await ensureBiaMouAceitesTable();
+    await db.execute(sql.raw(MAP_HISTORY_SQL));
+    await db.execute(sql.raw(INITIAL_CONTRIBUTIONS_SQL));
+  })().catch((error) => {
+    biaMapInicialTablePromise = null;
+    throw error;
+  });
+  return biaMapInicialTablePromise;
 }
 
 async function ensureTermosAceiteAuditoriaTable() {
@@ -4028,6 +4119,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.use((req, _res, next) => mapOperationContext.run({ req }, next));
 
   // Clear Directus field validations that block saving numeric fields
   clearBiasFieldValidations().catch(console.error);
@@ -4049,6 +4141,7 @@ export async function registerRoutes(
   ensureBiaDiretorSolicitacoesTable().catch((err: any) => console.warn("[bia-diretores] Tabela nao sincronizada:", err?.message || err));
   ensureBiaSocioSolicitacoesTable().catch((err: any) => console.warn("[bia-socios] Tabela nao sincronizada:", err?.message || err));
   ensureBiaMouAceitesTable().catch((err: any) => console.warn("[bia-mou] Tabela nao sincronizada:", err?.message || err));
+  ensureBiaMapInicialSnapshotsTable().catch((err: any) => console.warn("[bia-map-inicial] Tabela nao sincronizada:", err?.message || err));
   ensureBiaUserPermissionsTable().catch((err: any) => console.warn("[bia-access] Tabela nao sincronizada:", err?.message || err));
   ensureCompanyEmployeeAccountsTable().catch((err: any) => console.warn("[company-access] Tabela nao sincronizada:", err?.message || err));
   ensureCompanyPlanSubscriptionsTable().catch((err: any) => console.warn("[company-plan] Tabela nao sincronizada:", err?.message || err));
@@ -7126,14 +7219,20 @@ export async function registerRoutes(
       ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
     };
     const personalizado = personalizarBiaMouTexto(texto, String(biaId), biaComInfo);
+    const initialSnapshot = await loadInitialMapSnapshot(String(biaId));
+    const allocationRows: MouAllocationRow[] = [];
+    let documento = initialSnapshot
+      ? `${personalizado}\n\nANEXO II - MAPA DE ALOCAÇÃO PATRIMONIAL INICIAL\n\n${buildAnexoIIMapa(biaComInfo, String(biaId), allocationRows, initialSnapshot)}`
+      : personalizado;
     const termsResult: any = await db.execute(sql`
       SELECT * FROM bia_billing_terms WHERE bia_id = ${String(biaId)} AND status <> 'draft' LIMIT 1
     `).catch(() => ({ rows: [] } as any));
     const terms = resultRows(termsResult)[0];
-    if (!terms) return personalizado;
+    if (!terms) return documento;
     const money = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
     const snapshot = terms.snapshot || {};
-    return `${personalizado}\n\nANEXO FINANCEIRO DA BIA\n\nValor de Origem: ${money(Math.round(Number(terms.origin_value) * 100))}.\nRIG: ${(Number(terms.rig_rate) * 100).toLocaleString("pt-BR")}% (${money(Number(terms.rig_amount_cents))}), política versão ${snapshot?.rig_policy?.version || "não informada"}.\nOs primeiros 24 meses de governança estão cobertos pelo RIG. A partir do 25º mês, enquanto a governança estiver ativa, será devida mensalidade de ${money(Number(terms.governance_amount_cents))}, sem rateio diário, conforme política versão ${snapshot?.governance_policy?.version || "não informada"}.\nInício institucional aprovado: ${new Date(terms.institutional_start_at).toLocaleDateString("pt-BR")}.`;
+    documento += `\n\nANEXO FINANCEIRO DA BIA\n\nValor de Origem: ${money(Math.round(Number(terms.origin_value) * 100))}.\nRIG: ${(Number(terms.rig_rate) * 100).toLocaleString("pt-BR")}% (${money(Number(terms.rig_amount_cents))}), política versão ${snapshot?.rig_policy?.version || "não informada"}.\nOs primeiros 24 meses de governança estão cobertos pelo RIG. A partir do 25º mês, enquanto a governança estiver ativa, será devida mensalidade de ${money(Number(terms.governance_amount_cents))}, sem rateio diário, conforme política versão ${snapshot?.governance_policy?.version || "não informada"}.\nInício institucional aprovado: ${new Date(terms.institutional_start_at).toLocaleDateString("pt-BR")}.`;
+    return documento;
   }
 
   const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para alianÃ§a de LideranÃ§a";
@@ -7375,9 +7474,381 @@ export async function registerRoutes(
     ));
   }
 
-  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any, aceiteLocalizacao?: any) {
-    const aceite = await storage.getBiaMouAceite(biaId, membroId, BIA_MOU_VERSAO);
-    if (aceite) return { ok: true };
+  async function withMapLock<T>(biaId: string, work: (tx: any, base: any) => Promise<T>): Promise<T> {
+    await ensureBiaMapInicialSnapshotsTable();
+    const context = mapOperationContext.getStore();
+    if (context?.tx && context.biaId === biaId) return work(context.tx, await loadInitialMapSnapshot(biaId, context.tx));
+    return db.transaction(async (tx) => {
+      const base = await loadInitialMapSnapshot(biaId, tx, true);
+      return mapOperationContext.run({ ...context, biaId, tx }, () => work(tx, base));
+    });
+  }
+
+  function mapActor() {
+    const session = mapOperationContext.getStore()?.req?.session;
+    return { userId: session?.directusUserId || null, memberId: session?.membroId || null, name: session?.nome || "Sistema" };
+  }
+
+  function mapIsActive(bia: any, base: any) {
+    return !!base?.ativado_em || ["ativa", "suspensa", "encerrada"].includes(String(bia.situacao).toLowerCase());
+  }
+
+  async function notifyMapRevision(tx: any, bia: any, base: any, active: boolean) {
+    const memberIds = Array.from(new Set([...biaFormalParticipantIds(bia), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
+    for (const memberId of memberIds) await tx.execute(sql`
+      INSERT INTO agenda_tarefas (user_id, membro_id, titulo, descricao, data, prioridade, contexto_tipo, contexto_id, origem_tarefa_id)
+      SELECT id, ${memberId}, ${active ? "MAP Zero corrigido" : "Revise o MOU da BIA"},
+        ${active ? `A base da BIA ${bia.nome_bia} recebeu a revisão ${base.revisao}. Consulte o histórico do MAP.` : `O MAP Zero da BIA ${bia.nome_bia} mudou para a revisão ${base.revisao}. Aceite novamente em Notificações antes da ativação.`},
+        CURRENT_DATE, 'media', 'bia', ${String(bia.id)}, ${`map:${bia.id}:${base.revisao}`}
+      FROM users WHERE membro_directus_id = ${memberId}`);
+  }
+
+  mapBiaActivation = (biaId, data, operation) => withMapLock(biaId, async (tx, base) => {
+    if (!base || base.ativado_em) return operation();
+    const bia = { ...await directusFetchOne("bias_projetos", biaId, "fields=*"), ...data };
+    calculateInitialMap(Number(base.valor_origem), base.participantes);
+    if(Number(base.modelo_calculo)===3)validateInitialClassifications(base.participantes);
+    const signers = Array.from(new Set([...(base.origem_id ? [] : biaFormalParticipantIds(bia)), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
+    for (const memberId of signers) if (!await hasBiaMouAceito(biaId, memberId)) throw Object.assign(new Error("Todos os participantes precisam aceitar a revisão vigente do MAP Zero antes da ativação."), { statusCode: 409 });
+    if (!base.revisao) await archiveMapBase(tx, bia, base, `ativacao:${base.id}`, "MAP Zero na ativação");
+    const result = await operation();
+    await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET ativado_em = COALESCE(ativado_em, now()) WHERE bia_id = ${biaId}`);
+    return result;
+  });
+
+  async function draftMapParticipants(bia: any) {
+    const roles = collectBiaParticipantRoles(bia);
+    return Promise.all(Array.from(roles.entries()).filter(([, r]) => !r.every((role) => role === "terceiro")).map(async ([memberId, cargos]) => ({
+      participantId: `member:${memberId}`, memberId, nome: (await getMembroResumo(memberId))?.nome || "Participante",
+      cargos: cargos.map((role) => BIA_PARTICIPANT_ROLE_LABELS[role]), tipo: cargos.includes("socio_guardiao") ? "guardiao" : "multiplicador",
+      indiceContribuicao: null, pesoCapital: cargos.includes("socio_guardiao") ? null : 0,
+    } as unknown as InitialMapParticipantInput)));
+  }
+
+  async function archiveMapBase(tx: any, bia: any, base: any, eventId: string, reason: string) {
+    const version = await appendMapVersion(tx, { biaId: String(bia.id), tipo: "zero", base, rows: mapRowsFromBase(base),
+      eventId, reason, actor: mapActor(), biaName: bia.nome_bia || String(bia.id), footer: "" });
+    await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET revisao = ${Number(version.numero)} WHERE bia_id = ${String(bia.id)}`);
+    if (!base.revisao && base.snapshot_hash) await tx.execute(sql`UPDATE bia_mou_aceites SET map_revisao = ${Number(version.numero)}
+      WHERE bia_id = ${String(bia.id)} AND map_revisao = 0 AND map_inicial_hash = ${String(base.snapshot_hash)}`);
+    base.revisao = Number(version.numero);
+    return version;
+  }
+
+  async function syncStructuredMapParticipants(bia: any) {
+    return withMapLock(String(bia.id), async (tx, base) => {
+      if (!base || mapIsActive(bia, base)) return;
+      const candidates = await draftMapParticipants(bia);
+      const participants: any[] = [...(base.participantes || [])];
+      for (const candidate of candidates) {
+        const current = participants.find((p) => p.memberId === candidate.memberId);
+        if (current) current.cargos = Array.from(new Set([...(current.cargos || []), ...(candidate.cargos || [])]));
+        else participants.push(candidate);
+      }
+      const next = { ...base, participantes: participants };
+      // Clone the previous payload before comparing; never rewrite signed content.
+      const stored = await loadInitialMapSnapshot(String(bia.id), tx);
+      if (mapContentHash(mapBaseContent(stored)) === mapContentHash(mapBaseContent(next))) return;
+      if (!base.revisao && base.snapshot_hash) await archiveMapBase(tx, bia, stored, `preservado:${base.id}`, "MAP Zero assinado preservado");
+      await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET participantes = ${JSON.stringify(participants)}::jsonb,
+        status = 'rascunho', snapshot_hash = NULL, atualizado_em = now() WHERE bia_id = ${String(bia.id)}`);
+      await archiveMapBase(tx, bia, next, randomUUID(), "Participantes preenchidos pela estruturação; confira os índices e pesos");
+      await notifyMapRevision(tx, bia, next, false);
+    });
+  }
+
+  async function captureCurrentMap(tx: any, bia: any, base: any, eventId: string, reason: string, actor = mapActor()) {
+    const rows = await getBiaAllocationMap(bia, String(bia.id), { base, strict: true, executor: tx });
+    return appendMapVersion(tx, { biaId: String(bia.id), tipo: "atual", base, rows,
+      eventId, reason, actor, biaName: bia.nome_bia || String(bia.id), footer: MAP_DYNAMIC_FOOTER });
+  }
+
+  async function writeMapTransfer<T>(biaId: string, eventId: string, reason: string, operation: (tx: any) => Promise<T>): Promise<T> {
+    return withMapLock(biaId, async (tx, base) => {
+      if (!base) return operation(tx);
+      const bia = await directusFetchOne("bias_projetos", biaId, "fields=*");
+      await reconcilePendingMapEvents(tx, bia, base);
+      if (!base.revisao) await archiveMapBase(tx, bia, base, `preservado:${base.id}`, "Base preservada antes da transferência");
+      const before = await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx });
+      const result = await operation(tx);
+      const after = await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx });
+      if (mapContentHash(before) !== mapContentHash(after)) await captureCurrentMap(tx, bia, base, eventId, reason);
+      return result;
+    });
+  }
+  async function reconcilePendingMapEvents(tx: any, bia: any, base: any) {
+    const events = (await tx.execute(sql`SELECT * FROM bia_map_eventos WHERE bia_id = ${String(bia.id)} AND concluido_em IS NULL ORDER BY criado_em, id`)).rows;
+    if (events.length && !base.revisao) await archiveMapBase(tx, bia, base, `preservado:${base.id}`, "Base preservada antes da conciliação");
+    for (const event of events) {
+      const rows = await getBiaAllocationMap(bia, String(bia.id), { base, strict: true, executor: tx });
+      if (mapContentHash(rows) !== mapContentHash(event.antes)) {
+        await captureCurrentMap(tx, bia, base, String(event.id), String(event.motivo), event.autor);
+      }
+      await tx.execute(sql`UPDATE bia_map_eventos SET concluido_em = now() WHERE id = ${String(event.id)}`);
+    }
+  }
+
+  // Directus and PostgreSQL cannot share a transaction. A durable intent is reconciled
+  // under the same BIA lock before the next write (and by the recovery timer).
+  mapFinancialWrite = async (_collection, id, data, operation) => {
+    let before = id ? await directusFetchOne("fluxo_caixa", id, "fields=*") : null;
+    const biaId = directusRelationId(before?.bia || data?.bia);
+    if (!biaId) return mapOperationContext.run({ ...mapOperationContext.getStore(), tx: db }, operation);
+    const targetBia = directusRelationId(data?.bia);
+    if (before && targetBia && targetBia !== biaId && (await loadInitialMapSnapshot(biaId) || await loadInitialMapSnapshot(targetBia))) {
+      throw Object.assign(new Error("Não é permitido mover um lançamento entre BIAs com MAP Zero. Corrija o lançamento na BIA de origem."), { statusCode: 409 });
+    }
+    return withMapLock(biaId, async (tx, base) => {
+      if (!base) return operation();
+      if (id) before = await directusFetchOne("fluxo_caixa", id, "fields=*,Favorecido.*,Favorecido.cadastro_geral_id.*");
+      const bia = await directusFetchOne("bias_projetos", biaId, "fields=*");
+      await reconcilePendingMapEvents(tx, bia, base);
+      const rowsBefore = await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx });
+      const projected = await directusFetchScoped("fluxo_caixa", `fields=*,Favorecido.*,Favorecido.cadastro_geral_id.*&filter[bia][_eq]=${encodeURIComponent(biaId)}`);
+      const rows = projected.filter((entry: any) => String(entry.id) !== id);
+      if (data !== null) rows.push({ ...before, ...data, bia: biaId });
+      await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx, entries: rows });
+      if (!base.revisao && base.participantes?.length) await archiveMapBase(tx, bia, base, `preservado:${base.id}`, "Base preservada antes da movimentação");
+      const reason = id ? (data === null ? "Exclusão de lançamento" : "Atualização de lançamento") : "Novo lançamento";
+      const event = (await db.execute(sql`INSERT INTO bia_map_eventos (bia_id, motivo, autor, antes)
+        VALUES (${biaId}, ${reason}, ${JSON.stringify(mapActor())}::jsonb, ${JSON.stringify(rowsBefore)}::jsonb) RETURNING id`)).rows[0];
+      const result = await operation();
+      const after = await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx });
+      if (mapContentHash(rowsBefore) !== mapContentHash(after)) await captureCurrentMap(tx, bia, base, String(event.id), reason);
+      await tx.execute(sql`UPDATE bia_map_eventos SET concluido_em = now() WHERE id = ${String(event.id)}`);
+      return result;
+    });
+  };
+
+  const initialContributions = registerInitialContributions(app, {
+    db, lock: withMapLock,
+    access: (req, res, id, level) => requireBiaModuleAccess(req, res, id, "capital_financeiro", level),
+    fetchOne: directusFetchOne,
+    fetchEntries: (id) => directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(id)}&fields=*`),
+    create: (collection, data) => mapOperationContext.run({...mapOperationContext.getStore(),initialContributionWrite:true},()=>directusCreate(collection,data)),
+    update: (collection,id,data) => mapOperationContext.run({...mapOperationContext.getStore(),initialContributionWrite:true},()=>directusUpdate(collection,id,data)),
+    category: async (name,type) => {
+      const norm = (v: any) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+      const cats = await directusFetchScoped("Categorias","fields=id,Nome_da_categoria");
+      const existing = cats.find((c:any)=>norm(c.Nome_da_categoria)===norm(name));
+      if(existing) return String(existing.id);
+      return String((await directusCreate("Categorias",{Nome_da_categoria:name,Tipo_de_categoria:type})).id);
+    },
+  });
+  const mapRecoveryTimer = setInterval(async () => {
+    try {
+      await ensureBiaMapInicialSnapshotsTable();
+      await initialContributions.recover();
+      const pending = (await db.execute(sql`SELECT DISTINCT bia_id FROM bia_map_eventos WHERE concluido_em IS NULL`)).rows;
+      for (const event of pending) await withMapLock(String(event.bia_id), async (tx, base) => {
+        if (base) await reconcilePendingMapEvents(tx, await directusFetchOne("bias_projetos", String(event.bia_id), "fields=*"), base);
+      });
+    } catch { console.warn("[map-history] Conciliação pendente; nova tentativa no próximo ciclo."); }
+  }, 60_000);
+  mapRecoveryTimer.unref();
+
+  function initialMapHash(calculation: InitialMapCalculation, moeda: string) {
+    return createHash("sha256").update(JSON.stringify({ moeda, ...calculation })).digest("hex");
+  }
+
+  function initialMapSnapshotView(row: any) {
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      biaId: String(row.bia_id),
+      modeloCalculo: Number(row.modelo_calculo || 1),
+      origemId: row.origem_id ? String(row.origem_id) : null,
+      status: String(row.status),
+      valorOrigem: Number(row.valor_origem || 0),
+      moeda: String(row.moeda || "BRL"),
+      divisorMultiplicador: Number(row.divisor_multiplicador || 0),
+      baseEconomicaInicial: Number(row.base_economica_inicial || 0),
+      participantes: Array.isArray(row.participantes) ? row.participantes : [],
+      snapshotHash: row.snapshot_hash ? String(row.snapshot_hash) : null,
+      criadoEm: row.criado_em || null,
+      atualizadoEm: row.atualizado_em || null,
+      bloqueadoEm: row.bloqueado_em || null,
+      revisao: Number(row.revisao || 0),
+      ativadoEm: row.ativado_em || null,
+    };
+  }
+
+  async function loadInitialMapSnapshot(biaId: string, executor: any = mapOperationContext.getStore()?.tx || db, forUpdate = false) {
+    await ensureBiaMapInicialSnapshotsTable();
+    const query = forUpdate ? sql`
+      SELECT id, bia_id, origem_id, status, valor_origem::float8 AS valor_origem, moeda,
+             divisor_multiplicador::float8 AS divisor_multiplicador,
+             base_economica_inicial::float8 AS base_economica_inicial,
+             participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo
+      FROM bia_map_inicial_snapshots WHERE bia_id = ${biaId} LIMIT 1 FOR UPDATE
+    ` : sql`
+      SELECT id, bia_id, origem_id, status, valor_origem::float8 AS valor_origem, moeda,
+             divisor_multiplicador::float8 AS divisor_multiplicador,
+             base_economica_inicial::float8 AS base_economica_inicial,
+             participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo
+      FROM bia_map_inicial_snapshots WHERE bia_id = ${biaId} LIMIT 1
+    `;
+    const result = await executor.execute(query);
+    return result.rows?.[0] || null;
+  }
+
+  async function calculateSubmittedInitialMap(body: any, modeloCalculo: number) {
+      const rawParticipants = Array.isArray(body?.participantes) ? body.participantes : [];
+      const types = modeloCalculo === 3 ? await directusFetchScoped("Tipos_CPP", "fields=id,Nome") : [];
+      const resolveCpp = (value: any, required: boolean) => {
+        const found = types.find((t: any) => String(t.id) === String(value?.id));
+        if (required && !found) throw new Error("Selecione o tipo de CPP de cada componente na estruturação.");
+        return found ? {id:String(found.id),nome:String(found.Nome)} : undefined;
+      };
+      const participantes: InitialMapParticipantInput[] = await Promise.all(rawParticipants.map(async (item: any) => {
+        const memberId = String(item?.memberId || "").trim() || null;
+        const institutionCode = String(item?.institutionCode || "").trim().toUpperCase() || null;
+        if (!memberId && institutionCode !== "BUILT") {
+          const invalid: any = new Error("Escolha um membro ou a instituição BUILT para cada participante.");
+          invalid.statusCode = 400;
+          throw invalid;
+        }
+        const member = memberId ? (modeloCalculo === 3
+          ? await directusFetchOne("cadastro_geral", memberId, "fields=id,nome")
+          : await getMembroResumo(memberId)) : null;
+        if (memberId && !member) {
+          const invalid: any = new Error("Um dos membros informados não foi encontrado.");
+          invalid.statusCode = 400;
+          throw invalid;
+        }
+        return {
+          participantId: memberId ? `member:${memberId}` : "institution:BUILT",
+          memberId,
+          institutionCode,
+          nome: member?.nome || (institutionCode === "BUILT" ? "BUILT" : String(item?.nome || "Participante")),
+          cargos: Array.isArray(item?.cargos) ? item.cargos : [],
+          tipo: item?.tipo,
+          indiceContribuicao: item?.indiceContribuicao == null || item.indiceContribuicao === "" ? NaN : Number(item.indiceContribuicao),
+          pesoCapital: item?.pesoCapital == null || item.pesoCapital === "" ? NaN : Number(item.pesoCapital),
+          ...(modeloCalculo === 3 ? {
+            capitalComprometido: item.capitalComprometido == null || item.capitalComprometido === "" ? NaN : Number(item.capitalComprometido),
+            pesoCapital: 0,
+            naturezaCapital: ["caixa","nao_caixa"].includes(item.naturezaCapital) ? item.naturezaCapital : (()=>{throw new Error("Informe a natureza do capital.");})(),
+            tipoCppCapital: resolveCpp(item.tipoCppCapital, Number(item.capitalComprometido)>0),
+            tipoCppContribuicao: resolveCpp(item.tipoCppContribuicao, Number(item.indiceContribuicao)>0),
+          } : {}),
+        } as InitialMapParticipantInput;
+      }));
+    const calculation = calculateInitialMap(Number(body?.valorOrigem), participantes);
+    if (modeloCalculo === 3) validateInitialClassifications(calculation.participantes);
+    return calculation;
+  }
+
+  async function createInitialMapDraft(opts: {
+    biaId: string;
+    origemId?: string | null;
+    valorOrigem?: number;
+    moeda?: string;
+    participantes?: InitialMapParticipantInput[];
+    actorUserId?: string | null;
+    actorMembroId?: string | null;
+  }) {
+    await ensureBiaMapInicialSnapshotsTable();
+    const valorOrigem = Number(opts.valorOrigem || 0);
+    const participantes = (opts.participantes || []).map(p => ({...p,
+      capitalComprometido: p.capitalComprometido ?? (p.tipo === "multiplicador" ? 0 : p.pesoCapital == null ? undefined : Number((valorOrigem * p.pesoCapital / 100).toFixed(5))),
+      naturezaCapital: p.naturezaCapital ?? (opts.origemId ? "nao_caixa" : "caixa"),
+    }));
+    const complete = participantes.length > 0 && participantes.every((p) => p.indiceContribuicao != null && p.pesoCapital != null);
+    const calculated = valorOrigem > 0 && complete ? calculateInitialMap(valorOrigem, participantes) : null;
+    return withMapLock(opts.biaId, async (tx) => {
+    const result = await tx.execute(sql`
+      INSERT INTO bia_map_inicial_snapshots (
+        bia_id, origem_id, status, valor_origem, moeda, divisor_multiplicador,
+        base_economica_inicial, participantes, criado_por_user_id, criado_por_membro_id, modelo_calculo
+      ) VALUES (
+        ${opts.biaId}, ${opts.origemId || null}, 'rascunho', ${valorOrigem}, ${String(opts.moeda || "BRL")},
+        ${calculated?.divisorMultiplicador || 0}, ${calculated?.baseEconomicaInicial || 0},
+        ${JSON.stringify(calculated?.participantes || participantes)}::jsonb, ${opts.actorUserId || null}, ${opts.actorMembroId || null}, 3
+      )
+      ON CONFLICT (bia_id) DO NOTHING
+      RETURNING *
+    `);
+    const draft = result.rows?.[0];
+    if (draft && calculated) await archiveMapBase(tx,
+      await directusFetchOne("bias_projetos", opts.biaId, "fields=*"), draft, `criacao:${draft.id}`, "MAP Zero criado na estruturação");
+    return loadInitialMapSnapshot(opts.biaId, tx);
+    });
+  }
+
+  async function createMouAcceptanceWithInitialMap(opts: {
+    biaId: string;
+    membroId: string;
+    dadosContratuais: Record<string, unknown>;
+    aceiteLocalizacao: Record<string, unknown>;
+    actorUserId?: string | null;
+  }) {
+    await ensureBiaMapInicialSnapshotsTable();
+    return withMapLock(opts.biaId, async (tx) => {
+      const snapshotResult = await tx.execute(sql`
+        SELECT * FROM bia_map_inicial_snapshots WHERE bia_id = ${opts.biaId} LIMIT 1 FOR UPDATE
+      `);
+      const snapshot: any = snapshotResult.rows?.[0] || null;
+      let snapshotId: string | null = null;
+      let snapshotHash: string | null = null;
+      let dadosContratuais: Record<string, unknown> = opts.dadosContratuais;
+
+      if (snapshot) {
+        if (!snapshot.revisao) throw Object.assign(new Error("Revise e salve o MAP Zero antes de coletar novos aceites."), { statusCode: 409 });
+        assertMapRevision(Number(snapshot.revisao || 0), mapOperationContext.getStore()?.req?.body?.map_revisao);
+        let calculation: InitialMapCalculation;
+        try {
+          calculation = calculateInitialMap(Number(snapshot.valor_origem), Array.isArray(snapshot.participantes) ? snapshot.participantes : []);
+          if(Number(snapshot.modelo_calculo)===3)validateInitialClassifications(calculation.participantes);
+        } catch (error: any) {
+          const invalid: any = new Error(`O MAP Zero precisa ser concluído antes do primeiro aceite: ${error.message}`);
+          invalid.statusCode = 409;
+          throw invalid;
+        }
+        const calculatedHash = initialMapHash(calculation, String(snapshot.moeda || "BRL"));
+        if (snapshot.status === "bloqueado" && snapshot.snapshot_hash && snapshot.snapshot_hash !== calculatedHash) {
+          const inconsistent: any = new Error("O MAP Zero bloqueado não corresponde às evidências gravadas.");
+          inconsistent.statusCode = 409;
+          throw inconsistent;
+        }
+        snapshotId = String(snapshot.id);
+        snapshotHash = String(snapshot.snapshot_hash || calculatedHash);
+        if (snapshot.status !== "bloqueado") {
+          await tx.execute(sql`
+            UPDATE bia_map_inicial_snapshots
+            SET status = 'bloqueado', valor_origem = ${calculation.valorOrigem},
+                divisor_multiplicador = ${calculation.divisorMultiplicador},
+                base_economica_inicial = ${calculation.baseEconomicaInicial},
+                participantes = ${JSON.stringify(calculation.participantes)}::jsonb,
+                snapshot_hash = ${snapshotHash}, bloqueado_em = now(), atualizado_em = now(),
+                bloqueado_por_user_id = ${opts.actorUserId || null}, bloqueado_por_membro_id = ${opts.membroId}
+            WHERE id = ${snapshotId} AND status = 'rascunho'
+          `);
+        }
+        dadosContratuais = {
+          ...dadosContratuais,
+          map_inicial: { snapshot_id: snapshotId, hash: snapshotHash, versao: Number(snapshot.revisao), snapshot: mapBaseContent(snapshot) },
+          documento_texto: await getBiaMouTextoPersonalizado(opts.biaId),
+        };
+      }
+
+      await tx.execute(sql`
+        INSERT INTO bia_mou_aceites (
+          bia_id, membro_id, mou_versao, mou_titulo, dados_contratuais,
+          aceite_localizacao, map_inicial_snapshot_id, map_inicial_hash, map_revisao
+        ) VALUES (
+          ${opts.biaId}, ${opts.membroId}, ${BIA_MOU_VERSAO}, ${BIA_MOU_TITULO},
+          ${JSON.stringify(dadosContratuais)}::jsonb, ${JSON.stringify(opts.aceiteLocalizacao)}::jsonb,
+          ${snapshotId}, ${snapshotHash}, ${Number(snapshot?.revisao || 0)}
+        ) ON CONFLICT (bia_id, membro_id, mou_versao, map_revisao) DO NOTHING
+      `);
+      return { snapshotId, snapshotHash };
+    });
+  }
+
+  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any, aceiteLocalizacao?: any, actorUserId?: string | null) {
+    return withMapLock(biaId, async () => {
+    if (await hasBiaMouAceito(biaId, membroId)) return { ok: true };
     if (!aceitarMou) {
       const biaResumo = await directusFetchOne(
         "bias_projetos",
@@ -7394,6 +7865,7 @@ export async function registerRoutes(
             bia_id: biaId,
             bia_nome: biaResumo?.nome_bia || null,
             texto: await getBiaMouTextoPersonalizado(biaId),
+            map_revisao: Number((await loadInitialMapSnapshot(biaId))?.revisao || 0),
           },
         },
       };
@@ -7417,23 +7889,33 @@ export async function registerRoutes(
         },
       };
     }
-    await storage.createBiaMouAceite({
-      bia_id: biaId,
-      membro_id: membroId,
-      mou_versao: BIA_MOU_VERSAO,
-      mou_titulo: BIA_MOU_TITULO,
-      dados_contratuais: dadosCheck.data,
-      aceite_localizacao: capturedLocation as any,
-    });
+    try {
+      await createMouAcceptanceWithInitialMap({
+        biaId,
+        membroId,
+        dadosContratuais: dadosCheck.data,
+        aceiteLocalizacao: capturedLocation as any,
+        actorUserId: actorUserId || null,
+      });
+    } catch (error: any) {
+      if (error?.statusCode) return { ok: false, statusCode: error.statusCode, response: { error: error.message } };
+      throw error;
+    }
     await ensureVitrineFields();
     await directusUpdate("cadastro_geral", membroId, pickBiaDadosContratuaisCadastro(dadosCheck.data)).catch((error: any) => {
       console.error("[bia-mou] erro ao salvar dados contratuais no cadastro:", error?.message || error);
     });
     return { ok: true };
+    });
   }
 
   async function hasBiaMouAceito(biaId: string, membroId: string) {
-    return !!(await storage.getBiaMouAceite(biaId, membroId, BIA_MOU_VERSAO));
+    const base = await loadInitialMapSnapshot(biaId);
+    const active = !!base && (!!base.ativado_em || mapIsActive(await directusFetchOne("bias_projetos", biaId, "fields=situacao"), base));
+    const executor = mapOperationContext.getStore()?.tx || db;
+    const accepted = await executor.execute(sql`SELECT id FROM bia_mou_aceites WHERE bia_id = ${biaId} AND membro_id = ${membroId}
+      AND mou_versao = ${BIA_MOU_VERSAO} AND (${!base || active} OR map_revisao = ${Number(base?.revisao || 0)}) LIMIT 1`);
+    return !!accepted.rows[0];
   }
 
   async function createDiretorSolicitacao(params: {
@@ -7503,7 +7985,7 @@ export async function registerRoutes(
       );
 
       if (currentDiretor && currentDiretor === requestedDiretor) {
-        const mouAceito = await storage.getBiaMouAceite(opts.biaId, requestedDiretor, BIA_MOU_VERSAO);
+        const mouAceito = await hasBiaMouAceito(opts.biaId, requestedDiretor);
         if (mouAceito) {
           if (opts.payload) {
             opts.payload[config.campoDiretor] = requestedDiretor;
@@ -8268,7 +8750,7 @@ export async function registerRoutes(
   function buildSimpleTextPdf(
     title: string,
     sections: Array<{ title: string; body: string }>,
-    options: { headerLabel?: string; footerLabel?: string } = {}
+    options: { headerLabel?: string; footerLabel?: string; documentDate?: string | Date } = {}
   ): Buffer {
     const pages: string[][] = [];
     let ops: string[] = [];
@@ -8281,6 +8763,7 @@ export async function registerRoutes(
     const footerOfficialImage = loadMouAssetPngForPdf("built-official-document.png");
     const footerCertifiedImage = loadMouAssetPngForPdf("built-certified-alliance.png");
     const footerLimit = options.footerLabel ? 104 : 54;
+    let omitMapFooter = false;
 
     const text = (value: string, x: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
       ops.push(`BT /${font} ${size} Tf ${color} rg ${x} ${yy} Td ${pdfHex(value)} Tj ET`);
@@ -8462,9 +8945,9 @@ export async function registerRoutes(
       }
       const headerRight = 505;
       textRight(options.headerLabel || "MOU PADRÃO BUILT", headerRight, 804, 11, "F2", navy);
-      textRight(new Date().toLocaleDateString("pt-BR"), headerRight, 788, 8, "F1", "0 0 0");
+      textRight(new Date(options.documentDate || Date.now()).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }), headerRight, 788, 8, "F1", "0 0 0");
       rect(0, 764, 595, 3, gold);
-      if (options.footerLabel) {
+      if (options.footerLabel && !omitMapFooter) {
         line(42, 94, 553, 94, "0.86 0.78 0.62", 0.7);
         const footerSealSize = 50;
         const footerSealY = 31;
@@ -8606,16 +9089,23 @@ export async function registerRoutes(
     y -= 28;
 
     for (const [sectionIndex, section] of sections.entries()) {
+      omitMapFooter = section.body.includes("MAP Zero |");
       if (sectionIndex > 0) newPage();
       sectionTitle(section.title);
       const rawParagraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
       const paragraphs = splitPdfParagraphs(section.body);
       const normalizedSectionTitle = normalizePdfText(section.title);
-      if (normalizedSectionTitle.includes("Mapa de Aloca\u00E7\u00E3o") || normalizedSectionTitle.includes("Mapa de Alocacao")) {
+      if (!rawParagraphs.some((item) => item.startsWith("MAP Zero |")) && (normalizedSectionTitle.includes("Mapa de Aloca\u00E7\u00E3o") || normalizedSectionTitle.includes("Mapa de Alocacao"))) {
         const tableStart = rawParagraphs.findIndex((item) => item.includes("Aloca\u00E7\u00E3o") || item.includes("Alocacao"));
-        const intro = tableStart >= 0 ? rawParagraphs.slice(0, tableStart) : rawParagraphs.slice(0, 5);
+        const mapInitialDetails = rawParagraphs.filter((item) => item.startsWith("MAP Zero |"));
+        const intro = (tableStart >= 0 ? rawParagraphs.slice(0, tableStart) : rawParagraphs.slice(0, 5))
+          .filter((item) => !item.startsWith("MAP Zero |"));
         infoBox(intro);
         allocationTable(rawParagraphs);
+        if (mapInitialDetails.length) {
+          paragraph("Composição preservada do MAP Zero", { font: "F2", color: navy, size: 10.5 });
+          for (const detail of mapInitialDetails) paragraph(detail.replace(/^MAP Zero \|\s*/, ""), { color: slate, width: 96 });
+        }
         const last = rawParagraphs[rawParagraphs.length - 1];
         if (last && last.includes("Este mapa")) paragraph(last, { color: slate, width: 96 });
         y -= 18;
@@ -8968,7 +9458,8 @@ export async function registerRoutes(
     } catch (error: any) {
       console.warn("[bia-mou-padrao] Banco local indisponivel para aceites do MOU:", error?.message || error);
     }
-    const aceiteByMember = new Map(aceites.map((aceite: any) => [String(aceite.membro_id), aceite]));
+    const currentBase = await loadInitialMapSnapshot(biaId);
+    const aceiteByMember = new Map(aceites.filter((aceite: any) => !currentBase || Number(aceite.map_revisao) === Number(currentBase.revisao)).map((aceite: any) => [String(aceite.membro_id), aceite]));
     const fields = [
       "id", "nome", "nome_completo", "Nome_de_usuario", "email", "telefone", "whatsapp", "cpf", "CPF", "cargo", "cep", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais",
       "nacionalidade", "nome_mae", "nome_pai", "data_nascimento", "profissao", "rg", "estado_civil", "regime_comunhao",
@@ -9048,7 +9539,9 @@ export async function registerRoutes(
     percent: number;
   };
 
-  async function getBiaAllocationMap(bia: any, biaId: string): Promise<MouAllocationRow[]> {
+  async function getBiaAllocationMap(bia: any, biaId: string, options: { base?: any; strict?: boolean; entries?: any[]; transfers?: any[]; executor?: any } = {}): Promise<MouAllocationRow[]> {
+    const initialSnapshot = options.base === undefined ? await loadInitialMapSnapshot(biaId) : options.base;
+    const strict = options.strict ?? !!initialSnapshot;
     const memberName = (value: any) => {
       if (value && typeof value === "object") {
         return value.Nome_de_usuario || value.nome || value.nome_completo || value.razao_social || value.email || value.id || "Membro desconhecido";
@@ -9070,16 +9563,18 @@ export async function registerRoutes(
     };
     let allEntries: any[] = [];
     try {
-      allEntries = await directusFetchScoped(
+      allEntries = options.entries ?? await directusFetchScoped(
         "fluxo_caixa",
         `fields=id,bia,tipo,valor,descricao,status,favorecido_id,Favorecido,Favorecido.*,Favorecido.cadastro_geral_id.*&filter[bia][_eq]=${encodeURIComponent(biaId)}`
       );
     } catch (error: any) {
+      if (strict) throw error;
       console.warn("[bia-mou-padrao] Consulta MAP com Favorecido indisponivel, tentando favorecido_id:", error?.message || error);
       allEntries = await directusFetchScoped(
         "fluxo_caixa",
         `fields=id,bia,tipo,valor,descricao,status,favorecido_id&filter[bia][_eq]=${encodeURIComponent(biaId)}`
       ).catch((fallbackError: any) => {
+        if (strict) throw fallbackError;
         console.warn("[bia-mou-padrao] Nao foi possivel buscar fluxo_caixa para o MAP:", fallbackError?.message || fallbackError);
         return [];
       });
@@ -9088,6 +9583,7 @@ export async function registerRoutes(
 
     const contributions: Array<{ memberId: string; name: string; value: number; status: string }> = [];
     for (const entry of entries) {
+      if (!isAdditionalContribution(entry)) continue;
       if (entry?.tipo !== "entrada") continue;
       if (entry?.descricao === "Valor de Origem da BIA") continue;
       const favorecido = relationMember(entry?.favorecido_id) || relationMember(entry?.Favorecido);
@@ -9098,21 +9594,34 @@ export async function registerRoutes(
 
     let transferencias: any[] = [];
     try {
-      transferencias = await storage.getTransferenciasCotasByBia(biaId);
+      transferencias = options.transfers ?? (options.executor
+        ? (await options.executor.execute(sql`SELECT * FROM transferencias_cotas WHERE bia_id = ${biaId} ORDER BY criado_em, id`)).rows
+        : await storage.getTransferenciasCotasByBia(biaId));
     } catch (error: any) {
+      if (strict) throw error;
       console.warn("[bia-mou-padrao] Transferencias de cotas indisponiveis para o MAP:", error?.message || error);
     }
 
     const guardioes = new Set(parseBiaMemberList(bia.socios_guardioes));
     const multiplicadores = new Set(parseBiaMemberList(bia.socios_multiplicadores));
-    const originResult = await db.execute(sql`
-      SELECT membro_id, nome, papel, valor::float8 AS valor
-      FROM bia_map_origem_alocacoes WHERE bia_id = ${biaId}
-    `).catch(() => ({ rows: [] } as any));
-    let originAllocations = (originResult.rows || []).map((row: any) => ({
-      memberId: String(row.membro_id), name: String(row.nome || "Membro"), value: Number(row.valor || 0), papel: String(row.papel || ""),
-    }));
-    if (!originAllocations.length) {
+    let originAllocations = initialSnapshot
+      ? (Array.isArray(initialSnapshot.participantes) ? initialSnapshot.participantes : [])
+        .filter((item: any) => Number(item.cppTotal || 0) > 0)
+        .map((item: any) => ({
+          memberId: String(item.memberId || item.participantId), name: String(item.nome || "Membro"),
+          value: Number(item.cppTotal || 0), papel: String(item.tipo || ""),
+        }))
+      : [];
+    if (!initialSnapshot) {
+      const originResult = await db.execute(sql`
+        SELECT membro_id, nome, papel, valor::float8 AS valor
+        FROM bia_map_origem_alocacoes WHERE bia_id = ${biaId}
+      `).catch(() => ({ rows: [] } as any));
+      originAllocations = (originResult.rows || []).map((row: any) => ({
+        memberId: String(row.membro_id), name: String(row.nome || "Membro"), value: Number(row.valor || 0), papel: String(row.papel || ""),
+      }));
+    }
+    if (!initialSnapshot && !originAllocations.length) {
       const proposed = await db.execute(sql`
         SELECT * FROM bia_imovel_origens WHERE bia_id = ${biaId} AND status IN ('aguardando_aprovacao', 'aguardando_mou') LIMIT 1
       `).catch(() => ({ rows: [] } as any));
@@ -9140,7 +9649,7 @@ export async function registerRoutes(
       return name;
     };
 
-    const acceptedTransfers = transferencias.map((transfer: any) => ({
+    const acceptedTransfers = [...transferencias].sort((a: any, b: any) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime() || String(a.id).localeCompare(String(b.id))).map((transfer: any) => ({
       status: transfer.status,
       fromMemberId: String(transfer.membro_origem_id || ""),
       toMemberId: String(transfer.membro_destino_id || ""),
@@ -9150,7 +9659,7 @@ export async function registerRoutes(
       if (!roleByMember.has(transfer.toMemberId)) roleByMember.set(transfer.toMemberId, roleByMember.get(transfer.fromMemberId) || "NÃ£o classificados");
     }
 
-    const rowsBase = calculateMap(contributions, acceptedTransfers, originAllocations);
+    const rowsBase = calculateMap(contributions, acceptedTransfers, originAllocations, strict);
     for (const item of rowsBase) {
       const currentName = String(item.name || "").trim();
       if (
@@ -9177,7 +9686,15 @@ export async function registerRoutes(
       });
   }
 
-  function buildAnexoIIMapa(bia: any, biaId: string, allocationRows: MouAllocationRow[]) {
+  function buildAnexoIIMapa(bia: any, biaId: string, allocationRows: MouAllocationRow[], initialSnapshot?: any | null) {
+    if (initialSnapshot) return [
+      `BIA: ${mouValue(bia.nome_bia)}`, `ID da BIA: ${biaId}`,
+      `MAP Zero — revisão ${Number(initialSnapshot.revisao || 0)}`,
+      `Valor de Origem: ${formatPdfMoney(Number(initialSnapshot.valor_origem), initialSnapshot.moeda)}`,
+      `Divisor Multiplicador: ${formatPdfPercent(Number(initialSnapshot.divisor_multiplicador))}`,
+      `Base Econômica Inicial (BEI): ${formatPdfMoney(Number(initialSnapshot.base_economica_inicial), initialSnapshot.moeda)}`,
+      ...(initialSnapshot.participantes || []).map((p: any) => `MAP Zero | ${p.nome} | Cargos: ${(p.cargos || []).join(", ")} | ${p.tipo === "guardiao" ? "Guardião" : "Multiplicador"} | Índice: ${formatPdfPercent(p.indiceContribuicao)} | Peso: ${formatPdfPercent(p.pesoCapital)} | ${p.tipoCppContribuicao?.nome || "CPP Origem"}: ${formatPdfMoney(p.cppOrigem, initialSnapshot.moeda)} | ${p.tipoCppCapital?.nome || "CPP Capital"}: ${formatPdfMoney(p.cppCapital, initialSnapshot.moeda)} | CPP Total: ${formatPdfMoney(p.cppTotal, initialSnapshot.moeda)} | MAP: ${formatPdfPercent(p.mapPercentual)}`),
+    ].join("\n");
     const moeda = bia.moeda || "BRL";
     const total = allocationRows.reduce((sum, row) => sum + row.value, 0);
     const rows = allocationRows.length
@@ -9229,7 +9746,8 @@ export async function registerRoutes(
         ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
       };
       const participants = await getMouParticipantsForBia(biaComInfo, req.params.id);
-      const allocationRows = await getBiaAllocationMap(biaComInfo, req.params.id);
+      const initialSnapshot = await loadInitialMapSnapshot(req.params.id);
+      const allocationRows = initialSnapshot ? [] : await getBiaAllocationMap(biaComInfo, req.params.id);
       const mouPadraoBase = readMouAsset("mou-padrao-built.txt") || "MOU PadrÃ£o BUILT nÃ£o localizado nos assets do servidor.";
       const mouPadrao = personalizarBiaMouTexto(mouPadraoBase, req.params.id, biaComInfo);
       const anexoIII = readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III nÃ£o localizado nos assets do servidor.";
@@ -9237,7 +9755,7 @@ export async function registerRoutes(
       const sections = [
         { title: "MOU PadrÃ£o BUILT", body: mouPadrao },
         { title: "Anexo I - QualificaÃ§Ã£o das Partes", body: buildAnexoIQualificacao(biaComInfo, req.params.id, participants) },
-        { title: "Anexo II - Mapa de Aloca\u00E7\u00E3o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
+        { title: "Anexo II - Mapa de Aloca\u00E7\u00E3o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows, initialSnapshot) },
         { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: anexoIII },
         { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: anexoIV },
       ];
@@ -9699,6 +10217,7 @@ export async function registerRoutes(
       let sections: Array<{ title: string; body: string }> = [];
       let footerLabel: string | undefined;
       if (documento.tipo === "mou") {
+        const captured: any = (await db.execute(sql`SELECT dados_contratuais FROM bia_mou_aceites WHERE id::text = ${documento.id.replace(/^mou-/, "")} AND membro_id = ${String((req.session as any).membroId)}`)).rows[0]?.dados_contratuais;
         const biaNome = String(documento.bia_nome || "").replace(/\s+/g, " ").replace(/^BIA\s+/i, "").trim();
         sections = [
           {
@@ -9721,6 +10240,8 @@ export async function registerRoutes(
             body: "Este comprovante registra que a pessoa indicada aceitou eletronicamente o MOU PadrÃ£o BUILT vinculado Ã  BIA informada na plataforma BUILT. O documento completo permanece vinculado aos registros formais da respectiva AlianÃ§a, seus anexos, deliberaÃ§Ãµes internas e instrumentos jurÃ­dicos especÃ­ficos.",
           },
         ];
+        if (captured?.documento_texto) sections.push({ title: "Documento apresentado para aceite", body: captured.documento_texto });
+        if (captured?.map_inicial) sections.push({ title: "Evidência do MAP Zero", body: `Revisão: ${captured.map_inicial.versao}\nHash: ${captured.map_inicial.hash}` });
       } else {
         const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
         const body = (documento.chave === "codigo_etica" ? codigoEticaPorVersao(documento.versao) : term?.body) || [
@@ -9747,6 +10268,7 @@ export async function registerRoutes(
 
       const pdf = buildSimpleTextPdf(documento.titulo, sections, {
         headerLabel: "COMPROVANTE BUILT",
+        documentDate: documento.aceito_em || undefined,
         ...(footerLabel ? { footerLabel } : {}),
       });
       const filename = `${documento.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "documento-aceito"}.pdf`;
@@ -10126,10 +10648,148 @@ export async function registerRoutes(
         SELECT membro_id, nome, papel, percentual::float8 AS percentual, valor::float8 AS valor, moeda
         FROM bia_map_origem_alocacoes WHERE bia_id = ${String(item.id)} ORDER BY criado_em
       `).catch(() => ({ rows: [] } as any));
-      res.json({ ...resolveAnexosBia([item])[0], imovel_origem: origin.rows?.[0] || null, map_origem: originMap.rows || [] });
+      const initialMap = await loadInitialMapSnapshot(String(item.id));
+      res.json({ ...resolveAnexosBia([item])[0], imovel_origem: origin.rows?.[0] || null, map_origem: originMap.rows || [], map_inicial: initialMapSnapshotView(initialMap) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  app.get("/api/bias/:id/map-inicial", async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Você não tem acesso a esta BIA" });
+      const snapshot = await loadInitialMapSnapshot(String(bia.id));
+      if (!snapshot) return res.status(404).json({ error: "Esta BIA utiliza o cálculo legado.", code: "LEGACY_BIA_MAP" });
+      const active = mapIsActive(bia, snapshot);
+      const access = await resolveBiaAccessForRequest(bia, req);
+      return res.json({ ...initialMapSnapshotView(snapshot), ativa: active,
+        canEdit: active ? canCorrectMapBase(bia, (req.session as any).membroId) : hasBiaAccess(access.permissions, "configuracao_bia", "edit") });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/bias/:id/map-inicial", async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada" });
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      const baseBefore = await loadInitialMapSnapshot(String(bia.id));
+      if (mapIsActive(bia, baseBefore)) {
+        if (!canCorrectMapBase(bia, (req.session as any).membroId)) return res.status(403).json({ error: "Somente o Diretor da Aliança ou o Aliado BUILT desta BIA podem corrigir o MAP Zero." });
+      } else if (!await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
+      const calculation = await calculateSubmittedInitialMap(req.body, Number(baseBefore?.modelo_calculo));
+      const moeda = String(req.body?.moeda || bia.moeda || "BRL").trim().toUpperCase() || "BRL";
+      const saved = await withMapLock(String(bia.id), async (tx, current) => {
+        if (!current) {
+          const legacy: any = new Error("Esta BIA utiliza o cálculo legado.");
+          legacy.statusCode = 404;
+          throw legacy;
+        }
+        assertMapRevision(Number(current.revisao || 0), req.body?.revisaoEsperada);
+        const freshBia = await directusFetchOne("bias_projetos", String(bia.id), "fields=*");
+        const active = mapIsActive(freshBia, current);
+        if (active && !canCorrectMapBase(freshBia, (req.session as any).membroId)) throw Object.assign(new Error("Correção não autorizada."), { statusCode: 403 });
+        const reason = String(req.body?.motivo || "").trim();
+        if (active && !reason) throw Object.assign(new Error("Informe o motivo da correção."), { statusCode: 400 });
+        await reconcilePendingMapEvents(tx, freshBia, current);
+        const nextBase = { ...current, valor_origem: calculation.valorOrigem, moeda,
+          divisor_multiplicador: calculation.divisorMultiplicador, base_economica_inicial: calculation.baseEconomicaInicial,
+          participantes: calculation.participantes };
+        if(Number(current.modelo_calculo)===3) {
+          validateInitialClassifications(calculation.participantes);
+          await assertInitialCommitmentsCompatible(tx,String(bia.id),nextBase,await directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=*`));
+        }
+        if (current.revisao && mapContentHash(mapBaseContent(current)) === mapContentHash(mapBaseContent(nextBase))) return current;
+        if (current.snapshot_hash && !current.revisao) await archiveMapBase(tx, freshBia, current, `preservado:${current.id}`, "MAP Zero assinado preservado");
+        await getBiaAllocationMap(freshBia, String(bia.id), { base: nextBase, strict: true, executor: tx });
+        const result = await tx.execute(sql`
+          UPDATE bia_map_inicial_snapshots
+          SET valor_origem = ${calculation.valorOrigem}, moeda = ${moeda},
+              divisor_multiplicador = ${calculation.divisorMultiplicador},
+              base_economica_inicial = ${calculation.baseEconomicaInicial},
+              participantes = ${JSON.stringify(calculation.participantes)}::jsonb,
+              snapshot_hash = ${initialMapHash(calculation, moeda)}, atualizado_em = now(),
+              status = ${active ? "bloqueado" : "rascunho"}
+          WHERE id = ${String(current.id)}
+          RETURNING id, bia_id, origem_id, status, valor_origem::float8 AS valor_origem, moeda,
+                    divisor_multiplicador::float8 AS divisor_multiplicador,
+                    base_economica_inicial::float8 AS base_economica_inicial,
+                    participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo
+        `);
+        const updated: any = result.rows[0];
+        const eventId = randomUUID();
+        await archiveMapBase(tx, freshBia, updated, eventId, reason || "Revisão durante a estruturação");
+        if (active) await captureCurrentMap(tx, freshBia, updated, eventId, reason);
+        await notifyMapRevision(tx, freshBia, updated, active);
+        return updated;
+      });
+      if (!saved) return res.status(409).json({ error: "O MAP Zero foi alterado por outra operação. Recarregue a página." });
+      let directusSync: "ok" | "pending" = "ok";
+      await withMapLock(String(bia.id), async (_tx, latest) => directusUpdate("bias_projetos", String(bia.id), {
+        valor_origem: Number(latest.valor_origem),
+        divisor_multiplicador: Number(latest.divisor_multiplicador),
+        custo_origem_bia: Number(latest.base_economica_inicial),
+        custo_final_previsto: Number((Number(latest.base_economica_inicial) - Number(latest.valor_origem)).toFixed(5)),
+      })).catch(() => {
+        directusSync = "pending";
+        console.warn("[bia-map-inicial] MAP Zero salvo; espelho Directus pendente.");
+      });
+      return res.json({ ...initialMapSnapshotView(saved), directusSync, canEdit: true, ativa: mapIsActive(bia, saved) });
+    } catch (error: any) {
+      return res.status(error?.statusCode || 400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:id/map", async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Você não tem acesso a esta BIA" });
+      const result = await withMapLock(String(bia.id), async (tx, snapshot) => {
+        const current = await getBiaAllocationMap(bia, String(bia.id), { base: snapshot, executor: tx });
+        const version = snapshot ? (await tx.execute(sql`SELECT id, numero, criado_em FROM bia_map_versoes WHERE bia_id = ${String(bia.id)} AND tipo = 'atual' ORDER BY numero DESC LIMIT 1`)).rows[0] : null;
+        return { inicial: initialMapSnapshotView(snapshot), atual: current, versaoVigente: version || null };
+      });
+      return res.json(result);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:id/map/versoes", async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
+      const result = await db.execute(sql`SELECT id, tipo, numero, revisao_base, hash, motivo, autor, criado_em FROM bia_map_versoes
+        WHERE bia_id = ${String(bia.id)} ORDER BY criado_em DESC, tipo, numero DESC`);
+      res.json(result.rows);
+    } catch { res.status(503).json({ error: "Não foi possível carregar o histórico." }); }
+  });
+
+  app.get(["/api/bias/:id/map/versoes/:versionId", "/api/bias/:id/map/versoes/:versionId/pdf"], async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(String(req.params.id), "*");
+      if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
+      const version: any = (await db.execute(sql`SELECT * FROM bia_map_versoes WHERE id::text = ${String(req.params.versionId)} AND bia_id = ${String(bia.id)}`)).rows[0];
+      if (!version) return res.status(404).json({ error: "Versão não encontrada" });
+      if (!req.path.endsWith("/pdf")) return res.json(version);
+      const snapshot = version.snapshot;
+      const title = version.tipo === "zero" ? `MAP Zero — revisão ${version.numero}` : `MAP ${version.numero}`;
+      const body = [snapshot.biaName, `Data: ${new Date(version.criado_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
+        `Responsável: ${version.autor.name || "Sistema"}`, `Motivo: ${version.motivo}`, `Revisão da base: ${version.revisao_base}`,
+        `Hash: ${version.hash}`, `Valor de Origem: ${formatPdfMoney(Number(snapshot.base.valor_origem), snapshot.base.moeda)}`,
+        `DM: ${formatPdfPercent(Number(snapshot.base.divisor_multiplicador))}`, `BEI: ${formatPdfMoney(Number(snapshot.base.base_economica_inicial), snapshot.base.moeda)}`,
+        ...snapshot.rows.map((row: any) => `${row.name} | ${row.group || ""} | ${formatPdfMoney(row.value, snapshot.base.moeda)} | ${formatPdfPercent(row.percent)}`),
+        ...(version.tipo === "zero" ? snapshot.base.participantes.map((p: any) => `${p.nome} | Cargos: ${(p.cargos || []).join(", ")} | Índice: ${formatPdfPercent(p.indiceContribuicao)} | Peso: ${formatPdfPercent(p.pesoCapital)} | ${p.tipoCppContribuicao?.nome || "CPP Origem"}: ${formatPdfMoney(p.cppOrigem, snapshot.base.moeda)} | ${p.tipoCppCapital?.nome || "CPP Capital"}: ${formatPdfMoney(p.cppCapital, snapshot.base.moeda)}`) : [])].join("\n");
+      const pdf = buildSimpleTextPdf(title, [{ title, body: [body, snapshot.footer].filter(Boolean).join("\n\n") }], { headerLabel: "MAP BUILT", documentDate: version.criado_em });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="map-${version.tipo}-${version.numero}.pdf"`);
+      res.setHeader("Cache-Control", "private, no-store");
+      res.send(pdf);
+    } catch { res.status(503).json({ error: "Não foi possível consultar a versão." }); }
   });
 
   function prepareBiaPayload(body: Record<string, any>): Record<string, any> {
@@ -10352,6 +11012,7 @@ export async function registerRoutes(
 
       // Create the BIA in Directus
       const createBody = { ...req.body };
+      delete createBody.map_inicial;
       createBody.situacao = "em_formacao";
       createBody.bia_publica = false;
       if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
@@ -10370,9 +11031,56 @@ export async function registerRoutes(
         }
         if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
       }
-      const createPayload = withUpdatedBiaFinancials(withUpdatedBiaDm(prepareBiaPayload(createBody), null), null);
+      let initialMap: InitialMapCalculation | null = null;
+      if (req.body.map_inicial !== undefined) {
+        try {
+          initialMap = await calculateSubmittedInitialMap(req.body.map_inicial, 3);
+          // Older clients omit cargos; the new single-roster form sends canonical roles.
+          if (initialMap.participantes.some(p => p.cargos?.length)) {
+            const team = biaTeamFromMapParticipants(initialMap.participantes);
+            for (const field of Object.values(BIA_PARTICIPANT_ROLE_FIELDS)) {
+              if (team[field] !== (directusRelationId(createBody[field]) || null))
+                throw new Error("Os cargos da Equipe devem corresponder aos participantes do MAP Zero.");
+            }
+            if (!team.aliado_built || !team.diretor_alianca)
+              throw new Error("Defina o Aliado BUILT e o Diretor de Aliança na Equipe.");
+          }
+          const roles = collectBiaParticipantRoles(createBody);
+          for (const [id, memberRoles] of Array.from(roles)) {
+            if (memberRoles.some(role => role !== "terceiro") && !initialMap.participantes.some(p => p.memberId === id))
+              throw new Error("Inclua no MAP Zero todas as pessoas da Equipe.");
+          }
+          createBody.socios_guardioes = initialMap.participantes.filter(p => p.memberId && p.tipo === "guardiao").map(p => p.memberId);
+          createBody.socios_multiplicadores = initialMap.participantes.filter(p => p.memberId && p.tipo === "multiplicador").map(p => p.memberId);
+          const capturedRoles = collectBiaParticipantRoles(createBody);
+          initialMap.participantes = initialMap.participantes.map(p => ({...p,
+            cargos:p.memberId ? (capturedRoles.get(p.memberId) || []).filter(r => r !== "terceiro").map(r => BIA_PARTICIPANT_ROLE_LABELS[r]) : ["Instituição"]}));
+          createBody.valor_origem = initialMap.valorOrigem;
+          for (const key of Object.keys(createBody)) if (key.startsWith("perc_")) createBody[key] = null;
+        } catch (error: any) { return res.status(400).json({error:error.message}); }
+      }
+      const createPayload = withUpdatedBiaFinancials(prepareBiaPayload(createBody), null);
+      if (initialMap) {
+        createPayload.divisor_multiplicador = initialMap.divisorMultiplicador;
+        createPayload.custo_origem_bia = initialMap.baseEconomicaInicial;
+        createPayload.custo_final_previsto = Number((initialMap.baseEconomicaInicial - initialMap.valorOrigem).toFixed(5));
+        Object.assign(createPayload, withUpdatedBiaFinancials(createPayload, null));
+      }
       createPayload.codigo_publico = await createUniqueBiaPublicCode();
       let item = await directusCreate("bias_projetos", createPayload);
+      try {
+        await createInitialMapDraft({
+          biaId: String(item.id),
+          valorOrigem: biaFinancialNumber(createBody.valor_origem),
+          moeda: String(createBody.moeda || "BRL"),
+          participantes: initialMap?.participantes || await draftMapParticipants({ ...item, ...createBody }),
+          actorUserId: (req.session as any).directusUserId || null,
+          actorMembroId: sessionMembroId,
+        });
+      } catch (error) {
+        await directusDelete("bias_projetos", String(item.id)).catch(() => {});
+        throw error;
+      }
       let diretorFlowError: string | null = null;
       const diretorSolicitacoes = await processDiretorSolicitacoes({
         biaId: item.id,
@@ -10406,11 +11114,6 @@ export async function registerRoutes(
         console.error("[bia-socios] failed to create requests:", e.message);
         return [];
       });
-      const valorOrigem = parseFloat(createBody.valor_origem) || 0;
-      if (valorOrigem > 0) {
-        syncValorOrigemLancamento(item.id, valorOrigem, null, null, [], [], undefined, req).catch(console.error);
-      }
-
       // If Diretor de AlianÃ§a (not Aliado BUILT), create pending approval record
       if (isDiretorAlianca && !isAliadoBuilt && sessionMembroId) {
         try {
@@ -10522,16 +11225,17 @@ export async function registerRoutes(
         "ir_realizado", "inss_realizado", "manutencao_realizada", "total_receita",
         "resultado_liquido", "lucro_previsto",
       ]);
-      const calculatorFields = new Set([
-        "valor_origem", "divisor_multiplicador", "perc_autor_opa", "perc_aliado_built",
-        "perc_built", "perc_dir_alianca", "perc_dir_tecnico", "perc_dir_obras",
-        "perc_dir_comercial", "perc_dir_capital", "cpp_autor_opa", "cpp_aliado_built",
-        "cpp_built", "cpp_dir_alianca", "cpp_dir_tecnico", "cpp_dir_obras",
-        "cpp_dir_comercial", "cpp_dir_capital", "custo_origem_bia", "custo_final_previsto",
-      ]);
+      const calculatorFields = new Set<string>(BIA_MAP_ECONOMIC_FIELDS);
       const requestedFields = Object.keys(req.body || {}).filter((field) =>
         !field.startsWith("_") && !(field === "valor_origem" && !originPatch.shouldUpdate)
       );
+      const initialMapSnapshot = await loadInitialMapSnapshot(biaUpdateId);
+      if (initialMapSnapshot && requestedFields.some((field) => calculatorFields.has(field))) {
+        return res.status(409).json({
+          error: "Esta BIA usa o novo MAP Zero. Atualize os valores pela Calculadora do MAP Zero.",
+          code: "INITIAL_MAP_ENDPOINT_REQUIRED",
+        });
+      }
       const requiredModules = new Set<BiaAccessKey>();
       if (requestedFields.some((field) => analysisFields.has(field))) requiredModules.add("capital_analises");
       if (requestedFields.some((field) => calculatorFields.has(field))) requiredModules.add("capital_calculadora");
@@ -10596,7 +11300,7 @@ export async function registerRoutes(
           console.error("[bia-socios] failed to process requests:", e.message);
         }
       }
-      payload = withUpdatedBiaDm(payload, currentBia);
+      if (!initialMapSnapshot) payload = withUpdatedBiaDm(payload, currentBia);
       payload = withUpdatedBiaFinancials(payload, currentBia);
 
       let lastError: any = null;
@@ -10623,6 +11327,7 @@ export async function registerRoutes(
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           const item = await directusUpdate("bias_projetos", biaUpdateId, payload);
+          await syncStructuredMapParticipants({ ...currentBia, ...req.body, ...item, id: biaUpdateId });
           if (newlySkipped.length > 0) console.log(`[bias patch] discovered blocked fields: ${newlySkipped.join(", ")}`);
           if (originPatch.shouldUpdate) {
             const valorOrigem = originPatch.value ?? 0;
@@ -10765,12 +11470,15 @@ export async function registerRoutes(
           (SELECT count(*)::int FROM bia_diretor_solicitacoes WHERE bia_id = ${String(bia.id)} AND status = 'pendente') AS diretores,
           (SELECT count(*)::int FROM bia_socio_solicitacoes WHERE bia_id = ${String(bia.id)} AND status = 'pendente') AS socios
       `)).rows?.[0] as any;
-      const formalParticipantIds = biaFormalParticipantIds(bia);
+      const activationBase = await loadInitialMapSnapshot(String(bia.id));
+      const formalParticipantIds = Array.from(new Set([...biaFormalParticipantIds(bia), ...(activationBase?.participantes || []).map((p: any) => p.memberId).filter(Boolean)])) as string[];
       let acceptedIds = new Set<string>();
       if (formalParticipantIds.length > 0) {
         const accepted = await db.execute(sql`
           SELECT DISTINCT membro_id FROM bia_mou_aceites
           WHERE bia_id = ${String(bia.id)}
+            AND mou_versao = ${BIA_MOU_VERSAO}
+            AND (${!activationBase} OR map_revisao = ${Number(activationBase?.revisao || 0)})
             AND membro_id IN (${sql.join(formalParticipantIds.map((participantId) => sql`${participantId}`), sql`, `)})
         `);
         acceptedIds = new Set((accepted.rows || []).map((row: any) => String(row.membro_id)));
@@ -11846,6 +12554,13 @@ export async function registerRoutes(
       }
       const tipo = String(req.body?.tipo || "boleto").trim();
       const payload = buildPinbankChargePayload(req, account);
+      const generate = async () => {
+      const fluxoId = req.body?.fluxoCaixaId || req.body?.fluxo_caixa_id;
+      if (fluxoId) {
+        const entry = await directusFetchOne("fluxo_caixa", String(fluxoId), "fields=*");
+        if (!entry || directusRelationId(entry.bia) !== String(bia.id)) throw Object.assign(new Error("Lançamento indisponível nesta BIA."), {statusCode:404});
+        if (!isCashEntry(entry) || entry.parcela_vigente === false) throw Object.assign(new Error("Movimentos patrimoniais sem caixa ou parcelas em conciliação não geram cobrança."), {statusCode:409});
+      }
       let providerResult: any;
       if (tipo === "boleto_split") {
         providerResult = await pinbank.createSplitBoleto(payload);
@@ -11862,9 +12577,11 @@ export async function registerRoutes(
         providerResult,
         actor: getAuditActor(req),
       });
-      res.json({ success: true, charge, providerResult });
+      return { success: true, charge, providerResult };
+      };
+      res.json(await withMapLock(String(bia.id), generate));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -12389,6 +13106,46 @@ export async function registerRoutes(
 
   // ========== BIA DIRETOR SOLICITACOES ==========
 
+  app.get("/api/bia-mou/minhas-pendencias", async (req, res) => {
+    const memberId = (req.session as any).membroId;
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!memberId) return res.json([]);
+    try {
+      const pending = (await db.execute(sql`SELECT s.bia_id, s.revisao FROM bia_map_inicial_snapshots s
+        WHERE s.ativado_em IS NULL AND s.revisao > 0
+        AND (EXISTS (SELECT 1 FROM jsonb_array_elements(s.participantes) p WHERE p->>'memberId' = ${String(memberId)})
+          OR EXISTS (SELECT 1 FROM bia_mou_aceites a WHERE a.bia_id = s.bia_id AND a.membro_id = ${String(memberId)}))
+        AND NOT EXISTS (SELECT 1 FROM bia_mou_aceites a WHERE a.bia_id = s.bia_id AND a.membro_id = ${String(memberId)}
+          AND a.mou_versao = ${BIA_MOU_VERSAO} AND a.map_revisao = s.revisao)`)).rows;
+      const result = [];
+      for (const item of pending) {
+        const bia = await directusFetchOne("bias_projetos", String(item.bia_id), "fields=*");
+        const base = await loadInitialMapSnapshot(String(item.bia_id));
+        if (!bia || mapIsActive(bia, base)) continue;
+        const ids = new Set([...biaFormalParticipantIds(bia), ...(base?.participantes || []).map((p: any) => p.memberId)]);
+        if (ids.has(String(memberId))) result.push({ id: item.bia_id, bia_id: item.bia_id, bia_nome: bia.nome_bia, map_revisao: item.revisao });
+      }
+      res.json(result);
+    } catch { res.status(503).json({ error: "Não foi possível carregar os aceites pendentes." }); }
+  });
+
+  app.post("/api/bias/:id/mou/aceitar", async (req, res) => {
+    try {
+      const memberId = (req.session as any).membroId;
+      if (!(req.session as any).directusUserId || !memberId) return res.status(401).json({ error: "Não autenticado" });
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada" });
+      const base = await loadInitialMapSnapshot(String(bia.id));
+      const ids = new Set([...biaFormalParticipantIds(bia), ...(base?.participantes || []).map((p: any) => p.memberId)]);
+      if (!ids.has(String(memberId))) return res.status(403).json({ error: "Você não é signatário desta BIA." });
+      const check = await ensureMouAceitoOuRetornaPendencia(String(bia.id), String(memberId), req.body?.aceitar_mou === true,
+        req.body?.dados_contratuais_mou, req.body?.aceite_localizacao, (req.session as any).directusUserId);
+      if (!check.ok) return res.status((check as any).statusCode || 200).json(check.response);
+      await activatePropertyOriginIfReady(String(bia.id));
+      res.json({ success: true });
+    } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message }); }
+  });
+
   app.get("/api/bia-mou/padrao", async (req, res) => {
     res.json({
       titulo: BIA_MOU_TITULO,
@@ -12436,7 +13193,8 @@ export async function registerRoutes(
         solicitacao.diretor_membro_id,
         !!req.body?.aceitar_mou,
         req.body?.dados_contratuais_mou,
-        req.body?.aceite_localizacao
+        req.body?.aceite_localizacao,
+        (req.session as any).directusUserId || null
       );
       if (!mouCheck.ok) return res.status((mouCheck as any).statusCode || 200).json(mouCheck.response);
 
@@ -12552,7 +13310,8 @@ export async function registerRoutes(
         solicitacao.socio_membro_id,
         !!req.body?.aceitar_mou,
         req.body?.dados_contratuais_mou,
-        req.body?.aceite_localizacao
+        req.body?.aceite_localizacao,
+        (req.session as any).directusUserId || null
       );
       if (!mouCheck.ok) return res.status((mouCheck as any).statusCode || 200).json(mouCheck.response);
 
@@ -12740,6 +13499,10 @@ export async function registerRoutes(
           pagamento_pagador_email: f.pagamento_pagador_email || null,
           pagamento_pagador_documento: f.pagamento_pagador_documento || null,
           pagamento_gerado_em: f.pagamento_gerado_em || null,
+          natureza: f.natureza || "caixa",
+          finalidade: f.finalidade || null,
+          parcela_inicial_id: f.parcela_inicial_id || null,
+          conciliacao_pendente: f.conciliacao_pendente || false,
           Categoria: categorias,
           tipo_de_cpp: tiposCpp,
           Favorecido: (() => {
@@ -13328,13 +14091,10 @@ ${textContent}`;
         payload: { id: req.params.id, exclusao_protegida_confirmada: protegido && confirmado },
       });
       // Limpa relaÃ§Ãµes M2M primeiro para evitar violaÃ§Ã£o de foreign key
-      await directusUpdate("fluxo_caixa", req.params.id, {
-        Categoria: [],
-        tipo_de_cpp: [],
-        favorecido_id: null,
-        Anexos: [],
+      await mapFinancialWrite!("fluxo_caixa", req.params.id, null, async () => {
+        await directusUpdate("fluxo_caixa", req.params.id, { Categoria: [], tipo_de_cpp: [], favorecido_id: null, Anexos: [] });
+        return directusDelete("fluxo_caixa", req.params.id);
       });
-      await directusDelete("fluxo_caixa", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -15856,14 +16616,14 @@ ${inputText.slice(0, 18000)}`,
           ORDER BY data_base DESC, created_at DESC LIMIT 1
         `),
         resolveBiaAccessForRequest(bia, req),
-        directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=valor,tipo,status,descricao,data,data_vencimento&limit=-1`).catch(() => []),
+        directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=valor,tipo,status,descricao,data,data_vencimento&limit=-1`),
         canDeleteBia(req, bia),
       ]);
       const own = allocation.find((row) => row.memberId === membroId);
       const snapshot = snapshotResult.rows?.[0] as any;
       const mapPercent = Number(own?.percent || 0);
       const officialValue = snapshot ? Number(snapshot.patrimonio_liquido || 0) : null;
-      const inPeriod = (financialEntries as any[]).filter((entry) => {
+      const inPeriod = (financialEntries as any[]).filter(isCashEntry).filter((entry) => {
         const date = String(entry.data || entry.data_vencimento || "");
         return !since || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= since;
       }).filter((entry) => !String(entry.descricao || "").toLowerCase().startsWith("aporte do fator"));
@@ -15981,16 +16741,32 @@ ${inputText.slice(0, 18000)}`,
     if (!propertyMapIsComplete(partners) || partners.some((item) => item.status !== "aceito" || !item.membro_id)) return false;
     const mouAccepted = await Promise.all(partners.map((item) => hasBiaMouAceito(biaId, String(item.membro_id))));
     if (mouAccepted.some((accepted) => !accepted)) return false;
-    const roles = (origin.papeis || {}) as Record<string, "guardiao" | "multiplicador">;
-    const allocations = buildPropertyOriginAllocations(partners, roles, Number(origin.valor_origem));
-    if (allocations.length !== partners.length) return false;
-    await db.transaction(async (tx) => {
-      for (const item of allocations) await tx.execute(sql`
-        INSERT INTO bia_map_origem_alocacoes (origem_id, bia_id, socio_id, membro_id, nome, papel, percentual, valor, moeda)
-        VALUES (${String(origin.id)}, ${biaId}, ${item.socioId || null}, ${item.membroId}, ${item.nome}, ${item.papel}, ${item.percentual}, ${item.valor}, ${String(origin.moeda || "BRL")})
-        ON CONFLICT (origem_id, membro_id) DO NOTHING
-      `);
-    });
+    const initialSnapshot = await loadInitialMapSnapshot(biaId);
+    let allocations: Array<{ socioId?: string; membroId: string; nome: string; papel: "guardiao" | "multiplicador"; percentual: number; valor: number }>;
+    if (initialSnapshot) {
+      if (initialSnapshot.status !== "bloqueado") return false;
+      const partnerByMember = new Map(partners.map((item) => [String(item.membro_id), item]));
+      allocations = (Array.isArray(initialSnapshot.participantes) ? initialSnapshot.participantes : [])
+        .filter((item: any) => item.memberId && Number(item.cppTotal || 0) > 0)
+        .map((item: any) => ({
+          socioId: partnerByMember.get(String(item.memberId))?.id,
+          membroId: String(item.memberId), nome: String(item.nome || "Coproprietário"),
+          papel: item.tipo === "multiplicador" ? "multiplicador" : "guardiao",
+          percentual: Number(item.mapPercentual || 0), valor: Number(item.cppTotal || 0),
+        }));
+    } else {
+      const roles = (origin.papeis || {}) as Record<string, "guardiao" | "multiplicador">;
+      allocations = buildPropertyOriginAllocations(partners, roles, Number(origin.valor_origem));
+      if (allocations.length !== partners.length) return false;
+      await db.transaction(async (tx) => {
+        for (const item of allocations) await tx.execute(sql`
+          INSERT INTO bia_map_origem_alocacoes (origem_id, bia_id, socio_id, membro_id, nome, papel, percentual, valor, moeda)
+          VALUES (${String(origin.id)}, ${biaId}, ${item.socioId || null}, ${item.membroId}, ${item.nome}, ${item.papel}, ${item.percentual}, ${item.valor}, ${String(origin.moeda || "BRL")})
+          ON CONFLICT (origem_id, membro_id) DO NOTHING
+        `);
+      });
+    }
+    if (!allocations.length) return false;
     const guardioes = allocations.filter((item) => item.papel === "guardiao").map((item) => item.membroId);
     const multiplicadores = allocations.filter((item) => item.papel === "multiplicador").map((item) => item.membroId);
     await directusUpdate("bias_projetos", biaId, {
@@ -16707,6 +17483,16 @@ ${inputText.slice(0, 18000)}`,
       if (!(valorOrigem > 0)) return res.status(400).json({ error: "Informe um valor de origem positivo." });
       const roles = (req.body?.papeis || {}) as Record<string, "guardiao" | "multiplicador">;
       if (socios.some((item) => !["guardiao", "multiplicador"].includes(String(roles[String(item.id)])))) return res.status(400).json({ error: "Escolha Guardião ou Multiplicador para cada coproprietário." });
+      const indices = (req.body?.indices_contribuicao || {}) as Record<string, number>;
+      const pesos = (req.body?.pesos_capital || {}) as Record<string, number>;
+      const mapParticipantes = buildPropertyInitialMapParticipants(socios, roles, indices, pesos);
+      let initialMap: InitialMapCalculation;
+      try {
+        initialMap = calculateInitialMap(valorOrigem, mapParticipantes);
+        initialMap = calculateInitialMap(valorOrigem, initialMap.participantes.map(p=>({...p,capitalComprometido:p.cppCapital,naturezaCapital:"nao_caixa"})));
+      } catch (error: any) {
+        return res.status(400).json({ error: error.message });
+      }
       const divida = parseMarketValueServer(access.imovel.divida_saldo);
       if (divida > 0 && req.body?.ciente_divida !== true) return res.status(400).json({ error: "Confirme a ciência do saldo devedor do imóvel financiado." });
 
@@ -16723,20 +17509,36 @@ ${inputText.slice(0, 18000)}`,
       const comunidade = comunidades.find((item: any) => item.is_mae) || comunidades[0] || null;
       const aliadoId = directusRelationId(comunidade?.aliado) || null;
       const nomeBia = String(req.body?.nome_bia || `BIA ${access.imovel.nome || "Imóvel"}`).trim();
-      const createPayload = withUpdatedBiaFinancials(withUpdatedBiaDm(prepareBiaPayload({
+      const createPayload = withUpdatedBiaFinancials(prepareBiaPayload({
         nome_bia: nomeBia, descricao_bia: `BIA originada pelo imóvel ${access.imovel.nome || req.params.id}`,
         valor_origem: valorOrigem, moeda: String(access.imovel.moeda || "BRL"), situacao: "em_formacao", bia_publica: false,
         autor_bia: actor.membroId, diretor_alianca: actor.membroId, aliado_built: aliadoId || undefined,
         localizacao: [access.imovel.cidade, access.imovel.estado, access.imovel.pais].filter(Boolean).join(", "),
-      }), null), null);
+      }), null);
       createPayload.codigo_publico = await createUniqueBiaPublicCode();
       const bia = await directusCreate("bias_projetos", createPayload);
       const status = canCreateDirectly ? "aguardando_mou" : "aguardando_aprovacao";
       try {
-        await db.execute(sql`
-          INSERT INTO bia_imovel_origens (imovel_id, bia_id, nome_bia, status, valor_origem, moeda, divida_snapshot, papeis, criado_por_user_id, criado_por_membro_id)
-          VALUES (${req.params.id}, ${String(bia.id)}, ${nomeBia}, ${status}, ${valorOrigem}, ${String(access.imovel.moeda || "BRL")}, ${divida}, ${JSON.stringify(roles)}::jsonb, ${actor.userId}, ${actor.membroId})
-        `);
+        await ensureBiaMapInicialSnapshotsTable();
+        await db.transaction(async (tx) => {
+          const origin = await tx.execute(sql`
+            INSERT INTO bia_imovel_origens (imovel_id, bia_id, nome_bia, status, valor_origem, moeda, divida_snapshot, papeis, criado_por_user_id, criado_por_membro_id)
+            VALUES (${req.params.id}, ${String(bia.id)}, ${nomeBia}, ${status}, ${valorOrigem}, ${String(access.imovel.moeda || "BRL")}, ${divida}, ${JSON.stringify(roles)}::jsonb, ${actor.userId}, ${actor.membroId})
+            RETURNING id
+          `);
+          await tx.execute(sql`
+            INSERT INTO bia_map_inicial_snapshots (
+              bia_id, origem_id, status, valor_origem, moeda, divisor_multiplicador,
+              base_economica_inicial, participantes, criado_por_user_id, criado_por_membro_id, modelo_calculo
+            ) VALUES (
+              ${String(bia.id)}, ${String(origin.rows?.[0]?.id)}, 'rascunho', ${initialMap.valorOrigem}, ${String(access.imovel.moeda || "BRL")},
+              ${initialMap.divisorMultiplicador}, ${initialMap.baseEconomicaInicial}, ${JSON.stringify(initialMap.participantes)}::jsonb,
+                ${actor.userId}, ${actor.membroId}, 3
+              )
+            `);
+            const base = await loadInitialMapSnapshot(String(bia.id), tx);
+            await archiveMapBase(tx, bia, base, `criacao:${base.id}`, "MAP Zero criado pela copropriedade aceita");
+          });
       } catch (error) {
         await directusDelete("bias_projetos", String(bia.id)).catch(() => {});
         throw error;
@@ -25197,16 +25999,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const depois = "valor_total" in input
         ? { valor_total: input.valor_total.toFixed(5), percentual_transferencia: input.percentual_transferencia.toFixed(5), status: "aceita" }
         : { valor_total: transfer.valor_total, percentual_transferencia: transfer.percentual_transferencia, status: "revertida" };
-      const updated = await storage.correctTransferenciaCotas(transfer.id, new Date(input.atualizado_em), {
+      const updated = await writeMapTransfer(transfer.bia_id, `transferencia:${transfer.id}:correcao:${input.atualizado_em}`, input.motivo, (tx) => storage.correctTransferenciaCotas(transfer.id, new Date(input.atualizado_em), {
         ...depois,
         correcoes: [...(transfer.correcoes || []), {
           acao: reverter ? "reverter" : "corrigir", autor_id: actor, data: new Date().toISOString(), motivo: input.motivo,
           antes: { valor_total: transfer.valor_total, percentual_transferencia: transfer.percentual_transferencia, status: transfer.status }, depois,
         }],
-      });
+      }, tx));
       if (!updated) return res.status(409).json({ error: "A transferência foi alterada. Atualize a página antes de corrigir." });
       res.json(updated);
-    } catch (error: any) { res.status(500).json({ error: "Não foi possível salvar a correção" }); }
+    } catch (error: any) { res.status(error.statusCode || 409).json({ error: error.message || "Não foi possível salvar a correção" }); }
   });
 
   app.get("/api/transferencia-cotas", async (req, res) => {
@@ -25294,6 +26096,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!transfer) return res.status(404).json({ error: "SolicitaÃ§Ã£o nÃ£o encontrada" });
       if (!transfer.bia_id || !await requireBiaModuleAccess(req, res, String(transfer.bia_id), "capital_financeiro", "edit")) return;
       if (transfer.status !== "pendente") {
+        if (action === "aceitar" && transfer.status === "aceita") return res.json(transfer);
         return res.status(400).json({ error: "SolicitaÃ§Ã£o jÃ¡ foi processada" });
       }
 
@@ -25362,10 +26165,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       // action === "aceitar": a transferÃªncia Ã© parcial e deve ser aplicada no MAP,
       // sem alterar os lanÃ§amentos financeiros originais do Directus.
-      const updated = await acceptQuotaTransfer(
+      const updated = await writeMapTransfer(transfer.bia_id!, `transferencia:${transfer.id}:aceite`, "Transferência aceita", (tx) => acceptQuotaTransfer(
         req.params.id,
-        (id, patch) => storage.updateTransferenciaCotas(id, patch),
-      );
+        async (id, patch) => {
+          const current: any = (await tx.execute(sql`SELECT status FROM transferencias_cotas WHERE id = ${id} FOR UPDATE`)).rows[0];
+          if (current?.status === "aceita") return storage.getTransferenciaCotas(id);
+          if (current?.status !== "pendente") throw Object.assign(new Error("A solicitação já foi processada."), { statusCode: 409 });
+          return storage.updateTransferenciaCotas(id, patch, tx);
+        },
+      ));
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

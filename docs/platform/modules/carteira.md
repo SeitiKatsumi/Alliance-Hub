@@ -2,6 +2,8 @@
 
 ## Objetivo e usuarios
 
+Nas BIAs modelo 3, a composicao patrimonial inclui o MAP Zero uma unica vez: pagamentos iniciais apenas integralizam compromissos. Propriedade e direitos sem caixa nao compoem entradas/saidas financeiras da Carteira; falha de consulta ao financeiro nao e tratada como saldo zero.
+
 Mantem o patrimonio privado do usuario e consolida imoveis proprios com participacoes economicas confirmadas em Aliancas.
 
 ## Telas e URLs
@@ -28,8 +30,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 ## Dados e fontes de verdade
 
 - PostgreSQL `inventario_imoveis`, inclusive as caracteristicas opcionais de mercado em `data`, `inventario_lancamentos`, `carteira_eventos`, `carteira_documentos`, `carteira_analises`, `carteira_alertas`, `carteira_demandas`, `carteira_cotacoes_cambio`, acessos e sessoes do assistente.
-- PostgreSQL `carteira_imovel_socios` e a fonte oficial da copropriedade declarada e de seus aceites; `bia_imovel_origens` vincula um imovel a uma BIA e `bia_map_origem_alocacoes` congela o MAP inicial ativado.
-- PostgreSQL `bia_patrimonial_snapshots` e `bia_aporte_solicitacoes`; MAP deriva das alocacoes de origem, dos aportes oficiais do Directus e das transferencias aceitas no helper central.
+- PostgreSQL `carteira_imovel_socios` e a fonte oficial da copropriedade declarada e de seus aceites; `bia_imovel_origens` vincula um imovel a uma BIA e `bia_map_inicial_snapshots` preserva o MAP Inicial das novas BIAs. `bia_map_origem_alocacoes` continua como compatibilidade legada.
+- PostgreSQL `bia_patrimonial_snapshots` e `bia_aporte_solicitacoes`; MAP atual deriva do snapshot inicial, dos aportes pagos no Directus e das transferencias aceitas no helper central.
 - Historico de evento e append-only; o snapshot atual nao substitui a trilha.
 - Ativo publicado e uma projecao/copia rastreada, nao a fonte do item privado.
 
@@ -77,7 +79,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - Os modos oficiais sao `DIRECT_HIRE`, `NETWORK_DEMAND`, `INTERNAL_BIA` e `OBA`; os dois ultimos exigem BIA e OBA somente nasce de Demanda da propria BIA.
 - A composicao proposta, inclusive convites pendentes, deve totalizar exatamente 100%; convite pendente nao concede acesso e qualquer alteracao de e-mail ou percentual invalida o aceite afetado.
 - Originar uma BIA exige todos os coproprietarios confirmados, MAP total de 100%, valor de origem positivo e nenhum outro vinculo ativo; imovel financiado usa valor bruto e mantem a divida separada.
-- O MAP inicial so e gravado uma vez depois de todos aceitarem o MOU, nao cria receita ou caixa e permanece imutavel diante de alteracoes posteriores da copropriedade.
+- A copropriedade aceita preenche os pesos dos Guardioes do MAP Zero; ajustes na estruturacao criam revisao e exigem novos aceites se o MOU ja foi assinado. A BIA ativa somente com os aceites exigidos da revisao vigente. Nenhuma revisao da base cria receita ou caixa. Apos ativacao, Diretor da Alianca ou Aliado BUILT vinculados podem corrigir com motivo; a Carteira consome o MAP oficial recalculado.
 - Um imovel com BIA ativa vinculada nao pode ser excluido.
 - Publicar e opt-in, reversivel e deve mascarar dados privados.
 

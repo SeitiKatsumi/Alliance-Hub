@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
+import { confirmDiscardChanges, useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { getBiaPublicRef } from "@/lib/bia-url";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +24,9 @@ import {
 } from "@/lib/dm-ranges";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { calculateInitialMap, initialMapContributionValue, withInitialCapitalParticipation, type InitialMapParticipantInput } from "@shared/member-portfolio";
+import { biaTeamFromMapParticipants, isBiaAllyCandidate, BIA_PARTICIPANT_ROLE_FIELDS, BIA_PARTICIPANT_ROLE_LABELS } from "@shared/bia-access";
+import { validateInitialClassifications } from "@shared/initial-contributions";
 import {
   Calculator,
   Target,
@@ -51,11 +57,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Pencil,
+  Plus,
+  Trash2,
+  Lock,
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
 
 interface Membro {
   id: string;
+  Outras_redes_as_quais_pertenco?: string[] | null;
   nome?: string;
   Nome_de_usuario?: string | null;
   foto?: string | null;
@@ -167,6 +177,7 @@ function MemberSelect({
 }
 
 interface BiasProjeto {
+  codigo_publico?: string | null;
   id: string;
   nome_bia: string;
   objetivo_alianca: string;
@@ -336,6 +347,401 @@ function PercInput({
   );
 }
 
+export interface InitialMapSnapshotApi {
+  modeloCalculo?: number;
+  revisao: number;
+  canEdit: boolean;
+  ativa: boolean;
+  id: string;
+  biaId: string;
+  origemId?: string | null;
+  status: "rascunho" | "bloqueado";
+  valorOrigem: number;
+  moeda: string;
+  divisorMultiplicador: number;
+  baseEconomicaInicial: number;
+  participantes: Array<InitialMapParticipantInput & {
+    cppOrigem?: number;
+    cppCapital?: number;
+    cppTotal?: number;
+    mapPercentual?: number;
+  }>;
+  snapshotHash?: string | null;
+  bloqueadoEm?: string | null;
+  directusSync?: "ok" | "pending";
+}
+
+interface CurrentMapResponse {
+  inicial: InitialMapSnapshotApi | null;
+  atual: Array<{ group: string; memberId: string; name: string; value: number; percent: number }>;
+}
+
+export function useInitialMapSnapshot(biaId?: string | null) {
+  return useQuery<InitialMapSnapshotApi | null>({
+    queryKey: ["/api/bias", biaId, "map-inicial"], enabled: !!biaId, retry: false,
+    refetchOnMount: "always", refetchOnWindowFocus: "always",
+    queryFn: async () => {
+      const response = await fetch(`/api/bias/${biaId}/map-inicial`, { credentials: "include" });
+      const data = await response.json();
+      if (response.status === 404 && data.code === "LEGACY_BIA_MAP") return null;
+      if (!response.ok) throw new Error(data.error || "Não foi possível carregar o MAP Zero.");
+      return data;
+    },
+  });
+}
+
+export function BiaMapZero({ biaId }: { biaId: string }) {
+  const query = useInitialMapSnapshot(biaId);
+  const { data: membros = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
+  if (query.isPending) return <p>Carregando MAP Zero…</p>;
+  if (query.isError && !query.data) return <p role="alert">{query.error.message} <Button onClick={() => query.refetch()}>Tentar novamente</Button></p>;
+  if (!query.data) return <p>Esta BIA usa o MAP legado e não possui MAP Zero. Nenhum histórico foi reconstruído.</p>;
+  return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros} embedded readOnly={false} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
+}
+
+export function MapZeroFields({
+  valorOrigem, setValorOrigem, participantes, setParticipantes, membros, byValue = true, readOnly = false, creationTeam,
+}: {
+  valorOrigem: number;
+  setValorOrigem: (value: number) => void;
+  participantes: InitialMapParticipantInput[];
+  setParticipantes: React.Dispatch<React.SetStateAction<InitialMapParticipantInput[]>>;
+  membros: Membro[];
+  byValue?: boolean;
+  readOnly?: boolean;
+  creationTeam?: {canEditAlly: boolean; communityAllyId?: string};
+}) {
+  const [confirmation, setConfirmation] = useState<{message:string; apply:()=>void} | null>(null);
+  const cppTypes = useQuery<Array<{id:string;Nome:string}>>({queryKey:["/api/tipos-cpp"],enabled:byValue});
+  const preview = useMemo(() => {
+    try {
+      if (creationTeam) {
+        const team = biaTeamFromMapParticipants(participantes);
+        if (!team.autor_bia) throw new Error("Defina o Autor da Oportunidade na Equipe.");
+        if (!team.aliado_built || !team.diretor_alianca) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança.");
+      }
+      const calculation = calculateInitialMap(valorOrigem, participantes);
+      if (creationTeam) validateInitialClassifications(calculation.participantes);
+      return { calculation, error: null as string | null };
+    } catch (error: any) {
+      return { calculation: null, error: error.message as string };
+    }
+  }, [participantes, valorOrigem, !!creationTeam]);
+  const calculatedById = new Map((preview.calculation?.participantes || []).map(item => [item.participantId, item]));
+  const usedMembers = new Set(participantes.map(item => item.memberId).filter(Boolean));
+  const roles = Object.keys(BIA_PARTICIPANT_ROLE_FIELDS) as Array<keyof typeof BIA_PARTICIPANT_ROLE_FIELDS>;
+  const dmPartial = participantes.reduce((sum,p) => sum + (Number.isFinite(p.indiceContribuicao) ? p.indiceContribuicao : 0), 0);
+  const capitalPartial = Number(participantes.reduce((sum,p) => sum + (Number.isFinite(p.capitalComprometido) ? p.capitalComprometido! : 0), 0).toFixed(5));
+  const updateParticipant = (index: number, patch: Partial<InitialMapParticipantInput>) => {
+    setParticipantes(current => current.map((item,i) => i === index ? {...item,...patch} : item));
+  };
+  const confirmEconomicChange = (item:InitialMapParticipantInput, message:string, apply:()=>void) => {
+    const hasEconomicInput = Number.isFinite(item.indiceContribuicao) || Number(item.capitalComprometido) > 0
+      || (item.tipo === "guardiao" && Number.isFinite(item.capitalComprometido));
+    if (creationTeam && hasEconomicInput) setConfirmation({message,apply});
+    else apply();
+  };
+  const addMember = () => setParticipantes(current => [...current, {
+    participantId: `draft:${crypto.randomUUID()}`, memberId:null, nome:"", cargos:[], tipo:creationTeam ? "multiplicador" : "guardiao",
+    indiceContribuicao:NaN, pesoCapital:creationTeam ? 0 : NaN,
+    ...(byValue ? {capitalComprometido:creationTeam ? 0 : NaN,naturezaCapital:"caixa" as const} : {}),
+  }]);
+  const addBuilt = () => {
+    if (participantes.some(item => item.institutionCode === "BUILT")) return;
+    setParticipantes(current => [...current, {
+      participantId:"institution:BUILT", institutionCode:"BUILT", nome:"BUILT", cargos:["Instituição"],
+      tipo:"multiplicador", indiceContribuicao:NaN, pesoCapital:0,
+      ...(byValue ? {capitalComprometido:0,naturezaCapital:"nao_caixa" as const} : {}),
+    }]);
+  };
+  const mapCard = (item:InitialMapParticipantInput, index:number) => {
+    const calculated = calculatedById.get(String(item.participantId));
+    return <div key={item.participantId || index} className="min-w-0 rounded-md bg-muted/60 p-3 text-sm break-words">
+      {creationTeam && <p className="mb-2 font-semibold">{item.nome}</p>}
+      <p>{item.tipoCppContribuicao?.nome || "CPP Origem"}: <strong>{formatBRL(calculated?.cppOrigem || 0)}</strong></p>
+      <p>{item.tipoCppCapital?.nome || "CPP Capital"}: <strong>{formatBRL(calculated?.cppCapital || 0)}</strong></p>
+      <p>CPP Total: <strong>{formatBRL(calculated?.cppTotal || 0)}</strong></p>
+      <p>Participação inicial: <strong>{(calculated?.mapPercentual || 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:5})}%</strong></p>
+    </div>;
+  };
+
+  return <div className="min-w-0 space-y-4">
+    <fieldset disabled={readOnly} className="min-w-0 space-y-4">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">{creationTeam ? "Equipe e composição do DM" : "Estruturação · Base do cálculo"}</CardTitle></CardHeader>
+        <CardContent className={creationTeam ? "grid gap-4 sm:grid-cols-2" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"}>
+          {creationTeam ? <label className="space-y-1 text-sm">Valor de Origem (R$)<Input aria-label="Valor de Origem" type="number" min="0" step="0.00001" value={Number.isFinite(valorOrigem) ? valorOrigem : ""} onChange={e=>setValorOrigem(e.target.value === "" ? NaN : Number(e.target.value))} /></label>
+            : <NumInput label="Valor de Origem" value={valorOrigem} onChange={setValorOrigem} />}
+          <div><p className="text-xs text-muted-foreground">{creationTeam ? "DM total (soma dos índices preenchidos)" : "Divisor Multiplicador"}</p><p className="mt-2 text-xl font-bold">{(creationTeam ? dmPartial : preview.calculation?.divisorMultiplicador || 0).toLocaleString("pt-BR",{maximumFractionDigits:5})}%</p></div>
+          {creationTeam ? <>
+            <div><p className="text-xs text-muted-foreground">Total informado em dinheiro e bens</p><p className="mt-2 font-bold">{formatBRL(capitalPartial)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Restante para fechar o Valor de Origem</p><p className="mt-2 font-bold">{Number.isFinite(valorOrigem) ? formatBRL(Number((valorOrigem-capitalPartial).toFixed(5))) : "Preencha o Valor de Origem"}</p></div>
+            <p className="text-xs text-muted-foreground sm:col-span-2">Informe um DM por pessoa, mesmo com vários cargos. Essa % não é a participação final na BIA.</p>
+            <p role="status" className="text-sm sm:col-span-2">{preview.error ? "Composição pendente — confira os campos abaixo." : "Composição válida — confira a prévia do MAP Zero."}</p>
+          </> : <>
+            <div><p className="text-xs text-muted-foreground">Peso dos Guardiões</p><p className="mt-2 text-xl font-bold">{(preview.calculation?.pesoCapitalTotal || 0).toLocaleString("pt-BR",{maximumFractionDigits:5})}%</p></div>
+            <div><p className="text-xs text-muted-foreground">Base Econômica Inicial</p><p className="mt-2 text-xl font-bold text-brand-gold">{formatBRL(preview.calculation?.baseEconomicaInicial || 0)}</p></div>
+          </>}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="gap-3">
+          <div><CardTitle className="text-lg">Participantes</CardTitle><p className="mt-1 text-sm text-muted-foreground">{creationTeam ? "Uma ficha por pessoa. Cada cargo tem um único responsável." : "Cargos são informativos e não duplicam o índice da pessoa."}</p></div>
+          {!readOnly && <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={addMember}><Plus className="mr-2 h-4 w-4" />Pessoa</Button>{!creationTeam && <Button type="button" variant="outline" onClick={addBuilt}><Plus className="mr-2 h-4 w-4" />BUILT</Button>}</div>}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!participantes.length && <p className="text-sm text-muted-foreground">Adicione os participantes.</p>}
+          {participantes.map((item,index) => {
+            const calculated = calculatedById.get(String(item.participantId));
+            const isAlly = item.cargos?.includes(BIA_PARTICIPANT_ROLE_LABELS.aliado);
+            const lockedAlly = !!creationTeam && !creationTeam.canEditAlly && isAlly;
+            const dmValue = Number.isFinite(valorOrigem) && valorOrigem > 0 && Number.isFinite(item.indiceContribuicao) && item.indiceContribuicao >= 0
+              ? initialMapContributionValue(valorOrigem, item.indiceContribuicao) : null;
+            const needsDetails = Number(item.capitalComprometido)>0 || item.indiceContribuicao>0;
+            const missingDetails = (Number(item.capitalComprometido)>0 && !item.tipoCppCapital?.id) || (item.indiceContribuicao>0 && !item.tipoCppContribuicao?.id);
+            const dmField = <label className="min-w-0 space-y-1 text-sm">{creationTeam ? "DM (%)" : "Índice %"}<Input aria-label={`Índice de ${item.nome || "participante"}`} type="number" min="0" step="0.00001" placeholder="Preencher" value={Number.isFinite(item.indiceContribuicao)?item.indiceContribuicao:""} onChange={e=>updateParticipant(index,{indiceContribuicao:e.target.value===""?NaN:Number(e.target.value)})} />{creationTeam && <span className="block text-sm font-medium tabular-nums">{dmValue === null ? "Informe o Valor de Origem e a %" : `= ${formatBRL(dmValue)}`}</span>}</label>;
+            const cppFields = <>
+              {(!creationTeam || Number(item.capitalComprometido)>0) && <label className="min-w-0 space-y-1 text-sm">Natureza do capital<select className="block w-full min-w-0 rounded border bg-background p-2" value={item.naturezaCapital || "caixa"} onChange={e=>updateParticipant(index,{naturezaCapital:e.target.value as "caixa"|"nao_caixa"})}><option value="caixa">Dinheiro</option><option value="nao_caixa">Propriedade, bens ou direitos — sem caixa</option></select></label>}
+              {(["tipoCppCapital","tipoCppContribuicao"] as const).filter(field=>!creationTeam || Number(field==="tipoCppCapital"?item.capitalComprometido:item.indiceContribuicao)>0).map(field=><label key={field} className="min-w-0 space-y-1 text-sm">{field==="tipoCppCapital"?"CPP do capital comprometido":"CPP da contribuição econômica"}<select className="block w-full min-w-0 rounded border bg-background p-2" value={item[field]?.id || ""} onChange={e=>{const type=cppTypes.data?.find(t=>String(t.id)===e.target.value);updateParticipant(index,{[field]:type?{id:String(type.id),nome:type.Nome}:undefined});}}><option value="">Selecione o tipo</option>{cppTypes.data?.map(t=><option key={t.id} value={String(t.id)}>{t.Nome}</option>)}</select></label>)}
+            </>;
+            return <div key={item.participantId || index} className={`grid min-w-0 gap-3 rounded-lg border p-3 ${creationTeam ? "sm:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`} data-testid={`map-participant-${index}`}>
+              <fieldset disabled={lockedAlly} className="min-w-0 space-y-1">
+                <Label>Participante</Label>
+                {item.institutionCode === "BUILT" ? <Input value="BUILT" disabled /> : <MemberSelect value={item.memberId || ""} onChange={memberId => {
+                  if (memberId === item.memberId) return;
+                  const member = membros.find(candidate => candidate.id === memberId);
+                  confirmEconomicChange(item,"Trocar a pessoa limpará o índice e os valores desta ficha. Os cargos serão mantidos. Deseja continuar?",()=>updateParticipant(index,{
+                    participantId:memberId ? `member:${memberId}` : `draft:${crypto.randomUUID()}`,
+                    memberId:memberId || null,nome:member ? membroNome(member) : "",
+                    ...(creationTeam ? {indiceContribuicao:NaN,capitalComprometido:item.tipo === "multiplicador" ? 0 : NaN,pesoCapital:0,tipoCppCapital:undefined,tipoCppContribuicao:undefined,naturezaCapital:"caixa" as const} : {}),
+                  }));
+                }} membros={membros.filter(member => (!usedMembers.has(member.id) || member.id === item.memberId) && (!creationTeam || !isAlly || member.id === item.memberId || isBiaAllyCandidate(member, creationTeam.communityAllyId)))} label={`map-${index}`} />}
+                {lockedAlly && <p className="text-xs text-muted-foreground">Aliado definido pela sua comunidade.</p>}
+              </fieldset>
+              {creationTeam && dmField}
+              {creationTeam ? <details className="min-w-0 rounded border bg-muted/20 p-2 sm:col-span-2">
+                <summary className="cursor-pointer text-sm">Cargos: {item.cargos?.length ? item.cargos.join(" · ") : "Definir cargos"}</summary>
+                <fieldset className="mt-3 space-y-2 text-sm"><legend className="sr-only">Cargos acumulados</legend>
+                {item.institutionCode === "BUILT" ? <p>Instituição</p> : roles.map(role => {
+                  const label = BIA_PARTICIPANT_ROLE_LABELS[role];
+                  const checked = !!item.cargos?.includes(label);
+                  const occupied = participantes.some((p,i) => i !== index && p.cargos?.includes(label));
+                  const canBeAlly = isBiaAllyCandidate(membros.find(m=>m.id === item.memberId), creationTeam.communityAllyId);
+                  return <label key={role} className="flex items-start gap-2"><input type="checkbox" className="mt-1 shrink-0" checked={checked}
+                    disabled={occupied || (role === "aliado" && (!creationTeam.canEditAlly || (!checked && !canBeAlly)))}
+                    onChange={e=>updateParticipant(index,{cargos:e.target.checked ? [...(item.cargos || []),label] : (item.cargos || []).filter(c=>c!==label)})} />
+                    <span>{label}{occupied && <span className="text-xs text-muted-foreground"> · já atribuído</span>}</span>
+                  </label>;
+                })}
+              </fieldset></details> : <label className="space-y-1 text-sm">Cargos<Input value={(item.cargos || []).join(", ")} onChange={event=>updateParticipant(index,{cargos:event.target.value.split(",").map(role=>role.trim()).filter(Boolean)})} /></label>}
+              {creationTeam ? <label className="min-w-0 space-y-1 text-sm">Tipo de participante
+                <select aria-label={`Tipo de ${item.nome || "participante"}`} className="block w-full min-w-0 rounded border bg-background p-2" value={item.tipo} onChange={e=>{
+                  const suppliesCapital=e.target.value==="guardiao";
+                  const apply=()=>updateParticipant(index,withInitialCapitalParticipation(item,suppliesCapital));
+                  if(!suppliesCapital && Number(item.capitalComprometido)>0) confirmEconomicChange(item,"Ao mudar para Multiplicador, o valor fornecido será zerado e a classificação desse capital será removida. O DM será mantido. Continuar?",apply);
+                  else apply();
+                }}><option value="guardiao">Guardião</option><option value="multiplicador">Multiplicador</option></select>
+                <span className="block text-xs text-muted-foreground">{item.tipo === "guardiao" ? "Compõe o Valor de Origem com dinheiro, imóvel ou bens. Também pode ter DM, inclusive zero." : "Participa pelo DM, sem aportar dinheiro ou bens no Valor de Origem."}</span>
+              </label> : <div className="min-w-0 space-y-1"><Label>Tipo</Label><Select value={item.tipo} onValueChange={(tipo:"guardiao"|"multiplicador") => {
+                const apply=()=>updateParticipant(index,{tipo,pesoCapital:tipo==="multiplicador"?0:item.pesoCapital,...(byValue && tipo==="multiplicador"?{capitalComprometido:0,tipoCppCapital:undefined}:{})});
+                if (creationTeam && tipo==="multiplicador" && Number(item.capitalComprometido)>0) confirmEconomicChange(item,"Multiplicadores não têm capital comprometido. Zerar o capital desta ficha?",apply); else apply();
+              }}><SelectTrigger aria-label={`Tipo de ${item.nome || "participante"}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="guardiao">Guardião</SelectItem><SelectItem value="multiplicador">Multiplicador</SelectItem></SelectContent></Select></div>}
+
+              {!creationTeam && dmField}
+              {(!creationTeam || item.tipo==="guardiao") && <label className="min-w-0 space-y-1 text-sm">{creationTeam ? "Valor que fornecerá (R$)" : byValue ? "Valor comprometido no Valor de Origem (R$)" : "Peso %"}<Input aria-label={`Capital de ${item.nome || "participante"}`} type="number" min="0" step="0.00001" placeholder="Preencher" disabled={item.tipo==="multiplicador"} value={byValue?(Number.isFinite(item.capitalComprometido)?item.capitalComprometido:""):(Number.isFinite(item.pesoCapital)?item.pesoCapital:"")} onChange={e=>updateParticipant(index,byValue?{capitalComprometido:e.target.value===""?NaN:Number(e.target.value),pesoCapital:0}:{pesoCapital:e.target.value===""?NaN:Number(e.target.value)})} />{byValue && !creationTeam && <span className="text-xs text-muted-foreground">Peso derivado: {Number(calculated?.pesoCapital || 0).toLocaleString("pt-BR",{maximumFractionDigits:5})}%</span>}</label>}
+              {byValue && (creationTeam ? needsDetails && <details className="min-w-0 rounded border p-2 sm:col-span-2">
+                <summary className={`cursor-pointer text-sm ${missingDetails ? "font-medium text-amber-800" : ""}`}>Detalhes da participação · {missingDetails ? "Preencher" : "Conferido"}</summary>
+                <p className="mt-2 text-xs text-muted-foreground">Classifique os valores para o MAP Zero. O tipo de CPP não é escolhido automaticamente pelo cargo.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">{cppFields}</div>
+              </details> : cppFields)}
+              {creationTeam && item.tipo==="multiplicador" && <p className="text-xs text-muted-foreground">Sem aporte de dinheiro ou bens. Valor fornecido: R$ 0,00.</p>}
+              {!creationTeam && mapCard(item,index)}
+              <Button type="button" variant="ghost" size="icon" disabled={lockedAlly} onClick={()=>confirmEconomicChange(item,"Remover esta pessoa e os valores preenchidos da composição?",()=>setParticipantes(current=>current.filter((_,i)=>i!==index)))} aria-label={`Remover ${item.nome || "participante"}`}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+            </div>;
+          })}
+          {preview.error && <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{creationTeam && "Composição pendente: "}{preview.error}</p>}
+        </CardContent>
+      </Card>
+    </fieldset>
+    {creationTeam && <details className="rounded-lg border p-4">
+      <summary className="cursor-pointer font-semibold">Ver composição inicial (MAP Zero)</summary>
+      {preview.calculation ? <div className="mt-4 space-y-3">
+        <p className="text-sm">Prévia somente de leitura. Base Econômica Inicial (BEI): <strong>{formatBRL(preview.calculation.baseEconomicaInicial)}</strong></p>
+        <div className="grid gap-3 sm:grid-cols-2">{participantes.map(mapCard)}</div>
+      </div> : <p className="mt-3 text-sm text-muted-foreground">Composição pendente. Preencha e valide a Equipe para calcular o MAP Zero.</p>}
+    </details>}
+    <AlertDialog open={!!confirmation} onOpenChange={open=>{if(!open)setConfirmation(null);}}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Confirmar alteração da Equipe</AlertDialogTitle><AlertDialogDescription>{confirmation?.message}</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={()=>{confirmation?.apply();setConfirmation(null);}}>Confirmar</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>;
+}
+function MapInicialCalculator({
+  snapshot,
+  bia,
+  bias,
+  membros,
+  embedded,
+  readOnly,
+  onSelectBia,
+  mode = "dm",
+  queryFailed = false,
+  retryQuery,
+}: {
+  snapshot: InitialMapSnapshotApi;
+  bia: Pick<BiasProjeto, "id" | "codigo_publico">;
+  bias: BiasProjeto[];
+  membros: Membro[];
+  embedded: boolean;
+  readOnly: boolean;
+  onSelectBia: (id: string) => void;
+  mode?: "dm" | "zero";
+  queryFailed?: boolean;
+  retryQuery?: () => void;
+}) {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [editing, setEditing] = useState(false);
+  const [base, setBase] = useState(snapshot);
+  const [valorOrigem, setValorOrigem] = useState(Number(snapshot.valorOrigem || 0));
+  const [participantes, setParticipantes] = useState<InitialMapParticipantInput[]>(snapshot.participantes || []);
+  const locked = !snapshot.canEdit;
+  const [motivo, setMotivo] = useState("");
+  const byValue = snapshot.modeloCalculo === 3;
+  readOnly = readOnly || !snapshot.canEdit || queryFailed;
+  const dirty = valorOrigem !== Number(base.valorOrigem) || JSON.stringify(participantes) !== JSON.stringify(base.participantes) || !!motivo;
+
+  useEffect(() => {
+    if (!dirty) {
+      setBase(snapshot);
+      setValorOrigem(Number(snapshot.valorOrigem || 0));
+      setParticipantes(snapshot.participantes || []);
+    }
+  }, [snapshot, dirty]);
+
+  const preview = useMemo(() => {
+    try {
+      const calculation = calculateInitialMap(valorOrigem, participantes);
+      if (byValue) validateInitialClassifications(calculation.participantes);
+      return { calculation, error: null as string | null };
+    } catch (error: any) {
+      return { calculation: null, error: error.message as string };
+    }
+  }, [participantes, valorOrigem, byValue]);
+  const mapQuery = useQuery<CurrentMapResponse>({
+    queryKey: ["/api/bias", bia.id, "map"],
+    queryFn: async () => (await apiRequest("GET", `/api/bias/${bia.id}/map`)).json(),
+    enabled: mode === "zero",
+  });
+  const comparisonParticipants = [...(snapshot.participantes || [])];
+  for (const row of mapQuery.data?.atual || []) {
+    if (!comparisonParticipants.some((p) => (p.memberId || p.participantId) === row.memberId)) {
+      comparisonParticipants.push({ participantId: row.memberId, memberId: row.memberId, nome: row.name,
+        cargos: [], tipo: "multiplicador", indiceContribuicao: 0, pesoCapital: 0, cppOrigem: 0, cppCapital: 0, cppTotal: 0, mapPercentual: 0 });
+    }
+  }
+  const saveMutation = useMutation({
+    mutationFn: async () => (await apiRequest("PUT", `/api/bias/${bia.id}/map-inicial`, {
+      valorOrigem,
+      moeda: base.moeda || "BRL",
+      participantes,
+      revisaoEsperada: base.revisao,
+      motivo,
+    })).json(),
+    onSuccess: (data: InitialMapSnapshotApi) => {
+      setBase(data);
+      setValorOrigem(Number(data.valorOrigem));
+      setParticipantes(data.participantes);
+      setEditing(false);
+      queryClient.setQueryData(["/api/bias", bia.id, "map-inicial"], data);
+      queryClient.invalidateQueries({ queryKey: ["/api/bias", bia.id, "map"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/aportes-iniciais`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/map/versoes`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-mou/minhas-pendencias"] });
+      setMotivo("");
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      toast({
+        title: mode === "dm" ? "DM salvo" : "MAP Zero salvo",
+        description: data.directusSync === "pending"
+          ? "O MAP Zero foi salvo, mas o espelho da BIA está pendente. Salve novamente para repetir a sincronização."
+          : "Nenhum lançamento financeiro foi criado.",
+      });
+    },
+    onError: (error: any) => {
+      if (String(error.message).startsWith("409:")) queryClient.invalidateQueries({ queryKey: ["/api/bias", bia.id, "map-inicial"] });
+      toast({ title: "Não foi possível salvar", description: error.message, variant: "destructive" });
+    },
+  });
+  useUnsavedChanges(dirty || saveMutation.isPending);
+
+
+  return (
+    <div className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} min-w-0 space-y-6`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="flex items-center gap-3 text-2xl font-bold">
+            <div className="rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 p-2 text-brand-navy"><Calculator className="h-6 w-6" /></div>
+            {mode === "dm" ? "DM" : "MAP Zero"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Composição inicial da BIA · revisão {base.revisao}. Um índice por pessoa.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {!embedded && (
+            <Select value={bia.id} onValueChange={id => { if (confirmDiscardChanges()) onSelectBia(id); }}>
+              <SelectTrigger className="w-full sm:w-[280px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{bias.map((item) => <SelectItem key={item.id} value={item.id}>{item.nome_bia}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          <Badge variant={locked ? "secondary" : "outline"} className="justify-center gap-1.5 py-1.5">
+            {locked && <Lock className="h-3.5 w-3.5" />}{snapshot.ativa ? "BIA ativa" : "Em estruturação"}
+          </Badge>
+        </div>
+      </div>
+
+      {readOnly && <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Acesso somente para visualização.</div>}
+      {queryFailed && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Não foi possível atualizar a composição. Seus campos foram preservados; o salvamento aguarda uma consulta bem-sucedida. <Button variant="outline" onClick={retryQuery}>Tentar novamente</Button></p>}
+      {snapshot.status === "bloqueado" && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          Os aceites anteriores estão preservados. {snapshot.ativa ? "Correções exigem motivo e geram uma nova versão do MAP." : "Alterar esta composição solicitará novos aceites antes da ativação."}
+        </div>
+      )}
+
+      {snapshot.revisao !== base.revisao && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Há uma revisão mais recente. Seus campos foram preservados. <Button variant="outline" onClick={() => { if (confirmDiscardChanges()) { setBase(snapshot); setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setMotivo(""); } }}>Descartar e carregar revisão atual</Button></p>}
+      {mode === "dm" && <>
+<Card><CardContent className="grid gap-4 pt-6 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Valor de Origem</p><strong>{formatBRL(valorOrigem)}</strong></div><div><p className="text-sm text-muted-foreground">DM total</p><strong>{preview.calculation ? `${preview.calculation.divisorMultiplicador.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%` : "Composição pendente"}</strong></div><div><p className="text-sm text-muted-foreground">Equivalente total</p><strong>{preview.calculation ? formatBRL(preview.calculation.baseEconomicaInicial - valorOrigem) : "—"}</strong></div></CardContent></Card>
+        <div className="space-y-3">{participantes.map((person, index) => <div key={String(person.participantId)} className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_150px_170px] sm:items-center"><div className="min-w-0"><p className="font-medium break-words">{person.nome}</p><p className="text-xs text-muted-foreground break-words">{person.cargos?.join(", ") || "Sem cargos"}</p></div><label className="text-sm">DM (%)<Input aria-label={`DM (%) — ${person.nome}`} type="number" min="0" step="0.00001" disabled={readOnly || saveMutation.isPending} value={Number.isFinite(person.indiceContribuicao) ? person.indiceContribuicao : ""} onChange={e => setParticipantes(rows => rows.map((p, i) => i === index ? {...p, indiceContribuicao: e.target.value === "" ? NaN : Number(e.target.value)} : p))} /></label><div><p className="text-xs text-muted-foreground">Equivalente em reais</p><strong>{Number.isFinite(person.indiceContribuicao) && person.indiceContribuicao >= 0 ? formatBRL(initialMapContributionValue(valorOrigem, person.indiceContribuicao)) : "—"}</strong></div></div>)}</div>
+        <p className="text-sm text-muted-foreground">DM não é a participação final. Pessoas, cargos e capital são alterados em MAP → MAP Zero → Editar composição.</p>
+        {preview.error && <p role="alert" className="text-sm text-amber-700">{preview.error} Complete a composição em <a className="underline" href={`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}?view=zero`}>MAP → MAP Zero → Editar composição</a>.</p>}
+      </>}
+      {mode === "zero" && !editing && <>
+        <Card><CardHeader><CardTitle>Composição inicial · revisão {snapshot.revisao}</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-3 sm:grid-cols-3"><div>Valor de Origem<strong className="block">{formatBRL(snapshot.valorOrigem)}</strong></div><div>DM<strong className="block">{snapshot.divisorMultiplicador.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</strong></div><div>BEI<strong className="block">{formatBRL(snapshot.baseEconomicaInicial)}</strong></div></div>{snapshot.participantes.map(p => <div key={String(p.participantId)} className="rounded border p-3 text-sm"><strong>{p.nome}</strong><p className="text-muted-foreground">{p.cargos?.join(", ")} · {p.tipo === "guardiao" ? "Guardião" : "Multiplicador"}</p><div className="mt-2 grid gap-2 sm:grid-cols-3"><span>DM: {p.indiceContribuicao.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</span><span>{p.tipoCppCapital?.nome || "CPP Capital"}: {formatBRL(Number(p.cppCapital || 0))}</span><span>{p.tipoCppContribuicao?.nome || "CPP Origem"}: {formatBRL(Number(p.cppOrigem || 0))}</span><span>CPP Total: {formatBRL(Number(p.cppTotal || 0))}</span><span>Participação: {Number(p.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</span></div></div>)}</CardContent></Card>
+        {!readOnly && <Button onClick={() => setEditing(true)}>Editar composição</Button>}
+      </>}
+      {mode === "zero" && editing && <fieldset disabled={readOnly || locked || saveMutation.isPending} className="min-w-0 space-y-6 border-0 disabled:opacity-90">
+        <MapZeroFields valorOrigem={valorOrigem} setValorOrigem={setValorOrigem} participantes={participantes} setParticipantes={setParticipantes} membros={membros} byValue={byValue} readOnly={readOnly || locked} />
+      </fieldset>}
+      {(mode === "dm" || editing) && <div className="space-y-3">
+        {snapshot.ativa && !readOnly && <label className="block space-y-2 text-sm">Motivo da correção<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Explique o que precisa ser corrigido" /></label>}
+        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || (snapshot.ativa && !motivo.trim())}>{saveMutation.isPending ? "Salvando…" : mode === "dm" ? "Salvar DM" : "Salvar MAP Zero"}</Button>}
+        {mode === "dm" ? <Button variant="outline" onClick={() => navigate(`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}`)}>Abrir MAP</Button> : <Button variant="outline" disabled={saveMutation.isPending} onClick={() => { if (confirmDiscardChanges()) { setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setBase(snapshot); setMotivo(""); setEditing(false); } }}>Cancelar edição</Button>}</div>
+      </div>}
+
+      {mode === "zero" && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Comparar MAP Zero × MAP Atual</summary>
+      <Card>
+        <CardHeader><CardTitle className="text-lg">MAP Zero × MAP Atual</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">O MAP Atual considera a base vigente, os aportes {byValue ? "adicionais pagos" : "pagos"} e as transferências aceitas.</p>
+          {mapQuery.isError && <p role="alert" className="text-sm text-red-600">Não foi possível consultar o MAP Atual.</p>}
+          <div className="space-y-2 sm:hidden">{(mapQuery.data && !mapQuery.isError ? comparisonParticipants : []).map((item) => { const current = mapQuery.data?.atual.find((row) => row.memberId === (item.memberId || item.participantId)); return <div key={String(item.participantId)} className="rounded-lg border p-3 text-sm"><p className="font-semibold">{item.nome}</p><div className="mt-2 grid grid-cols-2 gap-2 text-xs"><div><p className="text-muted-foreground">CPP Inicial</p><p>{formatBRL(Number(item.cppTotal || 0))}</p></div><div><p className="text-muted-foreground">MAP Zero</p><p>{Number(item.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p></div><div><p className="text-muted-foreground">Valor atual</p><p>{formatBRL(Number(current?.value || 0))}</p></div><div><p className="text-muted-foreground">MAP Atual</p><p>{Number(current?.percent || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p></div></div></div>; })}</div>
+          <div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-3">Participante</th><th className="py-2 pr-3 text-right">CPP Inicial</th><th className="py-2 pr-3 text-right">MAP Zero</th><th className="py-2 pr-3 text-right">Valor atual</th><th className="py-2 text-right">MAP Atual</th></tr></thead><tbody>{(mapQuery.data && !mapQuery.isError ? comparisonParticipants : []).map((item) => { const current = mapQuery.data?.atual.find((row) => row.memberId === (item.memberId || item.participantId)); return <tr key={String(item.participantId)} className="border-b last:border-0"><td className="py-2 pr-3 font-medium">{item.nome}</td><td className="py-2 pr-3 text-right">{formatBRL(Number(item.cppTotal || 0))}</td><td className="py-2 pr-3 text-right">{Number(item.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</td><td className="py-2 pr-3 text-right">{formatBRL(Number(current?.value || 0))}</td><td className="py-2 text-right">{Number(current?.percent || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</td></tr>; })}</tbody></table></div>
+        </CardContent>
+      </Card>
+      </details>}
+    </div>
+  );
+}
+
 export default function BiasCalculadoraPage({
   initialBiaId = null,
   embedded = false,
@@ -371,6 +777,7 @@ export default function BiasCalculadoraPage({
   const bias = useMemo(() => biasRaw || [], [biasRaw]);
   const selectedBia = useMemo(() => bias.find(b => b.id === selectedBiaId), [bias, selectedBiaId]);
   const pendingFlowBypassed = isBiaPendingBypassed(selectedBia);
+  const initialMapQuery = useInitialMapSnapshot(selectedBiaId);
 
   const { data: diretorSolicitacoesPendentes = [] } = useQuery<BiaDiretorSolicitacao[]>({
     queryKey: ["/api/bia-diretor-solicitacoes/bia", selectedBiaId],
@@ -764,7 +1171,7 @@ export default function BiasCalculadoraPage({
     });
   }
 
-  if (loadingBias) {
+  if (loadingBias || (!!selectedBiaId && initialMapQuery.isLoading)) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-10 w-64" />
@@ -775,6 +1182,32 @@ export default function BiasCalculadoraPage({
         </div>
       </div>
     );
+  }
+
+  if (selectedBia && initialMapQuery.data) {
+    return (
+      <MapInicialCalculator
+        key={selectedBia.id}
+        snapshot={initialMapQuery.data}
+        queryFailed={initialMapQuery.isError}
+        retryQuery={() => initialMapQuery.refetch()}
+        bia={selectedBia}
+        bias={bias}
+        membros={membros}
+        embedded={embedded}
+        readOnly={readOnly}
+        onSelectBia={(id) => {
+          setSelectedBiaId(id);
+          setCppSummary(null);
+          setCppError(null);
+          setShowCppDetails(false);
+        }}
+      />
+    );
+  }
+
+  if (selectedBia && initialMapQuery.isError) {
+    return <div className="p-6"><div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{(initialMapQuery.error as Error).message}</div></div>;
   }
 
   return (

@@ -1,4 +1,5 @@
 import { canCorrectQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
+import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -21,7 +22,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { deleteFluxoBatch, fluxoDeleteError, fluxoDeleteNeedsConfirmation } from "@/lib/fluxo-delete";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
-import { allocateQuotaTransferAmounts, calculateMap, type MapContribution } from "@shared/member-portfolio";
+import { MAP_DYNAMIC_FOOTER, allocateQuotaTransferAmounts, calculateMap, type MapContribution } from "@shared/member-portfolio";
 import {
   Wallet,
   Plus,
@@ -164,6 +165,10 @@ type RateioModo = "percentual" | "valor";
 type StatusPagamento = "pendente" | "pago" | "vencido" | "cancelado" | "parcial" | "agendado";
 
 interface FluxoCaixaItem {
+  natureza?: string;
+  finalidade?: string;
+  conciliacao_pendente?: boolean;
+  parcela_inicial_id?: string;
   id: string;
   bia: string | { id: string };
   tipo: "entrada" | "saida";
@@ -1696,7 +1701,7 @@ export default function FluxoCaixaPage({
     }),
   });
 
-  const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
+  const { data: allFluxo = [], isLoading: loadingFluxo, dataUpdatedAt: fluxoUpdatedAt } = useQuery<FluxoCaixaItem[]>({
     queryKey: ["/api/fluxo-caixa", selectedBiaId],
     queryFn: async () => {
       const query = selectedBiaId ? `?bia_id=${encodeURIComponent(selectedBiaId)}` : "";
@@ -1720,12 +1725,12 @@ export default function FluxoCaixaPage({
     enabled: !!historicoItem?.id,
   });
 
-  const { data: transferencias = [] } = useQuery<TransferenciaCotas[]>({
+  const { data: transferencias = [], dataUpdatedAt: transferenciasUpdatedAt } = useQuery<TransferenciaCotas[]>({
     queryKey: ["/api/transferencia-cotas", selectedBiaId],
     queryFn: async () => {
       if (!selectedBiaId) return [];
       const res = await fetch(`/api/transferencia-cotas?bia_id=${selectedBiaId}`, { credentials: "include" });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Erro ao buscar transferências autorizadas");
       return res.json();
     },
     enabled: !!selectedBiaId,
@@ -1982,10 +1987,10 @@ export default function FluxoCaixaPage({
 
   const totals = useMemo(() => {
     const entradas = fluxoItemsAll
-      .filter((i) => i.tipo === "entrada" && i.status === "pago")
+      .filter((i) => isCashEntry(i) && i.tipo === "entrada" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     const saidas = fluxoItemsAll
-      .filter((i) => i.tipo === "saida" && i.status === "pago")
+      .filter((i) => isCashEntry(i) && i.tipo === "saida" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
   }, [fluxoItemsAll]);
@@ -1994,7 +1999,7 @@ export default function FluxoCaixaPage({
   const in7days = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
 
   const financialDashboard = useMemo(() => {
-    const allBia = fluxoItemsContabeis;
+    const allBia = fluxoItemsContabeis.filter(isCashEntry);
     const contasPagar = allBia.filter(
       (i) => i.tipo === "saida" && i.status === "agendado" && !isVencido(i)
     );
@@ -2017,6 +2022,14 @@ export default function FluxoCaixaPage({
   }, [fluxoItemsAll, today, in7days]);
 
   const selectedBia = bias.find((b) => b.id === selectedBiaId);
+  const officialMap = useQuery<{ inicial: any; atual: Array<{ memberId: string; name: string; value: number; percent: number; group: string }>; versaoVigente?: { id: string; numero: number } }>({
+    queryKey: ["/api/bias", selectedBiaId, "map"],
+    queryFn: async () => (await apiRequest("GET", `/api/bias/${selectedBiaId}/map`)).json(),
+    enabled: !!selectedBiaId,
+    refetchOnMount: "always", refetchOnWindowFocus: "always",
+  });
+  // Empty render defaults are new arrays each time; invalidate only after a source actually loads.
+  useEffect(() => { if (selectedBiaId && (fluxoUpdatedAt || transferenciasUpdatedAt)) queryClient.invalidateQueries({ queryKey: ["/api/bias", selectedBiaId, "map"] }); }, [fluxoUpdatedAt, transferenciasUpdatedAt, selectedBiaId]);
   const favorecidosDaBia = useMemo(() => {
     if (!selectedBia) return [];
     const ids = new Set<string>();
@@ -2051,7 +2064,7 @@ export default function FluxoCaixaPage({
       const name = typeof fav === "object" && fav !== null
         ? fav.Nome_de_usuario || fav.nome || fav.nome_completo || fav.razao_social
         : undefined;
-      return [{ memberId: mid, name, value: parseFloat(String(i.valor)) || 0, status: i.status || "" }];
+      return isAdditionalContribution(i) ? [{ memberId: mid, name, value: parseFloat(String(i.valor)) || 0, status: i.status || "" }] : [];
     });
   }, [fluxoItemsContabeis]);
 
@@ -2068,6 +2081,14 @@ export default function FluxoCaixaPage({
 
   const aportesComTransferencias = useMemo(() => {
     const papelPorMembro = new Map<string, PapelAlocacao>();
+    if (!officialMap.data || officialMap.isError) return { rows: [] as AportePorMembro[], papelPorMembro };
+    if (officialMap.data?.inicial) {
+      const rows = officialMap.data.atual.map((item) => {
+        papelPorMembro.set(item.memberId, item.group === "Sócios Guardiões" ? "guardioes" : item.group === "Sócios Multiplicadores" ? "multiplicadores" : "naoClassificados");
+        return { membroId: item.memberId, inlineName: item.name, valor: item.value, percentual: item.percent };
+      });
+      return { rows, papelPorMembro };
+    }
     parseMemberList(selectedBia?.socios_guardioes).forEach((id) => papelPorMembro.set(id, "guardioes"));
     parseMemberList(selectedBia?.socios_multiplicadores).forEach((id) => papelPorMembro.set(id, "multiplicadores"));
 
@@ -2093,7 +2114,7 @@ export default function FluxoCaixaPage({
       .sort((a, b) => b.valor - a.valor);
 
     return { rows, papelPorMembro };
-  }, [mapContributions, selectedBia, transferencias]);
+  }, [mapContributions, selectedBia, transferencias, officialMap.data, officialMap.isError]);
 
   const alocacaoPorPapel = useMemo(() => {
     const { rows, papelPorMembro } = aportesComTransferencias;
@@ -2104,8 +2125,7 @@ export default function FluxoCaixaPage({
     };
   }, [aportesComTransferencias]);
 
-  const allocationLegalText =
-    "Este Mapa de Alocação Patrimonial é anexo acessório ao MoU Padrão BUILT e/ou ao instrumento jurídico pertinente à respectiva aliança. Possui finalidade exclusivamente informativa, estratégica e de governança, não constituindo contrato autônomo, promessa de participação, garantia de retorno, cessão de direitos ou obrigação definitiva, nem substituindo ou prevalecendo sobre contratos, atos societários, deliberações formais ou instrumentos jurídicos assinados. Qualquer participação, direito patrimonial, CPP, alocação econômica ou obrigação dependerá da validação e formalização previstas no instrumento jurídico aplicável. Em caso de dúvidas, divergências ou necessidade de interpretação, prevalecerão o instrumento jurídico pertinente, as deliberações formais da aliança e a orientação da Diretoria da Aliança.";
+  const allocationLegalText = MAP_DYNAMIC_FOOTER;
 
   function escapePdfHtml(value: unknown): string {
     return String(value ?? "")
@@ -2117,6 +2137,16 @@ export default function FluxoCaixaPage({
   }
 
   function handleExportAllocationPdf() {
+    if (officialMap.isError || officialMap.isFetching) {
+      toast({ title: "Aguarde a consulta do MAP oficial", description: "Atualize a página se a consulta falhar.", variant: "destructive" });
+      return;
+    }
+    if (officialMap.data?.inicial) {
+      const versionId = officialMap.data.versaoVigente?.id;
+      if (versionId) { window.open(`/api/bias/${selectedBiaId}/map/versoes/${versionId}/pdf`, "_blank", "noopener"); return; }
+      toast({ title: "MAP Zero disponível na aba MAP Zero", description: "Abra o MAP para consultar a composição inicial e o Histórico para exportar suas revisões." });
+      return;
+    }
     const logoUrl = `${window.location.origin}/built-logo-horizontal-map.png`;
     const groups = [
       { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes },
@@ -3012,7 +3042,7 @@ export default function FluxoCaixaPage({
               <CardContent>
                 <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-green-600" data-testid="text-total-entradas">{formatBRL(totals.entradas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItemsAll.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
+                  {fluxoItemsAll.filter((i) => isCashEntry(i) && i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
                 </p>
               </CardContent>
             </Card>
@@ -3025,7 +3055,7 @@ export default function FluxoCaixaPage({
               <CardContent>
                 <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-red-600" data-testid="text-total-saidas">{formatBRL(totals.saidas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItemsAll.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
+                  {fluxoItemsAll.filter((i) => isCashEntry(i) && i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
                 </p>
               </CardContent>
             </Card>
@@ -3121,7 +3151,8 @@ export default function FluxoCaixaPage({
             </Card>
           )}
 
-          {cotasOnly && aportesPorMembro.length > 0 && (
+          {cotasOnly && (officialMap.isLoading || officialMap.isError) && <p role="status" className="p-4 text-sm">{officialMap.isError ? "Não foi possível consultar o MAP oficial. Tente atualizar a página." : "Consultando MAP oficial…"}</p>}
+          {cotasOnly && aportesComTransferencias.rows.length > 0 && (
             <div className="space-y-3">
               <div className="flex justify-end">
                 <Button
@@ -3998,6 +4029,9 @@ export default function FluxoCaixaPage({
                           <td className="col-start-2 col-end-4 row-start-3 min-w-0 px-3 pt-3 align-top break-words md:table-cell md:py-2 md:px-2" data-testid={`text-descricao-${item.id}`}>
                             <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:hidden">Descrição</span>
                             {item.descricao || "-"}
+                            {item.natureza === "nao_caixa" && <Badge variant="outline" className="mt-1 whitespace-normal">Sem movimentação de caixa</Badge>}
+                            {item.parcela_inicial_id && <a className="mt-1 block text-xs text-blue-600 underline" href={`/bias/${selectedBiaId}?tab=capital&capital=financeiro&financeiro=aportes`}>Gerenciar aporte inicial</a>}
+                            {item.conciliacao_pendente && <p className="text-xs text-amber-700">Conciliação pendente</p>}
                           </td>
                           {/* Categoria */}
                           <td className="col-start-2 col-end-4 row-start-4 min-w-0 px-3 pt-3 align-top md:table-cell md:py-2 md:px-2">

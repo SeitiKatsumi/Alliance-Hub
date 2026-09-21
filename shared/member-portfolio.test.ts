@@ -1,6 +1,47 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocateQuotaTransferAmounts, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "./member-portfolio";
+import { initialMapEconomicSummary, initialMapContributionValue, withInitialCapitalParticipation, type InitialMapParticipantInput } from "./member-portfolio";
+
+test("resumo usa valores do MAP Zero, sem duplicar DM por cargos ou arredondar os componentes", () => {
+  const map = calculateInitialMap(1500000, [
+    {memberId:"g",nome:"Guardião",tipo:"guardiao",indiceContribuicao:0,pesoCapital:100},
+    {memberId:"m",nome:"Multiplicador",tipo:"multiplicador",indiceContribuicao:12.5,pesoCapital:0,cargos:["Diretor","Autor"]},
+  ]);
+  const summary = initialMapEconomicSummary(map);
+  assert.equal(summary.divisor,12.5);
+  assert.equal(summary.cppTotal,187500);
+  assert.equal(summary.custoOrigem,1687500);
+  assert.deepEqual(summary.rows,[{label:"Guardião",perc:0,cpp:0},{label:"Multiplicador",perc:12.5,cpp:187500}]);
+  assert.equal(initialMapEconomicSummary({...map,baseEconomicaInicial:1500000.00001}).cppTotal,0.00001);
+});
+
+test("DM simples mostra o mesmo valor da calculadora, inclusive zero e cinco casas", () => {
+  for (const index of [0, 1, 12.5, 0.123456]) {
+    const map = calculateInitialMap(1500000,[{memberId:"a",nome:"A",tipo:"guardiao",indiceContribuicao:index,pesoCapital:100,capitalComprometido:1500000}]);
+    assert.equal(initialMapContributionValue(1500000,index),map.participantes[0].cppOrigem);
+  }
+  assert.equal(initialMapContributionValue(1500000,12.5),187500);
+});
+
+test("troca para Multiplicador zera somente capital; Guardião exige preenchimento sem recriar valor antigo", () => {
+  const participant:InitialMapParticipantInput = {memberId:"a",nome:"A",cargos:["Diretor de Aliança"],tipo:"guardiao",indiceContribuicao:1,pesoCapital:100,capitalComprometido:100,naturezaCapital:"nao_caixa",tipoCppCapital:{id:"capital",nome:"Capital"},tipoCppContribuicao:{id:"lead",nome:"Liderança"}};
+  const no = withInitialCapitalParticipation(participant,false);
+  assert.equal(no.tipo,"multiplicador");
+  assert.equal(no.capitalComprometido,0);
+  assert.equal(no.pesoCapital,0);
+  assert.equal(no.tipoCppCapital,undefined);
+  assert.equal(no.indiceContribuicao,1);
+  assert.deepEqual(no.tipoCppContribuicao,participant.tipoCppContribuicao);
+  assert.deepEqual(no.cargos,participant.cargos);
+  assert.equal(participant.capitalComprometido,100);
+  const yes = withInitialCapitalParticipation(no,true);
+  assert.equal(yes.tipo,"guardiao");
+  assert.ok(Number.isNaN(yes.capitalComprometido));
+  assert.throws(()=>calculateInitialMap(100,[yes]),/capital comprometido/);
+  assert.equal(withInitialCapitalParticipation({...participant,capitalComprometido:0},true).capitalComprometido,0);
+  assert.throws(()=>calculateInitialMap(100,[{...participant,indiceContribuicao:NaN}]),/Preencha o DM/);
+});
+import { allocateQuotaTransferAmounts, calculateInitialMap, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "./member-portfolio";
 
 test("cancelamento preserva acesso ate o fim da vigencia", () => {
   const startsAt = new Date("2026-08-21T00:00:00Z");
@@ -36,6 +77,36 @@ test("distribui dois centavos com cinco casas sem zerar destinatarios nem criar 
   assert.equal(rows.find((row) => row.memberId === "leia"), undefined);
   assert.equal(rows.length, 11);
   assert.equal(Number(rows.reduce((sum, row) => sum + row.value, 0).toFixed(5)), 0.02);
+});
+
+test("calcula o MAP Inicial da planilha sem criar regra por cargo", () => {
+  const guardian = (memberId: string, nome: string, indiceContribuicao: number) => ({
+    memberId, nome, tipo: "guardiao" as const, indiceContribuicao, pesoCapital: 12.5,
+  });
+  const result = calculateInitialMap(1_500_000, [
+    guardian("maria", "Maria", 1.25), guardian("ju", "Ju", 2), guardian("re", "Rê", 2), guardian("mel", "Mel", 2),
+    guardian("pat", "Pat", 2), guardian("eli", "Eli", 0), guardian("max", "Max", 0), guardian("fabi", "Fabi", 0),
+    { memberId: "rodrigo", nome: "Rodrigo", tipo: "multiplicador", indiceContribuicao: 1.25, pesoCapital: 0, cargos: ["Aliado BUILT"] },
+    { memberId: "pedro", nome: "Pedro", tipo: "multiplicador", indiceContribuicao: 2, pesoCapital: 0, cargos: ["Autor da Oportunidade"] },
+  ]);
+
+  assert.equal(result.divisorMultiplicador, 12.5);
+  assert.equal(result.baseEconomicaInicial, 1_687_500);
+  assert.deepEqual(result.participantes.map((item) => [item.memberId, item.cppTotal, item.mapPercentual]), [
+    ["maria", 206_250, 12.22222], ["ju", 217_500, 12.88889], ["re", 217_500, 12.88889],
+    ["mel", 217_500, 12.88889], ["pat", 217_500, 12.88889], ["eli", 187_500, 11.11111],
+    ["max", 187_500, 11.11111], ["fabi", 187_500, 11.11111], ["rodrigo", 18_750, 1.11111],
+    ["pedro", 30_000, 1.77778],
+  ]);
+  assert.equal(Number(result.participantes.reduce((sum, item) => sum + item.mapPercentual, 0).toFixed(5)), 100);
+});
+
+test("MAP Inicial valida pessoa unica, pesos e regra do Multiplicador", () => {
+  const base = { memberId: "m1", nome: "Ana", tipo: "guardiao" as const, indiceContribuicao: 0, pesoCapital: 100 };
+  assert.throws(() => calculateInitialMap(100, [base, base]), /mesma pessoa/i);
+  assert.throws(() => calculateInitialMap(100, [{ ...base, pesoCapital: 90 }]), /totalizar 100/i);
+  assert.throws(() => calculateInitialMap(100, [base, { memberId: "m2", nome: "Bia", tipo: "multiplicador", indiceContribuicao: 1, pesoCapital: 1 }]), /não recebe Peso de Capital/i);
+  assert.equal(calculateInitialMap(100, [base]).participantes[0].cppOrigem, 0);
 });
 
 test("rejeita rateio de cotas invalido", () => {

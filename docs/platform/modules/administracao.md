@@ -41,6 +41,8 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 
 ## Invariantes
 
+- O seletor BUILT Vitrine permanece no layout original e grava sua escolha em `users.permissions.vitrine` (`view`/`none`) pelos endpoints existentes de usuarios. A leitura respeita a escolha explicita mesmo com cargo principal Aliado; contas legadas sem a chave usam o cargo original. Essa persistencia da selecao nao altera a regra de entrada `canAccessBuiltEnvironment`, as restricoes empresariais nem `na_vitrine` (publicacao do perfil).
+
 - Metrica mostra data de atualizacao, fonte e criterio.
 - Dados pessoais sao minimizados e exportacoes sao autorizadas.
 - Filtros nao alteram totais de modo silencioso.

@@ -1,13 +1,17 @@
 ﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { CURRENCIES, BIA_DESTINACOES, BIA_OBJETIVOS } from "@shared/bia-form-options";
+import { BiaInformationFields, EMPTY_BIA_INFO as EMPTY_INFO } from "@/components/bia-information-fields";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { uploadBiaFiles } from "@/lib/bia-upload";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
 import { isBiaPlatformAdminRole, biaTeamFromMapParticipants, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS } from "@shared/bia-access";
+import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import { BIA_MAP_ECONOMIC_FIELDS, calculateInitialMap, type InitialMapParticipantInput } from "@shared/member-portfolio";
 import { validateInitialClassifications } from "@shared/initial-contributions";
 import { MapZeroFields } from "./bias-calculadora";
@@ -152,7 +156,7 @@ interface BiasProjeto {
   id: string;
   codigo_publico?: string | null;
   nome_bia: string;
-  situacao?: "ativa" | "em_formacao" | null;
+  situacao?: "ativa" | "em_formacao" | BiaPhase | null;
   bia_publica?: boolean | null;
   destinacao?: string | null;
   selo_certified_alliance?: boolean | null;
@@ -334,93 +338,7 @@ function formatMoney(value: number, currency = "BRL"): string {
 }
 
 // ---- Currency list (ISO 4217) ----
-const CURRENCIES: { code: string; name: string }[] = [
-  { code: "BRL", name: "Real Brasileiro" },
-  { code: "USD", name: "Dólar Americano" },
-  { code: "EUR", name: "Euro" },
-  { code: "GBP", name: "Libra Esterlina" },
-  { code: "JPY", name: "Iene Japonês" },
-  { code: "CNY", name: "Yuan Chinês" },
-  { code: "CHF", name: "Franco Suíço" },
-  { code: "AUD", name: "Dólar Australiano" },
-  { code: "CAD", name: "Dólar Canadense" },
-  { code: "HKD", name: "Dólar de Hong Kong" },
-  { code: "SGD", name: "Dólar de Singapura" },
-  { code: "NOK", name: "Coroa Norueguesa" },
-  { code: "SEK", name: "Coroa Sueca" },
-  { code: "DKK", name: "Coroa Dinamarquesa" },
-  { code: "NZD", name: "Dólar da Nova Zelândia" },
-  { code: "MXN", name: "Peso Mexicano" },
-  { code: "ARS", name: "Peso Argentino" },
-  { code: "CLP", name: "Peso Chileno" },
-  { code: "COP", name: "Peso Colombiano" },
-  { code: "PEN", name: "Sol Peruano" },
-  { code: "UYU", name: "Peso Uruguaio" },
-  { code: "PYG", name: "Guarani Paraguaio" },
-  { code: "BOB", name: "Boliviano" },
-  { code: "VEF", name: "Bolívar Venezuelano" },
-  { code: "ZAR", name: "Rand Sul-Africano" },
-  { code: "INR", name: "Rúpia Indiana" },
-  { code: "IDR", name: "Rúpia Indonésia" },
-  { code: "MYR", name: "Ringgit Malaio" },
-  { code: "PHP", name: "Peso Filipino" },
-  { code: "THB", name: "Baht Tailandês" },
-  { code: "VND", name: "Dong Vietnamita" },
-  { code: "KRW", name: "Won Sul-Coreano" },
-  { code: "TRY", name: "Lira Turca" },
-  { code: "RUB", name: "Rublo Russo" },
-  { code: "PLN", name: "Zlóti Polonês" },
-  { code: "CZK", name: "Coroa Tcheca" },
-  { code: "HUF", name: "Florim Húngaro" },
-  { code: "RON", name: "Leu Romeno" },
-  { code: "ILS", name: "Shekel Israelense" },
-  { code: "SAR", name: "Riyal Saudita" },
-  { code: "AED", name: "Dirham dos EAU" },
-  { code: "QAR", name: "Riyal Catarense" },
-  { code: "KWD", name: "Dinar Kuwaitiano" },
-  { code: "BHD", name: "Dinar do Bahrein" },
-  { code: "OMR", name: "Rial Omanense" },
-  { code: "JOD", name: "Dinar Jordaniano" },
-  { code: "EGP", name: "Libra Egípcia" },
-  { code: "MAD", name: "Dirham Marroquino" },
-  { code: "NGN", name: "Naira Nigeriana" },
-  { code: "KES", name: "Xelim Queniano" },
-  { code: "GHS", name: "Cedi Ganense" },
-  { code: "TZS", name: "Xelim Tanzaniano" },
-  { code: "ETB", name: "Birr Etíope" },
-  { code: "UGX", name: "Xelim Ugandense" },
-  { code: "PKR", name: "Rúpia Paquistanesa" },
-  { code: "BDT", name: "Taka de Bangladesh" },
-  { code: "LKR", name: "Rúpia do Sri Lanka" },
-  { code: "NPR", name: "Rúpia Nepalesa" },
-  { code: "MMK", name: "Kyat de Mianmar" },
-  { code: "KHR", name: "Riel Cambojano" },
-  { code: "TWD", name: "Novo Dólar Taiwanês" },
-  { code: "HRK", name: "Kuna Croata" },
-  { code: "BGN", name: "Lev Búlgaro" },
-  { code: "UAH", name: "Hryvnia Ucraniana" },
-  { code: "CRC", name: "Colón Costa-Riquenho" },
-  { code: "GTQ", name: "Quetzal Guatemalteco" },
-  { code: "HNL", name: "Lempira Hondurenha" },
-  { code: "NIO", name: "Córdoba Nicaraguense" },
-  { code: "PAB", name: "Balboa Panamenho" },
-  { code: "DOP", name: "Peso Dominicano" },
-  { code: "CUP", name: "Peso Cubano" },
-  { code: "TTD", name: "Dólar de Trinidad e Tobago" },
-  { code: "BBD", name: "Dólar de Barbados" },
-  { code: "JMD", name: "Dólar Jamaicano" },
-  { code: "ISK", name: "Coroa Islandesa" },
-  { code: "MKD", name: "Denar Macedônio" },
-  { code: "RSD", name: "Dinar Sérvio" },
-  { code: "ALL", name: "Lek Albanês" },
-  { code: "BAM", name: "Marco da Bósnia" },
-  { code: "GEL", name: "Lari Georgiano" },
-  { code: "AMD", name: "Dram Armênio" },
-  { code: "AZN", name: "Manat Azerbaijano" },
-  { code: "KZT", name: "Tenge Cazaque" },
-  { code: "UZS", name: "Som Uzbeque" },
-  { code: "MNT", name: "Tugrik Mongol" },
-];
+// Shared with the full-page creation flow and draft validation.
 
 function formatInputBRL(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -481,7 +399,7 @@ function BRLInput({ label, field, form, setForm, testId, required }: {
 // ---- Form state type ----
 const EMPTY_FORM = {
   nome_bia: "",
-  situacao: "em_formacao" as "ativa" | "em_formacao",
+  situacao: "em_formacao" as "ativa" | "em_formacao" | BiaPhase,
   bia_publica: false,
   destinacao: "",
   selo_certified_alliance: false,
@@ -571,7 +489,7 @@ const CHAMADA_SEQUENCE_LABELS: Record<number, string> = {
 function biaToForm(b: BiasProjeto): FormState {
   return {
     nome_bia: b.nome_bia || "",
-    situacao: (b.situacao === "em_formacao" ?"em_formacao" : "ativa") as "ativa" | "em_formacao",
+    situacao: b.situacao || "em_formacao",
     bia_publica: b.bia_publica !== false,
     destinacao: b.destinacao || "",
     selo_certified_alliance: !!b.selo_certified_alliance,
@@ -613,7 +531,7 @@ function biaToForm(b: BiasProjeto): FormState {
 }
 
 // ---- Currency Combobox ----
-function CurrencyCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function CurrencyCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const selected = CURRENCIES.find(c => c.code === value);
   return (
@@ -960,7 +878,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
 }
 
 // ---- Location Picker Modal ----
-function LocationPickerModal({ open, onClose, onSelect }: {
+export function LocationPickerModal({ open, onClose, onSelect }: {
   open: boolean;
   onClose: () => void;
   onSelect: (localizacao: string, lat: number, lng: number) => void;
@@ -1642,7 +1560,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
   const valorRealizado = n(bia.valor_realizado_venda);
   const vgv = n(bia.valor_geral_venda_vgv);
   const progresso = vgv > 0 ? Math.max(0, Math.min(100, Math.round((valorRealizado / vgv) * 100))) : bia.situacao === "ativa" ? 35 : 15;
-  const situacaoLabel = bia.situacao === "em_formacao" ? "Em estruturação" : "Ativa";
+  const situacaoLabel = biaPhaseLabel(bia.situacao);
   const situacaoClass = bia.situacao === "em_formacao"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-blue-200 bg-blue-50 text-blue-700";
@@ -1827,34 +1745,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const usesMapZero = isEdit && !!editMapQuery.data;
   const mapCheckPending = isEdit && (editMapQuery.isPending || editMapQuery.isFetching);
 
-  const EMPTY_INFO = {
-    razao_social: "",
-    cnpj: "",
-    nome_fantasia: "",
-    inscricao_estadual: "",
-    banco: "",
-    agencia: "",
-    conta: "",
-    tipo_conta: "",
-    titular_conta: "",
-    chave_pix: "",
-    ativo_endereco: "",
-    ativo_bairro: "",
-    ativo_cidade: "",
-    ativo_estado: "",
-    ativo_pais: "",
-    ativo_qualificacao: "",
-    ativo_descricao_adicional: "",
-    ativo_area_m2: "",
-    ativo_numero: "",
-    ativo_complemento: "",
-    ativo_cep: "",
-    ativo_numero_matricula: "",
-    ativo_livro: "",
-    ativo_folha: "",
-    ativo_cartorio: "",
-    ativo_comarca: "",
-  };
   type InfoComercialForm = typeof EMPTY_INFO;
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -1891,36 +1781,10 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [biaImagePreview, setBiaImagePreview] = useState<string | null>(null);
-  const [ativoCepLoading, setAtivoCepLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAtivoCepChange = async (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 8);
-    setInfoForm(current => ({ ...current, ativo_cep: digits }));
-    if (digits.length !== 8) return;
-
-    setAtivoCepLoading(true);
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data || data.erro) return;
-      setInfoForm(current => ({
-        ...current,
-        ativo_cep: digits,
-        ativo_endereco: data.logradouro || current.ativo_endereco,
-        ativo_bairro: data.bairro || current.ativo_bairro,
-        ativo_cidade: data.localidade || current.ativo_cidade,
-        ativo_estado: data.uf || current.ativo_estado,
-        ativo_pais: current.ativo_pais || "Brasil",
-      }));
-    } catch (error) {
-      console.warn("[bia] Nao foi possivel buscar o CEP do ativo", error);
-    } finally {
-      setAtivoCepLoading(false);
-    }
-  };
 
   const { data: meuConvite } = useQuery<any>({
     queryKey: ["/api/meu-convite"],
@@ -2219,16 +2083,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   }, [open, bia?.id, socioSolicitacoesPendentes, pendingFlowBypassed]);
 
   async function uploadFiles(files: File[]): Promise<string[]> {
-    if (files.length === 0) return [];
-    const formData = new FormData();
-    files.forEach(f => formData.append("files", f));
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Erro no upload" }));
-      throw new Error(err.error || "Erro no upload");
-    }
-    const result = await res.json();
-    return result.fileIds as string[];
+    return uploadBiaFiles(files);
   }
 
   async function uploadBiaImage(file: File) {
@@ -2238,12 +2093,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     }
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Falha no upload da imagem");
-      const result = await res.json();
-      const fileId = result.fileIds?.[0];
+      const [fileId] = await uploadBiaFiles([file]);
       if (!fileId) throw new Error("Upload sem arquivo retornado");
       setForm((current) => ({ ...current, imagem_directus_id: fileId }));
       setBiaImagePreview(URL.createObjectURL(file));
@@ -2847,7 +2697,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full ${form.situacao === "ativa" ? "bg-emerald-500" : "bg-amber-500"}`} />
-                    <span className="text-sm font-medium">{form.situacao === "ativa" ? "Ativa" : "Em formação"}</span>
+                    <span className="text-sm font-medium">{biaPhaseLabel(form.situacao)}</span>
                   </div>
                   {form.situacao !== "ativa" && (
                     <p className="mt-1 text-xs text-muted-foreground">A ativação é feita na página da BIA, após a validação dos convites e aceites obrigatórios.</p>
@@ -2865,7 +2715,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   className="justify-start flex-wrap gap-2"
                   data-testid="toggle-destinacao"
                 >
-                  {["Residencial", "Comercial", "Industrial", "Misto", "Hospedagem", "Rural"].map((opt) => (
+                  {BIA_DESTINACOES.map((opt) => (
                     <ToggleGroupItem
                       key={opt}
                       value={opt}
@@ -2889,7 +2739,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   }}
                   className="justify-start"
                   data-testid="toggle-visibilidade-bia"
-                  disabled={form.situacao !== "ativa"}
+                  disabled={!biaAllowsFinance(form.situacao)}
                 >
                   <ToggleGroupItem
                     value="publica"
@@ -2906,7 +2756,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                     BIA Privada
                   </ToggleGroupItem>
                 </ToggleGroup>
-                {form.situacao !== "ativa" && (
+                {!biaAllowsFinance(form.situacao) && (
                   <p className="text-xs text-muted-foreground">A BIA permanece privada enquanto estiver em formação.</p>
                 )}
               </div>
@@ -2946,7 +2796,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   className="justify-start gap-2"
                   data-testid="toggle-objetivo"
                 >
-                  {["Renda", "Venda", "Operação"].map((opt) => (
+                  {BIA_OBJETIVOS.map((opt) => (
                     <ToggleGroupItem
                       key={opt}
                       value={opt}
@@ -3157,340 +3007,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
             {/* Tab Informações */}
             <TabsContent value="info" className="space-y-6 mt-4">
-              {form.situacao === "ativa" && (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                  BIA com situação <strong>Ativa</strong>: preencha os campos obrigatórios marcados com *.
-                </p>
-              )}
-
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Informações do Ativo</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Qualificação <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_qualificacao}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_qualificacao: e.target.value })}
-                      placeholder="Casa, galpão, apartamento..."
-                      data-testid="input-ativo-qualificacao"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Área (m²) <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_area_m2}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_area_m2: e.target.value })}
-                      placeholder="Ex: 120,50"
-                      data-testid="input-ativo-area-m2"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-1">
-                    <label className="text-sm font-medium text-foreground">Descrição adicional</label>
-                    <Textarea
-                      rows={2}
-                      className="text-sm resize-none"
-                      value={infoForm.ativo_descricao_adicional}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_descricao_adicional: e.target.value })}
-                      placeholder="Informação complementar do ativo, se houver"
-                      data-testid="input-ativo-descricao-adicional"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      CEP <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_cep}
-                      onChange={e => handleAtivoCepChange(e.target.value)}
-                      placeholder="00000-000"
-                      inputMode="numeric"
-                      data-testid="input-ativo-cep"
-                    />
-                    {ativoCepLoading && <p className="text-xs text-muted-foreground">Buscando CEP...</p>}
-                  </div>
-                  <div className="col-span-2 space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Endereço <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_endereco}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_endereco: e.target.value })}
-                      placeholder="Rua, avenida, estrada..."
-                      data-testid="input-ativo-endereco"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Nº <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_numero}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_numero: e.target.value })}
-                      placeholder="Número"
-                      data-testid="input-ativo-numero"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Complemento <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_complemento}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_complemento: e.target.value })}
-                      placeholder="Bloco, unidade, sala..."
-                      data-testid="input-ativo-complemento"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Bairro <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_bairro}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_bairro: e.target.value })}
-                      placeholder="Bairro"
-                      data-testid="input-ativo-bairro"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Cidade <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_cidade}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_cidade: e.target.value })}
-                      placeholder="Cidade"
-                      data-testid="input-ativo-cidade"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Estado <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_estado}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_estado: e.target.value })}
-                      placeholder="UF"
-                      data-testid="input-ativo-estado"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      País <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_pais}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_pais: e.target.value })}
-                      placeholder="País"
-                      data-testid="input-ativo-pais"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Número da matrícula <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_numero_matricula}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_numero_matricula: e.target.value })}
-                      placeholder="Número da matrícula"
-                      data-testid="input-ativo-numero-matricula"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Livro <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_livro}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_livro: e.target.value })}
-                      placeholder="Livro"
-                      data-testid="input-ativo-livro"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Folha <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_folha}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_folha: e.target.value })}
-                      placeholder="Folha"
-                      data-testid="input-ativo-folha"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Cartório <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_cartorio}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_cartorio: e.target.value })}
-                      placeholder="Cartório de registro"
-                      data-testid="input-ativo-cartorio"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Comarca <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_comarca}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_comarca: e.target.value })}
-                      placeholder="Comarca do registro"
-                      data-testid="input-ativo-comarca"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Dados Comerciais</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Razão social/Nome {form.situacao === "ativa" && <span className="text-destructive">*</span>}
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.razao_social}
-                      onChange={e => setInfoForm({ ...infoForm, razao_social: e.target.value })}
-                      placeholder="Razão social ou nome"
-                      data-testid="input-razao-social"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      CNPJ/CPF {form.situacao === "ativa" && <span className="text-destructive">*</span>}
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.cnpj}
-                      onChange={e => setInfoForm({ ...infoForm, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00 ou 000.000.000-00"
-                      data-testid="input-cnpj-comercial"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Nome Fantasia</label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.nome_fantasia}
-                      onChange={e => setInfoForm({ ...infoForm, nome_fantasia: e.target.value })}
-                      placeholder="Nome fantasia"
-                      data-testid="input-nome-fantasia"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Inscrição Estadual</label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.inscricao_estadual}
-                      onChange={e => setInfoForm({ ...infoForm, inscricao_estadual: e.target.value })}
-                      placeholder="Inscrição estadual"
-                      data-testid="input-inscricao-estadual"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Conta Bancária</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Banco {form.situacao === "ativa" && <span className="text-destructive">*</span>}
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.banco}
-                      onChange={e => setInfoForm({ ...infoForm, banco: e.target.value })}
-                      placeholder="Nome do banco"
-                      data-testid="input-banco"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Agência</label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.agencia}
-                      onChange={e => setInfoForm({ ...infoForm, agencia: e.target.value })}
-                      placeholder="0000"
-                      data-testid="input-agencia"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Conta {form.situacao === "ativa" && <span className="text-destructive">*</span>}
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.conta}
-                      onChange={e => setInfoForm({ ...infoForm, conta: e.target.value })}
-                      placeholder="00000-0"
-                      data-testid="input-conta"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Tipo de Conta</label>
-                    <select
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.tipo_conta}
-                      onChange={e => setInfoForm({ ...infoForm, tipo_conta: e.target.value })}
-                      data-testid="select-tipo-conta"
-                    >
-                      <option value="">Selecione...</option>
-                      <option value="corrente">Conta Corrente</option>
-                      <option value="poupanca">Conta Poupança</option>
-                      <option value="pagamento">Conta de Pagamento</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2 space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Titular da Conta {form.situacao === "ativa" && <span className="text-destructive">*</span>}
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.titular_conta}
-                      onChange={e => setInfoForm({ ...infoForm, titular_conta: e.target.value })}
-                      placeholder="Nome completo do titular"
-                      data-testid="input-titular-conta"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-1">
-                    <label className="text-sm font-medium text-foreground">Chave PIX</label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.chave_pix}
-                      onChange={e => setInfoForm({ ...infoForm, chave_pix: e.target.value })}
-                      placeholder="CPF, CNPJ, email ou chave aleatória"
-                      data-testid="input-chave-pix"
-                    />
-                  </div>
-                </div>
-              </div>
+              <BiaInformationFields infoForm={infoForm} setInfoForm={setInfoForm} active={biaAllowsFinance(form.situacao)}/>
             </TabsContent>
             </fieldset>
           </Tabs>
@@ -3950,9 +3467,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
     const criar = params.get("criar");
     const returnPath = window.location.pathname === "/area-aliancas" ? "/area-aliancas?tab=bias" : "/bias";
     if (criar === "true") {
-      setEditingBia(null);
-      setSheetOpen(true);
-      navigate(returnPath, { replace: true });
+      navigate("/bias/nova", { replace: true });
     } else if (editId && (biasRaw as BiasProjeto[]).length > 0) {
       const target = (biasRaw as BiasProjeto[]).find(b => b.id === editId);
       if (target) {
@@ -3967,7 +3482,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
     }
   }, [biasRaw, user?.membro_directus_id, user?.role]);
 
-  const openCreate = () => { setEditingBia(null); setSheetOpen(true); };
+  const openCreate = () => navigate("/bias/nova");
   const openEdit = (b: BiasProjeto) => {
     if (!canEditBia(b)) {
       toast({ title: "Sem permissão para editar", description: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editar.", variant: "destructive" });

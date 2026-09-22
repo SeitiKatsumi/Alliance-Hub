@@ -37,7 +37,7 @@ export async function decorateInitialEntries(executor: any, entries: any[]) {
 }
 
 export async function assertInitialCommitmentsCompatible(tx:any,biaId:string,base:any,entries:any[]) {
-  if(Number(base.modelo_calculo)!==3)return;
+  if(Number(base.modelo_calculo)<3)return;
   const expected=commitmentsFromMap(Number(base.valor_origem),base.participantes);
   const rows=(await tx.execute(sql`SELECT * FROM bia_aportes_parcelas WHERE bia_id=${biaId} AND vigente=true`)).rows;
   const reserved=new Map<string,number>();
@@ -65,7 +65,7 @@ export function registerInitialContributions(app: any, deps: {
 }) {
   const error = (message: string, statusCode = 409) => Object.assign(new Error(message), { statusCode });
   const actor = (req: any) => ({ userId: req.session?.directusUserId, membroId: req.session?.membroId });
-  const requireBase = (base: any) => { if (!base || Number(base.modelo_calculo) !== 3) throw error("Esta BIA preserva o modelo anterior de aportes.", 404); };
+  const requireBase = (base: any) => { if (!base || Number(base.modelo_calculo) < 3) throw error("Esta BIA preserva o modelo anterior de aportes.", 404); };
   const plan = async (tx: any, id: string) => (await tx.execute(sql`SELECT * FROM bia_aportes_iniciais WHERE bia_id=${id}`)).rows[0];
   const parcels = async (tx: any, id: string) => (await tx.execute(sql`SELECT * FROM bia_aportes_parcelas WHERE bia_id=${id} ORDER BY revisao, chave, numero`)).rows;
   const checkRevision = (p: any, body: any) => { if (!Number.isInteger(body.revisaoEsperada) || Number(p?.revisao || 0) !== body.revisaoEsperada) throw error("O cronograma mudou. Recarregue a página."); };

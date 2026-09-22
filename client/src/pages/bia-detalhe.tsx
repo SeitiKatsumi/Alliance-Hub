@@ -25,6 +25,8 @@ import NucleoCapitalPage from "./nucleo-capital";
 import BiaDemandas from "@/components/bia-demandas";
 import TraceabilitySummary from "@/components/traceability-summary";
 import { BiaFormSheet } from "./bias";
+import { BiaPhaseControls } from "@/components/bia-phase-controls";
+import { biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import {
   EMPTY_BIA_ACCESS,
   hasBiaAccess,
@@ -46,7 +48,7 @@ interface AnexoFile {
 interface BiasProjeto {
   map_inicial?: InitialMapCalculation | null;
   id: string;
-  situacao?: "ativa" | "em_formacao" | null;
+  situacao?: "ativa" | "em_formacao" | BiaPhase | null;
   codigo_publico?: string | null;
   nome_bia: string;
   objetivo_alianca?: string;
@@ -856,6 +858,7 @@ export default function BiaDetalhePage() {
           Voltar para BIAs
         </Button>
         <div className="flex flex-wrap items-center gap-2">
+          {canEditBia && bia.situacao === "em_estruturacao" && <Button onClick={()=>navigate(`/bias/${bia.id}/estruturacao`)}>Continuar estruturação</Button>}
           {canEditBia && bia.situacao === "em_formacao" && (
             <Button
               size="sm"
@@ -918,7 +921,7 @@ export default function BiaDetalhePage() {
           <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono mb-1">// BUILT Alliances · BIA</p>
           <h1 className="text-2xl font-bold text-cyan-300 font-mono tracking-wide">{bia.nome_bia}</h1>
           <Badge className={`mt-2 ${bia.situacao === "em_formacao" ? "bg-amber-400/15 text-amber-200" : "bg-emerald-400/15 text-emerald-200"}`}>
-            {bia.situacao === "em_formacao" ? "BIA em formação" : "BIA ativa"}
+            {biaPhaseLabel(bia.situacao)}
           </Badge>
           <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-mono text-cyan-100/80">
             <span className="uppercase tracking-[0.22em] text-cyan-300/55">Código da BIA</span>
@@ -952,6 +955,7 @@ export default function BiaDetalhePage() {
       </div>
 
         <TabsContent value="visao" className="space-y-6">
+          <BiaPhaseControls id={bia.id} phase={String(bia.situacao || "ativa")} canEdit={canEditBia}/>
           <TraceabilitySummary objectType="bia" objectId={bia.id} />
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}

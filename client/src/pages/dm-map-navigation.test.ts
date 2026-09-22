@@ -93,7 +93,7 @@ test("cada área tem seu componente único, MAP Atual padrão e links persistent
   assert.match(map, /requestedView === "zero" \|\| requestedView === "historico" \? requestedView : "atual"/);
   assert.match(map, /params.set\("view", next\)/); assert.match(map, /<FluxoCaixaPage[^>]+cotasOnly/);
   assert.match(map, /<BiaMapZero/); assert.match(map, /<BiaMapHistory/);
-  assert.match(financial, /snapshot.data\?\.modeloCalculo === 3/);
+  assert.match(financial, /Number\(snapshot.data\?\.modeloCalculo\) >= 3/);
   assert.equal((financial.match(/<InitialContributions/g) || []).length, 1);
   assert.match(editor, /mode === "zero" && !editing/); assert.match(editor, /mode === "zero" && editing/);
 });

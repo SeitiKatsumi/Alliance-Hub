@@ -37,6 +37,8 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 
 ## Papeis e permissoes
 
+- A entrada no ambiente Alliances reconhece também Aliado e os selos oficiais BUILT_ALLIANCE_PARTNER/BUILT_FOUNDING_MEMBER, antes de existir a primeira BIA. Participação efetiva continua válida. Preferências de área/finalidade sozinhas não concedem autorização; funcionários continuam limitados pelas permissões empresariais. Isso não concede acesso administrativo nem acesso a BIAs/comunidades de terceiros. `/api/me` já recarrega papel e selos; o cliente consulta a cada 30 segundos.
+
 - Rotas de autenticacao e convite possuem trechos publicos estritamente limitados.
 - Dados completos do perfil exigem sessao e autorizacao.
 - Funcionario usa identidade propria e herda apenas os acessos empresariais explicitamente concedidos.

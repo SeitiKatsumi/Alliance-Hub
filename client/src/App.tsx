@@ -19,6 +19,7 @@ import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 import { PhoneInput } from "@/components/phone-input";
 import NotFound from "@/pages/not-found";
 import BiasPage from "@/pages/bias";
+import BiaNovaPage from "@/pages/bia-nova";
 import BiaDetalhePage from "@/pages/bia-detalhe";
 import OpaDetalhePage from "@/pages/opa-detalhe";
 import AuraPage from "@/pages/aura";
@@ -1477,6 +1478,8 @@ function ProtectedApp() {
               <Route path="/agenda-alertas" component={AgendaAlertasPage} />
               <Route path="/convites-alianca">{() => <ComunidadePage convitesOnly />}</Route>
               <Route path="/agenda">{() => <LegacyAgendaAlertsRedirect view="agenda" />}</Route>
+              <Route path="/bias/nova">{()=><BiaNovaPage key="nova"/>}</Route>
+              <Route path="/bias/:id/estruturacao">{params=><BiaNovaPage key={params.id}/>}</Route>
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias">{() => <BiasPage />}</Route>
               <Route path="/opas/:id" component={OpaDetalhePage} />

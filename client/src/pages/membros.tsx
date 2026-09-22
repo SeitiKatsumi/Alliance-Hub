@@ -593,7 +593,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     if (comunidadeMaeAtual?.id) setSelectedComunidadeMaeId(String(comunidadeMaeAtual.id));
   }, [comunidadeMaeAtual?.id]);
 
-  type LinkedUser = { id: string; role: string; username: string; email?: string; membro_directus_id?: string | null };
+  type LinkedUser = { id: string; role: string; username: string; email?: string; membro_directus_id?: string | null; permissions?: Record<string, string> };
   const fetchLinkedUser = async (url: string): Promise<LinkedUser | null> => {
     const res = await fetch(url);
     if (!res.ok) {
@@ -685,6 +685,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     if (selectedRole === null) {
       const selos: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
       const initialRoles = new Set<string>([linkedUser.role || "user"]);
+      if (linkedUser.permissions?.vitrine === "view") initialRoles.add("user");
+      if (linkedUser.permissions?.vitrine === "none") initialRoles.delete("user");
       if (selos.includes("BUILT_PROUD_MEMBER")) initialRoles.add("membro");
       if (selos.includes("BUILT_CAPITAL_PARTNER")) initialRoles.add("investidor");
       if (selos.includes("BUILT_ALLIANCE_PARTNER")) initialRoles.add("aliado");
@@ -778,6 +780,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         if (nextLevel > currentLevel) merged[key] = byLevel[nextLevel];
       });
     });
+    merged.vitrine = roles.includes("user") ? "view" : "none";
     return merged;
   }
 

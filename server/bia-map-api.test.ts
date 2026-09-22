@@ -14,6 +14,8 @@ import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase
 import { calculateInitialMap, calculateMap, MAP_DYNAMIC_FOOTER } from "../shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { validateInitialClassifications } from "../shared/initial-contributions";
+import { biaAllowsFinance } from "../shared/bia-phase";
+import { formatBiaPercent } from "../shared/bia-numbers";
 
 test("rotas reais: permissões, revisão, não alteração do caixa, aceites antigos e falha de fonte", async () => {
   const pg = new PGlite();
@@ -77,7 +79,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
     return calculateMap((options.entries || entries).map((e: any) => ({memberId: "d", value: e.valor, status: e.status})), transfers, mapRowsFromBase(options.base), true);
   };
   const scope: Record<string, any> = {
-    app, db:testDb, sql, mapOperationContext: context, ensureBiaMapInicialSnapshotsTable: async () => {},
+    app, db:testDb, sql, biaAllowsFinance, formatBiaPercent, mapOperationContext: context, ensureBiaMapInicialSnapshotsTable: async () => {},
     appendMapVersion, assertMapRevision, canCorrectMapBase, mapBaseContent, mapContentHash, mapRowsFromBase,
     createHash, randomUUID, calculateInitialMap, MAP_DYNAMIC_FOOTER, assertInitialCommitmentsCompatible, validateInitialClassifications,
     directusFetchOne: async (collection: string, id: string) => collection === "fluxo_caixa" ? entries.find(e => e.id === id) : collection === "cadastro_geral" ? {id,nome:"Diretor"} : bia, resolveBiaByIdOrPublicCode: async () => bia,

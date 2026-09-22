@@ -17,7 +17,11 @@ export type BuiltEnvironmentAccessSubject = {
 
 export function isBuiltAlliancesMember(user: BuiltEnvironmentAccessSubject | null | undefined): boolean {
   const role = String(user?.role || "").trim().toLowerCase();
-  return ["admin", "manager", "superadmin"].includes(role) || user?.has_alliance_participation === true;
+  const seals = Array.isArray(user?.Outras_redes_as_quais_pertenco) ? user.Outras_redes_as_quais_pertenco : [];
+  // Developers of alliances must be able to enter before their first BIA exists.
+  return ["admin", "manager", "superadmin", "aliado"].includes(role)
+    || seals.some(seal => ["BUILT_FOUNDING_MEMBER", "BUILT_ALLIANCE_PARTNER"].includes(String(seal)))
+    || user?.has_alliance_participation === true;
 }
 
 export function canPublishVitrineProfile(user: BuiltEnvironmentAccessSubject | null | undefined): boolean {

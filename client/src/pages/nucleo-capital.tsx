@@ -844,7 +844,7 @@ function FinanceiroBia({ initialBiaId, embedded, readOnly }: { initialBiaId?: st
   const search = useSearch();
   const [, navigate] = useLocation();
   const section = new URLSearchParams(search).get("financeiro") === "aportes" ? "aportes" : "lancamentos";
-  const compatible = snapshot.data?.modeloCalculo === 3;
+  const compatible = Number(snapshot.data?.modeloCalculo) >= 3;
   const membros = useQuery<Array<{ id: string; nome?: string; Nome_de_usuario?: string | null }>>({ queryKey: ["/api/membros"], enabled: compatible && section === "aportes" });
   return <Tabs value={section} onValueChange={value => {
     const params = new URLSearchParams(search); params.set("financeiro", value);

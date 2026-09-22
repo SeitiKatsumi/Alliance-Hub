@@ -5,6 +5,24 @@ import ts from "typescript";
 import { transformSync } from "esbuild";
 import { QueryClient } from "@tanstack/react-query";
 
+test("Equipe e DM ocupa toda a largura somente na criação, com capital único e detalhes expansíveis", () => {
+  const page=readFileSync(new URL("./bia-nova.tsx",import.meta.url),"utf8");
+  const component=readFileSync(new URL("../components/bia-role-composition.tsx",import.meta.url),"utf8");
+  assert.match(page,/step===1\?"":"xl:grid-cols/);
+  assert.match(page,/step!==1 && <aside/);
+  assert.match(page,/<BiaRoleComposition compact /);
+  assert.match(page,/aria-label="Totais da composição"/);
+  assert.match(component,/compact && \(j===0\?/);
+  assert.match(component,/\(!compact \|\| j===0\)\?<label/);
+  assert.match(component,/role="group" aria-label=\{`Participante/);
+  assert.doesNotMatch(component,/Capital na primeira linha/);
+  assert.match(component,/\{participantActions\(p,i\)\}\s*<details/);
+  assert.doesNotMatch(component,/!compact && participantActions/);
+  assert.match(component,/!compact && <label[^]*?Capital comprometido/);
+  assert.match(component,/Classificação pendente/);
+  assert.match(component,/decimals=\{5\}/);
+});
+
 test("Nova BIA e editor MAP Zero mantêm adicionar Pessoa, sem o atalho + BUILT", () => {
   const source = readFileSync(new URL("./bias-calculadora.tsx", import.meta.url), "utf8");
   assert.match(source, /onClick=\{addMember\}[^]*?Pessoa<\/Button>/);

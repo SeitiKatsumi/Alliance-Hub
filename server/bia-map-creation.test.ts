@@ -8,6 +8,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
 import { BIA_MAP_ECONOMIC_FIELDS, calculateInitialMap } from "../shared/member-portfolio";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
+import { biaAllowsFinance } from "../shared/bia-phase";
 import { validateInitialClassifications } from "../shared/initial-contributions";
 import { collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants } from "../shared/bia-access";
 
@@ -34,7 +35,7 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
   let failArchive = false;
   let handler:any;
   const scope = {
-    app:{post:(_path:string,fn:any)=>{handler=fn;}},
+    app:{post:(_path:string,fn:any)=>{if(_path === "/api/bias")handler=fn;},get:()=>{},put:()=>{}},
     db, sql, calculateInitialMap, validateInitialClassifications, collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS,
     BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants, directusRelationId:(value:any)=>value?.id || value || null,
     ensureBiaMapInicialSnapshotsTable:async()=>{},
@@ -49,10 +50,10 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     loadInitialMapSnapshot:async(id:string,tx:any=db)=>(await tx.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE bia_id=${id}`)).rows[0],
     withMapLock:async(_id:string,fn:any)=>db.transaction(tx=>fn(tx,null)),
     archiveMapBase:async(_tx:any,_bia:any,base:any)=>{if(failArchive)throw new Error("Falha simulada no histórico");archives.push(base);},
-    processDiretorSolicitacoes:async()=>{assert.equal(archives.length,writes.length);return [];},
+    processDiretorSolicitacoes:async()=>{assert.equal(archives.length+deleted.length,writes.length);return [];},
     processSocioSolicitacoes:async()=>[],
   };
-  const code = ["calculateSubmittedInitialMap","createInitialMapDraft"].map(n=>functions.get(n)).join("\n")+source.slice(start,end);
+  const code = ["calculateSubmittedInitialMap","createInitialMapDraft","createBiaHandler"].map(n=>functions.get(n)).join("\n")+source.slice(start,end);
   new Function(...Object.keys(scope),transformSync(code,{loader:"ts",format:"cjs"}).code)(...Object.values(scope));
   const participant = (id:string,capital:number,index=0)=>({memberId:id,nome:"Nome adulterado",tipo:"guardiao",indiceContribuicao:index,
     capitalComprometido:capital,pesoCapital:99,naturezaCapital:"nao_caixa",tipoCppCapital:{id:"capital",nome:"Falso"},tipoCppContribuicao:{id:"origem"}});
@@ -103,6 +104,16 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     assert.equal((await request(input)).status,500);
     assert.deepEqual(deleted,["2"]);
     assert.equal((await db.execute(sql`SELECT * FROM bia_map_inicial_snapshots`)).rows.length,1);
+    failArchive=false;
+    const cargos=[BIA_PARTICIPANT_ROLE_LABELS.autor,BIA_PARTICIPANT_ROLE_LABELS.aliado,BIA_PARTICIPANT_ROLE_LABELS.diretor_alianca];
+    const model4={...participant("a",100),tipo:"multiplicador",modeloCalculo:4,cargos,contribuicoes:cargos.map((cargo,i)=>({cargo,indice:i===0?0:i===1?1.25:2,tipoCpp:{id:"origem"}}))};
+    const newResult=await request({...input,map_inicial:{modeloCalculo:4,valorOrigem:100,participantes:[model4]}});
+    assert.equal(newResult.status,200,JSON.stringify(newResult.result));
+    const newBase:any=(await db.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE modelo_calculo=4`)).rows[0];
+    assert.equal(newBase.participantes[0].cppCapital,100);assert.equal(newBase.participantes[0].cppTotal,103.25);
+    assert.equal(newBase.participantes[0].contribuicoes.length,3);
+    const invalid={...model4,cargos:["Cargo inexistente"],contribuicoes:[{cargo:"Cargo inexistente",indice:1,tipoCpp:{id:"origem"}}]};
+    assert.equal((await request({...input,map_inicial:{modeloCalculo:4,valorOrigem:100,participantes:[invalid]}})).status,400);
   } finally {await pg.close();}
 });
 
@@ -126,7 +137,7 @@ test("edição geral preserva MAP Zero; DM legado e acesso continuam protegidos"
   let handler:any;
   const scope = {
     app:{patch:(_path:string,fn:any)=>{handler=fn;}},
-    BIA_MAP_ECONOMIC_FIELDS, normalizeBiaOriginPatch,
+    BIA_MAP_ECONOMIC_FIELDS, normalizeBiaOriginPatch, biaAllowsFinance,
     directusRelationId:(v:any)=>v?.id || v || null,
     parseBiaMemberList:(v:any)=>Array.isArray(v)?v:[],
     resolveBiaByIdOrPublicCode:async()=>({...current}),

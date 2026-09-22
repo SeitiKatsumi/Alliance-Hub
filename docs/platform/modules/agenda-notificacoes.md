@@ -42,6 +42,9 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 
 ## Invariantes
 
+- E-mails de convite para diretoria e socios de BIA exibem a acao antes dos detalhes, com botao HTML de fundo solido, largura fluida e link alternativo. A logo tem largura explicita; aceitar/recusar continua exigindo acesso e autorizacao na plataforma. E-mails ja enviados nao sao modificados.
+- Convites protegem fundo azul-marinho, botao dourado e texto com gradientes de cor unica e recorte de texto restrito ao Gmail. Cores inline permanecem como fallback; texto nao vira imagem. Previa de navegador nao substitui validacao no aplicativo de e-mail em modo escuro.
+
 - A explicacao do modulo usa um controle de informacao acionavel no cabecalho da pagina, sem poluir as abas ou o menu lateral.
 - Contador e lista usam a mesma regra e o mesmo escopo de usuario.
 - Um evento de origem gera no maximo uma pendencia acionavel equivalente.
@@ -55,6 +58,8 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 - Mudanca em qualquer status precisa revisar contador, lista, destino e texto de notificacao.
 
 ## Testes e impacto
+
+- `server/mailer.test.ts` (SMTP simulado; layout de convites, links, caracteres e percentual zero).
 
 - `server/agenda-alerts.test.ts`
 - `client/src/lib/agenda-alerts.test.ts`

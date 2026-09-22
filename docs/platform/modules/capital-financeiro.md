@@ -4,6 +4,14 @@
 
 ## Objetivo e usuarios
 
+### Modelo econômico 4 (nova criação em etapas)
+
+Modelo explícito sem conversão dos anteriores: cada participante possui contribuições por cargo, com índice e classificação de CPP separados; o cálculo compartilhado soma esses componentes e agrupa a pessoa uma vez. Capital é registrado uma vez por pessoa, inclusive Multiplicador. Cargo individual não pode repetir entre pessoas. Valores positivos exigem classificação; zero explícito é válido. Ausência fica pendente.
+
+DM, MAP Zero e compromissos usam `calculateInitialMap`/`commitmentsFromMap`. Integralizar capital inicial não adiciona CPP; cada direito por cargo tem identificador próprio. Aportes e parcelas aceitam modelos 3 e 4. Percentuais novos têm cinco casas na interface; valores de domínio continuam numéricos, sem alterar PDFs históricos.
+
+Rascunho e alterações de MAP não criam caixa. Estruturação, captação, encerramento e transições operacionais pendentes bloqueiam execução financeira no backend; planejamento de aportes continua separado. Transições não criam pagamentos. Os testes de guarda financeira e recuperação estão em `server/bia-workflow.test.ts`.
+
 Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de origem, DM/CPP, cotas e analises financeiras.
 
 ## Telas e URLs

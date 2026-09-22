@@ -152,24 +152,38 @@ async function send(to: string, subject: string, html: string): Promise<{ ok: bo
   }
 }
 
-function baseTemplate(content: string): string {
+function baseTemplate(content: string, preserveColors = false): string {
   return `
     <!doctype html>
     <html lang="pt-BR">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      ${preserveColors ? `<meta name="color-scheme" content="light" />
+      <meta name="supported-color-schemes" content="light" />
+      <style>
+        /* Gmail iOS recolors CSS colors, but not gradient images. Keep text selectable.
+           https://github.com/matthieuSolente/email-darkmode#keep-text-colors-in-gmail-martin-stripaj */
+        u + .built-email .email-gold { background-image:linear-gradient(#D7BB7D,#D7BB7D); }
+        u + .built-email .email-copy { background-image:linear-gradient(#d1dae3,#d1dae3); }
+        u + .built-email .email-muted { background-image:linear-gradient(#a8b6c4,#a8b6c4); }
+        u + .built-email .email-ink { background-image:linear-gradient(#001D34,#001D34); }
+        u + .built-email .email-gold, u + .built-email .email-copy,
+        u + .built-email .email-muted, u + .built-email .email-ink {
+          -webkit-background-clip:text; background-clip:text; color:transparent !important;
+        }
+      </style>` : ""}
     </head>
-    <body style="margin:0;padding:0;background:#f5f7fb">
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#001D34;color:#fff;border-radius:12px;overflow:hidden">
-      <div style="background:linear-gradient(135deg,#001D34,#0a2a4a);padding:28px 24px;text-align:center;border-bottom:1px solid rgba(215,187,125,0.2)">
-        <img src="${BASE_URL}/built-logo-horizontal-branca-email.png?v=20260514" alt="BUILT Alliances" style="width:280px;max-width:88%;height:auto;display:inline-block" />
+    <body class="built-email" style="margin:0;padding:0;background:#f5f7fb">
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#001D34;${preserveColors ? "background-image:linear-gradient(#001D34,#001D34);" : ""}color:#fff;border-radius:12px;overflow:hidden">
+      <div style="background:#001D34;background-image:linear-gradient(#001D34,#001D34);padding:16px 20px;text-align:center;border-bottom:1px solid #29435a">
+        <img src="${BASE_URL}/built-logo-horizontal-branca-email.png?v=20260514" alt="BUILT Alliances" width="220" style="width:220px;max-width:100%;height:auto;display:inline-block;border:0" />
       </div>
-      <div style="padding:32px">
+      <div style="padding:20px;overflow-wrap:break-word">
         ${content}
       </div>
       <div style="padding:16px 32px;border-top:1px solid rgba(215,187,125,0.1);text-align:center">
-        <p style="margin:0;color:rgba(255,255,255,0.3);font-size:11px">© Built Alliances • Rede de Alianças Estratégicas</p>
+        <p class="email-muted" style="margin:0;color:#a8b6c4;font-size:11px">© Built Alliances • Rede de Alianças Estratégicas</p>
       </div>
     </div>
     </body>
@@ -474,6 +488,14 @@ export async function enviarResultadoAprovacaoBia(opts: {
   await send(opts.diretorEmail, subject, html);
 }
 
+function biaInvitationAction(label: string): string {
+  return `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;max-width:320px;margin:20px auto">
+    <tr><td align="center" bgcolor="#D7BB7D" style="background-color:#D7BB7D;background-image:linear-gradient(#D7BB7D,#D7BB7D);border:1px solid #D7BB7D;border-radius:8px">
+      <a href="${BASE_URL}/notificacoes" style="display:block;padding:16px 12px;color:#001D34;text-decoration:none;font-family:Arial,sans-serif;font-weight:bold;font-size:16px;line-height:22px;text-align:center"><span class="email-ink" style="color:#001D34">${label}</span></a>
+    </td></tr>
+  </table>`;
+}
+
 export async function enviarSolicitacaoDiretoriaBia(opts: {
   diretorEmail: string;
   diretorNome: string;
@@ -486,20 +508,19 @@ export async function enviarSolicitacaoDiretoriaBia(opts: {
     ? `${opts.percentual}%`
     : "percentual não informado";
   const html = baseTemplate(`
-    <h2 style="color:#D7BB7D;margin-top:0">Convite para diretoria de BIA</h2>
-    <p style="color:rgba(255,255,255,0.8)">Olá, <strong style="color:#D7BB7D">${opts.diretorNome || "membro"}</strong>!</p>
-    <p style="color:rgba(255,255,255,0.7)">Você foi indicado para atuar como <strong>${opts.papel}</strong> na BIA <strong>${opts.biaNome}</strong>.</p>
-    <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
-      <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.biaNome}</p>
-      <p style="color:rgba(255,255,255,0.6);margin:6px 0 0;font-size:13px">Papel: ${opts.papel}</p>
-      <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">Percentual: ${percentualText}</p>
-      ${opts.solicitanteNome ? `<p style="color:rgba(255,255,255,0.45);margin:8px 0 0;font-size:12px">Indicado por ${opts.solicitanteNome}</p>` : ""}
+    <h2 class="email-gold" style="color:#D7BB7D;margin-top:0">Convite para diretoria de BIA</h2>
+    <p class="email-copy" style="color:#d1dae3">Olá, <strong class="email-gold" style="color:#D7BB7D">${escapeEmailHtml(opts.diretorNome || "membro")}</strong>!</p>
+    <p class="email-copy" style="color:#d1dae3">Você foi indicado para atuar como <strong>${escapeEmailHtml(opts.papel)}</strong> na BIA <strong>${escapeEmailHtml(opts.biaNome)}</strong>.</p>
+    ${biaInvitationAction("Responder solicitação")}
+    <p class="email-copy" style="color:#d1dae3;font-size:14px;line-height:21px">Abra o convite na plataforma para aceitar ou recusar.</p>
+    <div style="background:#112a3a;background-image:linear-gradient(#112a3a,#112a3a);border:1px solid #3d4543;border-radius:8px;padding:16px;margin:20px 0">
+      <p class="email-gold" style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${escapeEmailHtml(opts.biaNome)}</p>
+      <p class="email-muted" style="color:#a8b6c4;margin:6px 0 0;font-size:13px">Papel: ${escapeEmailHtml(opts.papel)}</p>
+      <p class="email-muted" style="color:#a8b6c4;margin:4px 0 0;font-size:13px">Percentual: ${escapeEmailHtml(percentualText)}</p>
+      ${opts.solicitanteNome ? `<p class="email-muted" style="color:#a8b6c4;margin:8px 0 0;font-size:12px">Indicado por ${escapeEmailHtml(opts.solicitanteNome)}</p>` : ""}
     </div>
-    <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para aceitar ou recusar esta diretoria.</p>
-    <div style="text-align:center;margin:32px 0">
-      <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Responder solicitação</a>
-    </div>
-  `);
+    <p class="email-copy" style="color:#d1dae3;font-size:13px;line-height:20px">Se o botão não aparecer, <a class="email-gold" href="${BASE_URL}/notificacoes" style="color:#D7BB7D;text-decoration:underline">abra seus convites por este link</a>.</p>
+  `, true);
   await send(opts.diretorEmail, `Convite para ${opts.papel} — ${opts.biaNome}`, html);
 }
 
@@ -511,19 +532,18 @@ export async function enviarSolicitacaoSocioBia(opts: {
   solicitanteNome?: string | null;
 }) {
   const html = baseTemplate(`
-    <h2 style="color:#D7BB7D;margin-top:0">Convite para participar de BIA</h2>
-    <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.socioNome || "membro"}</strong>!</p>
-    <p style="color:rgba(255,255,255,0.7)">Voce foi indicado para atuar como <strong>${opts.papel}</strong> na BIA <strong>${opts.biaNome}</strong>.</p>
-    <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
-      <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.biaNome}</p>
-      <p style="color:rgba(255,255,255,0.6);margin:6px 0 0;font-size:13px">Papel: ${opts.papel}</p>
-      ${opts.solicitanteNome ? `<p style="color:rgba(255,255,255,0.45);margin:8px 0 0;font-size:12px">Indicado por ${opts.solicitanteNome}</p>` : ""}
+    <h2 class="email-gold" style="color:#D7BB7D;margin-top:0">Convite para participar de BIA</h2>
+    <p class="email-copy" style="color:#d1dae3">Ola, <strong class="email-gold" style="color:#D7BB7D">${escapeEmailHtml(opts.socioNome || "membro")}</strong>!</p>
+    <p class="email-copy" style="color:#d1dae3">Voce foi indicado para atuar como <strong>${escapeEmailHtml(opts.papel)}</strong> na BIA <strong>${escapeEmailHtml(opts.biaNome)}</strong>.</p>
+    ${biaInvitationAction("Responder convite")}
+    <p class="email-copy" style="color:#d1dae3;font-size:14px;line-height:21px">Abra o convite na plataforma para aceitar ou recusar.</p>
+    <div style="background:#112a3a;background-image:linear-gradient(#112a3a,#112a3a);border:1px solid #3d4543;border-radius:8px;padding:16px;margin:20px 0">
+      <p class="email-gold" style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${escapeEmailHtml(opts.biaNome)}</p>
+      <p class="email-muted" style="color:#a8b6c4;margin:6px 0 0;font-size:13px">Papel: ${escapeEmailHtml(opts.papel)}</p>
+      ${opts.solicitanteNome ? `<p class="email-muted" style="color:#a8b6c4;margin:8px 0 0;font-size:12px">Indicado por ${escapeEmailHtml(opts.solicitanteNome)}</p>` : ""}
     </div>
-    <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para aceitar ou recusar este convite.</p>
-    <div style="text-align:center;margin:32px 0">
-      <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Responder convite</a>
-    </div>
-  `);
+    <p class="email-copy" style="color:#d1dae3;font-size:13px;line-height:20px">Se o botão não aparecer, <a class="email-gold" href="${BASE_URL}/notificacoes" style="color:#D7BB7D;text-decoration:underline">abra seus convites por este link</a>.</p>
+  `, true);
   await send(opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
 }
 

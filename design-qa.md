@@ -1,3 +1,21 @@
+# Design QA — Equipe e DM em largura total (2026-09-22)
+
+- Fonte: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-a7389f25-03ec-405f-b2fc-861a68e07da2.png`, 984×700.
+- Implementação: `http://localhost:3004/bias/nova`, capturas inline do navegador nesta tarefa (desktop1294×920 e mobile390×844; sem arquivo de captura exportado).
+- Comparação conjunta: referência e screenshot final exibidos na mesma chamada. Comparados os blocos de totais e participantes; sidebar/cabeçalho do produto e dados diferentes não são desvios. Mesma etapa, desktop, detalhes recolhidos. Comparação de estrutura/densidade, não pixel a pixel.
+- Tipografia: componentes/fontes existentes preservados; totais destacados e rótulos legíveis.
+- Espaçamento: faixa superior horizontal, tabela sem coluna lateral, capital e DM visíveis; no mobile empilham sem overflow (scrollWidth=390).
+- Cores: superfícies claras, navy, bordas e controles do produto; painel navy removido apenas na etapa2.
+- Ativos: nenhuma imagem nova necessária; logo e ícones existentes mantidos.
+- Conteúdo: DM por cargo separado, capital único por pessoa; CPPs/natureza e ações expansíveis, aviso de classificação pendente. Totais não duplicados no rodapé por já estarem no topo.
+- Interações: capital1500000 e três índices0/1.25/2; CPPs explicitamente selecionadas; MAP Zero mostra DM3.25000%, BEI1548750 e retorno preserva entradas. DOM confirma 1 capital/3 DMs/0 aside; console sem erros. Nenhum salvamento.
+- Histórico: primeira comparação confirmou hierarquia; verificação mobile e comparação final preenchida sem P0/P1/P2. Campos de pessoa permanecem seletores funcionais; múltiplos cargos geram linhas separadas como requerido pelo modelo vigente.
+- Limite: validação desta alteração visual, não homologação das fases financeiras do plano maior.
+
+final result: passed
+
+---
+
 # Design QA — Início com melhor aproveitamento do espaço
 
 ## Referência e normalização

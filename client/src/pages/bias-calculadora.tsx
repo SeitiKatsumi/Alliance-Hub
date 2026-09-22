@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { BiaNumberInput, BiaRoleComposition } from "@/components/bia-role-composition";
+import { formatBiaPercent } from "@shared/bia-numbers";
 import { useLocation } from "wouter";
 import { confirmDiscardChanges, useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { getBiaPublicRef } from "@/lib/bia-url";
@@ -616,7 +618,7 @@ function MapInicialCalculator({
   const [participantes, setParticipantes] = useState<InitialMapParticipantInput[]>(snapshot.participantes || []);
   const locked = !snapshot.canEdit;
   const [motivo, setMotivo] = useState("");
-  const byValue = snapshot.modeloCalculo === 3;
+  const byValue = Number(snapshot.modeloCalculo) >= 3;
   readOnly = readOnly || !snapshot.canEdit || queryFailed;
   const dirty = valorOrigem !== Number(base.valorOrigem) || JSON.stringify(participantes) !== JSON.stringify(base.participantes) || !!motivo;
 
@@ -694,7 +696,7 @@ function MapInicialCalculator({
             <div className="rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 p-2 text-brand-navy"><Calculator className="h-6 w-6" /></div>
             {mode === "dm" ? "DM" : "MAP Zero"}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Composição inicial da BIA · revisão {base.revisao}. Um índice por pessoa.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Composição inicial da BIA · revisão {base.revisao}. {snapshot.modeloCalculo === 4 ? "DM por cargo, capital por pessoa." : "Um índice por pessoa."}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {!embedded && (
@@ -724,7 +726,12 @@ function MapInicialCalculator({
       )}
 
       {snapshot.revisao !== base.revisao && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Há uma revisão mais recente. Seus campos foram preservados. <Button variant="outline" onClick={() => { if (confirmDiscardChanges()) { setBase(snapshot); setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setMotivo(""); } }}>Descartar e carregar revisão atual</Button></p>}
-      {mode === "dm" && <>
+      {mode === "dm" && snapshot.modeloCalculo === 4 && <>
+        <p>Valor de Origem: {formatBRL(valorOrigem)} · DM total: {preview.calculation ? formatBiaPercent(preview.calculation.divisorMultiplicador) : "Pendente"}</p>
+        <BiaRoleComposition valorOrigem={valorOrigem} moeda={base.moeda} participants={participantes} onChange={setParticipantes} members={membros} readOnly={readOnly || saveMutation.isPending} dmOnly />
+        {preview.error && <p role="alert">{preview.error} Complete a composição em MAP → MAP Zero.</p>}
+      </>}
+      {mode === "dm" && snapshot.modeloCalculo !== 4 && <>
 <Card><CardContent className="grid gap-4 pt-6 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Valor de Origem</p><strong>{formatBRL(valorOrigem)}</strong></div><div><p className="text-sm text-muted-foreground">DM total</p><strong>{preview.calculation ? `${preview.calculation.divisorMultiplicador.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%` : "Composição pendente"}</strong></div><div><p className="text-sm text-muted-foreground">Equivalente total</p><strong>{preview.calculation ? formatBRL(preview.calculation.baseEconomicaInicial - valorOrigem) : "—"}</strong></div></CardContent></Card>
         <div className="space-y-3">{participantes.map((person, index) => <div key={String(person.participantId)} className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_150px_170px] sm:items-center"><div className="min-w-0"><p className="font-medium break-words">{person.nome}</p><p className="text-xs text-muted-foreground break-words">{person.cargos?.join(", ") || "Sem cargos"}</p></div><label className="text-sm">DM (%)<Input aria-label={`DM (%) — ${person.nome}`} type="number" min="0" step="0.00001" disabled={readOnly || saveMutation.isPending} value={Number.isFinite(person.indiceContribuicao) ? person.indiceContribuicao : ""} onChange={e => setParticipantes(rows => rows.map((p, i) => i === index ? {...p, indiceContribuicao: e.target.value === "" ? NaN : Number(e.target.value)} : p))} /></label><div><p className="text-xs text-muted-foreground">Equivalente em reais</p><strong>{Number.isFinite(person.indiceContribuicao) && person.indiceContribuicao >= 0 ? formatBRL(initialMapContributionValue(valorOrigem, person.indiceContribuicao)) : "—"}</strong></div></div>)}</div>
         <p className="text-sm text-muted-foreground">DM não é a participação final. Pessoas, cargos e capital são alterados em MAP → MAP Zero → Editar composição.</p>
@@ -732,11 +739,11 @@ function MapInicialCalculator({
       </>}
       {historical && !base.revisao && !editing && !readOnly && <Button onClick={() => setEditing(true)}>Revisar composição original</Button>}
       {mode === "zero" && !editing && !(historical && !base.revisao) && <>
-        <Card><CardHeader><CardTitle>Composição inicial · revisão {snapshot.revisao}</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-3 sm:grid-cols-3"><div>Valor de Origem<strong className="block">{formatBRL(snapshot.valorOrigem)}</strong></div><div>DM<strong className="block">{snapshot.divisorMultiplicador.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</strong></div><div>BEI<strong className="block">{formatBRL(snapshot.baseEconomicaInicial)}</strong></div></div>{snapshot.participantes.map(p => <div key={String(p.participantId)} className="rounded border p-3 text-sm"><strong>{p.nome}</strong><p className="text-muted-foreground">{p.cargos?.join(", ")} · {p.tipo === "guardiao" ? "Guardião" : "Multiplicador"}</p><div className="mt-2 grid gap-2 sm:grid-cols-3"><span>DM: {p.indiceContribuicao.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</span><span>{p.tipoCppCapital?.nome || "CPP Capital"}: {formatBRL(Number(p.cppCapital || 0))}</span><span>{p.tipoCppContribuicao?.nome || "CPP Origem"}: {formatBRL(Number(p.cppOrigem || 0))}</span><span>CPP Total: {formatBRL(Number(p.cppTotal || 0))}</span><span>Participação: {Number(p.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</span></div></div>)}</CardContent></Card>
+        <Card><CardHeader><CardTitle>Composição inicial · revisão {snapshot.revisao}</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-3 sm:grid-cols-3"><div>Valor de Origem<strong className="block">{formatBRL(snapshot.valorOrigem)}</strong></div><div>DM<strong className="block">{formatBiaPercent(snapshot.divisorMultiplicador)}</strong></div><div>BEI<strong className="block">{formatBRL(snapshot.baseEconomicaInicial)}</strong></div></div>{snapshot.participantes.map(p => <div key={String(p.participantId)} className="rounded border p-3 text-sm"><strong>{p.nome}</strong><p className="text-muted-foreground">{p.cargos?.join(", ")} · {p.tipo === "guardiao" ? "Guardião" : "Multiplicador"}</p><div className="mt-2 grid gap-2 sm:grid-cols-3"><span>DM: {formatBiaPercent(p.indiceContribuicao)}</span><span>{p.tipoCppCapital?.nome || "CPP Capital"}: {formatBRL(Number(p.cppCapital || 0))}</span><span>{p.modeloCalculo===4 ? "Contribuições por cargo" : p.tipoCppContribuicao?.nome || "CPP Origem"}: {formatBRL(Number(p.cppOrigem || 0))}</span><span>CPP Total: {formatBRL(Number(p.cppTotal || 0))}</span><span>Participação: {formatBiaPercent(Number(p.mapPercentual || 0))}</span></div>{p.contribuicoes?.map(c=><p key={c.cargo} className="mt-2 text-muted-foreground">{c.cargo} · {formatBiaPercent(c.indice)} · {c.tipoCpp?.nome || "Sem contribuição"} · {formatBRL(Number(c.valor || 0))}</p>)}</div>)}</CardContent></Card>
         {!readOnly && <Button onClick={() => setEditing(true)}>Editar composição</Button>}
       </>}
       {mode === "zero" && editing && <fieldset disabled={readOnly || locked || saveMutation.isPending} className="min-w-0 space-y-6 border-0 disabled:opacity-90">
-        <MapZeroFields valorOrigem={valorOrigem} setValorOrigem={setValorOrigem} participantes={participantes} setParticipantes={setParticipantes} membros={membros} byValue={byValue} readOnly={readOnly || locked} />
+        {snapshot.modeloCalculo === 4 ? <><label>Valor de Origem<BiaNumberInput label="Valor de Origem" value={valorOrigem} onChange={setValorOrigem}/></label><BiaRoleComposition valorOrigem={valorOrigem} moeda={base.moeda} participants={participantes} onChange={setParticipantes} members={membros} readOnly={readOnly || locked}/></> : <MapZeroFields valorOrigem={valorOrigem} setValorOrigem={setValorOrigem} participantes={participantes} setParticipantes={setParticipantes} membros={membros} byValue={byValue} readOnly={readOnly || locked} />}
       </fieldset>}
       {(mode === "dm" || editing) && <div className="space-y-3">
         {(snapshot.ativa || historical) && !readOnly && <label className="block space-y-2 text-sm">{historical ? "Fonte dos dados originais e motivo da revisão" : "Motivo da correção"}<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={historical ? "Ex.: composição conferida no MOU original" : "Explique o que precisa ser corrigido"} /></label>}

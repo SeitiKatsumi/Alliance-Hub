@@ -39,6 +39,8 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 
 ## Estados e transicoes
 
+Cards de BIA usam `biaPhaseLabel` e o contador operacional usa `biaAllowsFinance`: Ativa legada, Em execução, Em operação e Em distribuição. Estruturação/captação/encerrada não entram nesse contador. A fase oficial vem da BIA no Directus, sem inferência por valores financeiros.
+
 Alertas sao `acionavel`, `em andamento`, `resolvido` ou `ignorado`, conforme o modulo de origem. A alteracao deve ser registrada no objeto de origem; o painel apenas reflete o estado.
 
 ## Invariantes

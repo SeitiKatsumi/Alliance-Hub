@@ -1,5 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -62,7 +63,7 @@ interface DashboardBia {
   id: string;
   codigo_publico?: string | null;
   nome_bia: string;
-  situacao?: "ativa" | "em_formacao" | null;
+  situacao?: "ativa" | "em_formacao" | BiaPhase | null;
   objetivo_alianca?: string | null;
   destinacao?: string | null;
   localizacao?: string;
@@ -352,8 +353,8 @@ function DashboardBiaCard({ bia }: { bia: DashboardBia }) {
   const valorRealizado = n(bia.valor_realizado_venda);
   const progresso = vgv > 0
     ? Math.max(0, Math.min(100, Math.round((valorRealizado / vgv) * 100)))
-    : bia.situacao === "ativa" ? 35 : 15;
-  const situacaoLabel = bia.situacao === "em_formacao" ? "Em estruturação" : "Ativa";
+    : biaAllowsFinance(bia.situacao) ? 35 : 15;
+  const situacaoLabel = biaPhaseLabel(bia.situacao);
   const situacaoClass = bia.situacao === "em_formacao"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-blue-200 bg-blue-50 text-blue-700";
@@ -899,7 +900,7 @@ export default function PainelPage() {
     ];
   }, [aprovacoesPendentes, carteiraAlerts, diretorSolicitacoes, socioSolicitacoes, chamadasAlianca]);
 
-  const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
+  const biasAtivas = bias.filter(b => biaAllowsFinance(b.situacao)).length;
   const biaPapelOptions = useMemo(
     () => Array.from(new Set(bias.map((b) => b.papel_usuario).filter(Boolean))) as string[],
     [bias],

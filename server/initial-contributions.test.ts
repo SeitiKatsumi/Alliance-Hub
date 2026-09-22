@@ -67,6 +67,7 @@ test("API de aportes: autorização, falha parcial, repetição, pares, revisão
  const bankingRoute=sourceCode.slice(start,sourceCode.indexOf('  app.post("/api/bias/:biaId/banco/cobrancas/:chargeId/cancelar"',start));
  let providerCalls=0;
  const bankScope:any={app,requireBiaBancoAccess:async()=>({id:"bia"}),pinbank:{configured:true,getConfigStatus:()=>({configured:true}),createBoleto:async()=>{providerCalls++;return{};}},ensureBiaBankAccount:async()=>({}),resolvePinbankCodigoCliente:()=>1,buildPinbankChargePayload:()=>({}),directusFetchOne:async(_c:string,id:string)=>decorated.find(e=>e.id===id),directusRelationId:(v:any)=>v?.id||v,isCashEntry,withMapLock:lock,saveBiaBankCharge:async()=>({}),getAuditActor:()=>({})};
+ bankScope.assertBiaFinancialPhase=async()=>{}; // This fixture is operational; phase gates have dedicated workflow tests.
  new Function(...Object.keys(bankScope),transformSync(bankingRoute,{loader:"ts",target:"es2020"}).code)(...Object.values(bankScope));
  const charge=async(id:string)=>(await fetch(`http://127.0.0.1:${address.port}/api/bias/bia/banco/cobrancas`,{method:"POST",headers:{"content-type":"application/json","x-member":"d"},body:JSON.stringify({fluxoCaixaId:id})})).status;
  assert.equal(await charge(rights.movimentos[0].id),409);

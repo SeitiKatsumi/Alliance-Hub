@@ -2,11 +2,15 @@
 
 ## Objetivo e usuarios
 
-Novas BIAs usam MAP Zero modelo 3: capital comprometido por valor e CPPs classificadas por componente na estruturacao. A origem de imovel preenche valores pela copropriedade aceita, com natureza patrimonial, mas exige selecionar os tipos de CPP antes do aceite. Modelos anteriores nao sao convertidos. Cadastro/confirmacao de aportes seguem o contrato de Capital/Financeiro; salvar MAP nao gera caixa.
+Na conclusão de rascunhos, as validações da criação (inclusive autorização e Aliado) são reaproveitadas antes de congelar a revisão. Recusas de validação não bloqueiam a edição; falhas após iniciar efeitos externos mantêm a revisão congelada para recuperação. A interface retoma essa revisão sem reenviar um PUT com defaults locais. Rascunhos incompletos aceitam índices ausentes, mas rejeitam estruturas de contribuição malformadas.
+
+O fluxo anterior usa MAP Zero modelo 3: capital comprometido por valor e CPPs classificadas por componente na estruturacao. A nova criação em etapas usa modelo 4, descrito abaixo, ainda em validação integrada. A origem de imovel preenche valores pela copropriedade aceita, com natureza patrimonial, mas exige selecionar os tipos de CPP antes do aceite. Modelos anteriores nao sao convertidos. Cadastro/confirmacao de aportes seguem o contrato de Capital/Financeiro; salvar MAP nao gera caixa.
 
 Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo completo de estruturacao e operacao de uma BIA.
 
 ## Telas e URLs
+
+- A criação em etapas em desenvolvimento (`/bias/nova`) preserva os seletores do cadastro anterior: Destinação (Residencial, Comercial, Industrial, Misto, Hospedagem, Rural), Objetivo (Renda, Venda, Operação), catálogo completo de moedas com busca e localização no mapa. As opções compartilhadas em `shared/bia-form-options.ts` são usadas também pela validação dos rascunhos; mudar o layout não remove opções nem escolhe destinação/objetivo silenciosamente.
 
 - MAP Zero em BIA legada admite composição original revisada explicitamente, registrada somente no histórico. Não converte a BIA para o modelo novo nem altera participações vigentes ou documentos assinados; autorização, pendências e confirmação estão no contrato de Capital.
 
@@ -21,6 +25,22 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - Implementacao principal em `client/src/pages/area-aliancas.tsx`, `client/src/pages/opa-detalhe.tsx`, `client/src/pages/bias.tsx`, `client/src/pages/bia-detalhe.tsx`, `client/src/pages/land-bank-detalhe.tsx` e componentes de estruturacao/distribuicao.
 
 ## APIs e tarefas
+
+### Criação em etapas (modelo 4, validação integrada em andamento)
+
+- `Adicionar cargo` fica sempre visível abaixo das linhas de cada participante, fora de Detalhes. Cria outra linha de cargo/DM na mesma ficha; o seletor de cada linha continua escolhendo um cargo, e cargos já atribuídos a outras pessoas permanecem indisponíveis.
+
+- Na tabela compacta da criação, cada pessoa tem um único seletor e um único capital na primeira linha. Cargos adicionais ocupam linhas abaixo dentro do mesmo grupo, com DM próprio e sem repetir o participante. No celular os cargos continuam agrupados abaixo da pessoa. Estrutura persistida e demais editores não mudam.
+
+- Equipe e DM usa toda a largura, sem resumo lateral: Valor de Origem e totais ficam em uma faixa superior. A tabela compacta mantém DM por cargo e capital editável somente na primeira linha de cada pessoa; natureza, CPPs e ações de cargos ficam em detalhes expansíveis com aviso de classificação pendente. No celular, os campos empilham. Outras etapas preservam o resumo lateral. É mudança de apresentação, sem novos cálculos, permissões, endpoints ou gravações.
+
+- `/bias/nova` e `/bias/:id/estruturacao` usam Dados, Equipe e DM, MAP Zero e Revisão. A edição geral permanece no formato anterior. Capa, anexos, moeda, localização, destinação, objetivo, selo, análises e informações complementares reutilizam controles/opções existentes.
+- `POST /api/bias` com `_rascunho=true` e UUID `chaveCriacao` registra dados incompletos; `GET/PUT /api/bias/:id/rascunho` consulta/atualiza com `revisaoEsperada`. Proprietário de rascunho não concluído ou configuração efetiva pode retomá-lo. Campos ausentes não viram zero.
+- `POST /api/bias/:id/concluir-estruturacao` valida e congela a revisão antes dos efeitos externos. Falha deixa conclusão recuperável; alteração da revisão congelada é recusada. Repetição não deve duplicar convites. Nenhum aceite é permitido enquanto a conclusão estiver pendente.
+- Fonte oficial da BIA/fase: Directus. Rascunho e histórico de transições: PostgreSQL `bia_estruturacao_rascunhos` e `bia_fase_eventos`, migração aditiva `20260922_bia_workflow.sql`. Não converter registros anteriores.
+- `GET/POST /api/bias/:id/fases` registra deliberações autorizadas por Diretor, Aliado ou superadmin, motivo e revisão de fase (`faseEsperada`). Evento estável deduplica; `acao=retomar` recupera somente uma intenção já existente. A UI exibe conciliação pendente.
+- Fases novas: estruturação → captação → execução → operação → distribuição; encerramento é explícito, com pendências regularizadas. Execução depende dos aceites vigentes, não de imóvel. Operação depende do vínculo formal. Distribuição depende de deliberação com valor aprovado, não de receita, aporte ou empréstimo.
+- Compatibilidade dos caminhos de origem por imóvel e revisão completa de consumidores ainda precisa ser encerrada antes de publicação. Ver relatório de trabalho `docs/audit/BIA_WIZARD_WIP_2026-09-22.md`.
 
 - `/api/bias*`, `/api/opas*`, `/api/oportunidades*`, `/api/land-bank-assets*`.
 - `/api/bia-estruturacao-solicitacoes*`, aprovacoes, diretorias, socios e chamadas.

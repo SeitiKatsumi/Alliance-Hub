@@ -1,3 +1,4 @@
+import { biaAllowsFinance } from "../shared/bia-phase";
 type DirectusRelation = string | number | { id?: string | number | null; cadastro_geral_id?: DirectusRelation; membro_id?: DirectusRelation } | null | undefined;
 
 export interface BiaLifecycleRecord {
@@ -70,7 +71,7 @@ export function biaActivationRequirements(input: {
 }
 
 export function canCreateObaForBia(bia: BiaLifecycleRecord, memberId: unknown, isPlatformAdmin = false) {
-  if (String(bia.situacao || "ativa") !== "ativa") return false;
+  if (!biaAllowsFinance(bia.situacao || "ativa")) return false;
   return isPlatformAdmin || isBiaDirector(bia, memberId);
 }
 

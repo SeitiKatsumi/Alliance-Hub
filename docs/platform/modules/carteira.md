@@ -41,7 +41,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - Coproprietario confirmado: consulta o imovel, documentos, financeiro e sua participacao; somente o administrador principal altera composicao e lancamentos.
 - Conta limitada `coproprietario`: sem comunidade, Aura ou anuidade; middleware restringe a API aos imoveis compartilhados, convites e BIAs originadas desses imoveis.
 - Convidado: leitura, colaboracao ou administracao conforme acesso explicito e validade.
-- Administrador da plataforma nao recebe acesso automatico ao patrimonio privado sem regra operacional auditavel.
+- A Carteira pessoal de `admin` e `superadmin` tambem lista e totaliza somente propriedade, copropriedade aceita e compartilhamentos explicitos; o papel administrativo nao concede acesso global automatico ao patrimonio privado.
 - Arquivo e dado privado exigem autorizacao sobre o imovel pai.
 
 ## Estados e transicoes

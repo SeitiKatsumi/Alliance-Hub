@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   buildCarteiraAlternativas,
@@ -20,6 +21,15 @@ test("somente proprietário ou administrador da plataforma pode excluir imóvel"
   assert.equal(canDeleteCarteiraAsset(true, false), true);
   assert.equal(canDeleteCarteiraAsset(false, true), true);
   assert.equal(canDeleteCarteiraAsset(false, false), false);
+});
+
+test("carteira pessoal não lista todos os imóveis para admin ou superadmin", () => {
+  const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
+  const filter = source.slice(source.indexOf("function carteiraAccessibleWhere"), source.indexOf("function carteiraOwnerActor"));
+  assert.doesNotMatch(filter, /isPlatformAdmin|sql`TRUE`/);
+  assert.match(filter, /owner_user_id/);
+  assert.match(filter, /carteira_imovel_socios/);
+  assert.match(filter, /carteira_acessos/);
 });
 
 test("imóvel vazio com despesas é classificado como ocioso e gerador de custos", () => {

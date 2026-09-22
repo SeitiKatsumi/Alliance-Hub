@@ -3,6 +3,7 @@
 Leia este arquivo antes de editar quando houver mais de um chat trabalhando neste repo.
 
 ## Estado Atual
+- 2026-09-22: Hotfix isolado de acesso ao Alliances: papel Aliado ou selos BUILT_ALLIANCE_PARTNER/BUILT_FOUNDING_MEMBER permitem entrar antes da primeira BIA; permissoes de funcionarios e recursos preservadas. 278 testes e build aprovados; platform:verify passa contrato e para nos 66 erros TypeScript legados. Nenhuma mudanca do wizard/modelo financeiro incluida.
 - O outro chat esta implementando a reorganizacao de Gestao de BIAs: nucleos dentro da BIA, gestao da OPA dentro da OPA e ajustes de acesso.
 - Este chat deve evitar mexer em rotas/sidebar/estrutura de `Gestao de BIAs`, `BIAs`, `OPAs` e `BUILT Alliances` enquanto esse trabalho estiver ativo.
 - Mudancas recentes deste chat: ajustes da Vitrine, cards/lista de BIAs e correcoes do fluxo de anuncio/OPA.

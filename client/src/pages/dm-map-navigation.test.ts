@@ -30,6 +30,7 @@ function expression(source: string, predicate: (node: ts.Node, file: ts.SourceFi
   visit(file); assert.ok(result, "expressão de produção encontrada"); return result;
 }
 function evaluate(source: string, scope: Record<string, unknown>) {
+  scope = {estrutura: undefined, ...scope};
   const code = transformSync(`(${source})`, { loader: "tsx", format: "esm" }).code.trim().replace(/;$/, "");
   return new Function(...Object.keys(scope), `return ${code}`)(...Object.values(scope));
 }
@@ -60,8 +61,8 @@ test("revalidação não sobrescreve o rascunho e edições obedecem ambas as pe
   const effect = expression(editor, (n, f) => ts.isArrowFunction(n) && n.getText(f).includes("if (!dirty)"));
   for (const dirty of [true, false]) {
     const calls: string[] = [];
-    evaluate(effect, { dirty, snapshot: { valorOrigem: 200, participantes: [] }, setBase: () => calls.push("base"), setValorOrigem: () => calls.push("valor"), setParticipantes: () => calls.push("pessoas") })();
-    assert.equal(calls.length, dirty ? 0 : 3);
+    evaluate(effect, { dirty, snapshot: { valorOrigem: 200, participantes: [] }, setBase: () => calls.push("base"), setValorOrigem: () => calls.push("valor"), setParticipantes: () => calls.push("pessoas"), setEstrutura: () => calls.push("estrutura") })();
+    assert.equal(calls.length, dirty ? 0 : 4);
   }
   assert.match(editor, /readOnly = readOnly \|\| !snapshot.canEdit/);
   assert.match(editor, /\(snapshot.ativa \|\| historical\) && !motivo.trim\(\)/);

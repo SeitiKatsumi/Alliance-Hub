@@ -518,7 +518,7 @@ export default function ResultadosPage({
   const divisorMultiplicador = mapSummary?.divisor ?? (hasPercentFields
     ? percentItems.reduce((sum, item) => sum + (item.member ? n(item.value) : 0), 0)
     : n(bia?.divisor_multiplicador));
-  const custoCPP = mapSummary?.cppTotal ?? (divisorMultiplicador > 0 ? valorOrigem * divisorMultiplicador / 100 : 0);
+  const custoCPP = mapSummary?.custoDireitos ?? (divisorMultiplicador > 0 ? valorOrigem * divisorMultiplicador / 100 : 0);
   const custoOrigem = mapSummary?.custoOrigem ?? (valorOrigem + custoCPP);
 
   // Previsto (%)

@@ -10,10 +10,10 @@ export type ScheduledInstallment = { numero: number; valor: number; vencimento: 
 export function validateInitialClassifications(participants: InitialMapParticipant[]) {
   for (const p of participants) {
     if (!["caixa","nao_caixa"].includes(String(p.naturezaCapital))) throw new Error("Informe a natureza do capital na estruturação.");
-    const missingContribution = p.modeloCalculo === 4
+    const missingContribution = Number(p.modeloCalculo) >= 4
       ? p.contribuicoes?.some(c => c.indice > 0 && !c.tipoCpp?.id)
       : p.cppOrigem > 0 && !p.tipoCppContribuicao?.id;
-    if ((p.cppCapital>0 && !p.tipoCppCapital?.id) || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Zero antes do aceite.");
+    if (((p.modeloCalculo===5 ? Number(p.capitalComprometido) : p.cppCapital)>0 && !p.tipoCppCapital?.id) || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Zero antes do aceite.");
   }
 }
 export const isCashEntry = (entry: { natureza?: string; conciliacao_pendente?: boolean }) => entry.natureza !== "nao_caixa" && !entry.conciliacao_pendente;
@@ -55,8 +55,9 @@ export function buildNominalSchedule(total: number, series: ScheduleSeries[]): S
 export function commitmentsFromMap(valorOrigem: number, participants: InitialMapParticipant[]): InitialCommitment[] {
   const rows: InitialCommitment[] = [{ chave: "ativo", participanteId: null, componente: "ativo", nome: "Pagamento do ativo", valor: valorOrigem, natureza: "caixa", beneficiario: "", series: [] }];
   for (const p of participants) {
-    if (p.cppCapital > 0) rows.push({ chave: `${p.participantId}:capital`, participanteId: p.participantId, componente: "capital", nome: p.nome, valor: p.cppCapital, natureza: p.naturezaCapital || "caixa", tipoCpp: p.tipoCppCapital, beneficiario: p.memberId || "", series: [] });
-    if (p.modeloCalculo === 4) {
+    const capital = p.modeloCalculo === 5 ? Number(p.capitalComprometido) : p.cppCapital;
+    if (capital > 0) rows.push({ chave: `${p.participantId}:capital`, participanteId: p.participantId, componente: "capital", nome: p.nome, valor: capital, natureza: p.naturezaCapital || "caixa", tipoCpp: p.tipoCppCapital, beneficiario: p.memberId || "", series: [] });
+    if (Number(p.modeloCalculo) >= 4) {
       for (const c of p.contribuicoes || []) if (Number(c.valor) > 0) rows.push({ chave: `${p.participantId}:contribuicao:${c.cargo}`, participanteId:p.participantId, componente:"contribuicao", nome:`${p.nome} — ${c.cargo}`, valor:Number(c.valor), natureza:"nao_caixa", tipoCpp:c.tipoCpp, beneficiario:p.memberId || "", series:[] });
     } else if (p.cppOrigem > 0) rows.push({ chave: `${p.participantId}:contribuicao`, participanteId: p.participantId, componente: "contribuicao", nome: p.nome, valor: p.cppOrigem, natureza: "nao_caixa", tipoCpp: p.tipoCppContribuicao, beneficiario: p.memberId || "", series: [] });
   }

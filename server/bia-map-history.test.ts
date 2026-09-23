@@ -50,7 +50,10 @@ test("migração, versões imutáveis, idempotência, revisões de aceite e conc
     await pg.exec(MAP_HISTORY_SQL);
     await pg.exec(MAP_HISTORY_SQL);
     const migration = readFileSync(new URL("../migrations/20260918_map_zero_versions.sql", import.meta.url), "utf8");
-    assert.equal(migration.replace(/\r\n/g, "\n").trim(), MAP_HISTORY_SQL.replace(/\r\n/g, "\n").trim());
+    const economicMigration = readFileSync(new URL("../migrations/20260923_bia_economic_structure.sql", import.meta.url), "utf8");
+    const economicSql = "ALTER TABLE bia_map_inicial_snapshots ADD COLUMN IF NOT EXISTS estrutura_economica jsonb;";
+    assert.ok(economicMigration.includes(economicSql));
+    assert.equal(migration.replace(/\r\n/g, "\n").trim(), MAP_HISTORY_SQL.replace(economicSql+"\n", "").replace(/\r\n/g, "\n").trim());
     const record = (eventId: string, rows = mapRowsFromBase(base), tipo: "zero" | "atual" = "zero", nextBase = base) =>
       db.transaction(async (tx) => {
         await tx.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE bia_id = 'bia' FOR UPDATE`);

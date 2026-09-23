@@ -48,7 +48,7 @@ import {
 import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
-import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateInitialMap, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type InitialMapCalculation, type InitialMapParticipantInput, type PortfolioExchangeRate } from "@shared/member-portfolio";
+import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateInitialMap, economicStructureDocumentLines, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type InitialMapCalculation, type InitialMapParticipantInput, type PortfolioExchangeRate } from "@shared/member-portfolio";
 import {
   BIA_GOVERNANCE_MONTHLY_CENTS,
   BIA_MINIMUM_RIG_RATE,
@@ -7510,7 +7510,7 @@ export async function registerRoutes(
   mapBiaActivation = (biaId, data, operation) => withMapLock(biaId, async (tx, base) => {
     if (!base || base.ativado_em) return operation();
     const bia = { ...await directusFetchOne("bias_projetos", biaId, "fields=*"), ...data };
-    calculateInitialMap(Number(base.valor_origem), base.participantes);
+    calculateInitialMap(Number(base.valor_origem), base.participantes, base.estrutura_economica);
     if(Number(base.modelo_calculo)>=3)validateInitialClassifications(base.participantes);
     const signers = Array.from(new Set([...(base.origem_id ? [] : biaFormalParticipantIds(bia)), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
     for (const memberId of signers) if (!await hasBiaMouAceito(biaId, memberId)) throw Object.assign(new Error("Todos os participantes precisam aceitar a revisão vigente do MAP Zero antes da ativação."), { statusCode: 409 });
@@ -7542,7 +7542,7 @@ export async function registerRoutes(
   async function syncStructuredMapParticipants(bia: any) {
     return withMapLock(String(bia.id), async (tx, base) => {
       if (!base || mapIsActive(bia, base)) return;
-      if(Number(base.modelo_calculo)===4)return; // Canonical roles and economic lines are already captured by the roster.
+      if(Number(base.modelo_calculo)>=4)return; // Canonical roles and economic lines are already captured by the roster.
       const candidates = await draftMapParticipants(bia);
       const participants: any[] = [...(base.participantes || [])];
       for (const candidate of candidates) {
@@ -7671,7 +7671,7 @@ export async function registerRoutes(
           for(const signer of signers)if(!await hasBiaMouAceito(String(bia.id),signer))return;
           const requirements=biaActivationRequirements({bia,acceptedMouMemberIds:signers});
           if(!requirements.canActivate)return;
-          calculateInitialMap(Number(base.valor_origem),base.participantes);
+          calculateInitialMap(Number(base.valor_origem),base.participantes,base.estrutura_economica);
           if(Number(base.modelo_calculo)>=3)validateInitialClassifications(base.participantes);
           await transitionBiaPhase(phaseDeps,{biaId:String(bia.id),eventId:`aceites:${base.revisao}`,event:"aceites_concluidos",ready:true,reason:`Aceites concluídos da revisão ${base.revisao}`,actor:mapActor()});
           await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET ativado_em=COALESCE(ativado_em,now()) WHERE bia_id=${String(bia.id)}`);
@@ -7687,6 +7687,7 @@ export async function registerRoutes(
   }
 
   function initialMapHash(calculation: InitialMapCalculation, moeda: string) {
+    if (calculation.estrutura) return mapContentHash({ moeda, ...calculation });
     return createHash("sha256").update(JSON.stringify({ moeda, ...calculation })).digest("hex");
   }
 
@@ -7696,6 +7697,7 @@ export async function registerRoutes(
       id: String(row.id),
       biaId: String(row.bia_id),
       modeloCalculo: Number(row.modelo_calculo || 1),
+      estrutura: row.estrutura_economica || undefined,
       origemId: row.origem_id ? String(row.origem_id) : null,
       status: String(row.status),
       valorOrigem: Number(row.valor_origem || 0),
@@ -7718,13 +7720,13 @@ export async function registerRoutes(
       SELECT id, bia_id, origem_id, status, valor_origem::float8 AS valor_origem, moeda,
              divisor_multiplicador::float8 AS divisor_multiplicador,
              base_economica_inicial::float8 AS base_economica_inicial,
-             participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo
+             participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo, estrutura_economica
       FROM bia_map_inicial_snapshots WHERE bia_id = ${biaId} LIMIT 1 FOR UPDATE
     ` : sql`
       SELECT id, bia_id, origem_id, status, valor_origem::float8 AS valor_origem, moeda,
              divisor_multiplicador::float8 AS divisor_multiplicador,
              base_economica_inicial::float8 AS base_economica_inicial,
-             participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo
+             participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo, estrutura_economica
       FROM bia_map_inicial_snapshots WHERE bia_id = ${biaId} LIMIT 1
     `;
     const result = await executor.execute(query);
@@ -7755,7 +7757,7 @@ export async function registerRoutes(
           invalid.statusCode = 400;
           throw invalid;
         }
-        if(modeloCalculo===4) {
+        if(modeloCalculo>=4) {
           const roles=Object.keys(BIA_PARTICIPANT_ROLE_FIELDS).map(role=>BIA_PARTICIPANT_ROLE_LABELS[role as keyof typeof BIA_PARTICIPANT_ROLE_FIELDS]);
           if(!Array.isArray(item.contribuicoes) || item.contribuicoes.some((c:any)=>c.cargo!=="Contribuição individual" && !roles.includes(c.cargo)))throw new Error("Escolha um cargo válido para cada contribuição.");
         }
@@ -7765,7 +7767,8 @@ export async function registerRoutes(
           institutionCode,
           nome: member?.nome || (institutionCode === "BUILT" ? "BUILT" : String(item?.nome || "Participante")),
           cargos: Array.isArray(item?.cargos) ? item.cargos : [],
-          ...(modeloCalculo === 4 ? {modeloCalculo:4, contribuicoes:(Array.isArray(item.contribuicoes) ? item.contribuicoes : []).map((c:any)=>({cargo:c.cargo,indice:c.indice == null || c.indice === "" ? NaN : Number(c.indice),tipoCpp:resolveCpp(c.tipoCpp,Number(c.indice)>0)}))} : {}),
+          ...(modeloCalculo >= 4 ? {modeloCalculo, contribuicoes:(Array.isArray(item.contribuicoes) ? item.contribuicoes : []).map((c:any)=>({cargo:c.cargo,indice:c.indice == null || c.indice === "" ? NaN : Number(c.indice),tipoCpp:resolveCpp(c.tipoCpp,Number(c.indice)>0)}))} : {}),
+          ...(modeloCalculo === 5 ? {cotasInvestimento: item.cotasInvestimento} : {}),
           tipo: item?.tipo,
           indiceContribuicao: item?.indiceContribuicao == null || item.indiceContribuicao === "" ? NaN : Number(item.indiceContribuicao),
           pesoCapital: item?.pesoCapital == null || item.pesoCapital === "" ? NaN : Number(item.pesoCapital),
@@ -7773,12 +7776,12 @@ export async function registerRoutes(
             capitalComprometido: item.capitalComprometido == null || item.capitalComprometido === "" ? NaN : Number(item.capitalComprometido),
             pesoCapital: 0,
             naturezaCapital: ["caixa","nao_caixa"].includes(item.naturezaCapital) ? item.naturezaCapital : (()=>{throw new Error("Informe a natureza do capital.");})(),
-            tipoCppCapital: resolveCpp(item.tipoCppCapital, Number(item.capitalComprometido)>0),
-            tipoCppContribuicao: resolveCpp(item.tipoCppContribuicao, modeloCalculo !== 4 && Number(item.indiceContribuicao)>0),
+            tipoCppCapital: resolveCpp(item.tipoCppCapital, modeloCalculo === 5 ? Number(item.cotasInvestimento)>0 : Number(item.capitalComprometido)>0),
+            tipoCppContribuicao: resolveCpp(item.tipoCppContribuicao, modeloCalculo < 4 && Number(item.indiceContribuicao)>0),
           } : {}),
         } as InitialMapParticipantInput;
       }));
-    const calculation = calculateInitialMap(Number(body?.valorOrigem), participantes);
+    const calculation = calculateInitialMap(Number(body?.valorOrigem), participantes, modeloCalculo === 5 ? body.estrutura : undefined);
     if (modeloCalculo >= 3) validateInitialClassifications(calculation.participantes);
     return calculation;
   }
@@ -7792,6 +7795,7 @@ export async function registerRoutes(
     actorUserId?: string | null;
     actorMembroId?: string | null;
     modeloCalculo?: number;
+    estrutura?: InitialMapCalculation["estrutura"];
   }) {
     await ensureBiaMapInicialSnapshotsTable();
     const valorOrigem = Number(opts.valorOrigem || 0);
@@ -7800,16 +7804,16 @@ export async function registerRoutes(
       naturezaCapital: p.naturezaCapital ?? (opts.origemId ? "nao_caixa" : "caixa"),
     }));
     const complete = participantes.length > 0 && participantes.every((p) => p.indiceContribuicao != null && p.pesoCapital != null);
-    const calculated = valorOrigem > 0 && complete ? calculateInitialMap(valorOrigem, participantes) : null;
+    const calculated = valorOrigem > 0 && complete ? calculateInitialMap(valorOrigem, participantes, opts.estrutura) : null;
     return withMapLock(opts.biaId, async (tx) => {
     const result = await tx.execute(sql`
       INSERT INTO bia_map_inicial_snapshots (
         bia_id, origem_id, status, valor_origem, moeda, divisor_multiplicador,
-        base_economica_inicial, participantes, criado_por_user_id, criado_por_membro_id, modelo_calculo
+        base_economica_inicial, participantes, criado_por_user_id, criado_por_membro_id, modelo_calculo, estrutura_economica
       ) VALUES (
         ${opts.biaId}, ${opts.origemId || null}, 'rascunho', ${valorOrigem}, ${String(opts.moeda || "BRL")},
         ${calculated?.divisorMultiplicador || 0}, ${calculated?.baseEconomicaInicial || 0},
-        ${JSON.stringify(calculated?.participantes || participantes)}::jsonb, ${opts.actorUserId || null}, ${opts.actorMembroId || null}, ${opts.modeloCalculo || 3}
+        ${JSON.stringify(calculated?.participantes || participantes)}::jsonb, ${opts.actorUserId || null}, ${opts.actorMembroId || null}, ${opts.modeloCalculo || 3}, ${opts.estrutura ? JSON.stringify(opts.estrutura) : null}::jsonb
       )
       ON CONFLICT (bia_id) DO NOTHING
       RETURNING *
@@ -7849,7 +7853,7 @@ export async function registerRoutes(
         assertMapRevision(Number(snapshot.revisao || 0), mapOperationContext.getStore()?.req?.body?.map_revisao);
         let calculation: InitialMapCalculation;
         try {
-          calculation = calculateInitialMap(Number(snapshot.valor_origem), Array.isArray(snapshot.participantes) ? snapshot.participantes : []);
+          calculation = calculateInitialMap(Number(snapshot.valor_origem), Array.isArray(snapshot.participantes) ? snapshot.participantes : [], snapshot.estrutura_economica);
           if(Number(snapshot.modelo_calculo)>=3)validateInitialClassifications(calculation.participantes);
         } catch (error: any) {
           const invalid: any = new Error(`O MAP Zero precisa ser concluído antes do primeiro aceite: ${error.message}`);
@@ -9738,6 +9742,7 @@ export async function registerRoutes(
   }
 
   function buildAnexoIIMapa(bia: any, biaId: string, allocationRows: MouAllocationRow[], initialSnapshot?: any | null) {
+    if (Number(initialSnapshot?.modelo_calculo)===5) return [`BIA: ${mouValue(bia.nome_bia)}`,`ID da BIA: ${biaId}`,`MAP Inicial — revisão ${initialSnapshot.revisao}`,...economicStructureDocumentLines({valorOrigem:Number(initialSnapshot.valor_origem),estrutura:initialSnapshot.estrutura_economica,participantes:initialSnapshot.participantes},initialSnapshot.moeda)].join("\n");
     if (initialSnapshot) return [
       `BIA: ${mouValue(bia.nome_bia)}`, `ID da BIA: ${biaId}`,
       `MAP Zero — revisão ${Number(initialSnapshot.revisao || 0)}`,
@@ -10823,7 +10828,7 @@ export async function registerRoutes(
         await reconcilePendingMapEvents(tx, freshBia, current);
         const nextBase = { ...current, valor_origem: calculation.valorOrigem, moeda,
           divisor_multiplicador: calculation.divisorMultiplicador, base_economica_inicial: calculation.baseEconomicaInicial,
-          participantes: calculation.participantes };
+          participantes: calculation.participantes, estrutura_economica: calculation.estrutura || null };
         if(Number(current.modelo_calculo)>=3) {
           validateInitialClassifications(calculation.participantes);
           await assertInitialCommitmentsCompatible(tx,String(bia.id),nextBase,await directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=*`));
@@ -10837,13 +10842,14 @@ export async function registerRoutes(
               divisor_multiplicador = ${calculation.divisorMultiplicador},
               base_economica_inicial = ${calculation.baseEconomicaInicial},
               participantes = ${JSON.stringify(calculation.participantes)}::jsonb,
+              estrutura_economica = ${calculation.estrutura ? JSON.stringify(calculation.estrutura) : null}::jsonb,
               snapshot_hash = ${initialMapHash(calculation, moeda)}, atualizado_em = now(),
               status = ${active ? "bloqueado" : "rascunho"}
           WHERE id = ${String(current.id)}
           RETURNING id, bia_id, origem_id, status, valor_origem::float8 AS valor_origem, moeda,
                     divisor_multiplicador::float8 AS divisor_multiplicador,
                     base_economica_inicial::float8 AS base_economica_inicial,
-                    participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo
+                    participantes, snapshot_hash, criado_em, atualizado_em, bloqueado_em, revisao, ativado_em, modelo_calculo, estrutura_economica
         `);
         const updated: any = result.rows[0];
         const eventId = randomUUID();
@@ -10903,16 +10909,16 @@ export async function registerRoutes(
       if (!version) return res.status(404).json({ error: "Versão não encontrada" });
       if (!req.path.endsWith("/pdf")) return res.json(version);
       const snapshot = version.snapshot;
-      const roleModel=snapshot.base.participantes?.some((p:any)=>p.modeloCalculo===4);
+      const roleModel=snapshot.base.participantes?.some((p:any)=>Number(p.modeloCalculo)>=4);
       const percent=roleModel?formatBiaPercent:formatPdfPercent;
       const title = version.tipo === "zero" ? `MAP Zero — revisão ${version.numero}` : `MAP ${version.numero}`;
       const body = [snapshot.biaName, `Data: ${new Date(version.criado_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
         `Responsável: ${version.autor.name || "Sistema"}`, `Motivo: ${version.motivo}`, `Revisão da base: ${version.revisao_base}`,
         `Hash: ${version.hash}`, `Valor de Origem: ${formatPdfMoney(Number(snapshot.base.valor_origem), snapshot.base.moeda)}`,
-        `DM: ${percent(Number(snapshot.base.divisor_multiplicador))}`, `BEI: ${formatPdfMoney(Number(snapshot.base.base_economica_inicial), snapshot.base.moeda)}`,
+        `DM: ${percent(Number(snapshot.base.divisor_multiplicador))}`, ...(snapshot.base.modelo_calculo===5 ? economicStructureDocumentLines({valorOrigem:Number(snapshot.base.valor_origem),estrutura:snapshot.base.estrutura_economica,participantes:snapshot.base.participantes},snapshot.base.moeda) : [`BEI: ${formatPdfMoney(Number(snapshot.base.base_economica_inicial), snapshot.base.moeda)}`]),
         ...(roleModel && version.tipo==="zero" ? snapshot.base.participantes.flatMap((p:any)=>(p.contribuicoes || []).map((c:any)=>`${p.nome} | ${c.cargo} | DM ${percent(c.indice)} | ${c.tipoCpp?.nome || "Sem contribuição"} | ${formatPdfMoney(c.valor,snapshot.base.moeda)}`)):[]),
         ...snapshot.rows.map((row: any) => `${row.name} | ${row.group || ""} | ${formatPdfMoney(row.value, snapshot.base.moeda)} | ${percent(row.percent)}`),
-        ...(version.tipo === "zero" ? snapshot.base.participantes.map((p: any) => `${p.nome} | Cargos: ${(p.cargos || []).join(", ")} | Índice: ${formatPdfPercent(p.indiceContribuicao)} | Peso: ${formatPdfPercent(p.pesoCapital)} | ${p.tipoCppContribuicao?.nome || "CPP Origem"}: ${formatPdfMoney(p.cppOrigem, snapshot.base.moeda)} | ${p.tipoCppCapital?.nome || "CPP Capital"}: ${formatPdfMoney(p.cppCapital, snapshot.base.moeda)}`) : [])].join("\n");
+        ...(version.tipo === "zero" && snapshot.base.modelo_calculo !== 5 ? snapshot.base.participantes.map((p: any) => `${p.nome} | Cargos: ${(p.cargos || []).join(", ")} | Índice: ${formatPdfPercent(p.indiceContribuicao)} | Peso: ${formatPdfPercent(p.pesoCapital)} | ${p.tipoCppContribuicao?.nome || "CPP Origem"}: ${formatPdfMoney(p.cppOrigem, snapshot.base.moeda)} | ${p.tipoCppCapital?.nome || "CPP Capital"}: ${formatPdfMoney(p.cppCapital, snapshot.base.moeda)}`) : [])].join("\n");
       const pdf = buildSimpleTextPdf(title, [{ title, body: [body, snapshot.footer].filter(Boolean).join("\n\n") }], { headerLabel: "MAP BUILT", documentDate: version.criado_em });
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="map-${version.tipo}-${version.numero}.pdf"`);
@@ -11203,7 +11209,7 @@ export async function registerRoutes(
       let initialMap: InitialMapCalculation | null = null;
       if (req.body.map_inicial !== undefined) {
         try {
-          initialMap = await calculateSubmittedInitialMap(req.body.map_inicial, req.body.map_inicial.modeloCalculo === 4 ? 4 : 3);
+          initialMap = await calculateSubmittedInitialMap(req.body.map_inicial, [4,5].includes(req.body.map_inicial.modeloCalculo) ? req.body.map_inicial.modeloCalculo : 3);
           // Older clients omit cargos; the new single-roster form sends canonical roles.
           if (initialMap.participantes.some(p => p.cargos?.length)) {
             const team = biaTeamFromMapParticipants(initialMap.participantes);
@@ -11222,7 +11228,7 @@ export async function registerRoutes(
           createBody.socios_guardioes = initialMap.participantes.filter(p => p.memberId && p.tipo === "guardiao").map(p => p.memberId);
           createBody.socios_multiplicadores = initialMap.participantes.filter(p => p.memberId && p.tipo === "multiplicador").map(p => p.memberId);
           const capturedRoles = collectBiaParticipantRoles(createBody);
-          initialMap.participantes = initialMap.participantes.map(p => p.modeloCalculo === 4 ? p : ({...p,
+          initialMap.participantes = initialMap.participantes.map(p => Number(p.modeloCalculo) >= 4 ? p : ({...p,
             cargos:p.memberId ? (capturedRoles.get(p.memberId) || []).filter(r => r !== "terceiro").map(r => BIA_PARTICIPANT_ROLE_LABELS[r]) : ["Instituição"]}));
           createBody.valor_origem = initialMap.valorOrigem;
           for (const key of Object.keys(createBody)) if (key.startsWith("perc_")) createBody[key] = null;
@@ -11246,7 +11252,8 @@ export async function registerRoutes(
           participantes: initialMap?.participantes || await draftMapParticipants({ ...item, ...createBody }),
           actorUserId: (req.session as any).directusUserId || null,
           actorMembroId: sessionMembroId,
-          modeloCalculo: req.body.map_inicial?.modeloCalculo === 4 ? 4 : 3,
+          modeloCalculo: [4,5].includes(req.body.map_inicial?.modeloCalculo) ? req.body.map_inicial.modeloCalculo : 3,
+          estrutura: initialMap?.estrutura,
         });
       } catch (error) {
         if (!req.biaDraftId) await directusDelete("bias_projetos", String(item.id)).catch(() => {});
@@ -11383,6 +11390,7 @@ export async function registerRoutes(
         const current=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${String(req.params.id)} FOR UPDATE`)).rows[0];
         if(!current || current.concluido)throw Object.assign(new Error("Estruturação já concluída ou indisponível."),{statusCode:409});
         assertMapRevision(Number(current.revisao),req.body.revisaoEsperada);
+        if ((current.dados.map_inicial?.modeloCalculo || 4) !== (data.map_inicial?.modeloCalculo || 4)) throw Object.assign(new Error("O rascunho deve preservar sua versão econômica original."),{statusCode:409});
         if(mapContentHash(current.dados)===mapContentHash(data))return current;
         if(current.conclusao_iniciada)throw Object.assign(new Error("Conclusão iniciada. Recupere a operação antes de editar."),{statusCode:409});
         const bia=await directusFetchOne("bias_projetos",String(req.params.id),"fields=id,situacao");
@@ -11403,12 +11411,12 @@ export async function registerRoutes(
         assertMapRevision(Number(draft.revisao),req.body.revisaoEsperada);
         const data=validateBiaDraft(draft.dados);
         if(!data.destinacao || !data.objetivo_alianca || !String(data.localizacao || "").trim() || !String(data.observacoes || "").trim())throw Object.assign(new Error("Preencha Destinação, Objetivo, Localização e Descrição."),{statusCode:400});
-        const calculation=await calculateSubmittedInitialMap(data.map_inicial,4);
+        const calculation=await calculateSubmittedInitialMap(data.map_inicial,data.map_inicial?.modeloCalculo === 5 ? 5 : 4);
         const team=biaTeamFromMapParticipants(calculation.participantes);
         if(!team.autor_bia || !team.aliado_built || !team.diretor_alianca)throw Object.assign(new Error("Defina Autor, Aliado BUILT e Diretor de Aliança."),{statusCode:400});
         let status=200; let response:any;
         const capture:any={status:(s:number)=>{status=s;return capture;},json:(value:any)=>{response=value;return capture;}};
-        await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,biaDraftValidateOnly:true,body:{...data,...team,map_inicial:{...data.map_inicial,modeloCalculo:4}}},capture);
+        await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,biaDraftValidateOnly:true,body:{...data,...team}},capture);
         if(status>=400)throw Object.assign(new Error(response?.error || "Revise a estruturação."),{statusCode:status});
         await tx.execute(sql`UPDATE bia_estruturacao_rascunhos SET conclusao_iniciada=true WHERE bia_id=${draft.bia_id}`);
       });
@@ -11419,12 +11427,12 @@ export async function registerRoutes(
         const official=await directusFetchOne("bias_projetos",String(draft.bia_id),"fields=situacao");
         if(!official || !["em_estruturacao","em_captacao"].includes(official.situacao))throw Object.assign(new Error("A BIA não está disponível para concluir estruturação."),{statusCode:409});
         assertMapRevision(Number(draft.revisao),req.body.revisaoEsperada);
-        const calculation=await calculateSubmittedInitialMap(draft.dados.map_inicial,4);
+        const calculation=await calculateSubmittedInitialMap(draft.dados.map_inicial,draft.dados.map_inicial?.modeloCalculo === 5 ? 5 : 4);
         const team=biaTeamFromMapParticipants(calculation.participantes);
         if(!team.autor_bia || !team.aliado_built || !team.diretor_alianca)throw Object.assign(new Error("Defina Autor, Aliado BUILT e Diretor de Aliança."),{statusCode:400});
         let status=200; let response:any;
         const capture:any={status:(s:number)=>{status=s;return capture;},json:(data:any)=>{response=data;return capture;}};
-        await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,body:{...draft.dados,...team,map_inicial:{...draft.dados.map_inicial,modeloCalculo:4}}},capture);
+        await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,body:{...draft.dados,...team}},capture);
         if(status>=400)throw Object.assign(new Error(response?.error || "Conclusão pendente. Repita a operação."),{statusCode:status});
         await tx.execute(sql`UPDATE bia_estruturacao_rascunhos SET concluido=true WHERE bia_id=${draft.bia_id}`);
         await tx.execute(sql`INSERT INTO bia_fase_eventos (bia_id,evento_id,fase_anterior,fase,motivo,autor,aplicado) VALUES (${draft.bia_id},'estrutura_concluida','em_estruturacao','em_captacao','Estruturação concluída',${JSON.stringify(mapActor())}::jsonb,true) ON CONFLICT DO NOTHING`);

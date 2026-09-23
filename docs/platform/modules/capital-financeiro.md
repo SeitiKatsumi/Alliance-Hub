@@ -127,3 +127,13 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - A reversão usa as mesmas permissões e histórico da correção, exige motivo e confirmação explícita e altera somente o status da transferência aceita para `revertida`, atomicamente com a auditoria. Reversões não são reaplicáveis nem editáveis; continuam na lista/PDF, fora do cálculo do MAP. Demais transferências são recalculadas pelo motor atual, sem estorno bancário ou exclusão do registro.
 
 - Na lista, a ação única é `Corrigir`. O diálogo contém `Reverter transferência`, com opção de voltar à correção de valores; mudar a opção não envia a operação e exige informar o motivo novamente.
+
+## BEI por CIs — modelo 5
+
+Novas BIAs do wizard usam `modelo_calculo=5`, sem converter os modelos anteriores. A BEI é o conjunto de condições, não VO acrescido dos direitos. CIs distribuídas fecham o total; capital comprometido é VO × CIs da pessoa / total CIs, com resíduo conservado em cinco casas. Direitos/DM são somados por cargo. CPP do capital (%) = fração das CIs × (100 − DM); CPP total da pessoa = CPP do capital + seus direitos (%). A soma fecha 100%.
+
+Para compatibilidade com o motor de movimentações, `base_economica_inicial` conserva VO como referência monetária, `cppCapital` representa o componente patrimonial ajustado pelo DM e `cppOrigem` o equivalente dos direitos. **Compromisso financeiro utiliza `capitalComprometido`, nunca `cppCapital` ajustado.** Direitos não são custo adicional nas Análises. Aportes adicionais elegíveis continuam somando à referência patrimonial; integralização inicial não soma CPP novamente.
+
+`estrutura_economica` guarda modalidade, instrumentos, total de CIs e plano contratual. GET/PUT map-inicial transportam `estrutura`; o backend recalcula. Hash do modelo 5 é canônico para não depender da ordem das chaves JSONB. MOU e PDFs de versões usam os dados capturados, incluindo CIs e direitos detalhados; PDFs legados preservam seu formato.
+
+O plano contratual não gera cronograma automaticamente: parcelas, beneficiários e confirmação permanecem no Financeiro. Correção como IGP-M é informativa, sem atualização automática. Valores e cálculos são números; máscara monetária pt-BR e percentuais com cinco casas pertencem à interface.

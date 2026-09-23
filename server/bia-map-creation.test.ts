@@ -29,7 +29,7 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
   await pg.exec(`CREATE TABLE bia_map_inicial_snapshots (
     id serial PRIMARY KEY, bia_id text UNIQUE, origem_id text, status text,
     valor_origem numeric, moeda text, divisor_multiplicador numeric, base_economica_inicial numeric,
-    participantes jsonb, criado_por_user_id text, criado_por_membro_id text, modelo_calculo integer);`);
+    participantes jsonb, criado_por_user_id text, criado_por_membro_id text, modelo_calculo integer, estrutura_economica jsonb);`);
   const writes:any[] = [], archives:any[] = [];
   const deleted:string[] = [];
   let failArchive = false;
@@ -112,6 +112,16 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     const newBase:any=(await db.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE modelo_calculo=4`)).rows[0];
     assert.equal(newBase.participantes[0].cppCapital,100);assert.equal(newBase.participantes[0].cppTotal,103.25);
     assert.equal(newBase.participantes[0].contribuicoes.length,3);
+    const estrutura={modalidade:"recursos_proprios",totalCotas:10,instrumentos:[],integralizacao:{forma:"a_vista",quantidade:1,meses:0,primeiroVencimento:"2026-10-20",correcao:"Sem reajuste"}};
+    const model5={...model4,modeloCalculo:5,cotasInvestimento:10,capitalComprometido:123456};
+    const ciResult=await request({...input,map_inicial:{modeloCalculo:5,valorOrigem:100,estrutura,participantes:[model5]}});
+    assert.equal(ciResult.status,200,JSON.stringify(ciResult.result));
+    const ciBase:any=(await db.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE modelo_calculo=5`)).rows[0];
+    assert.deepEqual(ciBase.estrutura_economica,estrutura);
+    assert.equal(ciBase.participantes[0].capitalComprometido,100);
+    assert.equal(ciBase.participantes[0].cppCapital,96.75);
+    assert.equal(ciBase.participantes[0].cppTotal,100);
+    assert.equal(ciBase.participantes[0].mapPercentual,100);
     const invalid={...model4,cargos:["Cargo inexistente"],contribuicoes:[{cargo:"Cargo inexistente",indice:1,tipoCpp:{id:"origem"}}]};
     assert.equal((await request({...input,map_inicial:{modeloCalculo:4,valorOrigem:100,participantes:[invalid]}})).status,400);
   } finally {await pg.close();}

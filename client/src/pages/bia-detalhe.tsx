@@ -690,6 +690,7 @@ export default function BiaDetalhePage() {
       rows,
       divisor,
       cppTotal,
+      custoDireitos: cppTotal,
       custoOrigem: valorOrigem + cppTotal,
     };
   }, [bia]);
@@ -794,9 +795,9 @@ export default function BiaDetalhePage() {
 
   const vgv = n(bia.valor_geral_venda_vgv);
   const realizado = n(bia.valor_realizado_venda);
-  const resultado = calcularResultadoLiquidoBia(bia, dmSummary.cppTotal);
+  const resultado = calcularResultadoLiquidoBia(bia, dmSummary.custoDireitos);
   const lucro = n(bia.lucro_previsto);
-  const custoFinal = dmSummary.cppTotal;
+  const custoFinal = dmSummary.custoDireitos;
   const totalAportes = n(bia.total_aportes);
   const canEditBia = hasBiaAccess(accessMatrix, "configuracao_bia", "edit");
   const canViewBiaConfiguration = hasBiaAccess(accessMatrix, "configuracao_bia", "view");

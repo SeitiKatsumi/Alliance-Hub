@@ -832,6 +832,7 @@ export const biaMapOrigemAlocacoes = pgTable("bia_map_origem_alocacoes", {
 
 export const biaMapInicialSnapshots = pgTable("bia_map_inicial_snapshots", {
   modelo_calculo: integer("modelo_calculo").notNull().default(1),
+  estrutura_economica: jsonb("estrutura_economica"),
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bia_id: text("bia_id").notNull().unique(),
   origem_id: varchar("origem_id").references(() => biaImovelOrigens.id, { onDelete: "set null" }),

@@ -8,8 +8,8 @@ import { QueryClient } from "@tanstack/react-query";
 test("Equipe e DM ocupa toda a largura somente na criação, com capital único e detalhes expansíveis", () => {
   const page=readFileSync(new URL("./bia-nova.tsx",import.meta.url),"utf8");
   const component=readFileSync(new URL("../components/bia-role-composition.tsx",import.meta.url),"utf8");
-  assert.match(page,/step===1\?"":"xl:grid-cols/);
-  assert.match(page,/step!==1 && <aside/);
+  assert.match(page,/step===1 \|\| form.map_inicial.modeloCalculo===5 && step>=2\?"":"xl:grid-cols/);
+  assert.match(page,/step!==1 && !\(form.map_inicial.modeloCalculo===5 && step>=2\) && <aside/);
   assert.match(page,/<BiaRoleComposition compact /);
   assert.match(page,/aria-label="Totais da composição"/);
   assert.match(component,/compact && \(j===0\?/);

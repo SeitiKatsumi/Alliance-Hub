@@ -38,7 +38,8 @@ export const BIA_MAP_ECONOMIC_FIELDS = [
 export const MAP_DYNAMIC_FOOTER = "Este Mapa de Alocação Patrimonial é anexo acessório ao MoU Padrão BUILT e/ou ao instrumento jurídico pertinente à respectiva aliança. Possui finalidade exclusivamente informativa, estratégica e de governança, não constituindo contrato autônomo, promessa de participação, garantia de retorno, cessão de direitos ou obrigação definitiva, nem substituindo ou prevalecendo sobre contratos, atos societários, deliberações formais ou instrumentos jurídicos assinados. Qualquer participação, direito patrimonial, CPP, alocação econômica ou obrigação dependerá da validação e formalização previstas no instrumento jurídico aplicável. Em caso de dúvidas, divergências ou necessidade de interpretação, prevalecerão o instrumento jurídico pertinente, as deliberações formais da aliança e a orientação da Diretoria da Aliança.";
 
 export type InitialMapParticipantInput = {
-  modeloCalculo?: 4;
+  modeloCalculo?: 4 | 5;
+  cotasInvestimento?: number;
   contribuicoes?: Array<{ cargo: string; indice: number; tipoCpp?: { id: string; nome: string }; valor?: number }>;
   participantId?: string;
   memberId?: string | null;
@@ -61,9 +62,11 @@ export type InitialMapParticipant = InitialMapParticipantInput & {
   cppCapital: number;
   cppTotal: number;
   mapPercentual: number;
+  cppCapitalPercentual?: number;
 };
 
 export type InitialMapCalculation = {
+  estrutura?: InitialEconomicStructure;
   valorOrigem: number;
   divisorMultiplicador: number;
   baseEconomicaInicial: number;
@@ -71,12 +74,59 @@ export type InitialMapCalculation = {
   participantes: InitialMapParticipant[];
 };
 
+export type InitialEconomicStructure = {
+  modalidade: "recursos_proprios" | "consorcio" | "financiamento" | "mista" | "outra";
+  descricao?: string;
+  totalCotas: number;
+  instrumentos: Array<{ nome: string; valor: number; cotas: number }>;
+  integralizacao: { forma: "a_vista" | "parcelado" | "personalizado"; quantidade: number; primeiroVencimento: string; meses: number; correcao: string; observacoes?: string };
+};
+
+export function economicStructureDocumentLines(map: Pick<InitialMapCalculation,"valorOrigem"|"estrutura"|"participantes">, currency: string) {
+  const s=map.estrutura!;
+  const money=(n:number)=>n.toLocaleString("pt-BR",{style:"currency",currency});
+  const percent=(n:number)=>`${n.toLocaleString("pt-BR",{minimumFractionDigits:5,maximumFractionDigits:5})}%`;
+  const number=(n:number)=>n.toLocaleString("pt-BR",{maximumFractionDigits:5});
+  return [
+    "Base econômica inicial: estrutura de capitalização, CIs, integralização e direitos. Não é um valor monetário adicional.",
+    `Valor de Origem: ${money(map.valorOrigem)} | Capitalização: ${s.modalidade}`,
+    `CIs: ${number(s.totalCotas)} | Valor por CI: ${money(map.valorOrigem/s.totalCotas)}`,
+    ...s.instrumentos.map(i=>`${i.nome}: ${money(i.valor)} | ${number(i.cotas)} CIs`),
+    `Integralização: ${s.integralizacao.forma} | ${s.integralizacao.quantidade} parcela(s) | Primeiro vencimento: ${s.integralizacao.primeiroVencimento} | Intervalo: ${s.integralizacao.meses} mês(es) | Correção contratual: ${s.integralizacao.correcao}`,
+    ...(s.integralizacao.observacoes?[s.integralizacao.observacoes]:[]),
+    "Cronograma nominal: sem reajuste automático. A confirmação de parcelas é separada; equivalentes de direitos não aumentam o capital.",
+    ...map.participantes.flatMap(p=>[
+      `${p.nome} | ${p.tipo==="guardiao"?"Guardião":"Multiplicador"} | CIs: ${number(p.cotasInvestimento!)} | Capital: ${money(p.capitalComprometido!)} | ${p.tipoCppCapital?.nome || "Capital"}: ${percent(p.cppCapitalPercentual!)} | Direitos: ${percent(p.indiceContribuicao)} | CPP total: ${percent(p.mapPercentual)}`,
+      ...(p.contribuicoes || []).map(c=>`${p.nome} | ${c.cargo} | ${c.tipoCpp?.nome || "Sem direito econômico"}: ${percent(c.indice)} | Equivalente de referência: ${money(c.valor || 0)}`),
+    ]),
+  ];
+}
+
+export function validateEconomicStructure(value: InitialEconomicStructure, valorOrigem: number) {
+  if (!value || !["recursos_proprios","consorcio","financiamento","mista","outra"].includes(value.modalidade)) throw new Error("Escolha a forma de capitalização.");
+  if (!Number.isFinite(value.totalCotas) || value.totalCotas <= 0) throw new Error("Informe a quantidade total de CIs.");
+  if (value.modalidade === "outra" && !value.descricao?.trim()) throw new Error("Descreva a forma de capitalização.");
+  if (!Array.isArray(value.instrumentos) || value.instrumentos.length > 100) throw new Error("Instrumentos de capitalização inválidos.");
+  if (["consorcio","mista","financiamento"].includes(value.modalidade) && !value.instrumentos.length) throw new Error("Cadastre os instrumentos de capitalização.");
+  if (value.instrumentos.length) {
+    if (value.instrumentos.some(i => !i.nome?.trim() || !Number.isFinite(i.valor) || i.valor <= 0 || !Number.isFinite(i.cotas) || i.cotas <= 0)) throw new Error("Preencha nome, valor e CIs de cada instrumento.");
+    if (roundQuota(value.instrumentos.reduce((s,i)=>s+i.valor,0)) !== roundQuota(valorOrigem) || roundQuota(value.instrumentos.reduce((s,i)=>s+i.cotas,0)) !== roundQuota(value.totalCotas)) throw new Error("Os instrumentos devem fechar o Valor de Origem e o total de CIs.");
+    if (value.instrumentos.some(i => Math.abs(i.valor - valorOrigem * i.cotas / value.totalCotas) > 0.00001)) throw new Error("Os instrumentos devem usar o mesmo valor por CI.");
+  }
+  const i = value.integralizacao;
+  if (!i || !["a_vista","parcelado","personalizado"].includes(i.forma) || !Number.isInteger(i.quantidade) || i.quantidade < 1 || i.quantidade > 720 || ![0,1,2,3,6,12].includes(i.meses)) throw new Error("Preencha a forma, quantidade e periodicidade da integralização.");
+  if ((i.forma === "a_vista" && i.quantidade !== 1) || (i.forma === "parcelado" && i.meses === 0)) throw new Error("Confira a quantidade e periodicidade da integralização.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(i.primeiroVencimento || "") || new Date(i.primeiroVencimento + "T12:00:00Z").toISOString().slice(0,10) !== i.primeiroVencimento) throw new Error("Informe o primeiro vencimento válido.");
+  if (!i.correcao?.trim() || (i.forma === "personalizado" && !i.observacoes?.trim())) throw new Error("Informe a correção contratual e os detalhes do plano personalizado.");
+}
+
 // Display the approved calculation; never reconstruct new BIAs from legacy role percentages.
 export function initialMapEconomicSummary(snapshot: Pick<InitialMapCalculation, "valorOrigem" | "divisorMultiplicador" | "baseEconomicaInicial" | "participantes">) {
   return {
+    custoDireitos: snapshot.participantes.some(p=>p.modeloCalculo===5) ? 0 : roundQuota(snapshot.baseEconomicaInicial - snapshot.valorOrigem),
     rows: snapshot.participantes.map(p => ({ label: p.nome, perc: p.indiceContribuicao, cpp: p.cppOrigem })),
     divisor: snapshot.divisorMultiplicador,
-    cppTotal: roundQuota(snapshot.baseEconomicaInicial - snapshot.valorOrigem),
+    cppTotal: snapshot.participantes.some(p=>p.modeloCalculo===5) ? roundQuota(snapshot.participantes.reduce((sum,p)=>sum+p.cppOrigem,0)) : roundQuota(snapshot.baseEconomicaInicial - snapshot.valorOrigem),
     custoOrigem: snapshot.baseEconomicaInicial,
   };
 }
@@ -100,16 +150,29 @@ export function withInitialCapitalParticipation(participant: InitialMapParticipa
 export function calculateInitialMap(
   valorOrigem: number,
   participantesInput: InitialMapParticipantInput[],
+  estrutura?: InitialEconomicStructure,
 ): InitialMapCalculation {
   if (!Number.isFinite(valorOrigem) || valorOrigem <= 0) throw new Error("Informe um Valor de Origem maior que zero.");
   if (!Array.isArray(participantesInput) || participantesInput.length === 0) throw new Error("Adicione pelo menos um participante ao MAP Zero.");
 
   const seen = new Set<string>();
-  const byRole = participantesInput.some(p => p.modeloCalculo === 4);
-  if (byRole && participantesInput.some(p => p.modeloCalculo !== 4)) throw new Error("Não misture versões do modelo do MAP.");
+  const model = participantesInput[0].modeloCalculo;
+  const ciModel = model === 5;
+  const byRole = participantesInput.some(p => Number(p.modeloCalculo) >= 4);
+  if (byRole && participantesInput.some(p => p.modeloCalculo !== model)) throw new Error("Não misture versões do modelo do MAP.");
+  if (ciModel) validateEconomicStructure(estrutura!, valorOrigem);
+  let ciCapitals: number[] = [];
+  if (ciModel) {
+    if (participantesInput.some(p => p.cotasInvestimento == null || !Number.isFinite(p.cotasInvestimento) || p.cotasInvestimento < 0)) throw new Error("Informe as CIs de cada participante, inclusive zero.");
+    if (roundQuota(participantesInput.reduce((sum,p)=>sum+p.cotasInvestimento!,0)) !== roundQuota(estrutura!.totalCotas)) throw new Error("Distribua exatamente o total de CIs.");
+    const positive = participantesInput.filter(p=>p.cotasInvestimento!>0);
+    const values = allocateQuotaTransferAmounts(valorOrigem,positive.map(p=>p.cotasInvestimento!/estrutura!.totalCotas*100));
+    let index=0;
+    ciCapitals=participantesInput.map(p=>p.cotasInvestimento!>0?values[index++]:0);
+  }
   const assignedRoles = new Set<string>();
-  const byValue = participantesInput.some((p) => p.capitalComprometido !== undefined);
-  const participantes = participantesInput.map((item) => {
+  const byValue = ciModel || participantesInput.some((p) => p.capitalComprometido !== undefined);
+  const participantes = participantesInput.map((item, participantIndex) => {
     const memberId = String(item.memberId || "").trim() || null;
     const institutionCode = String(item.institutionCode || "").trim().toUpperCase() || null;
     const participantId = String(item.participantId || (memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : "")).trim();
@@ -131,8 +194,9 @@ export function calculateInitialMap(
     if (byRole && (!contribuicoes?.length || (item.cargos || []).some(c => !contribuicoes.some(row => row.cargo === c)))) throw new Error("Preencha a contribuição de cada cargo.");
     if ((!byRole && item.indiceContribuicao == null) || (!byValue && item.pesoCapital == null)) throw new Error("Preencha o Índice de Contribuição e a composição de capital de cada participante.");
     const indiceContribuicao = byRole ? contribuicoes!.reduce((sum,c) => sum + c.indice, 0) : Number(item.indiceContribuicao);
-    const capital = Number(item.capitalComprometido);
-    if (byValue && (item.capitalComprometido == null || !Number.isFinite(capital) || capital < 0)) throw new Error("Informe o capital comprometido de cada participante, inclusive zero.");
+    if (ciModel && (item.cotasInvestimento == null || !Number.isFinite(item.cotasInvestimento) || item.cotasInvestimento < 0)) throw new Error("Informe as CIs de cada participante, inclusive zero.");
+    const capital = ciModel ? ciCapitals[participantIndex] : Number(item.capitalComprometido);
+    if (byValue && ((!ciModel && item.capitalComprometido == null) || !Number.isFinite(capital) || capital < 0)) throw new Error("Informe o capital comprometido de cada participante, inclusive zero.");
     const pesoCapital = byValue ? capital / valorOrigem * 100 : Number(item.pesoCapital);
     if (!Number.isFinite(indiceContribuicao)) throw new Error("Preencha o DM (%) de cada participante (índice individual), inclusive zero.");
     if (indiceContribuicao < 0) throw new Error("O Índice de Contribuição não pode ser negativo.");
@@ -147,7 +211,8 @@ export function calculateInitialMap(
       nome: String(item.nome || "").trim() || (institutionCode === "BUILT" ? "BUILT" : "Participante"),
       cargos: Array.from(new Set((item.cargos || []).map((role) => String(role).trim()).filter(Boolean))),
       tipo: item.tipo,
-      ...(byRole ? { modeloCalculo: 4 as const, contribuicoes } : {}),
+      ...(byRole ? { modeloCalculo: model, contribuicoes } : {}),
+      ...(ciModel ? { cotasInvestimento: item.cotasInvestimento } : {}),
       indiceContribuicao: roundQuota(indiceContribuicao),
       pesoCapital: byRole || item.tipo === "guardiao" ? roundQuota(pesoCapital) : 0,
       ...(byValue ? { capitalComprometido: roundQuota(capital), naturezaCapital: item.naturezaCapital,
@@ -165,12 +230,22 @@ export function calculateInitialMap(
   const capitalValues = byValue ? positiveWeights.map((p) => Number(p.capitalComprometido)) : allocateQuotaTransferAmounts(valorOrigem, positiveWeights.map((item) => item.pesoCapital));
   const capitalByParticipant = new Map(positiveWeights.map((item, index) => [item.participantId, capitalValues[index]]));
   const divisorMultiplicador = roundQuota(participantes.reduce((sum, item) => sum + item.indiceContribuicao, 0));
+  if (ciModel && (divisorMultiplicador > 100 || roundQuota(participantes.reduce((s,p)=>s+(p.cotasInvestimento || 0),0)) !== roundQuota(estrutura!.totalCotas))) throw new Error("Distribua todas as CIs e mantenha os direitos econômicos em até 100%.");
   const withCpp = participantes.map((item) => {
     const cppOrigem = byRole ? roundQuota(item.contribuicoes!.reduce((sum,c) => sum + c.valor, 0)) : initialMapContributionValue(valorOrigem, item.indiceContribuicao);
-    const cppCapital = roundQuota(capitalByParticipant.get(item.participantId) || 0);
-    return { ...item, cppOrigem, cppCapital, cppTotal: roundQuota(cppOrigem + cppCapital), mapPercentual: 0 };
+    const cppCapitalPercentual = ciModel ? roundQuota(item.cotasInvestimento! / estrutura!.totalCotas * (100 - divisorMultiplicador)) : undefined;
+    const cppCapital = ciModel ? roundQuota((capitalByParticipant.get(item.participantId) || 0) * (100-divisorMultiplicador)/100) : roundQuota(capitalByParticipant.get(item.participantId) || 0);
+    return { ...item, ...(ciModel ? {cppCapitalPercentual} : {}), cppOrigem, cppCapital, cppTotal: roundQuota(cppOrigem + cppCapital), mapPercentual: 0 };
   });
-  const baseEconomicaInicial = roundQuota(valorOrigem + withCpp.reduce((sum, item) => sum + item.cppOrigem, 0));
+  if (ciModel) {
+    const last = [...withCpp].reverse().find(p => p.capitalComprometido! > 0)!;
+    const residue = roundQuota(valorOrigem-withCpp.reduce((sum,p)=>sum+p.cppTotal,0));
+    last.cppCapital=roundQuota(last.cppCapital+residue);
+    last.cppTotal=roundQuota(last.cppTotal+residue);
+    if (last.cppCapital < 0) throw new Error("A precisão dos direitos excede a parcela de capital. Revise os valores.");
+  }
+  // Model 5 uses VO as a valuation reference, never a monetary BEI or added rights.
+  const baseEconomicaInicial = ciModel ? roundQuota(valorOrigem) : roundQuota(valorOrigem + withCpp.reduce((sum, item) => sum + item.cppOrigem, 0));
   const positiveRows = withCpp.filter((item) => item.cppTotal > 0);
   const roundedPercents = positiveRows.map((item) => roundQuota(item.cppTotal / baseEconomicaInicial * 100));
   if (roundedPercents.length) {
@@ -180,6 +255,7 @@ export function calculateInitialMap(
   const percentByParticipant = new Map(positiveRows.map((item, index) => [item.participantId, roundedPercents[index]]));
 
   return {
+    ...(ciModel ? {estrutura} : {}),
     valorOrigem: roundQuota(valorOrigem),
     divisorMultiplicador,
     baseEconomicaInicial,

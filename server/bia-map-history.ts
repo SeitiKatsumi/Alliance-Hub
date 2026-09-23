@@ -7,6 +7,7 @@ export type MapHistoryActor = { userId?: string | null; memberId?: string | null
 export const MAP_HISTORY_SQL = `
 ALTER TABLE bia_map_inicial_snapshots ADD COLUMN IF NOT EXISTS revisao integer NOT NULL DEFAULT 0;
 ALTER TABLE bia_map_inicial_snapshots ADD COLUMN IF NOT EXISTS ativado_em timestamp;
+ALTER TABLE bia_map_inicial_snapshots ADD COLUMN IF NOT EXISTS estrutura_economica jsonb;
 CREATE TABLE IF NOT EXISTS bia_map_versoes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bia_id text NOT NULL,
   tipo text NOT NULL CHECK (tipo IN ('zero','atual')), numero integer NOT NULL,
@@ -59,7 +60,7 @@ export function mapRowsFromBase(base: any): MapHistoryRow[] {
 export function mapBaseContent(base: any) {
   return { valor_origem: Number(base.valor_origem), moeda: base.moeda,
     divisor_multiplicador: Number(base.divisor_multiplicador), base_economica_inicial: Number(base.base_economica_inicial),
-    participantes: base.participantes || [] };
+    participantes: base.participantes || [], ...(Number(base.modelo_calculo) === 5 ? { modelo_calculo: 5, estrutura_economica: base.estrutura_economica } : {}) };
 }
 
 export function canCorrectMapBase(bia: any, memberId: unknown): boolean {

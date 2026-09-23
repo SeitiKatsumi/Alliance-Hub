@@ -130,3 +130,18 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - `server/business-trace.test.ts`
 - `shared/ro.test.ts`
 - Ao alterar: testar cada papel, usuario multicomunidade, refresh de aba, transicao repetida, Directus indisponivel e rastreabilidade.
+
+## Nova BIA — Base econômica inicial (modelo 5, 2026-09-23)
+
+- Bloco E compacto: cabeçalho único no desktop (tipo, sócio, CIs e aporte), linhas menores e ações discretas. Cargos/natureza expandem somente a linha selecionada; Adicionar cargo permanece visível. No celular os rótulos reaparecem e os campos empilham. É alteração de apresentação, sem mudanças de cálculo, permissões ou persistência.
+
+- Ajuste de fidelidade ao DOCX: ordem A–H (identificação, VO, capitalização, Cotas Iniciais, distribuição/aportes, integralização, DM e resumo completo). A expressão oficial é **Cota Inicial**, mantendo `cotasInvestimento` como chave interna compatível. A natureza do aporte/direito usa nomes simples, sem pedir ao usuário uma CPP. Nenhum percentual de CPP calculado é exibido na etapa de entrada; o motor aparece somente como resultado no MAP.
+- MAP Inicial em tabela de consulta com totais e MAP detalhado expansível por natureza, preservando Propriedade. As etapas de MAP/revisão usam a largura inteira, sem resumo lateral duplicado. Cargos/natureza ficam expansíveis na distribuição; Adicionar cargo permanece visível e abre o grupo. No celular, formulários empilham e tabelas de consulta têm rolagem própria.
+
+- `/bias/nova` inicia modelo 5. A segunda etapa é Base econômica inicial: VO, modalidade, instrumentos de capitalização, CIs, distribuição por pessoa, condições de integralização e direitos por cargo. Reutiliza dados gerais, seleção de destinação, rascunhos e permissões anteriores; não adiciona BUILT automaticamente.
+- Uma pessoa tem capital/CIs uma vez e pode acumular cargos e direitos separados. Guardião e Multiplicador podem aportar. Classificações positivas são obrigatórias, provenientes de `Tipos_CPP`; ausência não equivale a zero.
+- Rascunhos anteriores mantêm sua versão. A API rejeita troca de versão de um rascunho existente. Nenhuma BIA, histórico ou documento antigo é convertido.
+- A conclusão continua sujeita à validação completa e aos efeitos existentes de convites. Salvar rascunho ou MAP não gera parcelas. Consórcio/financiamento não comprovam crédito aprovado.
+- Fonte da BEI: rascunho e snapshot PostgreSQL (`estrutura_economica`, migração aditiva `20260923_bia_economic_structure.sql`). Identificação da BIA continua no Directus. Revisão esperada, autorização e recuperação permanecem no fluxo existente.
+- Prévia/MAP e documentos novos usam o cálculo compartilhado. CPPs são somente leitura no MAP; correções usam a composição versionada, respeitando os bloqueios existentes.
+- Testes: `shared/bia-model-five.test.ts`, `server/bia-map-creation.test.ts`, `server/bia-map-api.test.ts`, `client/src/pages/dm-map-navigation.test.ts` e suíte de rascunhos.

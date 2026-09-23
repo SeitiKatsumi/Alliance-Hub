@@ -34,9 +34,18 @@ export function validateBiaDraft(body:any) {
   if (JSON.stringify(data).length > 150000) throw failure("Rascunho excede o tamanho permitido.",400);
   if(data.map_inicial != null && (typeof data.map_inicial!=="object" || !Array.isArray(data.map_inicial.participantes) || data.map_inicial.participantes.length>200 || data.map_inicial.participantes.some((p:any)=>!p || typeof p!=="object" || !Array.isArray(p.cargos) || (p.contribuicoes != null && !Array.isArray(p.contribuicoes)))))throw failure("Composição do rascunho inválida.",400);
   for(const p of data.map_inicial?.participantes || []) {
+    if (p.cotasInvestimento != null && (!Number.isFinite(p.cotasInvestimento) || p.cotasInvestimento < 0)) throw failure("CIs inválidas.",400);
     if(p.cargos.some((cargo:any)=>typeof cargo!=="string") || (p.contribuicoes || []).some((c:any)=>!c || typeof c.cargo!=="string" || (c.indice!=null && (!Number.isFinite(c.indice) || c.indice<0))))throw failure("Contribuição do rascunho inválida.",400);
     for(const field of ["nome","memberId","participantId"])if(p[field]!=null && typeof p[field]!=="string")throw failure("Participante do rascunho inválido.",400);
     for(const component of [p.tipoCppCapital,...(p.contribuicoes || []).map((c:any)=>c.tipoCpp)])if(component!=null && (typeof component!=="object" || typeof component.id!=="string" || typeof component.nome!=="string"))throw failure("Classificação do rascunho inválida.",400);
+  }
+  const economic = data.map_inicial?.estrutura;
+  if (data.map_inicial?.modeloCalculo != null && ![4,5].includes(data.map_inicial.modeloCalculo)) throw failure("Versão de composição inválida.",400);
+  if (economic != null) {
+    if (typeof economic !== "object" || Array.isArray(economic) || !["recursos_proprios","consorcio","financiamento","mista","outra"].includes(economic.modalidade) || !Array.isArray(economic.instrumentos) || economic.instrumentos.length > 100 || !economic.integralizacao || typeof economic.integralizacao !== "object") throw failure("Estrutura econômica inválida.",400);
+    for (const n of [economic.totalCotas,economic.integralizacao.quantidade,economic.integralizacao.meses]) if (n != null && (!Number.isFinite(n) || n < 0)) throw failure("Número da estrutura econômica inválido.",400);
+    for (const i of economic.instrumentos) if (!i || typeof i.nome !== "string" || [i.valor,i.cotas].some(n=>n!=null && (!Number.isFinite(n) || n<0))) throw failure("Instrumento inválido.",400);
+    for (const v of [economic.descricao,economic.integralizacao.forma,economic.integralizacao.primeiroVencimento,economic.integralizacao.correcao,economic.integralizacao.observacoes]) if (v!=null && (typeof v!=="string" || v.length>4000)) throw failure("Dados da integralização inválidos.",400);
   }
   if(data.info_comercial != null) {
     if(typeof data.info_comercial!=="object" || Array.isArray(data.info_comercial))throw failure("Informação complementar inválida.",400);

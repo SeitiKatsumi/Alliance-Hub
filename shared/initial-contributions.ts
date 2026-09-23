@@ -1,4 +1,34 @@
-import type { InitialMapParticipant } from "./member-portfolio";
+import type { InitialMapParticipant, InitialMapParticipantInput } from "./member-portfolio";
+import { BIA_PARTICIPANT_ROLE_LABELS } from "./bia-access";
+
+export function economicRightName(cargo: string, natureza?: string): string | undefined {
+  const roles = BIA_PARTICIPANT_ROLE_LABELS;
+  if ([roles.autor, roles.aliado].includes(cargo)) return "Origem";
+  if ([roles.diretor_alianca, roles.diretor_tecnico, roles.diretor_obra, roles.diretor_comercial, roles.diretor_capital].includes(cargo)) return "Liderança";
+  if (cargo === "Contribuição individual") return natureza === "caixa" ? "Capital" : natureza === "nao_caixa" ? "Propriedade" : undefined;
+  return undefined;
+}
+
+// Only apply to editable model-5 compositions, never to historical snapshot reads.
+export function withAutomaticEconomicRights(participants: InitialMapParticipantInput[], types: Array<{id: string | number; Nome: string}>): InitialMapParticipantInput[] {
+  const normalize = (name: string) => name.replace(/^CPP\s*(?:de\s+)?/i, "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  let changed = false;
+  const result = participants.map(p => {
+    let personChanged = false;
+    const contribuicoes = p.contribuicoes?.map(c => {
+      const individual = p.modeloCalculo === 5 && c.cargo === "Contribuição individual";
+      const indice = individual ? 0 : c.indice;
+      const name = individual ? undefined : economicRightName(c.cargo, p.naturezaCapital);
+      const type = name ? types.find(t => normalize(t.Nome) === normalize(name)) : undefined;
+      const tipoCpp = type ? {id: String(type.id), nome: type.Nome} : undefined;
+      if (Object.is(c.indice, indice) && c.tipoCpp?.id === tipoCpp?.id && c.tipoCpp?.nome === tipoCpp?.nome) return c;
+      personChanged = changed = true;
+      return {...c, indice, tipoCpp};
+    });
+    return personChanged ? {...p, contribuicoes} : p;
+  });
+  return changed ? result : participants;
+}
 
 export type ScheduleSeries = { total: number; quantidade: number; primeiroVencimento: string; meses: number };
 export type InitialCommitment = {

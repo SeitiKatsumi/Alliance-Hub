@@ -9,7 +9,7 @@ import { sql } from "drizzle-orm";
 import { BIA_MAP_ECONOMIC_FIELDS, calculateInitialMap } from "../shared/member-portfolio";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { biaAllowsFinance } from "../shared/bia-phase";
-import { validateInitialClassifications } from "../shared/initial-contributions";
+import { validateInitialClassifications, withAutomaticEconomicRights } from "../shared/initial-contributions";
 import { collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants } from "../shared/bia-access";
 
 test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem caixa", async () => {
@@ -33,13 +33,14 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
   const writes:any[] = [], archives:any[] = [];
   const deleted:string[] = [];
   let failArchive = false;
+  let availableTypes=[{id:"capital",Nome:"CPP Capital"},{id:"origem",Nome:"CPP Origem"},{id:"lead",Nome:"CPP Liderança"}];
   let handler:any;
   const scope = {
     app:{post:(_path:string,fn:any)=>{if(_path === "/api/bias")handler=fn;},get:()=>{},put:()=>{}},
-    db, sql, calculateInitialMap, validateInitialClassifications, collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS,
+    db, sql, calculateInitialMap, validateInitialClassifications, withAutomaticEconomicRights, collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS,
     BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants, directusRelationId:(value:any)=>value?.id || value || null,
     ensureBiaMapInicialSnapshotsTable:async()=>{},
-    directusFetchScoped:async()=>[{id:"capital",Nome:"CPP Capital"},{id:"origem",Nome:"CPP Origem"}],
+    directusFetchScoped:async()=>availableTypes,
     directusFetchOne:async(col:string,id:string)=>({id,nome:col==="cadastro_geral"?"Nome oficial":"BIA teste"}),
     getMembroResumo:async(id:string)=>({id,nome:"Nome oficial"}),
     prepareBiaPayload:(body:any)=>({...body}), withUpdatedBiaFinancials:(body:any)=>body,
@@ -112,6 +113,7 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     const newBase:any=(await db.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE modelo_calculo=4`)).rows[0];
     assert.equal(newBase.participantes[0].cppCapital,100);assert.equal(newBase.participantes[0].cppTotal,103.25);
     assert.equal(newBase.participantes[0].contribuicoes.length,3);
+    assert.equal(newBase.participantes[0].contribuicoes[2].tipoCpp.id,"origem","modelo 4 mantém a classificação explícita anterior");
     const estrutura={modalidade:"recursos_proprios",totalCotas:10,instrumentos:[],integralizacao:{forma:"a_vista",quantidade:1,meses:0,primeiroVencimento:"2026-10-20",correcao:"Sem reajuste"}};
     const model5={...model4,modeloCalculo:5,cotasInvestimento:10,capitalComprometido:123456};
     const ciResult=await request({...input,map_inicial:{modeloCalculo:5,valorOrigem:100,estrutura,participantes:[model5]}});
@@ -122,6 +124,11 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     assert.equal(ciBase.participantes[0].cppCapital,96.75);
     assert.equal(ciBase.participantes[0].cppTotal,100);
     assert.equal(ciBase.participantes[0].mapPercentual,100);
+    assert.deepEqual(ciBase.participantes[0].contribuicoes.map((c:any)=>c.tipoCpp.id),["origem","origem","lead"],"backend corrige a classificação enviada pelo cliente");
+    availableTypes=availableTypes.filter(t=>t.id!=="lead");
+    const writesBefore=writes.length;
+    assert.equal((await request({...input,map_inicial:{modeloCalculo:5,valorOrigem:100,estrutura,participantes:[model5]}})).status,400);
+    assert.equal(writes.length,writesBefore,"tipo oficial ausente não pode gravar classificação inventada");
     const invalid={...model4,cargos:["Cargo inexistente"],contribuicoes:[{cargo:"Cargo inexistente",indice:1,tipoCpp:{id:"origem"}}]};
     assert.equal((await request({...input,map_inicial:{modeloCalculo:4,valorOrigem:100,participantes:[invalid]}})).status,400);
   } finally {await pg.close();}

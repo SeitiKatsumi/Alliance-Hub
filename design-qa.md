@@ -16,6 +16,37 @@ final result: passed
 
 ---
 
+# Design QA — Dados da BIA sem resumo lateral
+
+## Referência e normalização
+
+- Fonte visual: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-637f69aa-6f87-4a93-beef-6dfd49a273db.png` (974 × 917 px), estado anterior com o resumo econômico azul.
+- Implementação desktop: `C:/Users/ESPC/Documents/New project 2/output/bia-nova-dados-desktop.png` (1292 × 918 px, viewport CSS 1292 × 918, densidade 1:1).
+- Implementação mobile: `C:/Users/ESPC/Documents/New project 2/output/bia-nova-dados-mobile.png` (390 × 844 px, viewport CSS 390 × 844, densidade 1:1).
+- Comparação integral conjunta: `C:/Users/ESPC/Documents/New project 2/output/bia-nova-dados-comparison.png`.
+- Estado: usuário autenticado, `/bias/nova`, primeira etapa `Dados da BIA`, campos vazios e rolagem no topo.
+
+## Verificação por superfície
+
+1. Tipografia e conteúdo — passou. Títulos, rótulos, pesos e textos existentes foram preservados; somente o resumo duplicado saiu da primeira etapa.
+2. Espaçamento e layout — passou. O formulário usa toda a largura disponível no desktop. Em 390 px, `scrollWidth=390`, sem corte horizontal.
+3. Cores e tokens — passou. A área azul removida não deixou fundo, borda ou espaçamento residual; os controles mantêm os tokens do produto.
+4. Imagens e ativos — passou. Logo, ícones e upload de capa existentes permanecem inalterados; nenhum ativo novo foi necessário.
+5. Interação e acessibilidade — passou. A navegação entre `Base econômica inicial` e `Dados da BIA` foi exercitada; os controles e rótulos permanecem acessíveis.
+6. Console — passou. Nenhum erro foi registrado durante a verificação.
+
+## Comparação focada
+
+- Não foi necessário recorte adicional: o painel removido e a expansão do formulário são claramente legíveis na comparação integral. A consulta ao DOM confirmou `summaryVisible=false` no desktop e no mobile.
+
+## Histórico de iterações
+
+- Primeira comparação pós-implementação: nenhum P0/P1/P2 encontrado. O formulário passou a ocupar a largura liberada, sem alterar a ordem dos campos ou as etapas seguintes.
+
+final result: passed
+
+---
+
 # Design QA — Início com melhor aproveitamento do espaço
 
 ## Referência e normalização
@@ -174,5 +205,101 @@ final result: blocked
 ## Follow-up polish
 
 - [P3] A implementação usa a densidade vertical já adotada pela central existente, ligeiramente mais compacta que o mock, sem alterar a hierarquia aprovada.
+
+final result: passed
+
+---
+
+# Design QA — Porcentagem no Índice da BEI
+
+## Referência e normalização
+
+- Fontes visuais: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-6ad819a7-2720-40e7-af90-3007def11515.png` (179 × 444 px) e `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-41d4cb52-56e0-4ab3-9136-7b78bd1cbc0d.png` (938 × 643 px).
+- Implementação desktop: `C:/Users/ESPC/Documents/New project 2/output/bia-index-percent-desktop-full.png` (1277 × 2856 px; viewport CSS 1292 × 918; densidade 1:1).
+- Implementação mobile: `C:/Users/ESPC/Documents/New project 2/output/bia-index-percent-mobile.png` (390 × 844 px; viewport CSS 390 × 844; densidade 1:1).
+- Comparação conjunta: `C:/Users/ESPC/Documents/New project 2/output/bia-index-percent-comparison.png` (1872 × 799 px).
+- Estado: usuário autenticado em `/bias/nova`, etapa 2 `Base econômica inicial`, bloco 7 `Divisor Multiplicador`, com três cargos.
+
+## Verificação por superfície
+
+1. Tipografia e cópia — passou. O cabeçalho continua `Índice`; o rótulo acessível e o rótulo mobile informam `Índice (%)`.
+2. Espaçamento — passou. O sufixo `%` fica dentro do campo, alinhado à direita, com espaço reservado para não sobrepor o valor digitado.
+3. Cores — passou. O sufixo reutiliza `text-muted-foreground`, mantendo a hierarquia visual existente.
+4. Dados e cálculo — passou. O `%` é somente unidade visual; o valor persistido continua numérico e a fórmula existente permanece inalterada.
+5. Responsividade — passou. Os três sufixos aparecem no desktop e no celular; em 390 px, `scrollWidth` e `innerWidth` são 390 px, sem overflow horizontal.
+6. Acessibilidade — passou. Os três campos foram encontrados pelo nome acessível `Índice (%) — beneficiário — cargo`; o sufixo decorativo usa `aria-hidden`.
+7. Console — passou. Nenhum erro foi registrado durante a validação.
+
+## Comparação focada
+
+- A referência já enquadra integralmente o bloco 7. A comparação conjunta confirma os três campos de índice com `%`, preservando colunas, linhas, total e equivalência econômica.
+
+## Histórico de iterações
+
+- Iteração 1 — sufixo `%` adicionado no ponto de uso dos campos de índice, sem criar abstração nova; nenhum P0/P1/P2 restante.
+
+final result: passed
+
+---
+
+# Design QA — Cotas Iniciais antes da capitalização
+
+## Referência e normalização
+
+- Fonte visual: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-4dd6466d-e599-4e4f-8489-28160433d421.png` (978 × 590 px), estado anterior com CIs duplicadas por instrumento.
+- Implementação desktop: `C:/Users/ESPC/Documents/New project 2/output/bia-ci-instruments-desktop.png` (1277 × 907 px; viewport CSS 1292 × 918; densidade 1:1).
+- Implementação mobile: `C:/Users/ESPC/Documents/New project 2/output/bia-ci-instruments-mobile.png` (390 × 844 px; viewport CSS 390 × 844; densidade 1:1).
+- Comparação conjunta: `C:/Users/ESPC/Documents/New project 2/output/bia-ci-instruments-comparison.png` (1932 × 757 px).
+- Estado: usuário autenticado em `/bias/nova`, etapa `Base econômica inicial`, instrumento expandido e formulário sem salvar.
+
+## Verificação por superfície
+
+1. Tipografia e cópia — passou. A sequência visível é `3. Cotas Iniciais — CI` e `4. Forma de capitalização`; instrumentos exibem somente `Instrumento` e `Valor`.
+2. Espaçamento e layout — passou. A linha de instrumentos usa duas colunas no desktop e empilha no celular; o total exibe somente o valor monetário.
+3. Cores e tokens — passou. Cartões, bordas, campos e faixa de total preservam os tokens existentes.
+4. Imagens e ativos — não se aplica; nenhum ativo foi adicionado ou substituído.
+5. Conteúdo e regra — passou. Existe um único campo acessível `Total de CIs`; não existe campo de CIs por instrumento. As CIs internas são derivadas pelo cálculo compartilhado.
+6. Responsividade e acessibilidade — passou. Em 390 px, `scrollWidth=innerWidth=390`; rótulos reaparecem, campos empilham e a ordem dos oito títulos permanece correta.
+7. Interação — passou. O grupo de instrumentos abre e fecha e as ações existentes permanecem disponíveis; nenhuma gravação foi executada.
+8. Console — passou. Nenhum erro foi registrado durante a validação.
+
+## Comparação focada
+
+- A comparação conjunta enquadra diretamente os blocos afetados: a terceira coluna e o total de CIs dos instrumentos foram removidos, enquanto o bloco único de Cotas Iniciais aparece antes da capitalização.
+
+## Histórico de iterações
+
+- Iteração 1 — implementação e comparação pós-alteração sem P0/P1/P2 restante.
+
+final result: passed
+
+---
+
+# Design QA — Cargo para Função na BEI
+
+## Referência e normalização
+
+- Fonte visual: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-3900e0d2-b746-498b-b95b-653c84efba9b.png` (942 × 765 px), estado anterior com “Cargo/Cargos”.
+- Implementação desktop: `C:/Users/ESPC/Documents/New project 2/output/bia-function-label-desktop.png` (1277 × 907 px; viewport CSS 1292 × 918).
+- Implementação mobile: `C:/Users/ESPC/Documents/New project 2/output/bia-function-label-mobile.png` (390 × 844 px; viewport CSS 390 × 844).
+- Comparação conjunta: `C:/Users/ESPC/Documents/New project 2/output/bia-function-label-comparison.png` (1756 × 728 px).
+- Estado: usuário autenticado em `/bias/nova`, etapa `Base econômica inicial`, bloco 5 expandido e formulário sem salvar.
+
+## Verificação por superfície
+
+1. Cópia — passou. Resumo, grupo, rótulos, confirmações e ações usam “Função/Funções”; a orientação do bloco 7 usa “índice por função”.
+2. Hierarquia e layout — passou. Campos, colunas, espaçamento e ordem do bloco permanecem iguais à referência.
+3. Dados e regra — passou. A mudança é visual; a chave interna `cargo`, valores canônicos, cálculos e persistência foram preservados.
+4. Responsividade — passou. Em 390 px, `scrollWidth=innerWidth=390`; campos empilham sem rolagem horizontal.
+5. Acessibilidade — passou. Os três seletores são anunciados como `Função` e as ações como `Remover função`/`Adicionar função`.
+6. Console — passou. Nenhum erro foi registrado durante a validação desktop/mobile.
+
+## Comparação focada
+
+- A comparação conjunta mostra a troca direta de “Cargo/Cargos” por “Função/Funções” sem alterar a estrutura do bloco ou os valores selecionados.
+
+## Histórico de iterações
+
+- Iteração 1 — troca textual mínima e validação responsiva concluídas sem P0/P1/P2 restante.
 
 final result: passed

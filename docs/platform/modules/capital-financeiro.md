@@ -4,6 +4,10 @@
 
 ## Objetivo e usuarios
 
+### Classificação automática de direitos no modelo 5
+
+Na edição da BEI, Direito Econômico é Origem para Autor/Aliado, Liderança para as diretorias e Capital/Propriedade para contribuição individual conforme aporte em dinheiro/sem caixa. A regra compartilhada em `shared/initial-contributions.ts` resolve o catálogo oficial `Tipos_CPP` tanto na interface como em `calculateSubmittedInitialMap`, usado na criação/conclusão e PUT do MAP. Tipo obrigatório ausente impede gravação. Não muda fórmulas, índices, classificação separada do capital, lançamentos ou permissões; não aplica backfill nem altera a leitura de versões/PDFs/aceites históricos ou modelos anteriores.
+
 ### Modelo econômico 4 (nova criação em etapas)
 
 Modelo explícito sem conversão dos anteriores: cada participante possui contribuições por cargo, com índice e classificação de CPP separados; o cálculo compartilhado soma esses componentes e agrupa a pessoa uma vez. Capital é registrado uma vez por pessoa, inclusive Multiplicador. Cargo individual não pode repetir entre pessoas. Valores positivos exigem classificação; zero explícito é válido. Ausência fica pendente.
@@ -132,8 +136,10 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 Novas BIAs do wizard usam `modelo_calculo=5`, sem converter os modelos anteriores. A BEI é o conjunto de condições, não VO acrescido dos direitos. CIs distribuídas fecham o total; capital comprometido é VO × CIs da pessoa / total CIs, com resíduo conservado em cinco casas. Direitos/DM são somados por cargo. CPP do capital (%) = fração das CIs × (100 − DM); CPP total da pessoa = CPP do capital + seus direitos (%). A soma fecha 100%.
 
+`Contribuição individual` identifica participação pelas CIs, não um direito no Divisor Multiplicador. No modelo 5 seu índice é normalizado para zero, sem CPP de direito, e a linha não aparece na entrada do DM; o participante permanece no MAP Inicial e outras funções acumuladas continuam compondo o DM. Modelos anteriores e snapshots históricos não são recalculados.
+
 Para compatibilidade com o motor de movimentações, `base_economica_inicial` conserva VO como referência monetária, `cppCapital` representa o componente patrimonial ajustado pelo DM e `cppOrigem` o equivalente dos direitos. **Compromisso financeiro utiliza `capitalComprometido`, nunca `cppCapital` ajustado.** Direitos não são custo adicional nas Análises. Aportes adicionais elegíveis continuam somando à referência patrimonial; integralização inicial não soma CPP novamente.
 
-`estrutura_economica` guarda modalidade, instrumentos, total de CIs e plano contratual. GET/PUT map-inicial transportam `estrutura`; o backend recalcula. Hash do modelo 5 é canônico para não depender da ordem das chaves JSONB. MOU e PDFs de versões usam os dados capturados, incluindo CIs e direitos detalhados; PDFs legados preservam seu formato.
+`estrutura_economica` guarda modalidade, instrumentos, total de CIs e plano contratual. O usuário informa uma única quantidade total de CIs; `validateEconomicStructure` deriva as CIs de cada instrumento pela proporção entre seu valor e o Valor de Origem, mantendo a chave `cotas` nos snapshots compatíveis. GET/PUT map-inicial transportam `estrutura`; o backend recalcula. Hash do modelo 5 é canônico para não depender da ordem das chaves JSONB. MOU e PDFs de versões usam os dados capturados, incluindo CIs e direitos detalhados; PDFs legados preservam seu formato.
 
 O plano contratual não gera cronograma automaticamente: parcelas, beneficiários e confirmação permanecem no Financeiro. Correção como IGP-M é informativa, sem atualização automática. Valores e cálculos são números; máscara monetária pt-BR e percentuais com cinco casas pertencem à interface.

@@ -4,7 +4,7 @@ import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } f
 import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
-import { isCashEntry, isAdditionalContribution, validateInitialClassifications } from "@shared/initial-contributions";
+import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
@@ -7734,8 +7734,9 @@ export async function registerRoutes(
   }
 
   async function calculateSubmittedInitialMap(body: any, modeloCalculo: number) {
-      const rawParticipants = Array.isArray(body?.participantes) ? body.participantes : [];
+      let rawParticipants = Array.isArray(body?.participantes) ? body.participantes : [];
       const types = modeloCalculo >= 3 ? await directusFetchScoped("Tipos_CPP", "fields=id,Nome") : [];
+      if (modeloCalculo === 5) rawParticipants = withAutomaticEconomicRights(rawParticipants, types);
       const resolveCpp = (value: any, required: boolean) => {
         const found = types.find((t: any) => String(t.id) === String(value?.id));
         if (required && !found) throw new Error("Selecione o tipo de CPP de cada componente na estruturação.");
@@ -7813,7 +7814,7 @@ export async function registerRoutes(
       ) VALUES (
         ${opts.biaId}, ${opts.origemId || null}, 'rascunho', ${valorOrigem}, ${String(opts.moeda || "BRL")},
         ${calculated?.divisorMultiplicador || 0}, ${calculated?.baseEconomicaInicial || 0},
-        ${JSON.stringify(calculated?.participantes || participantes)}::jsonb, ${opts.actorUserId || null}, ${opts.actorMembroId || null}, ${opts.modeloCalculo || 3}, ${opts.estrutura ? JSON.stringify(opts.estrutura) : null}::jsonb
+        ${JSON.stringify(calculated?.participantes || participantes)}::jsonb, ${opts.actorUserId || null}, ${opts.actorMembroId || null}, ${opts.modeloCalculo || 3}, ${calculated?.estrutura ? JSON.stringify(calculated.estrutura) : opts.estrutura ? JSON.stringify(opts.estrutura) : null}::jsonb
       )
       ON CONFLICT (bia_id) DO NOTHING
       RETURNING *
@@ -11167,16 +11168,14 @@ export async function registerRoutes(
         const data=validateBiaDraft(req.body);
         const id=String(req.body.chaveCriacao || "");
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return res.status(400).json({error:"Chave de criação inválida."});
-        const draft=await withMapLock(id,async(tx)=>{
+        await withMapLock(id,async(tx)=>{
           const prior=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${id}`)).rows[0];
           if(prior) { if(prior.autor_id !== req.session.directusUserId) throw Object.assign(new Error("Sem acesso ao rascunho."),{statusCode:403}); return prior; }
           if(await directusFetchOne("bias_projetos",id,"fields=id"))throw Object.assign(new Error("Chave já utilizada por uma BIA existente."),{statusCode:409});
           return (await tx.execute(sql`INSERT INTO bia_estruturacao_rascunhos (bia_id,autor_id,dados) VALUES (${id},${req.session.directusUserId},${JSON.stringify(data)}::jsonb) RETURNING *`)).rows[0];
         });
         // The durable draft precedes Directus. A lost response reuses the same BIA ID.
-        const existing=await directusFetchOne("bias_projetos",id,"fields=id");
-        if(!existing)await directusCreate("bias_projetos",{id,nome_bia:draft.dados.nome_bia,moeda:draft.dados.moeda,situacao:"em_estruturacao",bia_publica:false,autor_bia:sessionMembroId,diretor_alianca:sessionMembroId,codigo_publico:await createUniqueBiaPublicCode()});
-        return res.json(draft);
+        return res.json(await syncBiaDraftPresentation(id,sessionMembroId));
       }
 
       // Create the BIA in Directus
@@ -11373,6 +11372,25 @@ export async function registerRoutes(
     return !!await requireBiaModuleAccess(req,res,String(req.params.id),"configuracao_bia","edit");
   }
 
+  async function syncBiaDraftPresentation(id:string,creatorId?:string) {
+    return withMapLock(id,async(tx)=>{
+      const draft=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${id} FOR UPDATE`)).rows[0];
+      if(!draft || draft.concluido || draft.conclusao_iniciada)return draft;
+      try {
+        const existing=await directusFetchOne("bias_projetos",id,"fields=id,situacao");
+        // Only presentation fields: never publish draft economics, roles or phases.
+        const presentation={nome_bia:draft.dados.nome_bia,...(draft.dados.imagem_directus_id !== undefined ? {imagem_directus_id:draft.dados.imagem_directus_id || null} : {})};
+        if(!existing && creatorId)await directusCreate("bias_projetos",{id,...presentation,moeda:draft.dados.moeda,situacao:"em_estruturacao",bia_publica:false,autor_bia:creatorId,diretor_alianca:creatorId,codigo_publico:await createUniqueBiaPublicCode()});
+        else if(existing?.situacao==="em_estruturacao")await directusUpdate("bias_projetos",id,presentation);
+        else return {...draft,apresentacao_pendente:true};
+        return draft;
+      }catch(error) {
+        if(creatorId)throw error;
+        return {...draft,apresentacao_pendente:true};
+      }
+    });
+  }
+
   app.get("/api/bias/:id/rascunho", async (req,res)=>{
     try {
       if(!await requireBiaDraftAccess(req,res))return;
@@ -11386,7 +11404,7 @@ export async function registerRoutes(
     try {
       if(!await requireBiaDraftAccess(req,res))return;
       const data=validateBiaDraft(req.body);
-      const draft=await withMapLock(String(req.params.id),async(tx)=>{
+      await withMapLock(String(req.params.id),async(tx)=>{
         const current=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${String(req.params.id)} FOR UPDATE`)).rows[0];
         if(!current || current.concluido)throw Object.assign(new Error("Estruturação já concluída ou indisponível."),{statusCode:409});
         assertMapRevision(Number(current.revisao),req.body.revisaoEsperada);
@@ -11397,7 +11415,7 @@ export async function registerRoutes(
         if(bia?.situacao!=="em_estruturacao")throw Object.assign(new Error("Conclusão pendente de recuperação. Repita Concluir estruturação sem alterar os dados."),{statusCode:409});
         return (await tx.execute(sql`UPDATE bia_estruturacao_rascunhos SET dados=${JSON.stringify(data)}::jsonb,revisao=revisao+1,atualizado_em=now() WHERE bia_id=${String(req.params.id)} RETURNING *`)).rows[0];
       });
-      res.json(draft);
+      res.json(await syncBiaDraftPresentation(String(req.params.id)));
     }catch(e:any){res.status(e.statusCode || 500).json({error:e.message});}
   });
   app.post("/api/bias/:id/concluir-estruturacao",async(req,res)=>{

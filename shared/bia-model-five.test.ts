@@ -4,7 +4,8 @@ import { calculateInitialMap, calculateMap, initialMapEconomicSummary, economicS
 import { commitmentsFromMap, validateInitialClassifications } from "./initial-contributions";
 
 export const structure: InitialEconomicStructure = {modalidade:"consorcio",totalCotas:10,instrumentos:[{nome:"Carta 1",valor:1000000,cotas:5},{nome:"Carta 2",valor:1000000,cotas:5}],integralizacao:{forma:"parcelado",quantidade:240,primeiroVencimento:"2026-10-20",meses:1,correcao:"IGP-M"}};
-export const participants: InitialMapParticipantInput[] = [ ["Juliana",1.5,1.25], ["Rafael",1.5,2], ["Eugenio",3,0], ["Mario",3,0], ["Rodrigo",1,1.25] ].map(([name,ci,index])=>({modeloCalculo:5,memberId:String(name),nome:String(name),tipo:"multiplicador",cotasInvestimento:Number(ci),cargos:[],indiceContribuicao:999,pesoCapital:999,capitalComprometido:999,naturezaCapital:"caixa",tipoCppCapital:{id:"capital",nome:"CPP Capital"},contribuicoes:[{cargo:"Contribuição individual",indice:Number(index),tipoCpp:{id:name==="Rodrigo"?"origem":"lideranca",nome:name==="Rodrigo"?"CPP Origem":"CPP Liderança"}}]}));
+const participantRoles=["Autor da Oportunidade","Diretor de Aliança","Diretor do Núcleo Técnico","Diretor do Núcleo de Obra","Aliado BUILT"];
+export const participants: InitialMapParticipantInput[] = [ ["Juliana",1.5,1.25], ["Rafael",1.5,2], ["Eugenio",3,0], ["Mario",3,0], ["Rodrigo",1,1.25] ].map(([name,ci,index],i)=>({modeloCalculo:5,memberId:String(name),nome:String(name),tipo:"multiplicador",cotasInvestimento:Number(ci),cargos:[participantRoles[i]],indiceContribuicao:999,pesoCapital:999,capitalComprometido:999,naturezaCapital:"caixa",tipoCppCapital:{id:"capital",nome:"CPP Capital"},contribuicoes:[{cargo:participantRoles[i],indice:Number(index),tipoCpp:{id:name==="Rodrigo"?"origem":"lideranca",nome:name==="Rodrigo"?"CPP Origem":"CPP Liderança"}}]}));
 
 test("modelo 5 reproduz o documento: CIs, direitos separados, CPPs fecham 100% sem inflar VO",()=>{
   const map=calculateInitialMap(2000000,participants,structure);
@@ -27,22 +28,33 @@ test("modelo 5 reproduz o documento: CIs, direitos separados, CPPs fecham 100% s
   assert.equal(additional.reduce((s,p)=>s+p.value,0),2100000);
 });
 
-test("modelo 5 conserva resíduos e soma cargos sem duplicar capital",()=>{
+test("modelo 5 conserva resíduos, soma funções e ignora contribuição individual no DM",()=>{
   const people=participants.slice(0,3).map((p,i)=>({...p,cotasInvestimento:1,cargos:[`Cargo ${i}`],contribuicoes:[{cargo:"Contribuição individual",indice:i===0?1.25:0},{cargo:`Cargo ${i}`,indice:i===0?2:0}]}));
   const map=calculateInitialMap(100,people,{...structure,modalidade:"recursos_proprios",totalCotas:3,instrumentos:[]});
-  assert.equal(map.divisorMultiplicador,3.25);
-  assert.equal(map.participantes[0].indiceContribuicao,3.25);
+  assert.equal(map.divisorMultiplicador,2);
+  assert.equal(map.participantes[0].indiceContribuicao,2);
+  assert.deepEqual(map.participantes[0].contribuicoes?.[0],{cargo:"Contribuição individual",indice:0,tipoCpp:undefined,valor:0});
   assert.equal(Number(map.participantes.reduce((s,p)=>s+p.capitalComprometido!,0).toFixed(5)),100);
   assert.equal(Number(map.participantes.reduce((s,p)=>s+p.cppTotal,0).toFixed(5)),100);
   const reread=calculateInitialMap(100,JSON.parse(JSON.stringify(map.participantes)),map.estrutura);
   assert.deepEqual(reread,map);
 });
+test("modelo 5 deriva as CIs dos instrumentos a partir dos valores e do total",()=>{
+  const map=calculateInitialMap(2000000,participants,{...structure,instrumentos:structure.instrumentos.map(i=>({...i,cotas:NaN}))});
+  assert.deepEqual(map.estrutura?.instrumentos.map(i=>i.cotas),[5,5]);
+  assert.throws(()=>calculateInitialMap(2000000,participants,{...structure,instrumentos:[{nome:"Carta",valor:1000000,cotas:NaN}]}),/Valor de Origem/);
+});
 test("modelo 5 não mistura versões, aceita zero e rejeita CI ausente e distribuição inconsistente",()=>{
   assert.throws(()=>calculateInitialMap(2000000,participants.map((p,i)=>i===0?{...p,modeloCalculo:4}:p),structure),/versões/);
   assert.throws(()=>calculateInitialMap(2000000,participants.map((p,i)=>i===0?{...p,cotasInvestimento:undefined}:p),structure),/CIs/);
-  assert.throws(()=>calculateInitialMap(2000000,participants,{...structure,totalCotas:9}),/instrumentos/);
+  assert.throws(()=>calculateInitialMap(2000000,participants,{...structure,totalCotas:9}),/total de CIs/);
   assert.throws(()=>calculateInitialMap(2000000,participants,{...structure,integralizacao:{...structure.integralizacao,primeiroVencimento:"2026-02-30"}}),/vencimento/);
-  assert.throws(()=>calculateInitialMap(2000000,participants.map(p=>({...p,contribuicoes:[{cargo:"Contribuição individual",indice:30}]})),structure),/100%/);
-  const p=participants.map(p=>({...p,contribuicoes:[{cargo:"Contribuição individual",indice:0}]}));
+  assert.throws(()=>calculateInitialMap(2000000,participants.map(p=>({...p,contribuicoes:p.contribuicoes!.map(c=>({...c,indice:30}))})),structure),/100%/);
+  const p=participants.map(p=>({...p,contribuicoes:p.contribuicoes!.map(c=>({...c,indice:0}))}));
   assert.equal(calculateInitialMap(2000000,p,structure).divisorMultiplicador,0);
+  const individual=calculateInitialMap(100,[{...participants[0],cotasInvestimento:1,cargos:[],contribuicoes:[{cargo:"Contribuição individual",indice:25,tipoCpp:{id:"capital",nome:"CPP Capital"}}]}],{...structure,modalidade:"recursos_proprios",totalCotas:1,instrumentos:[]});
+  assert.equal(individual.divisorMultiplicador,0);
+  assert.equal(individual.participantes[0].mapPercentual,100);
+  assert.equal(individual.participantes[0].contribuicoes?.[0].indice,0);
+  assert.equal(individual.participantes[0].contribuicoes?.[0].tipoCpp,undefined);
 });

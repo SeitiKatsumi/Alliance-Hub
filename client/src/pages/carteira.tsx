@@ -1480,6 +1480,12 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
             <p className="text-sm font-medium">Prévia editável · {suggestions.length} lançamento(s)</p>
             {suggestions.map((item, index) => (
               <div key={index} className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-2 sm:col-span-2">
+                  <p className="text-sm font-medium">Lançamento {index + 1}</p>
+                  <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:bg-red-50 hover:text-red-700" disabled={suggestionsMutation.isPending} aria-label={`Excluir lançamento ${index + 1} da prévia`} onClick={() => setSuggestions((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                    <Trash2 className="mr-2 h-4 w-4" />Excluir lançamento
+                  </Button>
+                </div>
                 <div className="space-y-2"><Label>Tipo</Label><Select value={item.tipo} onValueChange={(value: "receita" | "despesa") => updateSuggestion(index, { tipo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="receita">Receita</SelectItem><SelectItem value="despesa">Despesa</SelectItem></SelectContent></Select></div>
                 <div className="space-y-2"><Label>Categoria</Label><Input value={item.categoria} onChange={(event) => updateSuggestion(index, { categoria: event.target.value })} /></div>
                 <div className="space-y-2"><Label>Valor</Label><Input inputMode="decimal" value={item.valor} onChange={(event) => updateSuggestion(index, { valor: parseNumber(event.target.value) })} /></div>

@@ -71,6 +71,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - Edicao relevante gera evento com autor, origem e horario.
 - IA propoe dados; confirmacao humana grava o snapshot oficial.
 - No lançamento de receitas e despesas, a leitura por IA aceita arquivo, imagem ou áudio e sempre apresenta prévia editável antes da gravação; no mobile, o modal permanece rolável dentro da altura visível.
+- Cada lançamento sugerido pode ser excluído da prévia antes de confirmar; a exclusão é local, não altera registros salvos e fica bloqueada durante a gravação. Somente sugestões restantes são enviadas, e excluir todas oculta a confirmação.
 - Matriculas em PDF usam leitura visual quando o texto incorporado e insuficiente; uma analise sem nenhum campo identificado retorna erro e nao registra a fonte como processada.
 - Em Conversar com a IA, o usuario pode digitar, enviar um arquivo de audio ou gravar a fala no momento; gravacao e arquivo usam a mesma analise e permanecem revisaveis antes de salvar.
 - Negar o microfone nao bloqueia o cadastro: a interface orienta como liberar a permissao e preserva o envio de arquivo e o texto como alternativas.

@@ -133,6 +133,8 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 
 ## Nova BIA — Base econômica inicial (modelo 5, 2026-09-23)
 
+- Gerar MAP Inicial depende da composição válida, não do nome cadastral. A navegação da prévia à Revisão também independe do nome. Nome vazio exibe orientação e atalho para Dados da BIA; salvar rascunho continua exigindo nome, e concluir mantém todos os requisitos cadastrais/econômicos/equipe e autorização backend. Gerar a prévia não salva nem dispara efeitos externos.
+
 - A normalização dos direitos é idempotente também com índice vazio (`NaN` no formulário): ausência não vira zero nem dispara atualizações contínuas que bloqueiem a digitação. Índices preenchidos e classificações oficiais permanecem preservados; a validação de completude continua no cálculo/conclusão.
 
 - Na interface da BEI, “Função/Funções” substitui “Cargo/Cargos” nos rótulos, resumos, ações e orientações. É somente nomenclatura visual: a chave interna `cargo`, os valores canônicos das funções, cálculos, APIs, persistência, documentos históricos e modelos anteriores permanecem inalterados.

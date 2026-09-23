@@ -43,7 +43,10 @@ export function validateInitialClassifications(participants: InitialMapParticipa
     const missingContribution = Number(p.modeloCalculo) >= 4
       ? p.contribuicoes?.some(c => c.indice > 0 && !c.tipoCpp?.id)
       : p.cppOrigem > 0 && !p.tipoCppContribuicao?.id;
-    if (((p.modeloCalculo===5 ? Number(p.capitalComprometido) : p.cppCapital)>0 && !p.tipoCppCapital?.id) || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Zero antes do aceite.");
+    const missingCapital = (p.modeloCalculo===5 ? Number(p.capitalComprometido) : p.cppCapital)>0 && !p.tipoCppCapital?.id;
+    if (p.modeloCalculo===5 && missingCapital) throw new Error(`Selecione a Natureza do aporte de ${p.nome} no bloco 5, em Funções e natureza, para gerar o MAP Inicial.`);
+    if (p.modeloCalculo===5 && missingContribution) throw new Error(`A classificação automática dos direitos econômicos de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`);
+    if (missingCapital || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Zero antes do aceite.");
   }
 }
 export const isCashEntry = (entry: { natureza?: string; conciliacao_pendente?: boolean }) => entry.natureza !== "nao_caixa" && !entry.conciliacao_pendente;

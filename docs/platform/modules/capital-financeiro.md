@@ -134,6 +134,8 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 ## BEI por CIs — modelo 5
 
+Na validação do modelo 5, classificação ausente do aporte identifica o participante e orienta selecionar Natureza do aporte no bloco 5 (Funções e natureza), antes de gerar o MAP Inicial. Ausência da classificação automática dos direitos orienta conferir o catálogo oficial de tipos de CPP. Nenhuma dessas mensagens exige salvar previamente um MAP Zero; obrigatoriedade dos campos, permissões, dados e mensagens dos modelos anteriores são preservados.
+
 Novas BIAs do wizard usam `modelo_calculo=5`, sem converter os modelos anteriores. A BEI é o conjunto de condições, não VO acrescido dos direitos. CIs distribuídas fecham o total; capital comprometido é VO × CIs da pessoa / total CIs, com resíduo conservado em cinco casas. Direitos/DM são somados por cargo. CPP do capital (%) = fração das CIs × (100 − DM); CPP total da pessoa = CPP do capital + seus direitos (%). A soma fecha 100%.
 
 `Contribuição individual` identifica participação pelas CIs, não um direito no Divisor Multiplicador. No modelo 5 seu índice é normalizado para zero, sem CPP de direito, e a linha não aparece na entrada do DM; o participante permanece no MAP Inicial e outras funções acumuladas continuam compondo o DM. Modelos anteriores e snapshots históricos não são recalculados.

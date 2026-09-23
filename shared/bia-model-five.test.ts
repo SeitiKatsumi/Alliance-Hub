@@ -28,6 +28,15 @@ test("modelo 5 reproduz o documento: CIs, direitos separados, CPPs fecham 100% s
   assert.equal(additional.reduce((s,p)=>s+p.value,0),2100000);
 });
 
+test("modelo 5 orienta a pendência antes de gerar o MAP Inicial, sem exigir mapa já salvo",()=>{
+  const map=calculateInitialMap(2000000,participants,structure);
+  const p=map.participantes[0];
+  assert.throws(()=>validateInitialClassifications([{...p,tipoCppCapital:undefined}]),{message:`Selecione a Natureza do aporte de ${p.nome} no bloco 5, em Funções e natureza, para gerar o MAP Inicial.`});
+  assert.throws(()=>validateInitialClassifications([{...p,contribuicoes:p.contribuicoes!.map(c=>({...c,tipoCpp:undefined}))}]),/classificação automática.*MAP Inicial/);
+  assert.doesNotThrow(()=>validateInitialClassifications([{...p,capitalComprometido:0,tipoCppCapital:undefined,contribuicoes:p.contribuicoes!.map(c=>({...c,indice:0,tipoCpp:undefined}))}]));
+  assert.throws(()=>validateInitialClassifications([{...p,modeloCalculo:4,tipoCppCapital:undefined}]),/salve o MAP Zero/);
+});
+
 test("modelo 5 conserva resíduos, soma funções e ignora contribuição individual no DM",()=>{
   const people=participants.slice(0,3).map((p,i)=>({...p,cotasInvestimento:1,cargos:[`Cargo ${i}`],contribuicoes:[{cargo:"Contribuição individual",indice:i===0?1.25:0},{cargo:`Cargo ${i}`,indice:i===0?2:0}]}));
   const map=calculateInitialMap(100,people,{...structure,modalidade:"recursos_proprios",totalCotas:3,instrumentos:[]});

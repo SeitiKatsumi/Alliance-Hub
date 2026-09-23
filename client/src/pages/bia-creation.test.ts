@@ -26,11 +26,30 @@ test("prévia do MAP não exige equipe completa, mas preserva validações econ�
   assert.equal(preview.error,"");assert.equal(preview.teamPending,true);
   assert.equal(preview.map.participantes[0].mapPercentual,100);
   assert.equal(run({...input,participantes:[{...person,cotasInvestimento:undefined}]}).map,null);
-  assert.equal(run({...input,participantes:[{...person,tipoCppCapital:undefined}]}).map,null);
+  const missingNature=run({...input,participantes:[{...person,tipoCppCapital:undefined}]});
+  assert.equal(missingNature.map,null);
+  assert.match(missingNature.error,/Natureza do aporte de Sócio.*bloco 5.*MAP Inicial/);
+  assert.doesNotMatch(missingNature.error,/MAP Zero|antes do aceite|salve/);
   assert.match(run({...input,participantes:[person,person]}).error,/uma ficha/);
   assert.match(source,/step===3 && preview.map && preview.teamPending/);
   assert.match(source,/disabled=\{busy \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
   assert.match(source,/void members.refetch\(\);void defaults.refetch\(\)/);
+});
+
+test("gerar prévia depende da composição, sem bloquear silenciosamente por nome vazio",()=>{
+  const source=readFileSync(new URL("./bia-nova.tsx",import.meta.url),"utf8");
+  const condition=source.match(/<Button disabled=\{([^}]+)\} onClick=\{\(\)=>setStep\(s=>s\+1\)\}/)?.[1];
+  assert.ok(condition);
+  const disabled=(step:number,nome_bia:string,map:object|null,busy=false)=>new Function("step","form","preview","busy",`return ${condition}`)(step,{nome_bia},{map},busy);
+  assert.equal(disabled(1,"",{}),false,"composição válida permite gerar sem nome");
+  assert.equal(disabled(1,"Nome",null),true,"composição inválida permanece bloqueada");
+  assert.equal(disabled(1,"",{},true),true,"não navega durante salvamento");
+  assert.equal(disabled(2,"",{}),false,"prévia permite chegar à revisão e suas pendências");
+  assert.equal(disabled(0,"  ",{}),true);
+  assert.equal(disabled(0,"Nome",null),false);
+  assert.match(source,/disabled=\{busy \|\| !form.nome_bia.trim\(\)\} onClick=\{\(\)=>save\(\)\}/);
+  assert.match(source,/disabled=\{busy \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
+  assert.match(source,/Preencher nome da BIA/);
 });
 
 test("Dados da BIA e Equipe e DM ocupam toda a largura na criação", () => {

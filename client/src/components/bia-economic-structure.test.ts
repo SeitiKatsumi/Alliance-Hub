@@ -7,9 +7,9 @@ import { transformSync } from "esbuild";
 import { formatBiaNumber, formatBiaPercent } from "../../../shared/bia-numbers";
 
 const source=readFileSync(new URL("./bia-economic-structure.tsx",import.meta.url),"utf8");
-test("BEI segue os blocos A–H do documento sem entrada ou cálculo de CPP na etapa",()=>{
+test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na etapa",()=>{
   const form=source.slice(source.indexOf("export function BiaEconomicStructureFields"));
-  const headings=["A. Identificação da BIA","B. Valor de Origem","C. Forma de capitalização","D. Cotas Iniciais","E. Distribuição das Cotas Iniciais e Aportes de Capital","F. Forma de integralização","G. Divisor Multiplicador","H. Resumo da Base Econômica Inicial"];
+  const headings=["1. Identificação da BIA","2. Valor de Origem","3. Forma de capitalização","4. Cotas Iniciais","5. Distribuição das Cotas Iniciais e Aportes de Capital","6. Forma de integralização","7. Divisor Multiplicador","8. Resumo da Base Econômica Inicial"];
   let previous=-1;
   for(const title of headings){const at=form.indexOf(title);assert.ok(at>previous,title);previous=at;}
   assert.doesNotMatch(form,/Cotas de Investimento|Parcela das CPPs destinada|Classificação do capital/);

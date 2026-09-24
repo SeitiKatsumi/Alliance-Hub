@@ -19,10 +19,10 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
  const start=source.indexOf('  app.get("/api/bias/:id/rascunho"');
  const routes=source.slice(start,source.indexOf('  app.patch("/api/bias/:id"',start));
  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.session={directusUserId:req.headers["x-user"] || "autor",membroId:"membro",role:"admin"};next();});
- let official:any=null,fail=false;const writes:any[]=[];
+ let official:any=null,fail=false,failRead=false;const writes:any[]=[];
  const scope={app,db,sql,validateBiaDraft,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),requireBiaModuleAccess:async(_req:any,res:any)=>{res.status(403).json({error:"Negado"});return false;},
- directusFetchOne:async()=>official,createUniqueBiaPublicCode:async()=>"TESTE",
+ directusFetchOne:async()=>{if(failRead)throw new Error("Indisponível");return official;},createUniqueBiaPublicCode:async()=>"TESTE",
  directusCreate:async(_col:string,data:any)=>{if(fail)throw new Error("Falha simulada");official={...data};writes.push(data);return official;},
  directusUpdate:async(_col:string,_id:string,data:any)=>{if(fail)throw new Error("Falha simulada");official={...official,...data};writes.push(data);return official;}};
  new Function(...Object.keys(scope),transformSync(functions+routes+'\napp.post("/api/bias",createBiaHandler);',{loader:"ts",target:"es2022"}).code)(...Object.values(scope));
@@ -33,6 +33,16 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
  try {
   const created=await call("POST","",{...data,_rascunho:true,chaveCriacao:id});assert.equal(created.status,200);
   assert.equal(official.imagem_directus_id,"capa-1");assert.equal(official.situacao,"em_estruturacao");assert.equal(official.map_inicial,undefined);
+  const beforeRead=writes.length;
+  assert.equal((await call("GET",`/${id}/rascunho`,undefined,"outro")).status,403);
+  assert.equal((await (await call("GET",`/${id}/rascunho`)).json()).codigo_publico,"TESTE");
+  official.codigo_publico=null;
+  assert.equal((await (await call("GET",`/${id}/rascunho`)).json()).codigo_publico,null);
+  failRead=true;
+  const unavailable=await (await call("GET",`/${id}/rascunho`)).json();
+  assert.equal(unavailable.codigo_publico,null);assert.equal(unavailable.codigo_publico_indisponivel,true);
+  assert.equal(unavailable.dados.nome_bia,data.nome_bia);assert.equal(writes.length,beforeRead);
+  failRead=false;official.codigo_publico="TESTE";
   const edited={...data,nome_bia:"BIA V2",imagem_directus_id:"capa-2",revisaoEsperada:1};
   assert.equal((await call("PUT",`/${id}/rascunho`,edited,"outro")).status,403);
   assert.equal((await call("PUT",`/${id}/rascunho`,{...edited,revisaoEsperada:0})).status,409);

@@ -9,6 +9,7 @@ import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-wo
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
 import { formatBiaPercent } from "@shared/bia-numbers";
+import { buildBiaMouFooterText } from "../shared/bia-document-footer";
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import type { Response } from "express";
@@ -7194,13 +7195,7 @@ export async function registerRoutes(
   }
 
   function buildBiaMouRodapeTexto(bia: any, biaId: string) {
-    const biaNome = String(bia?.nome_bia || "selecionada")
-      .replace(/\s+/g, " ")
-      .replace(/^BIA\s+/i, "")
-      .trim();
-    const codigoCurto = String(bia?.codigo_publico || biaId).trim();
-    const biaLabel = [biaNome, codigoCurto].filter(Boolean).join(" / ");
-    return `Esta página integra o MoU Padrão BUILT vinculado à BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberações internas e instrumentos jurídicos específicos da respectiva Aliança.`;
+    return buildBiaMouFooterText(String(bia?.nome_bia || "selecionada"), String(bia?.codigo_publico || biaId));
   }
 
   function appendBiaMouRodape(texto: string, biaId: string, bia: any) {
@@ -11398,7 +11393,11 @@ export async function registerRoutes(
       await ensureBiaMapInicialSnapshotsTable();
       const draft=(await db.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${String(req.params.id)}`)).rows[0];
       if(!draft)return res.status(404).json({error:"Rascunho não encontrado."});
-      res.json(draft);
+      // Read only the persisted public code; never backfill/generate one during export.
+      const identity=await directusFetchOne("bias_projetos",String(req.params.id),"fields=codigo_publico")
+        .then(bia=>({codigo_publico:bia?.codigo_publico || null,codigo_publico_indisponivel:false}))
+        .catch(()=>({codigo_publico:null,codigo_publico_indisponivel:true}));
+      res.json({...draft,...identity});
     }catch(e:any){res.status(e.statusCode || 500).json({error:e.message});}
   });
   app.put("/api/bias/:id/rascunho", async(req,res)=>{

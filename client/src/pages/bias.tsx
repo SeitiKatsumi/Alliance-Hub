@@ -10,7 +10,7 @@ import { uploadBiaFiles } from "@/lib/bia-upload";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
-import { isBiaPlatformAdminRole, biaTeamFromMapParticipants, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS } from "@shared/bia-access";
+import { isBiaPlatformAdminRole, biaTeamFromMapParticipants, hasRequiredBiaTeam, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS } from "@shared/bia-access";
 import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import { BIA_MAP_ECONOMIC_FIELDS, calculateInitialMap, type InitialMapParticipantInput } from "@shared/member-portfolio";
 import { validateInitialClassifications } from "@shared/initial-contributions";
@@ -1756,8 +1756,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const newMapPreview = useMemo(() => {
     try {
       const team = biaTeamFromMapParticipants(mapParticipantes);
-      if (!team.autor_bia) throw new Error("Defina o Autor da Oportunidade na Equipe.");
-      if (!team.aliado_built || !team.diretor_alianca) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança na Equipe.");
+      if (!hasRequiredBiaTeam(team)) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança na Equipe.");
       const calculation = calculateInitialMap(mapValorOrigem, mapParticipantes);
       validateInitialClassifications(calculation.participantes);
       return {calculation, error:null};

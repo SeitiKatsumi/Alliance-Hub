@@ -165,6 +165,10 @@ export function biaTeamFromMapParticipants(participants: Array<{
   return {...fields, socios_guardioes, socios_multiplicadores};
 }
 
+export function hasRequiredBiaTeam(team: { aliado_built?: string | null; diretor_alianca?: string | null }): boolean {
+  return Boolean(team.aliado_built && team.diretor_alianca);
+}
+
 export function defaultBiaAccessForRoles(roles: BiaParticipantRole[]): BiaAccessMatrix {
   const matrices: Partial<BiaAccessMatrix>[] = [];
   for (const role of roles) {

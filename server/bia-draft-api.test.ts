@@ -9,6 +9,7 @@ import ts from "typescript";
 import { transformSync } from "esbuild";
 import { BIA_WORKFLOW_SQL,validateBiaDraft } from "./bia-workflow";
 import { assertMapRevision,mapContentHash } from "./bia-map-history";
+import { hasRequiredBiaTeam } from "../shared/bia-access";
 
 test("capa e nome do rascunho sincronizam na criação, edição e repetição após falha sem efeitos financeiros",async()=>{
  const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL);const db=drizzle(pg);
@@ -56,6 +57,7 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
  const dados={nome_bia:"Teste isolado",moeda:"BRL",destinacao:"Rural",objetivo_alianca:"Renda",localizacao:"São Paulo",observacoes:"Teste",map_inicial:{modeloCalculo:4,valorOrigem:1000,participantes:[]}};
  await db.execute(sql`INSERT INTO bia_estruturacao_rascunhos (bia_id,autor_id,dados) VALUES ('teste','autor',${JSON.stringify(dados)}::jsonb)`);
  let invalid=true,fail=true,conclusions=0;const invitations=new Set<string>();
+ let team={autor_bia:null,aliado_built:"a",diretor_alianca:"a"} as {autor_bia:null;aliado_built:string|null;diretor_alianca:string|null};
  const source=readFileSync(new URL("./routes.ts",import.meta.url),"utf8");
  const ast=ts.createSourceFile("routes.ts",source,ts.ScriptTarget.Latest,true);let access="";
  function visit(n:ts.Node){if(ts.isFunctionDeclaration(n)&&["requireBiaDraftAccess","syncBiaDraftPresentation"].includes(n.name?.text || ""))access+=n.getText(ast)+"\n";ts.forEachChild(n,visit);}visit(ast);
@@ -64,7 +66,7 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
  const scope={app,db,sql,validateBiaDraft,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
  requireBiaModuleAccess:async(_req:any,res:any)=>{res.status(403).json({error:"Negado"});return false;},
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),directusFetchOne:async()=>({situacao:"em_estruturacao"}),directusUpdate:async()=>{},
- calculateSubmittedInitialMap:async()=>({participantes:[]}),biaTeamFromMapParticipants:()=>({autor_bia:"a",aliado_built:"a",diretor_alianca:"a"}),mapActor:()=>({id:"autor"}),
+ calculateSubmittedInitialMap:async()=>({participantes:[]}),biaTeamFromMapParticipants:()=>team,hasRequiredBiaTeam,mapActor:()=>({id:"autor"}),
  createBiaHandler:async(req:any,res:any)=>{if(req.biaDraftValidateOnly)return invalid?res.status(400).json({error:"Aliado inválido"}):res.json({valid:true});conclusions++;invitations.add(req.biaDraftId);if(fail)return res.status(503).json({error:"Directus indisponível"});return res.json({id:req.biaDraftId});}};
  new Function(...Object.keys(scope),transformSync(access+"\n"+routes,{loader:"ts",target:"es2022"}).code)(...Object.values(scope));
  const server=app.listen(0,"127.0.0.1");await new Promise<void>(r=>server.once("listening",r));
@@ -79,6 +81,13 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
   assert.equal((await (await call("/rascunho")).json()).conclusao_iniciada,false);
   assert.equal(invitations.size,0);
   invalid=false;
+  for(const field of ["aliado_built","diretor_alianca"] as const){
+   team[field]=null;
+   const denied=await call("/concluir-estruturacao","POST",{revisaoEsperada:1});
+   assert.equal(denied.status,400);assert.match((await denied.json()).error,/Aliado BUILT e Diretor/);
+   assert.equal((await (await call("/rascunho")).json()).conclusao_iniciada,false);
+   team[field]="a";
+  }
   assert.equal((await call("/concluir-estruturacao","POST",{revisaoEsperada:1})).status,503);
   const pending=await (await call("/rascunho")).json();assert.equal(pending.conclusao_iniciada,true);assert.equal(pending.concluido,false);
   assert.equal((await call("/rascunho","PUT",{...dados,nome_bia:"Outro",revisaoEsperada:1})).status,409);

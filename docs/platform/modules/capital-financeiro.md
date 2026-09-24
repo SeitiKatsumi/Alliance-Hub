@@ -6,7 +6,7 @@
 
 ### Classificação automática de direitos no modelo 5
 
-Na edição da BEI, Direito Econômico é Origem para Autor/Aliado, Liderança para as diretorias e Capital/Propriedade para contribuição individual conforme aporte em dinheiro/sem caixa. A regra compartilhada em `shared/initial-contributions.ts` resolve o catálogo oficial `Tipos_CPP` tanto na interface como em `calculateSubmittedInitialMap`, usado na criação/conclusão e PUT do MAP. Tipo obrigatório ausente impede gravação. Não muda fórmulas, índices, classificação separada do capital, lançamentos ou permissões; não aplica backfill nem altera a leitura de versões/PDFs/aceites históricos ou modelos anteriores.
+Na edição da BEI modelo 5, Direito Econômico é Origem para Autor/Aliado e Liderança para as diretorias; contribuição individual participa pelas CIs, sem direito no DM. A Forma do aporte determina automaticamente a classificação separada do capital: Dinheiro → Capital; Propriedade, bens ou direitos → Propriedade. Não há seletor de Natureza do aporte. A regra compartilhada em `shared/initial-contributions.ts` resolve o catálogo oficial `Tipos_CPP` tanto na interface como em `calculateSubmittedInitialMap`, usado na criação/conclusão e PUT do MAP. Tipo obrigatório ausente impede gravação. Não muda fórmulas, índices, lançamentos ou permissões; não aplica backfill nem altera a leitura de versões/PDFs/aceites históricos ou modelos anteriores.
 
 ### Modelo econômico 4 (nova criação em etapas)
 
@@ -134,7 +134,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 ## BEI por CIs — modelo 5
 
-Na validação do modelo 5, classificação ausente do aporte identifica o participante e orienta selecionar Natureza do aporte no bloco 5 (Funções e natureza), antes de gerar o MAP Inicial. Ausência da classificação automática dos direitos orienta conferir o catálogo oficial de tipos de CPP. Nenhuma dessas mensagens exige salvar previamente um MAP Zero; obrigatoriedade dos campos, permissões, dados e mensagens dos modelos anteriores são preservados.
+Na validação do modelo 5, classificação automática ausente do aporte ou dos direitos identifica o participante e orienta conferir o catálogo oficial de tipos de CPP. Não pede seleção manual de Natureza do aporte nem salvamento prévio de MAP Zero. Classificação recebida do cliente é normalizada pela Forma do aporte antes do cálculo; permissões, dados e mensagens dos modelos anteriores são preservados.
 
 Novas BIAs do wizard usam `modelo_calculo=5`, sem converter os modelos anteriores. A BEI é o conjunto de condições, não VO acrescido dos direitos. CIs distribuídas fecham o total; capital comprometido é VO × CIs da pessoa / total CIs, com resíduo conservado em cinco casas. Direitos/DM são somados por cargo. CPP do capital (%) = fração das CIs × (100 − DM); CPP total da pessoa = CPP do capital + seus direitos (%). A soma fecha 100%.
 

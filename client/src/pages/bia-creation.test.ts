@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { transformSync } from "esbuild";
 import { QueryClient } from "@tanstack/react-query";
-import { biaTeamFromMapParticipants } from "../../../shared/bia-access";
+import { biaTeamFromMapParticipants, hasRequiredBiaTeam, BIA_PARTICIPANT_ROLE_LABELS as roles } from "../../../shared/bia-access";
 import { calculateInitialMap } from "../../../shared/member-portfolio";
 import { validateInitialClassifications, withAutomaticEconomicRights } from "../../../shared/initial-contributions";
 
@@ -16,7 +16,7 @@ test("prévia do MAP não exige equipe completa, mas preserva validações econ�
     if(ts.isVariableDeclaration(node) && node.name.getText(parsed)==="preview" && node.initializer && ts.isCallExpression(node.initializer)) callback=node.initializer.arguments[0].getText(parsed);
     ts.forEachChild(node,visit);
   };visit(parsed);assert.ok(callback);
-  const run=(map_inicial:any)=>new Function("form","biaTeamFromMapParticipants","calculateInitialMap","validateInitialClassifications","withAutomaticEconomicRights","cppTypes",`return (${transformSync(callback,{loader:"ts"}).code.trim().replace(/;$/,"")})();`)({map_inicial},biaTeamFromMapParticipants,calculateInitialMap,validateInitialClassifications,withAutomaticEconomicRights,{data:[{id:"capital",Nome:"CPP Capital"}]});
+  const run=(map_inicial:any)=>new Function("form","biaTeamFromMapParticipants","hasRequiredBiaTeam","calculateInitialMap","validateInitialClassifications","withAutomaticEconomicRights","cppTypes",`return (${transformSync(callback,{loader:"ts"}).code.trim().replace(/;$/,"")})();`)({map_inicial},biaTeamFromMapParticipants,hasRequiredBiaTeam,calculateInitialMap,validateInitialClassifications,withAutomaticEconomicRights,{data:[{id:"capital",Nome:"CPP Capital"}]});
   const person={modeloCalculo:5,memberId:"socio",nome:"Sócio",tipo:"multiplicador",cargos:[],cotasInvestimento:1,naturezaCapital:"caixa",tipoCppCapital:{id:"capital",nome:"CPP Capital"},contribuicoes:[{cargo:"Contribuição individual",indice:0}]};
   const input={valorOrigem:100,estrutura:{modalidade:"recursos_proprios",totalCotas:1,instrumentos:[],integralizacao:{forma:"a_vista",quantidade:1,meses:0,primeiroVencimento:"2026-10-20",correcao:"Sem correção"}},participantes:[person]};
   const preview=run(input);
@@ -24,11 +24,19 @@ test("prévia do MAP não exige equipe completa, mas preserva validações econ�
   assert.equal(automatic.map.participantes[0].contribuicoes[0].indice,0);
   assert.equal(automatic.map.participantes[0].contribuicoes[0].tipoCpp,undefined);
   assert.equal(preview.error,"");assert.equal(preview.teamPending,true);
+  const withRoles=(cargos:string[])=>run({...input,participantes:[{...person,cargos,contribuicoes:cargos.map(cargo=>({cargo,indice:0}))}]});
+  assert.equal(withRoles([roles.aliado,roles.diretor_alianca]).teamPending,false);
+  assert.equal(withRoles([roles.autor,roles.aliado,roles.diretor_alianca]).teamPending,false);
+  assert.equal(withRoles([roles.autor,roles.aliado]).teamPending,true);
+  assert.equal(withRoles([roles.autor,roles.diretor_alianca]).teamPending,true);
   assert.equal(preview.map.participantes[0].mapPercentual,100);
   assert.equal(run({...input,participantes:[{...person,cotasInvestimento:undefined}]}).map,null);
   const missingNature=run({...input,participantes:[{...person,tipoCppCapital:undefined}]});
   assert.equal(missingNature.map,null);
-  assert.match(missingNature.error,/Natureza do aporte de Sócio.*bloco 5.*MAP Inicial/);
+  assert.match(missingNature.error,/classificação automática do aporte de Sócio.*tipos de CPP.*MAP Inicial/);
+  const automaticCapital=run({...input,modeloCalculo:5,participantes:[{...person,tipoCppCapital:undefined}]});
+  assert.equal(automaticCapital.error,"");
+  assert.equal(automaticCapital.map.participantes[0].tipoCppCapital.id,"capital");
   assert.doesNotMatch(missingNature.error,/MAP Zero|antes do aceite|salve/);
   assert.match(run({...input,participantes:[person,person]}).error,/uma ficha/);
   assert.match(source,/step===3 && preview.map && preview.teamPending/);

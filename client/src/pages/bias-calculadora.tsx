@@ -28,7 +28,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { calculateInitialMap, initialMapContributionValue, withInitialCapitalParticipation, type InitialMapParticipantInput } from "@shared/member-portfolio";
-import { biaTeamFromMapParticipants, isBiaAllyCandidate, BIA_PARTICIPANT_ROLE_FIELDS, BIA_PARTICIPANT_ROLE_LABELS } from "@shared/bia-access";
+import { biaTeamFromMapParticipants, hasRequiredBiaTeam, isBiaAllyCandidate, BIA_PARTICIPANT_ROLE_FIELDS, BIA_PARTICIPANT_ROLE_LABELS } from "@shared/bia-access";
 import { validateInitialClassifications } from "@shared/initial-contributions";
 import {
   Calculator,
@@ -436,8 +436,7 @@ export function MapZeroFields({
     try {
       if (creationTeam) {
         const team = biaTeamFromMapParticipants(participantes);
-        if (!team.autor_bia) throw new Error("Defina o Autor da Oportunidade na Equipe.");
-        if (!team.aliado_built || !team.diretor_alianca) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança.");
+        if (!hasRequiredBiaTeam(team)) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança.");
       }
       const calculation = calculateInitialMap(valorOrigem, participantes);
       if (creationTeam) validateInitialClassifications(calculation.participantes);

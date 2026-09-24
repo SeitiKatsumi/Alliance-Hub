@@ -89,8 +89,10 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.doesNotMatch(form,/Aportes? de Capital/);
   assert.match(form,/<span>Aporte Financeiro<\/span>/);
   assert.match(form,/<dt>Aportes Financeiros<\/dt>/);
-  assert.match(form,/Uma linha por pessoa\. Funções e natureza ficam nos detalhes\./);
-  assert.match(form,/Funções \(\{p\.contribuicoes\?\.length \|\| 0\}\) e natureza/);
+  assert.match(form,/Uma linha por pessoa\. Funções e forma do aporte ficam nos detalhes\./);
+  assert.match(form,/Funções \(\{p\.contribuicoes\?\.length \|\| 0\}\) e forma do aporte/);
+  assert.doesNotMatch(form,/Natureza do aporte|Selecione quando houver aporte/);
+  assert.match(form,/<label>Forma do aporte<select/);
   assert.match(form,/<label className="min-w-0 flex-1">Função<select/);
   assert.match(form,/Trocar a função limpa o direito desta linha/);
   assert.match(form,/Remover esta função e seu direito/);
@@ -107,7 +109,6 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.doesNotMatch(form,/Quantidade de Cotas Iniciais do instrumento/);
   assert.doesNotMatch(form,/s\.instrumentos\.every\(r=>Number\.isFinite\(r\.cotas\)\)/);
   assert.doesNotMatch(form,/<label>CIs<BiaNumberInput/);
-  assert.match(form,/natureLabel\(t.Nome\)/);
   assert.doesNotMatch(form,/<select aria-label=\{`Direito Econômico/);
   assert.match(form,/economicRightName\(c.cargo,p.naturezaCapital\)/);
   assert.match(form,/if\(readOnly \|\| !types.data\)return/);
@@ -129,4 +130,7 @@ test("MAP Inicial é relatório em tabela, com totais e naturezas, sem campos ed
   assert.doesNotMatch(html,/<input|<select|<textarea/);
   assert.match(html,/96,75000%/);assert.match(html,/3,25000%/);assert.match(html,/100,00000%/);
   assert.match(html,/Diretor \/ Capital/);assert.match(html,/CPP Liderança/);
+  const custom=renderToStaticMarkup(React.createElement(Component,{map:{valorOrigem:100,divisorMultiplicador:0,participantes:[],estrutura:{modalidade:"outra",descricao:"Plano específico",totalCotas:1,instrumentos:[{nome:"Entrada",valor:100,cotas:NaN}],integralizacao:{forma:"personalizado",quantidade:1,meses:0,primeiroVencimento:"2026-10-20",correcao:"IPCA"}}}}));
+  assert.match(custom,/Periodicidade personalizada/);assert.match(custom,/20\/10\/2026/);assert.match(custom,/Plano específico/);
+  assert.doesNotMatch(custom,/NaN|Intervalo de 0 meses/);
 });

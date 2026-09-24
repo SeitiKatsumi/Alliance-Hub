@@ -15,18 +15,23 @@ test("direitos automáticos: cargos, forma do aporte, tipos oficiais e preserva�
   assert.deepEqual(result[0].contribuicoes?.map(c=>c.tipoCpp?.id),["1","1","2","2","2","2","2",undefined]);
   assert.equal(JSON.stringify(input),original,"snapshots recebidos não são mutados");
   assert.equal(result[0].capitalComprometido,123);assert.equal(result[0].cotasInvestimento,2);
-  assert.equal(result[0].tipoCppCapital,input[0].tipoCppCapital);
+  assert.deepEqual(result[0].tipoCppCapital,{id:"3",nome:"Capital"});
   assert.deepEqual(result[0].contribuicoes?.map(c=>c.indice),[0,1.25,1.25,1.25,1.25,1.25,1.25,0]);
   assert.equal(withAutomaticEconomicRights(result,types),result,"normalização é idempotente");
   const property=withAutomaticEconomicRights([{...result[0],tipo:"guardiao",naturezaCapital:"nao_caixa"}],types);
   assert.equal(property[0].contribuicoes?.at(-1)?.tipoCpp,undefined);
+  assert.deepEqual(property[0].tipoCppCapital,{id:"4",nome:"Propriedade"});
+  assert.equal(withAutomaticEconomicRights(property,types),property);
+  assert.equal(withAutomaticEconomicRights([{...property[0],naturezaCapital:"caixa"}],types)[0].tipoCppCapital?.id,"3");
   const previousModel=withAutomaticEconomicRights([{...input[0],modeloCalculo:4}],types);
   assert.equal(previousModel[0].contribuicoes?.at(-1)?.tipoCpp?.id,"3","modelo anterior preserva o direito individual");
   assert.equal(previousModel[0].contribuicoes?.at(-1)?.indice,1.25);
+  assert.equal(previousModel[0].tipoCppCapital,input[0].tipoCppCapital,"modelo anterior mantém classificação explícita");
   assert.equal(economicRightName("Contribuição individual"),undefined);
   assert.equal(economicRightName("Cargo inválido","caixa"),undefined);
   const missing=withAutomaticEconomicRights(input,[]);
   assert.ok(missing[0].contribuicoes?.every(c=>!c.tipoCpp));
+  assert.equal(missing[0].tipoCppCapital,undefined);
   assert.throws(()=>validateInitialClassifications(missing as any),/tipos de CPP/);
 });
 

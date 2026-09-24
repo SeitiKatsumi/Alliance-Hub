@@ -180,6 +180,7 @@ import {
   BIA_PARTICIPANT_ROLE_LABELS,
   BIA_PARTICIPANT_ROLE_FIELDS,
   biaTeamFromMapParticipants,
+  hasRequiredBiaTeam,
   EMPTY_BIA_ACCESS,
   FULL_BIA_ACCESS,
   canConfigureBiaParticipantAccess,
@@ -7736,7 +7737,7 @@ export async function registerRoutes(
   async function calculateSubmittedInitialMap(body: any, modeloCalculo: number) {
       let rawParticipants = Array.isArray(body?.participantes) ? body.participantes : [];
       const types = modeloCalculo >= 3 ? await directusFetchScoped("Tipos_CPP", "fields=id,Nome") : [];
-      if (modeloCalculo === 5) rawParticipants = withAutomaticEconomicRights(rawParticipants, types);
+      if (modeloCalculo === 5) rawParticipants = withAutomaticEconomicRights(rawParticipants.map((p:any)=>({...p,modeloCalculo:5})), types);
       const resolveCpp = (value: any, required: boolean) => {
         const found = types.find((t: any) => String(t.id) === String(value?.id));
         if (required && !found) throw new Error("Selecione o tipo de CPP de cada componente na estruturação.");
@@ -11189,7 +11190,7 @@ export async function registerRoutes(
       }
       createBody.situacao = req.biaDraftId ? "em_captacao" : "em_formacao";
       createBody.bia_publica = false;
-      if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
+      if (sessionMembroId && createBody.autor_bia === undefined) createBody.autor_bia = sessionMembroId;
       if (sessionMembroId && !createBody.diretor_alianca) createBody.diretor_alianca = sessionMembroId;
       if (sessionMembroId && (!isSuperAdminRole || !createBody.aliado_built)) {
         let aliadoDaComunidade: string | null = null;
@@ -11216,7 +11217,7 @@ export async function registerRoutes(
               if (team[field] !== (directusRelationId(createBody[field]) || null))
                 throw new Error("Os cargos da Equipe devem corresponder aos participantes do MAP Zero.");
             }
-            if (!team.aliado_built || !team.diretor_alianca)
+            if (!hasRequiredBiaTeam(team))
               throw new Error("Defina o Aliado BUILT e o Diretor de Aliança na Equipe.");
           }
           const roles = collectBiaParticipantRoles(createBody);
@@ -11431,7 +11432,7 @@ export async function registerRoutes(
         if(!data.destinacao || !data.objetivo_alianca || !String(data.localizacao || "").trim() || !String(data.observacoes || "").trim())throw Object.assign(new Error("Preencha Destinação, Objetivo, Localização e Descrição."),{statusCode:400});
         const calculation=await calculateSubmittedInitialMap(data.map_inicial,data.map_inicial?.modeloCalculo === 5 ? 5 : 4);
         const team=biaTeamFromMapParticipants(calculation.participantes);
-        if(!team.autor_bia || !team.aliado_built || !team.diretor_alianca)throw Object.assign(new Error("Defina Autor, Aliado BUILT e Diretor de Aliança."),{statusCode:400});
+        if(!hasRequiredBiaTeam(team))throw Object.assign(new Error("Defina Aliado BUILT e Diretor de Aliança."),{statusCode:400});
         let status=200; let response:any;
         const capture:any={status:(s:number)=>{status=s;return capture;},json:(value:any)=>{response=value;return capture;}};
         await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,biaDraftValidateOnly:true,body:{...data,...team}},capture);
@@ -11447,7 +11448,7 @@ export async function registerRoutes(
         assertMapRevision(Number(draft.revisao),req.body.revisaoEsperada);
         const calculation=await calculateSubmittedInitialMap(draft.dados.map_inicial,draft.dados.map_inicial?.modeloCalculo === 5 ? 5 : 4);
         const team=biaTeamFromMapParticipants(calculation.participantes);
-        if(!team.autor_bia || !team.aliado_built || !team.diretor_alianca)throw Object.assign(new Error("Defina Autor, Aliado BUILT e Diretor de Aliança."),{statusCode:400});
+        if(!hasRequiredBiaTeam(team))throw Object.assign(new Error("Defina Aliado BUILT e Diretor de Aliança."),{statusCode:400});
         let status=200; let response:any;
         const capture:any={status:(s:number)=>{status=s;return capture;},json:(data:any)=>{response=data;return capture;}};
         await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,body:{...draft.dados,...team}},capture);

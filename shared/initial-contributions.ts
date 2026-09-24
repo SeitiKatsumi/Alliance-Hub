@@ -15,6 +15,10 @@ export function withAutomaticEconomicRights(participants: InitialMapParticipantI
   let changed = false;
   const result = participants.map(p => {
     let personChanged = false;
+    const capitalName = economicRightName("Contribuição individual", p.naturezaCapital);
+    const capitalType = capitalName ? types.find(t => normalize(t.Nome) === normalize(capitalName)) : undefined;
+    const tipoCppCapital = p.modeloCalculo === 5 ? (capitalType ? {id: String(capitalType.id), nome: capitalType.Nome} : undefined) : p.tipoCppCapital;
+    if (p.tipoCppCapital?.id !== tipoCppCapital?.id || p.tipoCppCapital?.nome !== tipoCppCapital?.nome) personChanged = changed = true;
     const contribuicoes = p.contribuicoes?.map(c => {
       const individual = p.modeloCalculo === 5 && c.cargo === "Contribuição individual";
       const indice = individual ? 0 : c.indice;
@@ -25,7 +29,7 @@ export function withAutomaticEconomicRights(participants: InitialMapParticipantI
       personChanged = changed = true;
       return {...c, indice, tipoCpp};
     });
-    return personChanged ? {...p, contribuicoes} : p;
+    return personChanged ? {...p, tipoCppCapital, contribuicoes} : p;
   });
   return changed ? result : participants;
 }
@@ -44,7 +48,7 @@ export function validateInitialClassifications(participants: InitialMapParticipa
       ? p.contribuicoes?.some(c => c.indice > 0 && !c.tipoCpp?.id)
       : p.cppOrigem > 0 && !p.tipoCppContribuicao?.id;
     const missingCapital = (p.modeloCalculo===5 ? Number(p.capitalComprometido) : p.cppCapital)>0 && !p.tipoCppCapital?.id;
-    if (p.modeloCalculo===5 && missingCapital) throw new Error(`Selecione a Natureza do aporte de ${p.nome} no bloco 5, em Funções e natureza, para gerar o MAP Inicial.`);
+    if (p.modeloCalculo===5 && missingCapital) throw new Error(`A classificação automática do aporte de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`);
     if (p.modeloCalculo===5 && missingContribution) throw new Error(`A classificação automática dos direitos econômicos de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`);
     if (missingCapital || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Zero antes do aceite.");
   }

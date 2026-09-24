@@ -10,7 +10,7 @@ import { BIA_MAP_ECONOMIC_FIELDS, calculateInitialMap } from "../shared/member-p
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { biaAllowsFinance } from "../shared/bia-phase";
 import { validateInitialClassifications, withAutomaticEconomicRights } from "../shared/initial-contributions";
-import { collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants } from "../shared/bia-access";
+import { collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS, BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants, hasRequiredBiaTeam } from "../shared/bia-access";
 
 test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem caixa", async () => {
   const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
@@ -33,12 +33,12 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
   const writes:any[] = [], archives:any[] = [];
   const deleted:string[] = [];
   let failArchive = false;
-  let availableTypes=[{id:"capital",Nome:"CPP Capital"},{id:"origem",Nome:"CPP Origem"},{id:"lead",Nome:"CPP Liderança"}];
+  let availableTypes=[{id:"capital",Nome:"CPP Capital"},{id:"origem",Nome:"CPP Origem"},{id:"lead",Nome:"CPP Liderança"},{id:"property",Nome:"CPP Propriedade"}];
   let handler:any;
   const scope = {
     app:{post:(_path:string,fn:any)=>{if(_path === "/api/bias")handler=fn;},get:()=>{},put:()=>{}},
     db, sql, calculateInitialMap, validateInitialClassifications, withAutomaticEconomicRights, collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS,
-    BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants, directusRelationId:(value:any)=>value?.id || value || null,
+    BIA_PARTICIPANT_ROLE_FIELDS, biaTeamFromMapParticipants, hasRequiredBiaTeam, directusRelationId:(value:any)=>value?.id || value || null,
     ensureBiaMapInicialSnapshotsTable:async()=>{},
     directusFetchScoped:async()=>availableTypes,
     directusFetchOne:async(col:string,id:string)=>({id,nome:col==="cadastro_geral"?"Nome oficial":"BIA teste"}),
@@ -60,9 +60,9 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     capitalComprometido:capital,pesoCapital:99,naturezaCapital:"nao_caixa",tipoCppCapital:{id:"capital",nome:"Falso"},tipoCppContribuicao:{id:"origem"}});
   const input = {nome_bia:"Teste",autor_bia:"a",diretor_alianca:"a",aliado_built:"a",valor_origem:99999,perc_built:99,
     map_inicial:{valorOrigem:100,participantes:[participant("a",33.33333,12.5),participant("b",66.66667)]}};
-  const request = async(body:any,role="admin")=>{
+  const request = async(body:any,role="admin",membroId?:string)=>{
     let status=200, result:any;
-    await handler({body,session:{role}}, {status:(n:number)=>{status=n;return {json:(v:any)=>{result=v;}};},json:(v:any)=>{result=v;}});
+    await handler({body,session:{role,membroId}}, {status:(n:number)=>{status=n;return {json:(v:any)=>{result=v;}};},json:(v:any)=>{result=v;}});
     return {status,result};
   };
   try {
@@ -124,7 +124,16 @@ test("Nova BIA: valida e grava MAP Zero antes dos convites, com precisão e sem 
     assert.equal(ciBase.participantes[0].cppCapital,96.75);
     assert.equal(ciBase.participantes[0].cppTotal,100);
     assert.equal(ciBase.participantes[0].mapPercentual,100);
+    assert.equal(ciBase.participantes[0].tipoCppCapital.id,"property","forma não caixa prevalece sobre classificação enviada");
     assert.deepEqual(ciBase.participantes[0].contribuicoes.map((c:any)=>c.tipoCpp.id),["origem","origem","lead"],"backend corrige a classificação enviada pelo cliente");
+    const withoutAuthor={...model5,cargos:cargos.filter(c=>c!==BIA_PARTICIPANT_ROLE_LABELS.autor),contribuicoes:model5.contribuicoes.filter(c=>c.cargo!==BIA_PARTICIPANT_ROLE_LABELS.autor)};
+    const optionalAuthor=await request({...input,autor_bia:null,map_inicial:{modeloCalculo:5,valorOrigem:100,estrutura,participantes:[withoutAuthor]}},"admin","criador");
+    assert.equal(optionalAuthor.status,200,JSON.stringify(optionalAuthor.result));
+    assert.equal(writes.at(-1).autor_bia,null,"não atribui o criador como Autor quando a equipe deixa o cargo vazio");
+    const noSelection=await request({...input,map_inicial:{modeloCalculo:5,valorOrigem:100,estrutura,participantes:[{...model5,modeloCalculo:undefined,naturezaCapital:"caixa",tipoCppCapital:undefined}]}});
+    assert.equal(noSelection.status,200,JSON.stringify(noSelection.result));
+    const autoBase:any=(await db.execute(sql`SELECT * FROM bia_map_inicial_snapshots WHERE bia_id=${noSelection.result.id}`)).rows[0];
+    assert.equal(autoBase.participantes[0].tipoCppCapital.id,"capital");
     availableTypes=availableTypes.filter(t=>t.id!=="lead");
     const writesBefore=writes.length;
     assert.equal((await request({...input,map_inicial:{modeloCalculo:5,valorOrigem:100,estrutura,participantes:[model5]}})).status,400);

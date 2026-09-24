@@ -31,7 +31,7 @@ test("modelo 5 reproduz o documento: CIs, direitos separados, CPPs fecham 100% s
 test("modelo 5 orienta a pendência antes de gerar o MAP Inicial, sem exigir mapa já salvo",()=>{
   const map=calculateInitialMap(2000000,participants,structure);
   const p=map.participantes[0];
-  assert.throws(()=>validateInitialClassifications([{...p,tipoCppCapital:undefined}]),{message:`Selecione a Natureza do aporte de ${p.nome} no bloco 5, em Funções e natureza, para gerar o MAP Inicial.`});
+  assert.throws(()=>validateInitialClassifications([{...p,tipoCppCapital:undefined}]),{message:`A classificação automática do aporte de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`});
   assert.throws(()=>validateInitialClassifications([{...p,contribuicoes:p.contribuicoes!.map(c=>({...c,tipoCpp:undefined}))}]),/classificação automática.*MAP Inicial/);
   assert.doesNotThrow(()=>validateInitialClassifications([{...p,capitalComprometido:0,tipoCppCapital:undefined,contribuicoes:p.contribuicoes!.map(c=>({...c,indice:0,tipoCpp:undefined}))}]));
   assert.throws(()=>validateInitialClassifications([{...p,modeloCalculo:4,tipoCppCapital:undefined}]),/salve o MAP Zero/);

@@ -7,7 +7,7 @@ import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContr
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
 import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from "./bia-setup";
-import { legalBlockers, legacyBiaSetup, biaAssetFromPortfolio, type BiaSetup } from "../shared/bia-setup";
+import { legalBlockers, legacyBiaSetup, parseBiaSetup, biaAssetFromPortfolio, type BiaSetup } from "../shared/bia-setup";
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
 import { formatBiaPercent } from "@shared/bia-numbers";
@@ -11430,6 +11430,7 @@ export async function registerRoutes(
         const current=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${String(req.params.id)} FOR UPDATE`)).rows[0];
         if(!current || current.concluido)throw Object.assign(new Error("Estruturação já concluída ou indisponível."),{statusCode:409});
         if(data.estrutura_bia===undefined && current.dados.estrutura_bia!==undefined)data.estrutura_bia=current.dados.estrutura_bia;
+        else if(data.estrutura_bia!==undefined)data.estrutura_bia=parseBiaSetup(req.body.estrutura_bia,current.dados.estrutura_bia);
         assertMapRevision(Number(current.revisao),req.body.revisaoEsperada);
         if ((current.dados.map_inicial?.modeloCalculo || 4) !== (data.map_inicial?.modeloCalculo || 4)) throw Object.assign(new Error("O rascunho deve preservar sua versão econômica original."),{statusCode:409});
         if(mapContentHash(current.dados)===mapContentHash(data))return current;

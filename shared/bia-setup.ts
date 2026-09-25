@@ -20,7 +20,7 @@ const metricsSchema = z.object(Object.fromEntries(ASSET_METRICS.map(([k])=>[k,mo
 const party = z.object({id:z.string().min(1).max(100),memberId:text,nome:text,documento:document,cotas:money});
 export const biaSetupSchema = z.object({
   versao:z.literal(1),
-  juridico:z.object({modalidade:z.enum(["","societaria","contratual"]),tipo:z.enum(["",...LEGAL_TYPES]),situacao:z.enum(["",...LEGAL_STATES]),instrumento:text,situacaoInstrumento:text,responsavel:text,documentoResponsavel:document,objeto:text,capitalSocial:money,administrador:text,info:legalInfoSchema,socios:z.array(party).max(200)}),
+  juridico:z.object({modalidade:z.enum(["","societaria","contratual"]),tipo:z.enum(["",...LEGAL_TYPES]),situacao:z.enum(["",...LEGAL_STATES]),instrumento:text,situacaoInstrumento:text,responsavel:text,oabResponsavel:z.string().trim().max(100).default(""),documentoResponsavel:document,objeto:text,capitalSocial:money,administrador:text,info:legalInfoSchema,socios:z.array(party).max(200)}),
   ativosIndefinidos:z.boolean(),
   ativos:z.array(z.object({id:z.string().min(1).max(100),carteiraImovelId:z.string().min(1).max(100).optional(),nome:text,situacao:z.enum(["",...ASSET_STATES]),titular:text,dataVinculo:date,valorReferencia:money,info:assetInfoSchema,indicadores:metricsSchema})).max(100),
   indicadoresLegados:metricsSchema,
@@ -59,7 +59,30 @@ export function legacyBiaSetup(data:any):BiaSetup {
   return setup;
 }
 export function legalBlockers(setup:BiaSetup):string[] {
-  return [!setup.juridico.modalidade && "Escolha a estrutura Societária ou Contratual.",!setup.juridico.responsavel.trim() && "Informe o responsável jurídico.",(!setup.juridico.documentoResponsavel.trim() || !document.safeParse(setup.juridico.documentoResponsavel).success) && "Informe o CPF/CNPJ do responsável jurídico (11 ou 14 dígitos)."].filter(Boolean) as string[];
+  return [!setup.juridico.modalidade && "Escolha a estrutura Societária ou Contratual.",!setup.juridico.responsavel.trim() && "Informe o responsável jurídico.",!setup.juridico.oabResponsavel?.trim() && "Informe a OAB do responsável jurídico."].filter(Boolean) as string[];
+}
+
+// Old clients may omit new identifiers; omission must not erase a stored value.
+export function parseBiaSetup(value:any,previous?:BiaSetup):BiaSetup {
+  const parsed=biaSetupSchema.parse(value);
+  for(const key of ['oabResponsavel','documentoResponsavel'] as const)if(value.juridico[key]===undefined && previous?.juridico[key]!==undefined)parsed.juridico[key]=previous.juridico[key];
+  return parsed;
+}
+export function biaSetupValidationMessage(error:any):string {
+  const issue=error?.issues?.[0];
+  if(!issue)return "Dados da estrutura inválidos.";
+  const path=(issue.path || []).map((part:any)=>typeof part==='number'?'[]':String(part)).join('.');
+  const labels:Record<string,string>={
+    'juridico.oabResponsavel':'OAB do responsável jurídico',
+    'juridico.documentoResponsavel':'CPF/CNPJ legado do responsável jurídico',
+    'juridico.capitalSocial':'capital social',
+    'juridico.socios.[].documento':'CPF/CNPJ do sócio formal',
+    'juridico.socios.[].cotas':'quantidade de quotas societárias',
+    'ativos.[].dataVinculo':'data de vínculo do ativo',
+    'ativos.[].valorReferencia':'valor de referência do ativo',
+  };
+  const label=labels[path] || (path?`campo ${path}`:'estrutura');
+  return `Corrija ${label}: ${String(issue.message || 'valor inválido').replace(/\.$/,'')}.`;
 }
 export function setupWarnings(setup:BiaSetup):string[] {
   const j=setup.juridico;

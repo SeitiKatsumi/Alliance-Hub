@@ -34,7 +34,10 @@ test('setup API: authorization, revision, bank redaction, immutability, governan
     const initial=await (await call('/estrutura')).json();assert.equal(initial.dados.juridico.info.conta,'SECRET');
     const hidden=await (await call('/estrutura','GET',undefined,'config')).json();assert.equal(hidden.dados.juridico.info.conta,'');
     assert.equal(hidden.dados.indicadoresLegados.valor_geral_venda_vgv,null);
-    const value=initial.dados;value.juridico.responsavel='Nome';
+    const invalid={...initial.dados,juridico:{...initial.dados.juridico,documentoResponsavel:'OAB 123'}};
+    const invalidResponse=await call('/estrutura','PUT',{dados:invalid,revisaoEsperada:0,motivo:'Validação'});assert.equal(invalidResponse.status,400);
+    assert.equal((await invalidResponse.json()).error,'Corrija CPF/CNPJ legado do responsável jurídico: Informe CPF com 11 dígitos ou CNPJ com 14 dígitos.');
+    const value=initial.dados;value.juridico.responsavel='Nome';value.juridico.oabResponsavel='SP 123456';value.juridico.documentoResponsavel='12345678901';
     value.ativosIndefinidos=false;value.ativos=[biaAssetFromPortfolio({id:'forbidden',nome:'Privado'})];
     assert.equal((await call('/estrutura','PUT',{dados:value,revisaoEsperada:0,motivo:'Ativo de terceiro'})).status,403);
     value.ativos=[biaAssetFromPortfolio({id:'allowed',nome:'Meu imóvel'})];
@@ -45,8 +48,12 @@ test('setup API: authorization, revision, bank redaction, immutability, governan
     config.dados.juridico.info.conta='forged';
     assert.equal((await call('/estrutura','PUT',{dados:config.dados,revisaoEsperada:1,motivo:'Banco'},'config')).status,403);
     config.dados.juridico.info.conta='';
+    delete config.dados.juridico.oabResponsavel;
     assert.equal((await call('/estrutura','PUT',{dados:config.dados,revisaoEsperada:1,motivo:'Jurídico'},'config')).status,200);
     assert.equal((await (await call('/estrutura')).json()).dados.juridico.info.conta,'SECRET');
+    const legal=(await (await call('/estrutura')).json());
+    assert.equal(legal.dados.juridico.oabResponsavel,'SP 123456');assert.equal(legal.dados.juridico.documentoResponsavel,'12345678901');
+    assert.equal(legal.historico[0].anterior.juridico.oabResponsavel,'SP 123456');
     const gov=await (await call('/governanca','GET',undefined,'governance')).json();assert.equal(JSON.stringify(gov).includes('SECRET'),false);assert.equal(gov.participantes[0].cargos.length,2);
     assert.equal((await call('/governanca','PUT',{revisaoEsperada:2,motivo:'Responsabilidades',governanca:[{memberId:'member',cargo:'Aliado BUILT',inicio:'2026-09-25',responsabilidades:'Acompanhar'}]},'governance')).status,200);
     assert.deepEqual((await readBiaSetup(db,'test')).contexto.documentos,['doc-v1']);

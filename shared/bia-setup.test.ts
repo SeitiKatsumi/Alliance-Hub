@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIA_CREATION_STEPS, emptyBiaSetup, legacyBiaSetup, biaSetupSchema, legalBlockers, setupWarnings, assetTotals, governanceRoles, biaAssetFromPortfolio } from './bia-setup';
+import { BIA_CREATION_STEPS, emptyBiaSetup, legacyBiaSetup, biaSetupSchema, biaSetupValidationMessage, parseBiaSetup, legalBlockers, setupWarnings, assetTotals, governanceRoles, biaAssetFromPortfolio } from './bia-setup';
 import { validateBiaDraft } from '../server/bia-workflow';
 test('seven steps and legacy adapter preserve unknowns and do not duplicate metrics',()=>{
   assert.equal(BIA_CREATION_STEPS.length,7);
@@ -17,6 +17,8 @@ test('seven steps and legacy adapter preserve unknowns and do not duplicate metr
 test('legal and assets pending are warnings; legal responsible and modality required',()=>{
   const value=emptyBiaSetup();assert.equal(legalBlockers(value).length,3);
   Object.assign(value.juridico,{modalidade:'societaria',responsavel:'Responsável',documentoResponsavel:'12345678901',situacao:'A constituir'});
+  assert.deepEqual(legalBlockers(value),['Informe a OAB do responsável jurídico.']);
+  value.juridico.oabResponsavel='SP 123456';
   assert.deepEqual(legalBlockers(value),[]);assert.equal(setupWarnings(value).length,4);
   const draft=validateBiaDraft({nome_bia:'Teste',moeda:'BRL',estrutura_bia:value});
   assert.deepEqual(draft.estrutura_bia,value);
@@ -24,6 +26,20 @@ test('legal and assets pending are warnings; legal responsible and modality requ
   assert.equal(biaSetupSchema.parse(value).juridico.socios.length,1);
   assert.throws(()=>biaSetupSchema.parse({...value,juridico:{...value.juridico,documentoResponsavel:'abc'}}));
   assert.throws(()=>biaSetupSchema.parse({...value,governanca:[{cargo:'inexistente',memberId:'a'}]}));
+});
+test('OAB is separate from legacy CPF, retained for old clients and validated without changing roles',()=>{
+  const value=emptyBiaSetup();value.juridico.oabResponsavel='123456/SP';value.juridico.documentoResponsavel='12345678901';
+  const old=JSON.parse(JSON.stringify(value));delete old.juridico.oabResponsavel;
+  const legacy=legacyBiaSetup({estrutura_bia:old});
+  assert.equal(legacy.juridico.oabResponsavel,'');assert.equal(legacy.juridico.documentoResponsavel,'12345678901');
+  assert.equal(parseBiaSetup(old,value).juridico.oabResponsavel,'123456/SP');
+  assert.equal(parseBiaSetup({...value,juridico:{...value.juridico,oabResponsavel:''}},value).juridico.oabResponsavel,'');
+  assert.equal(biaSetupSchema.parse({...value,juridico:{...value.juridico,oabResponsavel:' SP 123456 '}}).juridico.oabResponsavel,'SP 123456');
+  for(const invalid of [null,123,'a'.repeat(101)])assert.throws(()=>biaSetupSchema.parse({...value,juridico:{...value.juridico,oabResponsavel:invalid}}));
+  const invalidDocument=biaSetupSchema.safeParse({...value,juridico:{...value.juridico,documentoResponsavel:'OAB 123'}});
+  assert.equal(invalidDocument.success,false);if(!invalidDocument.success)assert.equal(biaSetupValidationMessage(invalidDocument.error),'Corrija CPF/CNPJ legado do responsável jurídico: Informe CPF com 11 dígitos ou CNPJ com 14 dígitos.');
+  value.juridico.administrador='Pessoa da rede';value.juridico.responsavel='Outra pessoa';
+  assert.deepEqual(parseBiaSetup(value).governanca,[]);assert.deepEqual(parseBiaSetup(value).juridico.socios,[]);
 });
 test('governance includes zero rights and multiple functions, excluding author and capital',()=>{
   assert.deepEqual(governanceRoles({cargos:['Autor da Oportunidade','Aliado BUILT'],contribuicoes:[{cargo:'Contribuição individual'},{cargo:'Aliado BUILT'},{cargo:'Diretor de Aliança'}]}),['Aliado BUILT','Diretor de Aliança']);

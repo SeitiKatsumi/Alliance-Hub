@@ -1,4 +1,5 @@
 import { governanceRoles, governanceLabel } from "@shared/bia-setup";
+import { memberSearchFilter } from "@/lib/member-directory-query";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -32,7 +33,6 @@ function ContractCorrectionField({value,onChange}:{value:string;onChange:(value:
     {isCustom && <label className="block text-sm">Qual correção?<Input aria-label="Correção contratual personalizada" value={value} onChange={e=>onChange(e.target.value)} placeholder="Informe a correção acordada"/></label>}
   </div>;
 }
-const memberSearchFilter = (_value:string,search:string,keywords?:string[]) => (keywords || []).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").includes(search.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")) ? 1 : 0;
 export function EconomicMapPreview({map,moeda="BRL"}:{map:{valorOrigem:number;divisorMultiplicador:number;estrutura?:InitialEconomicStructure;participantes:Array<InitialMapParticipantInput & {cppCapitalPercentual?:number;mapPercentual?:number}>};moeda?:string}) {
   const money=(n:number)=>n.toLocaleString("pt-BR",{style:"currency",currency:moeda});
   const natures=Array.from(new Set(["Origem","Liderança","Técnica","Obra","Comercial","Capital","Propriedade",...map.participantes.flatMap(p=>[natureLabel(p.tipoCppCapital?.nome || "CPP Capital"),...(p.contribuicoes || []).filter(c=>c.indice>0).map(c=>natureLabel(c.tipoCpp?.nome || "Não classificado"))])]));

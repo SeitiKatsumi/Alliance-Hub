@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { biaSetupSchema, legacyBiaSetup, BANK_FIELDS, ASSET_METRICS, type BiaSetup } from "../shared/bia-setup";
+import { biaSetupSchema, biaSetupValidationMessage, parseBiaSetup, legacyBiaSetup, BANK_FIELDS, ASSET_METRICS, type BiaSetup } from "../shared/bia-setup";
 import { collectBiaParticipantRoles, BIA_PARTICIPANT_ROLE_LABELS, hasBiaAccess } from "../shared/bia-access";
 import type { Express } from "express";
 import { randomUUID } from "node:crypto";
@@ -58,7 +58,7 @@ export async function validateBiaPortfolioLinks(next:BiaSetup|undefined,previous
 
 export function registerBiaSetupRoutes(app:Express,deps:{db:any;ensure:()=>Promise<any>;access:(req:any,res:any,id:string,key:any,level:any)=>Promise<any>;lock:(id:string,fn:(tx:any,base:any)=>Promise<any>)=>Promise<any>;legacy:(id:string,bia:any)=>Promise<any>;validateAssets:(req:any,data:BiaSetup,prior:BiaSetup)=>Promise<void>}) {
   const actor=(req:any)=>({userId:req.session.directusUserId,memberId:req.session.membroId || null});
-  const error=(res:any,e:any)=>res.status(e.statusCode || (e.name==='ZodError'?400:500)).json({error:e.name==='ZodError'?'Dados da estrutura inválidos.':e.statusCode?e.message:'Não foi possível consultar ou salvar a estrutura. Tente novamente.'});
+  const error=(res:any,e:any)=>res.status(e.statusCode || (e.name==='ZodError'?400:500)).json({error:e.name==='ZodError'?biaSetupValidationMessage(e):e.statusCode?e.message:'Não foi possível consultar ou salvar a estrutura. Tente novamente.'});
   const roster=(bia:any)=>Array.from(collectBiaParticipantRoles(bia),([memberId,roles])=>({memberId,cargos:roles.map(r=>BIA_PARTICIPANT_ROLE_LABELS[r])}));
   const stripBank=(data:BiaSetup,canView:boolean)=>canView?data:{...data,juridico:{...data.juridico,info:{...data.juridico.info,...Object.fromEntries(BANK_FIELDS.map(k=>[k,""]))}}};
   const stripMetrics=(data:BiaSetup,canView:boolean)=>canView?data:{...data,indicadoresLegados:Object.fromEntries(ASSET_METRICS.map(([k])=>[k,null])),ativos:data.ativos.map(a=>({...a,indicadores:Object.fromEntries(ASSET_METRICS.map(([k])=>[k,null]))}))};
@@ -76,7 +76,7 @@ export function registerBiaSetupRoutes(app:Express,deps:{db:any;ensure:()=>Promi
     const result=await deps.lock(String(auth.bia.id),async(tx,base)=>{
       const draft=(await tx.execute(sql`SELECT concluido FROM bia_estruturacao_rascunhos WHERE bia_id=${String(auth.bia.id)}`)).rows[0];
       if(draft && !draft.concluido)throw Object.assign(new Error('Edite os dados pelo rascunho da BIA.'),{statusCode:409});
-      const current=await load(tx,auth.bia),data=biaSetupSchema.parse(req.body?.dados);
+      const current=await load(tx,auth.bia),data=parseBiaSetup(req.body?.dados,current.dados);
       if(!Number.isInteger(req.body.revisaoEsperada))throw Object.assign(new Error('Informe a revisão esperada.'),{statusCode:400});
       if(typeof req.body.motivo!=='string' || !req.body.motivo.trim() || req.body.motivo.length>4000)throw Object.assign(new Error('Informe o motivo da alteração.'),{statusCode:400});
       await deps.validateAssets(req,data,current.dados);

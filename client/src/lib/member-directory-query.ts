@@ -4,6 +4,8 @@ export const MEMBER_DIRECTORY_QUERY_OPTIONS = {
   refetchOnWindowFocus: true,
 };
 
+export const memberSearchFilter = (_value:string,search:string,keywords?:string[]) => (keywords || []).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").includes(search.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")) ? 1 : 0;
+
 export function getMemberDirectoryDisplayName(member: {
   nome?: string;
   nome_completo?: string;

@@ -1,5 +1,5 @@
 import { BIA_SETUP_SQL, appendBiaSetup, assertBiaSetupStorage } from "./bia-setup";
-import { emptyBiaSetup, legalBlockers, legacyBiaSetup } from "../shared/bia-setup";
+import { emptyBiaSetup, legalBlockers, legacyBiaSetup, parseBiaSetup } from "../shared/bia-setup";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -22,7 +22,7 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
  const routes=source.slice(start,source.indexOf('  app.patch("/api/bias/:id"',start));
  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.session={directusUserId:req.headers["x-user"] || "autor",membroId:"membro",role:"admin"};next();});
  let official:any=null,fail=false,failRead=false;const writes:any[]=[];
- const scope={app,db,sql,validateBiaDraft,validateBiaAssetLinks:async()=>{},appendBiaSetup,assertBiaSetupStorage,legalBlockers,legacyBiaSetup,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
+ const scope={app,db,sql,validateBiaDraft,validateBiaAssetLinks:async()=>{},appendBiaSetup,assertBiaSetupStorage,legalBlockers,legacyBiaSetup,parseBiaSetup,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),requireBiaModuleAccess:async(_req:any,res:any)=>{res.status(403).json({error:"Negado"});return false;},
  directusFetchOne:async()=>{if(failRead)throw new Error("Indisponível");return official;},createUniqueBiaPublicCode:async()=>"TESTE",
  directusCreate:async(_col:string,data:any)=>{if(fail)throw new Error("Falha simulada");official={...data};writes.push(data);return official;},
@@ -31,7 +31,8 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
  const server=app.listen(0,"127.0.0.1");await new Promise<void>(r=>server.once("listening",r));
  const root=`http://127.0.0.1:${(server.address() as any).port}/api/bias`,id="12345678-1234-4234-8234-123456789abc";
  const call=(method:string,path:string,body?:any,user="autor")=>fetch(root+path,{method,headers:{"content-type":"application/json","x-user":user},body:body?JSON.stringify(body):undefined});
- const data={nome_bia:"BIA com capa",moeda:"BRL",imagem_directus_id:"capa-1",map_inicial:{modeloCalculo:5,participantes:[]}};
+ const legal=emptyBiaSetup();legal.juridico.oabResponsavel='SP 123456';
+ const data={nome_bia:"BIA com capa",moeda:"BRL",imagem_directus_id:"capa-1",map_inicial:{modeloCalculo:5,participantes:[]},estrutura_bia:legal};
  try {
   const created=await call("POST","",{...data,_rascunho:true,chaveCriacao:id});assert.equal(created.status,200);
   assert.equal(official.imagem_directus_id,"capa-1");assert.equal(official.situacao,"em_estruturacao");assert.equal(official.map_inicial,undefined);
@@ -57,6 +58,8 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
   assert.equal(retried.apresentacao_pendente,undefined);assert.equal(retried.revisao,2);
   assert.deepEqual(writes.at(-1),{nome_bia:"BIA V2",imagem_directus_id:"capa-2"});
   assert.equal((await call("PUT",`/${id}/rascunho`,{...edited,imagem_directus_id:"",revisaoEsperada:2})).status,200);assert.equal(official.imagem_directus_id,null);
+  const oldClient=JSON.parse(JSON.stringify({...edited,imagem_directus_id:'',revisaoEsperada:3}));delete oldClient.estrutura_bia.juridico.oabResponsavel;
+  const preserved=await (await call('PUT',`/${id}/rascunho`,oldClient)).json();assert.equal(preserved.dados.estrutura_bia.juridico.oabResponsavel,'SP 123456');assert.equal(preserved.revisao,3);
   const count=writes.length;await pg.exec(`UPDATE bia_estruturacao_rascunhos SET conclusao_iniciada=true WHERE bia_id='${id}'`);
   assert.equal((await call("PUT",`/${id}/rascunho`,{...edited,imagem_directus_id:"",revisaoEsperada:3})).status,200);assert.equal(writes.length,count);
   assert.equal((await pg.query<any>("SELECT count(*)::int n FROM bia_fase_eventos")).rows[0].n,0);
@@ -66,7 +69,7 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
 test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempotente",async()=>{
  const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL+BIA_SETUP_SQL);const db=drizzle(pg);
  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.session={directusUserId:req.headers["x-user"]};next();});
- const setup=emptyBiaSetup();Object.assign(setup.juridico,{modalidade:"contratual",responsavel:"Responsável",documentoResponsavel:"12345678901"});
+ const setup=emptyBiaSetup();Object.assign(setup.juridico,{modalidade:"contratual",responsavel:"Responsável",oabResponsavel:"SP 123456"});
  const dados={estrutura_bia:setup,nome_bia:"Teste isolado",moeda:"BRL",destinacao:"Rural",objetivo_alianca:"Renda",localizacao:"São Paulo",observacoes:"Teste",map_inicial:{modeloCalculo:4,valorOrigem:1000,participantes:[]}};
  await db.execute(sql`INSERT INTO bia_estruturacao_rascunhos (bia_id,autor_id,dados) VALUES ('teste','autor',${JSON.stringify(dados)}::jsonb)`);
  let invalid=true,fail=true,conclusions=0;const invitations=new Set<string>();
@@ -76,7 +79,7 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
  function visit(n:ts.Node){if(ts.isFunctionDeclaration(n)&&["requireBiaDraftAccess","syncBiaDraftPresentation"].includes(n.name?.text || ""))access+=n.getText(ast)+"\n";ts.forEachChild(n,visit);}visit(ast);
  const start=source.indexOf('  app.get("/api/bias/:id/rascunho"');
  const routes=source.slice(start,source.indexOf('  app.patch("/api/bias/:id"',start));
- const scope={app,db,sql,validateBiaDraft,validateBiaAssetLinks:async()=>{},appendBiaSetup,assertBiaSetupStorage,legalBlockers,legacyBiaSetup,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
+ const scope={app,db,sql,validateBiaDraft,validateBiaAssetLinks:async()=>{},appendBiaSetup,assertBiaSetupStorage,legalBlockers,legacyBiaSetup,parseBiaSetup,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
  requireBiaModuleAccess:async(_req:any,res:any)=>{res.status(403).json({error:"Negado"});return false;},
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),directusFetchOne:async()=>({situacao:"em_estruturacao"}),directusUpdate:async()=>{},
  calculateSubmittedInitialMap:async()=>({participantes:[]}),biaTeamFromMapParticipants:()=>team,hasRequiredBiaTeam,mapActor:()=>({id:"autor"}),

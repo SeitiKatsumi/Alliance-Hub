@@ -1,4 +1,5 @@
 import { governanceRoles, governanceLabel } from "../../../shared/bia-setup";
+import { memberSearchFilter } from '../lib/member-directory-query';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -44,7 +45,7 @@ test("periodicidade personalizada abre descrição e mantém forma válida, sem 
 });
 test("correção contratual usa dropdown e preserva valores personalizados ou vazios",()=>{
   const start=source.indexOf("const correctionOptions");
-  const end=source.indexOf("const memberSearchFilter",start);
+  const end=source.indexOf("export function EconomicMapPreview",start);
   const code=transformSync(source.slice(start,end),{loader:"tsx"}).code;
   const Component=new Function("React","useState","Input","selectCss",code+";return ContractCorrectionField;")(React,React.useState,"input","");
   const render=(value:string)=>renderToStaticMarkup(React.createElement(Component,{value,onChange:()=>{}}));
@@ -65,8 +66,7 @@ test("seleção de sócios ordena nomes em pt-BR e busca sem distinguir acentos 
   const options=new Function("members",`return ${optionsCode}`)(members);
   assert.deepEqual(options.map((m:any)=>m.id),["a","b","b2","v","z"]);
   assert.equal(members[0].id,"z","não reordena os dados recebidos");
-  const code=transformSync(source.match(/const memberSearchFilter = .*;/)![0],{loader:"ts"}).code;
-  const filter=new Function(code+";return memberSearchFilter;")();
+  const filter=memberSearchFilter;
   assert.equal(filter("b"," BARAO ",["Barão do Império"]),1);
   assert.equal(filter("v","barao",["Vilma"]),0);
   assert.equal(filter("b","",["Barão"]),1);

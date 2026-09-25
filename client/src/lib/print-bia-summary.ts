@@ -54,6 +54,7 @@ export const biaSummaryPrintCss = `
   dt { font-weight: bold; background: #f2f5f7; } dd { white-space: pre-wrap; overflow-wrap: anywhere; }
   table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 12px 0; font-size: 10px; line-height: 1.4; break-inside: avoid; }
   [data-pdf-asset] { break-inside: avoid; }
+  .bia-brand-gallery { display: grid; grid-template-columns: 55mm 1fr; gap: 12mm; break-inside: avoid; }
   th, td { padding: 5px; border-bottom: 1px solid #dbe3e9; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   thead { display: table-header-group; background: #001d32; color: white; }
   tbody tr:nth-child(even) { background: #f3f6f8; }
@@ -68,7 +69,7 @@ export const biaSummaryPrintCss = `
 `;
 
 // Clone the already-authorized review; omitted sections are removed, not merely hidden.
-export function printBiaSummary(element: HTMLElement, name: string, sections: readonly BiaPdfSection[] = biaPdfSections.map(s=>s.id), certified=false, brandUrl="", code:string|null=null): boolean {
+export function printBiaSummary(element: HTMLElement, name: string, sections: readonly BiaPdfSection[] = biaPdfSections.map(s=>s.id), certified=false, brandUrl="", code:string|null=null, context: "review" | "data" = "review"): boolean {
   if (!sections.length || !brandUrl.startsWith("data:image/svg+xml;")) return false;
   const popup = window.open("", "_blank", "width=1200,height=850");
   if (!popup) return false;
@@ -90,12 +91,13 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
   toolbar.append(button,status);
   const report=make("main","","report"),header=make("header","","report-header");
   const date=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"});
-  header.append(make("h1",name || "BIA em estruturação"),make("p","RESUMO DA BIA • PRÉVIA EM ESTRUTURAÇÃO","report-meta"));
+  header.append(make("h1",name || "BIA em estruturação"),make("p",context === "review" ? "RESUMO DA BIA • PRÉVIA EM ESTRUTURAÇÃO" : "DADOS DA BIA • CÓPIA PARA CONSULTA","report-meta"));
   const content=popup.document.importNode(element,true);
   content.querySelectorAll("[data-print-hide]").forEach(node=>node.remove());
   content.querySelectorAll<HTMLElement>("[data-pdf-section]").forEach(node=>{
     if (!sections.includes(node.dataset.pdfSection as BiaPdfSection)) node.remove();
   });
+  const contentImages=Array.from(content.querySelectorAll<HTMLImageElement>("img"));
   content.querySelectorAll("details").forEach(detail=>{detail.open=true;});
   content.querySelectorAll<HTMLAnchorElement>('a[href^="/api/assets/"]').forEach(link=>{link.href=new URL(link.getAttribute('href')!,window.location.origin).href;});
   report.append(header,content,make("footer","Prévia para revisão. Não substitui MOU ou documentos assinados e não confirma aportes nem pagamentos.","report-note"));
@@ -116,6 +118,10 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
   popup.document.body.append(toolbar,masthead,report,footer);
   // Wait for the supplied artwork; otherwise the first print can omit the seals.
   Promise.all([
+    ...contentImages.map(img=>img.decode().then(()=>{
+      if(img.src.startsWith("data:image/svg+xml;")) img.src=renderBiaBrandCanvas(img,popup.document.createElement("canvas"),img.naturalWidth*2,img.naturalHeight*2).toDataURL("image/png");
+      return img.decode();
+    })),
     ...images.map(img=>img.decode()),
     loadBiaBrandArtwork("/branding/bia-header-artwork.png").then(artwork=>{
       headerLogo.src=biaBrandDataUrl(buildBiaHeaderSvg(name,code,artwork));

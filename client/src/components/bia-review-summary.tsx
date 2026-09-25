@@ -2,9 +2,10 @@ import { Fragment } from "react";
 import type { InitialMapCalculation } from "@shared/member-portfolio";
 import { formatBiaNumber, formatBiaPercent } from "@shared/bia-numbers";
 
-export function BiaReviewSummary({form,map}:{
+export function BiaReviewSummary({form,map,consultation=false}:{
   form:{nome_bia:string;destinacao:string;objetivo_alianca:string;moeda:string;localizacao:string;observacoes:string};
   map:InitialMapCalculation;
+  consultation?:boolean;
 }) {
   const money=(value:number)=>value.toLocaleString("pt-BR",{style:"currency",currency:form.moeda});
   const plan=map.estrutura?.integralizacao;
@@ -28,7 +29,7 @@ export function BiaReviewSummary({form,map}:{
   return <section className="space-y-3 rounded-lg border p-5">
     <div data-print-hide><p className="text-xs font-semibold uppercase tracking-widest">BUILT Alliances</p>
     <h1 className="text-2xl font-bold">{form.nome_bia || "BIA em estruturação"}</h1>
-    <p className="text-sm text-muted-foreground">Resumo para revisão - prévia em estruturação. Não substitui o MOU ou documentos assinados; não confirma aportes nem pagamentos.</p></div>
+    <p className="text-sm text-muted-foreground">{consultation ? "Resumo para consulta." : "Resumo para revisão - prévia em estruturação."} Não substitui o MOU ou documentos assinados; não confirma aportes nem pagamentos.</p></div>
     {[{id:"dados",title:"Resumo dos dados",items:rows},{id:"condicoes",title:"Capitalização e integralização",items:conditions}].map(({id,title,items})=>items.length>0 && <div key={id} data-pdf-section={id}>
       <h2 className="text-lg font-semibold">{title}</h2>
       <dl className="grid gap-x-5 gap-y-2 text-sm sm:grid-cols-[220px_1fr]">{items.map(([label,value],i)=><Fragment key={`${label}:${i}`}><dt className="font-medium">{label}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{value?.trim() || "Não informado"}</dd></Fragment>)}</dl>

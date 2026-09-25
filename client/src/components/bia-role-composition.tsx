@@ -8,11 +8,11 @@ import { initialMapContributionValue, type InitialMapParticipantInput } from "@s
 import { formatBiaNumber, parseBiaNumber } from "@shared/bia-numbers";
 import { formatPtBrMoneyInput } from "@/lib/pt-br-money";
 
-export function BiaNumberInput({value,onChange,decimals=2,disabled=false,label}:{value:number;onChange:(n:number)=>void;decimals?:number;disabled?:boolean;label:string}) {
+export function BiaNumberInput({value,onChange,decimals=2,disabled=false,label,placeholder}:{value:number;onChange:(n:number)=>void;decimals?:number;disabled?:boolean;label:string;placeholder?:string}) {
   const [text,setText]=useState(Number.isFinite(value)?formatBiaNumber(value,decimals):"");
   const [focused,setFocused]=useState(false);
   useEffect(()=>{if(!focused)setText(Number.isFinite(value)?formatBiaNumber(value,decimals):"");},[value,focused,decimals]);
-  return <Input aria-label={label} inputMode="decimal" value={text} disabled={disabled} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onChange={e=>{const next=decimals===2?formatPtBrMoneyInput(e.target.value):e.target.value;setText(next);onChange(parseBiaNumber(next));}} />;
+  return <Input aria-label={label} placeholder={placeholder} inputMode="decimal" value={text} disabled={disabled} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onChange={e=>{const next=decimals===2?formatPtBrMoneyInput(e.target.value):e.target.value;setText(next);onChange(parseBiaNumber(next));}} />;
 }
 const roles=Object.keys(BIA_PARTICIPANT_ROLE_FIELDS).map(r=>BIA_PARTICIPANT_ROLE_LABELS[r as keyof typeof BIA_PARTICIPANT_ROLE_FIELDS]);
 export function BiaRoleComposition({participants,onChange,members,readOnly=false,dmOnly=false,compact=false,valorOrigem,moeda="BRL"}:{participants:InitialMapParticipantInput[];onChange:(p:InitialMapParticipantInput[])=>void;members:Array<{id:string;nome?:string|null;Nome_de_usuario?:string|null}>;readOnly?:boolean;dmOnly?:boolean;compact?:boolean;valorOrigem?:number;moeda?:string}) {

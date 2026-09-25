@@ -280,7 +280,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.razao_social}
                       onChange={e => setInfoForm({ ...infoForm, razao_social: e.target.value })}
-                      placeholder="Razão social ou nome"
+                      placeholder="Ex.: Horizonte Empreendimentos Ltda."
                       data-testid="input-razao-social"
                     />
                   </div>
@@ -302,7 +302,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.nome_fantasia}
                       onChange={e => setInfoForm({ ...infoForm, nome_fantasia: e.target.value })}
-                      placeholder="Nome fantasia"
+                      placeholder="Ex.: Residencial Horizonte"
                       data-testid="input-nome-fantasia"
                     />
                   </div>
@@ -312,7 +312,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.inscricao_estadual}
                       onChange={e => setInfoForm({ ...infoForm, inscricao_estadual: e.target.value })}
-                      placeholder="Inscrição estadual"
+                      placeholder="Ex.: 123.456.789.000 ou Isento"
                       data-testid="input-inscricao-estadual"
                     />
                   </div>
@@ -332,7 +332,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.banco}
                       onChange={e => setInfoForm({ ...infoForm, banco: e.target.value })}
-                      placeholder="Nome do banco"
+                      placeholder="Ex.: Banco do Brasil"
                       data-testid="input-banco"
                     />
                   </div>
@@ -342,7 +342,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.agencia}
                       onChange={e => setInfoForm({ ...infoForm, agencia: e.target.value })}
-                      placeholder="0000"
+                      placeholder="Ex.: 1234"
                       data-testid="input-agencia"
                     />
                   </div>
@@ -354,7 +354,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.conta}
                       onChange={e => setInfoForm({ ...infoForm, conta: e.target.value })}
-                      placeholder="00000-0"
+                      placeholder="Ex.: 12345-6"
                       data-testid="input-conta"
                     />
                   </div>
@@ -380,7 +380,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.titular_conta}
                       onChange={e => setInfoForm({ ...infoForm, titular_conta: e.target.value })}
-                      placeholder="Nome completo do titular"
+                      placeholder="Ex.: Horizonte Empreendimentos Ltda."
                       data-testid="input-titular-conta"
                     />
                   </div>
@@ -390,7 +390,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.chave_pix}
                       onChange={e => setInfoForm({ ...infoForm, chave_pix: e.target.value })}
-                      placeholder="CPF, CNPJ, email ou chave aleatória"
+                      placeholder="Ex.: financeiro@empresa.com.br"
                       data-testid="input-chave-pix"
                     />
                   </div>

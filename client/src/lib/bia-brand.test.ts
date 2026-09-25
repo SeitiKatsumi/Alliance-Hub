@@ -49,6 +49,9 @@ test("download PNG usa alta resolução e bloqueia nome/código ausentes antes d
     await downloadBiaBrandPng(biaBrandDataUrl(buildBiaBrandSvg("Nome","RA56FHGGWY",artwork)),"Nome","RA56FHGGWY");
     assert.equal(canvas.width,1352);assert.equal(canvas.height,1412);assert.ok(clicked&&drawn);
     assert.equal(link.download,"marca-BIA-RA56FHGGWY.png");
+    await downloadBiaBrandPng(biaBrandDataUrl(buildBiaHeaderSvg("Nome","RA56FHGGWY",artwork)),"Nome","RA56FHGGWY",true);
+    assert.equal(canvas.width,4344);assert.equal(canvas.height,1448);
+    assert.equal(link.download,"marca-BIA-RA56FHGGWY-horizontal.png");
   }finally{
     if(previousImage)Object.defineProperty(globalThis,"Image",previousImage);else Reflect.deleteProperty(globalThis,"Image");
     if(previousDocument)Object.defineProperty(globalThis,"document",previousDocument);else Reflect.deleteProperty(globalThis,"document");

@@ -77,13 +77,13 @@ export function renderBiaBrandCanvas(image: CanvasImageSource, canvas=document.c
   return canvas;
 }
 
-export async function downloadBiaBrandPng(svgUrl: string, name: string, code: string | null) {
+export async function downloadBiaBrandPng(svgUrl: string, name: string, code: string | null, horizontal = false) {
   if (!name.trim() || !code || !svgUrl.startsWith("data:image/svg+xml;")) throw new Error("Salve a BIA e aguarde o código oficial antes de baixar a marca.");
   const image = new Image(); image.src=svgUrl; await image.decode();
-  const canvas = renderBiaBrandCanvas(image);
+  const canvas = horizontal ? renderBiaBrandCanvas(image, undefined, 4344, 1448) : renderBiaBrandCanvas(image);
   const blob = await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Não foi possível gerar o PNG.")),"image/png"));
   const url=URL.createObjectURL(blob), link=document.createElement("a");
-  link.href=url; link.download=`marca-BIA-${code.replace(/[^a-z0-9-]/gi,"")}.png`;
+  link.href=url; link.download=`marca-BIA-${code.replace(/[^a-z0-9-]/gi,"")}${horizontal ? "-horizontal" : ""}.png`;
   document.body.append(link); link.click(); link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }

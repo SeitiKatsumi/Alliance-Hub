@@ -20,6 +20,9 @@ test("resumo usa valores do MAP, mantém condições personalizadas e escapa tex
   const html=renderToStaticMarkup(React.createElement(Component,{form,map}));
   for(const text of ["1.500.000,00","2,35897%","120,00000","Personalizada","20/10/2026","IPCA","Entradas em janeiro e julho","Não informado","prévia em estruturação"])assert.ok(html.includes(text),text);
   assert.doesNotMatch(html,/<script>/);
+  const consultation=renderToStaticMarkup(React.createElement(Component,{form,map,consultation:true}));
+  assert.match(consultation,/Resumo para consulta/);
+  assert.doesNotMatch(consultation,/prévia em estruturação/);
 });
 
 test("exportação filtra seções e aguarda selos; certificação segue a BIA, sem alterar dados",async()=>{
@@ -35,8 +38,9 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     const hidden={removed:false,remove(){this.removed=true;}};
     const created:any[]=[];
     let failImage=false;
+    const bodyImages:any[]=[];
     const original={} as HTMLElement;
-    const popup={document:{open(){},write(){},close(){},title:"",head:{append(){}},body:{append(...nodes:any[]){appended.push(...nodes);}},createElement:(tag:string)=>{const node={tag,width:0,height:0,getContext:()=>({drawImage(){}}),toDataURL:()=>"data:image/png;base64,TEST",append(){},setAttribute(){},decode:()=>failImage?Promise.reject(new Error("image unavailable")):Promise.resolve()};created.push(node);return node;},importNode:(node:HTMLElement,deep:boolean)=>{assert.equal(node,original);assert.equal(deep,true);return {querySelectorAll:(selector:string)=>selector.startsWith('a[')?[]:selector==="details"?details:selector==="[data-print-hide]"?[hidden]:nodes};}},focus(){},print(){printed++;},requestAnimationFrame:(fn:()=>void)=>fn()};
+    const popup={document:{open(){},write(){},close(){},title:"",head:{append(){}},body:{append(...nodes:any[]){appended.push(...nodes);}},createElement:(tag:string)=>{const node={tag,width:0,height:0,getContext:()=>({drawImage(){}}),toDataURL:()=>"data:image/png;base64,TEST",append(){},setAttribute(){},decode:()=>failImage?Promise.reject(new Error("image unavailable")):Promise.resolve()};created.push(node);return node;},importNode:(node:HTMLElement,deep:boolean)=>{assert.equal(node,original);assert.equal(deep,true);return {querySelectorAll:(selector:string)=>selector==="img"?bodyImages:selector.startsWith('a[')?[]:selector==="details"?details:selector==="[data-print-hide]"?[hidden]:nodes};}},focus(){},print(){printed++;},requestAnimationFrame:(fn:()=>void)=>fn()};
     Object.defineProperty(globalThis,"window",{configurable:true,value:{open:()=>popup,location:{origin:"https://example.test"}}});
     assert.equal(printBiaSummary(original,"Teste",undefined,false,brandUrl,"OFICIAL01"),true);
     assert.equal(printed,0); // no printing before the image decode completes
@@ -62,6 +66,14 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
       await new Promise(resolve=>setImmediate(resolve));
       nodes.forEach(n=>assert.equal(n.removed,!chosen.includes(n.dataset.pdfSection)));
     }
+    const logo={src:brandUrl,naturalWidth:338,naturalHeight:353,decode:async()=>{}};
+    bodyImages.push(logo);created.length=0;
+    assert.equal(printBiaSummary(original,"Consulta",["dados"],false,brandUrl,"OFICIAL01","data"),true);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(logo.src,"data:image/png;base64,TEST");
+    assert.ok(created.some(n=>n.tag==="canvas" && n.width===676 && n.height===706));
+    assert.ok(created.some(n=>n.textContent==="DADOS DA BIA • CÓPIA PARA CONSULTA"));
+    assert.ok(!created.some(n=>n.textContent==="RESUMO DA BIA • PRÉVIA EM ESTRUTURAÇÃO"));
     const count=printed;
     assert.equal(printBiaSummary(original,"Teste",[],false,brandUrl),false);
     assert.equal(printBiaSummary(original,"Teste"),false);

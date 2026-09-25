@@ -1,4 +1,5 @@
-import { BiaSetupPanel, BiaGovernancePanel } from "@/components/bia-setup-panel";
+import { BiaGovernancePanel } from "@/components/bia-setup-panel";
+import { BiaDataDialog } from "@/components/bia-data-dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
 import { useParams, useLocation, useSearch } from "wouter";
@@ -50,6 +51,8 @@ interface BiasProjeto {
   id: string;
   situacao?: "ativa" | "em_formacao" | BiaPhase | null;
   codigo_publico?: string | null;
+  destinacao?: string | null;
+  selo_certified_alliance?: boolean | null;
   nome_bia: string;
   objetivo_alianca?: string;
   observacoes?: string;
@@ -871,7 +874,7 @@ export default function BiaDetalhePage() {
               Ativar BIA
             </Button>
           )}
-          {canViewBiaConfiguration && <BiaSetupPanel biaId={bia.id} moeda={bia.moeda || "BRL"} members={membros}/>}
+          {canViewBiaConfiguration && <BiaDataDialog bia={bia}/>}
           {canViewBiaConfiguration && (
             <Button
               size="sm"

@@ -27,7 +27,7 @@ export type MapOriginAllocation = Omit<MapContribution, "status">;
 export type MapTransfer = { status?: string; fromMemberId: string; toMemberId: string; value: number };
 
 export const QUOTA_DECIMAL_PLACES = 5;
-// MAP Zero owns these fields; the general BIA editor must not submit legacy DM values.
+// MAP Inicial owns these fields; the general BIA editor must not submit legacy DM values.
 export const BIA_MAP_ECONOMIC_FIELDS = [
   "valor_origem", "divisor_multiplicador", "perc_autor_opa", "perc_aliado_built",
   "perc_built", "perc_dir_alianca", "perc_dir_tecnico", "perc_dir_obras",
@@ -156,7 +156,7 @@ export function calculateInitialMap(
   estrutura?: InitialEconomicStructure,
 ): InitialMapCalculation {
   if (!Number.isFinite(valorOrigem) || valorOrigem <= 0) throw new Error("Informe um Valor de Origem maior que zero.");
-  if (!Array.isArray(participantesInput) || participantesInput.length === 0) throw new Error("Adicione pelo menos um participante ao MAP Zero.");
+  if (!Array.isArray(participantesInput) || participantesInput.length === 0) throw new Error("Adicione pelo menos um participante ao MAP Inicial.");
 
   const seen = new Set<string>();
   const model = participantesInput[0].modeloCalculo;
@@ -181,7 +181,7 @@ export function calculateInitialMap(
     const participantId = String(item.participantId || (memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : "")).trim();
     if (!participantId) throw new Error("Todo participante precisa de uma identidade válida.");
     const identity = memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : participantId;
-    if (seen.has(identity)) throw new Error("A mesma pessoa não pode aparecer mais de uma vez no MAP Zero.");
+    if (seen.has(identity)) throw new Error("A mesma pessoa não pode aparecer mais de uma vez no MAP Inicial.");
     seen.add(identity);
 
     if (item.tipo !== "guardiao" && item.tipo !== "multiplicador") throw new Error("Escolha Guardião ou Multiplicador para cada participante.");

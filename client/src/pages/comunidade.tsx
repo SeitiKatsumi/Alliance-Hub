@@ -1951,7 +1951,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       {(convitesOnly || activeTab === "convites") && <div className="space-y-3">
         {mouRevisoesError && <p role="alert" className="text-sm text-red-600">Não foi possível carregar as revisões pendentes do MOU.</p>}
         {mouRevisoes.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="font-semibold">Revise o MOU · {item.bia_nome}</p><p className="text-sm text-muted-foreground">MAP Zero — revisão {item.map_revisao}. É necessário aceitar esta revisão antes da ativação.</p></div>
+          <div><p className="font-semibold">Revise o MOU · {item.bia_nome}</p><p className="text-sm text-muted-foreground">MAP Inicial — revisão {item.map_revisao}. É necessário aceitar esta revisão antes da ativação.</p></div>
           <Button onClick={() => revisarMouMutation.mutate(item.id)} disabled={revisarMouMutation.isPending}>Ler e aceitar</Button>
         </div>)}
       </div>}

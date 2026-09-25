@@ -1,3 +1,4 @@
+import { governanceRoles, governanceLabel } from "../../../shared/bia-setup";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,6 +10,10 @@ import { validateEconomicStructure } from "../../../shared/member-portfolio";
 import { formatBiaNumber, formatBiaPercent } from "../../../shared/bia-numbers";
 
 const source=readFileSync(new URL("./bia-economic-structure.tsx",import.meta.url),"utf8");
+test("nome visual do Aliado preserva valor canônico da função",()=>{
+  assert.match(source,/<option key=\{role\} value=\{role\}/);
+  assert.equal(governanceLabel('Aliado BUILT'),'Aliado Licenciado BUILT');
+});
 test("periodicidade personalizada abre descrição e mantém forma válida, sem apagar detalhes",()=>{
   const ast=ts.createSourceFile("form.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   const handlers=new Map<string,string>();
@@ -74,7 +79,7 @@ test("seleção de sócios ordena nomes em pt-BR e busca sem distinguir acentos 
 });
 test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na etapa",()=>{
   const form=source.slice(source.indexOf("export function BiaEconomicStructureFields"));
-  const headings=["1. Identificação da BIA","2. Valor de Origem","3. Cotas Iniciais","4. Forma de capitalização","5. Distribuição das Cotas Iniciais e Aportes Financeiros","6. Forma de integralização","7. Divisor Multiplicador","8. Resumo da Base Econômica Inicial"];
+  const headings=["1. Identificação da BIA","2. Valor de Origem","3. Cotas Iniciais","4. Forma de capitalização","5. Distribuição das Cotas Iniciais e Aportes Financeiros","6. Forma de integralização","7. Governança e Divisor Multiplicador","8. Resumo da Base Econômica Inicial"];
   let previous=-1;
   for(const title of headings){const at=form.indexOf(title);assert.ok(at>previous,title);previous=at;}
   assert.doesNotMatch(form,/Cotas de Investimento|Parcela das CPPs destinada|Classificação do capital/);
@@ -89,8 +94,8 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.doesNotMatch(form,/Aportes? de Capital/);
   assert.match(form,/<span>Aporte Financeiro<\/span>/);
   assert.match(form,/<dt>Aportes Financeiros<\/dt>/);
-  assert.match(form,/Uma linha por pessoa\. Funções e forma do aporte ficam nos detalhes\./);
-  assert.match(form,/Funções \(\{p\.contribuicoes\?\.length \|\| 0\}\) e forma do aporte/);
+  assert.match(form,/Uma linha por pessoa\. A forma do aporte fica nos detalhes\./);
+  assert.match(form,/>Forma do aporte<\/summary>/);
   assert.doesNotMatch(form,/Natureza do aporte|Selecione quando houver aporte/);
   assert.match(form,/<label>Forma do aporte<select/);
   assert.match(form,/<label className="min-w-0 flex-1">Função<select/);
@@ -103,7 +108,7 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.match(form,/flatMap\(p=>p\.contribuicoes \|\| \[\]\)\.filter\(c=>c\.cargo!=="Contribuição individual"\)/);
   assert.match(form,/filter\(\(\{c\}\)=>c\.cargo!=="Contribuição individual"\)\.map/);
   assert.match(form,/\{cargo:"Contribuição individual",indice:0\}/);
-  assert.match(source,/p\.contribuicoes\?\.some\(c=>c\.cargo==="Contribuição individual"\) \? "Contribuição individual"/);
+  assert.match(source,/governanceRoles\(p\)/);
   assert.doesNotMatch(form,/Uma linha por pessoa\. Cargos|>Cargo<select|Remover cargo|Adicionar cargo|índice por cargo/);
   assert.match(form,/<h2[^>]*>3\. Cotas Iniciais — CI<\/h2>/);
   assert.doesNotMatch(form,/Quantidade de Cotas Iniciais do instrumento/);
@@ -112,7 +117,7 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.doesNotMatch(form,/<select aria-label=\{`Direito Econômico/);
   assert.match(form,/economicRightName\(c.cargo,p.naturezaCapital\)/);
   assert.match(form,/if\(readOnly \|\| !types.data\)return/);
-  assert.match(form,/details.open=true/);
+  assert.ok(form.indexOf(">Adicionar função")>form.indexOf("7. Governança"));
   assert.match(form,/data-testid="bei-capital-distribution"/);
   assert.match(form,/aria-hidden="true" className="hidden grid-cols-/);
   assert.match(form,/<span className="md:sr-only">Sócio Aliado<\/span>/);
@@ -124,7 +129,7 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
 test("MAP Inicial é relatório em tabela, com totais e naturezas, sem campos editáveis",()=>{
   const start=source.indexOf("export function EconomicMapPreview");
   const code=transformSync(source.slice(start,source.indexOf("type Composition",start)).replace("export function","function"),{loader:"tsx"}).code;
-  const Component=new Function("React","formatBiaNumber","formatBiaPercent","natureLabel",code+";return EconomicMapPreview;")(React,formatBiaNumber,formatBiaPercent,(s:string)=>s.replace(/^CPP\s*(?:de\s+)?/i,""));
+  const Component=new Function("React","formatBiaNumber","formatBiaPercent","natureLabel","governanceRoles","governanceLabel",code+";return EconomicMapPreview;")(React,formatBiaNumber,formatBiaPercent,(s:string)=>s.replace(/^CPP\s*(?:de\s+)?/i,""),governanceRoles,governanceLabel);
   const html=renderToStaticMarkup(React.createElement(Component,{map:{valorOrigem:100,divisorMultiplicador:3.25,participantes:[{memberId:"a",nome:"Sócio A",cargos:["Diretor","Capital"],cotasInvestimento:1,capitalComprometido:100,cppCapitalPercentual:96.75,mapPercentual:100,tipoCppCapital:{nome:"CPP Capital"},contribuicoes:[{cargo:"Diretor",indice:1.25,tipoCpp:{nome:"CPP Liderança"}},{cargo:"Capital",indice:2,tipoCpp:{nome:"CPP Liderança"}}]}]}}));
   assert.equal((html.match(/<table/g)||[]).length,2);
   assert.doesNotMatch(html,/<input|<select|<textarea/);

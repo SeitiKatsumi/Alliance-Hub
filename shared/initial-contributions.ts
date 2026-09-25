@@ -50,7 +50,7 @@ export function validateInitialClassifications(participants: InitialMapParticipa
     const missingCapital = (p.modeloCalculo===5 ? Number(p.capitalComprometido) : p.cppCapital)>0 && !p.tipoCppCapital?.id;
     if (p.modeloCalculo===5 && missingCapital) throw new Error(`A classificação automática do aporte de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`);
     if (p.modeloCalculo===5 && missingContribution) throw new Error(`A classificação automática dos direitos econômicos de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`);
-    if (missingCapital || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Zero antes do aceite.");
+    if (missingCapital || missingContribution) throw new Error("Selecione os tipos de CPP e salve o MAP Inicial antes do aceite.");
   }
 }
 export const isCashEntry = (entry: { natureza?: string; conciliacao_pendente?: boolean }) => entry.natureza !== "nao_caixa" && !entry.conciliacao_pendente;
@@ -102,11 +102,11 @@ export function commitmentsFromMap(valorOrigem: number, participants: InitialMap
 }
 
 export function validateCommitments(expected: InitialCommitment[], input: InitialCommitment[]) {
-  if (!Array.isArray(input) || input.length !== expected.length || new Set(input.map(p => p.chave)).size !== expected.length) throw new Error("Os compromissos devem corresponder à revisão vigente do MAP Zero.");
+  if (!Array.isArray(input) || input.length !== expected.length || new Set(input.map(p => p.chave)).size !== expected.length) throw new Error("Os compromissos devem corresponder à revisão vigente do MAP Inicial.");
   return expected.map(e => {
     const item = input.find(p => p.chave === e.chave);
     if (!item || !String(item.beneficiario || "").trim() || !Array.isArray(item.series)) throw new Error("Informe o beneficiário e as séries de cada compromisso.");
-    if (e.componente !== "ativo" && e.beneficiario && item.beneficiario !== e.beneficiario) throw new Error("O beneficiário deve ser o participante do MAP Zero.");
+    if (e.componente !== "ativo" && e.beneficiario && item.beneficiario !== e.beneficiario) throw new Error("O beneficiário deve ser o participante do MAP Inicial.");
     const parcelas = buildNominalSchedule(e.valor, item.series);
     return { ...e, beneficiario: String(item.beneficiario).trim(), series: item.series, parcelas };
   });

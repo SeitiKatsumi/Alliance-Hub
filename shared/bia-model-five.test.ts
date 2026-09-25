@@ -34,7 +34,7 @@ test("modelo 5 orienta a pendência antes de gerar o MAP Inicial, sem exigir map
   assert.throws(()=>validateInitialClassifications([{...p,tipoCppCapital:undefined}]),{message:`A classificação automática do aporte de ${p.nome} está indisponível. Confira o cadastro de tipos de CPP para gerar o MAP Inicial.`});
   assert.throws(()=>validateInitialClassifications([{...p,contribuicoes:p.contribuicoes!.map(c=>({...c,tipoCpp:undefined}))}]),/classificação automática.*MAP Inicial/);
   assert.doesNotThrow(()=>validateInitialClassifications([{...p,capitalComprometido:0,tipoCppCapital:undefined,contribuicoes:p.contribuicoes!.map(c=>({...c,indice:0,tipoCpp:undefined}))}]));
-  assert.throws(()=>validateInitialClassifications([{...p,modeloCalculo:4,tipoCppCapital:undefined}]),/salve o MAP Zero/);
+  assert.throws(()=>validateInitialClassifications([{...p,modeloCalculo:4,tipoCppCapital:undefined}]),/salve o MAP Inicial/);
 });
 
 test("modelo 5 conserva resíduos, soma funções e ignora contribuição individual no DM",()=>{

@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState, useRef, useEffect, type Dispatch, type SetStateAction } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 export const EMPTY_BIA_INFO = {
@@ -30,7 +30,9 @@ export const EMPTY_BIA_INFO = {
     ativo_comarca: "",
   };
 export type BiaInfoForm = typeof EMPTY_BIA_INFO;
-export function BiaInformationFields({infoForm,setInfoForm,active=false,requireAsset=true}:{infoForm:BiaInfoForm;setInfoForm:Dispatch<SetStateAction<BiaInfoForm>>;active?:boolean;requireAsset?:boolean}) {
+export function BiaInformationFields({infoForm,setInfoForm,active=false,requireAsset=true,section="all"}:{infoForm:BiaInfoForm;setInfoForm:Dispatch<SetStateAction<BiaInfoForm>>;active?:boolean;requireAsset?:boolean;section?:"all"|"asset"|"legal"|"bank"}) {
+const alive=useRef(true);
+  useEffect(()=>{alive.current=true;return ()=>{alive.current=false;};},[]);
 const [ativoCepLoading,setAtivoCepLoading]=useState(false);
   const handleAtivoCepChange = async (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 8);
@@ -41,8 +43,8 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
     try {
       const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await response.json().catch(() => null);
-      if (!response.ok || !data || data.erro) return;
-      setInfoForm(current => ({
+      if (!alive.current || !response.ok || !data || data.erro) return;
+      setInfoForm(current => current.ativo_cep!==digits ? current : ({
         ...current,
         ativo_cep: digits,
         ativo_endereco: data.logradouro || current.ativo_endereco,
@@ -66,7 +68,7 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                 </p>
               )}
 
-              <div className="space-y-3">
+              {(section==="all" || section==="asset") && <div className="space-y-3">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Informações do Ativo</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -263,11 +265,11 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                     />
                   </div>
                 </div>
-              </div>
+              </div>}
+              {section==="all" && <Separator />}
 
-              <Separator />
 
-              <div className="space-y-3">
+              {(section==="all" || section==="legal") && <div className="space-y-3">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Dados Comerciais</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -315,11 +317,11 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                     />
                   </div>
                 </div>
-              </div>
+              </div>}
+              {section==="all" && <Separator />}
 
-              <Separator />
 
-              <div className="space-y-3">
+              {(section==="all" || section==="bank") && <div className="space-y-3">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Conta Bancária</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -393,6 +395,6 @@ const [ativoCepLoading,setAtivoCepLoading]=useState(false);
                     />
                   </div>
                 </div>
-              </div>
+              </div>}
             </div>;
 }

@@ -136,8 +136,8 @@ export function registerInitialContributions(app: any, deps: {
       requireBase(base);
       const old = await plan(tx,id); checkRevision(old,req.body);
       if (old?.estado === "pendente") throw error("Conclua a conciliação pendente antes de alterar o cronograma.");
-      if (req.body.revisaoMap !== Number(base.revisao)) throw error("O MAP Zero mudou. Atualize os compromissos.");
-      if (!base.revisao || !Number(base.base_economica_inicial)) throw error("Conclua e salve o MAP Zero primeiro.");
+      if (req.body.revisaoMap !== Number(base.revisao)) throw error("O MAP Inicial mudou. Atualize os compromissos.");
+      if (!base.revisao || !Number(base.base_economica_inicial)) throw error("Conclua e salve o MAP Inicial primeiro.");
       validateInitialClassifications(base.participantes);
       const normalized = validateCommitments(commitmentsFromMap(Number(base.valor_origem),base.participantes),req.body.compromissos);
       for (const c of normalized) if (!await deps.fetchOne("cadastro_geral",c.beneficiario,"fields=id")) throw error("Beneficiário não encontrado.",400);

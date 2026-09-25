@@ -17,6 +17,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 ## APIs
 
+- `GET /api/carteira/imoveis?para_bia=1` é a projeção descritiva para o seletor Ativos Vinculados da BIA: apenas ativos não arquivados próprios ou com administração explícita, sem diagnóstico, valores, dívida, documentos ou privilégios globais de administrador. O cadastro original continua oficial; a BIA salva referência e cópia informativa, sem transferir propriedade, gerar caixa ou originar uma BIA pelo fluxo patrimonial.
+
 - `/api/carteira/resumo` retorna `imoveis`, `aliancas` e totais consolidados; `/imoveis*`, `/lancamentos*`, `/documentos*`.
 - `/api/ai/preco-m2` aceita o cadastro assistido sem valor inicial e retorna minimo, sugerido e maximo a partir de comparaveis; demais origens continuam exigindo valor e area.
 - `/api/carteira/imoveis/:id/financiamento/preview|confirmar` separa extracao, revisao e gravacao idempotente.

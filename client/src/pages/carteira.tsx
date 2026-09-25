@@ -1790,7 +1790,7 @@ function DetailPage({ id }: { id: string }) {
     onSuccess: (data: any) => {
       setOriginOpen(false);
       invalidateAll();
-      toast({ title: data.status === "aguardando_aprovacao" ? "Solicitação enviada para aprovação" : "Convites de MOU enviados", description: "O MAP Zero será bloqueado na primeira assinatura; a BIA será ativada após todos os aceites." });
+      toast({ title: data.status === "aguardando_aprovacao" ? "Solicitação enviada para aprovação" : "Convites de MOU enviados", description: "O MAP Inicial será bloqueado na primeira assinatura; a BIA será ativada após todos os aceites." });
     },
     onError: (error: any) => toast({ title: "Não foi possível originar a BIA", description: error?.message, variant: "destructive" }),
   });
@@ -2661,7 +2661,7 @@ function DetailPage({ id }: { id: string }) {
       <PropertyFormDialog open={editOpen} onOpenChange={setEditOpen} initial={imovel} onSave={(payload) => editMutation.mutate(payload)} saving={editMutation.isPending} />
       <Dialog open={originOpen} onOpenChange={(open) => { setOriginOpen(open); if (!open) setOriginForm({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {}, indices_contribuicao: {}, pesos_capital: {} }); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader><DialogTitle>Originar uma BIA deste imóvel</DialogTitle><DialogDescription>O imóvel permanece na Carteira. O MAP Zero será bloqueado na primeira assinatura do MOU; a BIA só será ativada após todos aceitarem.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Originar uma BIA deste imóvel</DialogTitle><DialogDescription>O imóvel permanece na Carteira. O MAP Inicial será bloqueado na primeira assinatura do MOU; a BIA só será ativada após todos aceitarem.</DialogDescription></DialogHeader>
           {originPreviewQuery.isLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : (
             <div className="space-y-4">
               {!!originPreviewQuery.data?.impedimentos?.length && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Antes de continuar:</p><ul className="mt-1 list-disc pl-5">{originPreviewQuery.data.impedimentos.map((item: string) => <li key={item}>{item}</li>)}</ul></div>}
@@ -2671,7 +2671,7 @@ function DetailPage({ id }: { id: string }) {
               </div>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-end justify-between gap-2">
-                  <Label>Participantes do MAP Zero</Label>
+                  <Label>Participantes do MAP Inicial</Label>
                   <p className={`text-xs ${originMapValid ? "text-emerald-700" : "text-amber-700"}`}>DM: {originDm.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}% · Peso dos Guardiões: {originWeightTotal.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p>
                 </div>
                 {originSocios.map((socio) => {

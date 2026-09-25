@@ -1,3 +1,4 @@
+import { BiaSetupPanel, BiaGovernancePanel } from "@/components/bia-setup-panel";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
 import { useParams, useLocation, useSearch } from "wouter";
@@ -17,14 +18,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useMemo, useState } from "react";
-import { getBiaPublicRef } from "@/lib/bia-url";
+import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import BiaDocumentosPage, { type DocumentoModulo } from "./bia-documentos";
 import NucleoCapitalPage from "./nucleo-capital";
 import BiaDemandas from "@/components/bia-demandas";
 import TraceabilitySummary from "@/components/traceability-summary";
-import { BiaFormSheet } from "./bias";
 import { BiaPhaseControls } from "@/components/bia-phase-controls";
 import { biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import {
@@ -282,7 +282,7 @@ const ACCESS_GROUPS: Array<{ label: string; items: Array<{ key: BiaAccessKey; la
   {
     label: "Governança",
     items: [
-      { key: "diretoria", label: "Diretoria" },
+      { key: "diretoria", label: "Governança" },
       { key: "configuracao_bia", label: "Configuração da BIA" },
     ],
   },
@@ -537,7 +537,6 @@ export default function BiaDetalhePage() {
   }, [search, navigate]);
   const { toast } = useToast();
   const [activeDetailTab, setActiveDetailTab] = useState(() => normalizeDetailTab(window.location.search));
-  const [editOpen, setEditOpen] = useState(false);
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
     queryKey: ["/api/bias", id],
@@ -724,7 +723,7 @@ export default function BiaDetalhePage() {
       },
       {
         value: "diretoria",
-        label: "Diretoria",
+        label: "Governança",
         testId: "tab-bia-nucleo-diretoria",
         allowed: hasBiaAccess(accessMatrix, "diretoria", "view"),
       },
@@ -813,7 +812,7 @@ export default function BiaDetalhePage() {
   const nucleoCards = [
     {
       id: "diretoria",
-      title: "Diretoria da Aliança",
+      title: "Governança da Aliança",
       description: "Governança, papéis estratégicos e coordenação da BIA.",
       icon: Crown,
       roles: equipe.filter((e) => ["Autor da Oportunidade", "Aliado BUILT", "Diretor de Aliança"].includes(e.role)),
@@ -872,11 +871,12 @@ export default function BiaDetalhePage() {
               Ativar BIA
             </Button>
           )}
+          {canViewBiaConfiguration && <BiaSetupPanel biaId={bia.id} moeda={bia.moeda || "BRL"} members={membros}/>}
           {canViewBiaConfiguration && (
             <Button
               size="sm"
               className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-              onClick={() => setEditOpen(true)}
+              onClick={() => navigate(`${getBiaUrl(bia)}/editar`)}
               data-testid="btn-edit-bia-detail"
             >
               <Pencil className="w-3.5 h-3.5" />
@@ -974,7 +974,7 @@ export default function BiaDetalhePage() {
           {/* Equipe */}
           <Card>
             <CardContent className="pt-5 pb-4">
-              <SectionTitle icon={Users}>Diretoria</SectionTitle>
+              <SectionTitle icon={Users}>Governança</SectionTitle>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {equipe.map((e, i) => (
                   <MembroChip
@@ -1147,9 +1147,10 @@ export default function BiaDetalhePage() {
           <>
               {allowedNucleoTabs.some((tab) => tab.value === "diretoria") && (
               <TabsContent value="diretoria" className="space-y-4">
+                <BiaGovernancePanel biaId={bia.id} members={membros}/>
                 <Card>
                   <CardContent className="pt-5 pb-4">
-                    <SectionTitle icon={Crown}>Diretoria da Aliança</SectionTitle>
+                    <SectionTitle icon={Crown}>Governança da Aliança</SectionTitle>
                     <p className="mb-4 text-sm text-muted-foreground">
                       Governança, papéis estratégicos e coordenação da BIA.
                     </p>
@@ -1330,14 +1331,6 @@ export default function BiaDetalhePage() {
           </>
         )}
       </Tabs>
-      <BiaFormSheet
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        bia={bia}
-        membros={membrosRaw as any}
-        isLoading={loadingBia}
-        readOnly={!canEditBia}
-      />
     </div>
   );
 }

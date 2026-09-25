@@ -2144,7 +2144,7 @@ export default function FluxoCaixaPage({
     if (officialMap.data?.inicial) {
       const versionId = officialMap.data.versaoVigente?.id;
       if (versionId) { window.open(`/api/bias/${selectedBiaId}/map/versoes/${versionId}/pdf`, "_blank", "noopener"); return; }
-      toast({ title: "MAP Zero disponível na aba MAP Zero", description: "Abra o MAP para consultar a composição inicial e o Histórico para exportar suas revisões." });
+      toast({ title: "MAP Inicial disponível na aba MAP Inicial", description: "Abra o MAP para consultar a composição inicial e o Histórico para exportar suas revisões." });
       return;
     }
     const logoUrl = `${window.location.origin}/built-logo-horizontal-map.png`;

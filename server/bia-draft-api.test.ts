@@ -1,3 +1,5 @@
+import { BIA_SETUP_SQL, appendBiaSetup, assertBiaSetupStorage } from "./bia-setup";
+import { emptyBiaSetup, legalBlockers, legacyBiaSetup } from "../shared/bia-setup";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -12,7 +14,7 @@ import { assertMapRevision,mapContentHash } from "./bia-map-history";
 import { hasRequiredBiaTeam } from "../shared/bia-access";
 
 test("capa e nome do rascunho sincronizam na criação, edição e repetição após falha sem efeitos financeiros",async()=>{
- const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL);const db=drizzle(pg);
+ const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL+BIA_SETUP_SQL);const db=drizzle(pg);
  const source=readFileSync(new URL("./routes.ts",import.meta.url),"utf8");
  const ast=ts.createSourceFile("routes.ts",source,ts.ScriptTarget.Latest,true);let functions="";
  function visit(n:ts.Node){if(ts.isFunctionDeclaration(n)&&["createBiaHandler","requireBiaDraftAccess","syncBiaDraftPresentation"].includes(n.name?.text || ""))functions+=n.getText(ast)+"\n";ts.forEachChild(n,visit);}visit(ast);
@@ -20,7 +22,7 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
  const routes=source.slice(start,source.indexOf('  app.patch("/api/bias/:id"',start));
  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.session={directusUserId:req.headers["x-user"] || "autor",membroId:"membro",role:"admin"};next();});
  let official:any=null,fail=false,failRead=false;const writes:any[]=[];
- const scope={app,db,sql,validateBiaDraft,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
+ const scope={app,db,sql,validateBiaDraft,validateBiaAssetLinks:async()=>{},appendBiaSetup,assertBiaSetupStorage,legalBlockers,legacyBiaSetup,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),requireBiaModuleAccess:async(_req:any,res:any)=>{res.status(403).json({error:"Negado"});return false;},
  directusFetchOne:async()=>{if(failRead)throw new Error("Indisponível");return official;},createUniqueBiaPublicCode:async()=>"TESTE",
  directusCreate:async(_col:string,data:any)=>{if(fail)throw new Error("Falha simulada");official={...data};writes.push(data);return official;},
@@ -62,9 +64,10 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
 });
 
 test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempotente",async()=>{
- const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL);const db=drizzle(pg);
+ const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL+BIA_SETUP_SQL);const db=drizzle(pg);
  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.session={directusUserId:req.headers["x-user"]};next();});
- const dados={nome_bia:"Teste isolado",moeda:"BRL",destinacao:"Rural",objetivo_alianca:"Renda",localizacao:"São Paulo",observacoes:"Teste",map_inicial:{modeloCalculo:4,valorOrigem:1000,participantes:[]}};
+ const setup=emptyBiaSetup();Object.assign(setup.juridico,{modalidade:"contratual",responsavel:"Responsável",documentoResponsavel:"12345678901"});
+ const dados={estrutura_bia:setup,nome_bia:"Teste isolado",moeda:"BRL",destinacao:"Rural",objetivo_alianca:"Renda",localizacao:"São Paulo",observacoes:"Teste",map_inicial:{modeloCalculo:4,valorOrigem:1000,participantes:[]}};
  await db.execute(sql`INSERT INTO bia_estruturacao_rascunhos (bia_id,autor_id,dados) VALUES ('teste','autor',${JSON.stringify(dados)}::jsonb)`);
  let invalid=true,fail=true,conclusions=0;const invitations=new Set<string>();
  let team={autor_bia:null,aliado_built:"a",diretor_alianca:"a"} as {autor_bia:null;aliado_built:string|null;diretor_alianca:string|null};
@@ -73,7 +76,7 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
  function visit(n:ts.Node){if(ts.isFunctionDeclaration(n)&&["requireBiaDraftAccess","syncBiaDraftPresentation"].includes(n.name?.text || ""))access+=n.getText(ast)+"\n";ts.forEachChild(n,visit);}visit(ast);
  const start=source.indexOf('  app.get("/api/bias/:id/rascunho"');
  const routes=source.slice(start,source.indexOf('  app.patch("/api/bias/:id"',start));
- const scope={app,db,sql,validateBiaDraft,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
+ const scope={app,db,sql,validateBiaDraft,validateBiaAssetLinks:async()=>{},appendBiaSetup,assertBiaSetupStorage,legalBlockers,legacyBiaSetup,assertMapRevision,mapContentHash,ensureBiaMapInicialSnapshotsTable:async()=>{},
  requireBiaModuleAccess:async(_req:any,res:any)=>{res.status(403).json({error:"Negado"});return false;},
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),directusFetchOne:async()=>({situacao:"em_estruturacao"}),directusUpdate:async()=>{},
  calculateSubmittedInitialMap:async()=>({participantes:[]}),biaTeamFromMapParticipants:()=>team,hasRequiredBiaTeam,mapActor:()=>({id:"autor"}),

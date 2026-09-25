@@ -391,7 +391,7 @@ export function useInitialMapSnapshot(biaId?: string | null) {
       const response = await fetch(`/api/bias/${biaId}/map-inicial`, { credentials: "include" });
       const data = await response.json();
       if (response.status === 404 && data.code === "LEGACY_BIA_MAP") return null;
-      if (!response.ok) throw new Error(data.error || "Não foi possível carregar o MAP Zero.");
+      if (!response.ok) throw new Error(data.error || "Não foi possível carregar o MAP Inicial.");
       return data;
     },
   });
@@ -400,7 +400,7 @@ export function useInitialMapSnapshot(biaId?: string | null) {
 export function BiaMapZero({ biaId }: { biaId: string }) {
   const query = useInitialMapSnapshot(biaId);
   const { data: membros = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
-  if (query.isPending) return <p>Carregando MAP Zero…</p>;
+  if (query.isPending) return <p>Carregando MAP Inicial…</p>;
   if (query.isError && !query.data) return <p role="alert">{query.error.message} <Button onClick={() => query.refetch()}>Tentar novamente</Button></p>;
   if (!query.data) return <LegacyMapZero biaId={biaId} membros={membros} />;
   return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros} embedded readOnly={false} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
@@ -487,7 +487,7 @@ export function MapZeroFields({
             <div><p className="text-xs text-muted-foreground">Total informado em dinheiro e bens</p><p className="mt-2 font-bold">{formatBRL(capitalPartial)}</p></div>
             <div><p className="text-xs text-muted-foreground">Restante para fechar o Valor de Origem</p><p className="mt-2 font-bold">{Number.isFinite(valorOrigem) ? formatBRL(Number((valorOrigem-capitalPartial).toFixed(5))) : "Preencha o Valor de Origem"}</p></div>
             <p className="text-xs text-muted-foreground sm:col-span-2">Informe um DM por pessoa, mesmo com vários cargos. Essa % não é a participação final na BIA.</p>
-            <p role="status" className="text-sm sm:col-span-2">{preview.error ? "Composição pendente — confira os campos abaixo." : "Composição válida — confira a prévia do MAP Zero."}</p>
+            <p role="status" className="text-sm sm:col-span-2">{preview.error ? "Composição pendente — confira os campos abaixo." : "Composição válida — confira a prévia do MAP Inicial."}</p>
           </> : <>
             <div><p className="text-xs text-muted-foreground">Peso dos Guardiões</p><p className="mt-2 text-xl font-bold">{(preview.calculation?.pesoCapitalTotal || 0).toLocaleString("pt-BR",{maximumFractionDigits:5})}%</p></div>
             <div><p className="text-xs text-muted-foreground">Base Econômica Inicial</p><p className="mt-2 text-xl font-bold text-brand-gold">{formatBRL(preview.calculation?.baseEconomicaInicial || 0)}</p></div>
@@ -561,7 +561,7 @@ export function MapZeroFields({
               {(!creationTeam || item.tipo==="guardiao") && <label className="min-w-0 space-y-1 text-sm">{creationTeam ? "Valor que fornecerá (R$)" : byValue ? "Valor comprometido no Valor de Origem (R$)" : "Peso %"}<Input aria-label={`Capital de ${item.nome || "participante"}`} type="number" min="0" step="0.00001" placeholder="Preencher" disabled={item.tipo==="multiplicador"} value={byValue?(Number.isFinite(item.capitalComprometido)?item.capitalComprometido:""):(Number.isFinite(item.pesoCapital)?item.pesoCapital:"")} onChange={e=>updateParticipant(index,byValue?{capitalComprometido:e.target.value===""?NaN:Number(e.target.value),pesoCapital:0}:{pesoCapital:e.target.value===""?NaN:Number(e.target.value)})} />{byValue && !creationTeam && <span className="text-xs text-muted-foreground">Peso derivado: {Number(calculated?.pesoCapital || 0).toLocaleString("pt-BR",{maximumFractionDigits:5})}%</span>}</label>}
               {byValue && (creationTeam ? needsDetails && <details className="min-w-0 rounded border p-2 sm:col-span-2">
                 <summary className={`cursor-pointer text-sm ${missingDetails ? "font-medium text-amber-800" : ""}`}>Detalhes da participação · {missingDetails ? "Preencher" : "Conferido"}</summary>
-                <p className="mt-2 text-xs text-muted-foreground">Classifique os valores para o MAP Zero. O tipo de CPP não é escolhido automaticamente pelo cargo.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Classifique os valores para o MAP Inicial. O tipo de CPP não é escolhido automaticamente pelo cargo.</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">{cppFields}</div>
               </details> : cppFields)}
               {creationTeam && item.tipo==="multiplicador" && <p className="text-xs text-muted-foreground">Sem aporte de dinheiro ou bens. Valor fornecido: R$ 0,00.</p>}
@@ -574,11 +574,11 @@ export function MapZeroFields({
       </Card>
     </fieldset>
     {creationTeam && <details className="rounded-lg border p-4">
-      <summary className="cursor-pointer font-semibold">Ver composição inicial (MAP Zero)</summary>
+      <summary className="cursor-pointer font-semibold">Ver composição inicial (MAP Inicial)</summary>
       {preview.calculation ? <div className="mt-4 space-y-3">
         <p className="text-sm">Prévia somente de leitura. Base Econômica Inicial (BEI): <strong>{formatBRL(preview.calculation.baseEconomicaInicial)}</strong></p>
         <div className="grid gap-3 sm:grid-cols-2">{participantes.map(mapCard)}</div>
-      </div> : <p className="mt-3 text-sm text-muted-foreground">Composição pendente. Preencha e valide a Equipe para calcular o MAP Zero.</p>}
+      </div> : <p className="mt-3 text-sm text-muted-foreground">Composição pendente. Preencha e valide a Equipe para calcular o MAP Inicial.</p>}
     </details>}
     <AlertDialog open={!!confirmation} onOpenChange={open=>{if(!open)setConfirmation(null);}}>
       <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Confirmar alteração da Equipe</AlertDialogTitle><AlertDialogDescription>{confirmation?.message}</AlertDialogDescription></AlertDialogHeader>
@@ -680,9 +680,9 @@ function MapInicialCalculator({
       setMotivo("");
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       toast({
-        title: mode === "dm" ? "DM salvo" : "MAP Zero salvo",
+        title: mode === "dm" ? "DM salvo" : "MAP Inicial salvo",
         description: data.directusSync === "pending"
-          ? "O MAP Zero foi salvo, mas o espelho da BIA está pendente. Salve novamente para repetir a sincronização."
+          ? "O MAP Inicial foi salvo, mas o espelho da BIA está pendente. Salve novamente para repetir a sincronização."
           : "Nenhum lançamento financeiro foi criado.",
       });
     },
@@ -700,7 +700,7 @@ function MapInicialCalculator({
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold">
             <div className="rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 p-2 text-brand-navy"><Calculator className="h-6 w-6" /></div>
-            {mode === "dm" ? "DM" : "MAP Zero"}
+            {mode === "dm" ? "DM" : "MAP Inicial"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Composição inicial da BIA · revisão {base.revisao}. {Number(snapshot.modeloCalculo) >= 4 ? "DM por cargo, capital por pessoa." : "Um índice por pessoa."}</p>
         </div>
@@ -721,7 +721,7 @@ function MapInicialCalculator({
       {historical && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
         <strong>{base.revisao ? "Composição original revisada" : "Composição original pendente de revisão"}</strong>
         <p>A equipe e o Valor de Origem atuais são apenas sugestões: confira com os documentos originais. Preencha os índices, valores e classificações ausentes. Nenhum valor foi deduzido de pagamentos.</p>
-        <p>Confirmar registra o MAP Zero no histórico com a data de hoje, sem alterar o MAP Atual, aportes, transferências ou MOUs assinados. Não converte o cálculo legado.</p>
+        <p>Confirmar registra o MAP Inicial no histórico com a data de hoje, sem alterar o MAP Atual, aportes, transferências ou MOUs assinados. Não converte o cálculo legado.</p>
         {snapshot.registradoEm && <p>Registrado em: {new Date(snapshot.registradoEm).toLocaleString("pt-BR")}</p>}
       </div>}
       {queryFailed && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Não foi possível atualizar a composição. Seus campos foram preservados; o salvamento aguarda uma consulta bem-sucedida. <Button variant="outline" onClick={retryQuery}>Tentar novamente</Button></p>}
@@ -735,13 +735,13 @@ function MapInicialCalculator({
       {mode === "dm" && Number(snapshot.modeloCalculo) >= 4 && <>
         <p>Valor de Origem: {formatBRL(valorOrigem)} · DM total: {preview.calculation ? formatBiaPercent(preview.calculation.divisorMultiplicador) : "Pendente"}</p>
         <BiaRoleComposition valorOrigem={valorOrigem} moeda={base.moeda} participants={participantes} onChange={setParticipantes} members={membros} readOnly={readOnly || saveMutation.isPending} dmOnly />
-        {preview.error && <p role="alert">{preview.error} Complete a composição em MAP → MAP Zero.</p>}
+        {preview.error && <p role="alert">{preview.error} Complete a composição em MAP → MAP Inicial.</p>}
       </>}
       {mode === "dm" && Number(snapshot.modeloCalculo) < 4 && <>
 <Card><CardContent className="grid gap-4 pt-6 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Valor de Origem</p><strong>{formatBRL(valorOrigem)}</strong></div><div><p className="text-sm text-muted-foreground">DM total</p><strong>{preview.calculation ? `${preview.calculation.divisorMultiplicador.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%` : "Composição pendente"}</strong></div><div><p className="text-sm text-muted-foreground">Equivalente total</p><strong>{preview.calculation ? formatBRL(preview.calculation.baseEconomicaInicial - valorOrigem) : "—"}</strong></div></CardContent></Card>
         <div className="space-y-3">{participantes.map((person, index) => <div key={String(person.participantId)} className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_150px_170px] sm:items-center"><div className="min-w-0"><p className="font-medium break-words">{person.nome}</p><p className="text-xs text-muted-foreground break-words">{person.cargos?.join(", ") || "Sem cargos"}</p></div><label className="text-sm">DM (%)<Input aria-label={`DM (%) — ${person.nome}`} type="number" min="0" step="0.00001" disabled={readOnly || saveMutation.isPending} value={Number.isFinite(person.indiceContribuicao) ? person.indiceContribuicao : ""} onChange={e => setParticipantes(rows => rows.map((p, i) => i === index ? {...p, indiceContribuicao: e.target.value === "" ? NaN : Number(e.target.value)} : p))} /></label><div><p className="text-xs text-muted-foreground">Equivalente em reais</p><strong>{Number.isFinite(person.indiceContribuicao) && person.indiceContribuicao >= 0 ? formatBRL(initialMapContributionValue(valorOrigem, person.indiceContribuicao)) : "—"}</strong></div></div>)}</div>
-        <p className="text-sm text-muted-foreground">DM não é a participação final. Pessoas, cargos e capital são alterados em MAP → MAP Zero → Editar composição.</p>
-        {preview.error && <p role="alert" className="text-sm text-amber-700">{preview.error} Complete a composição em <a className="underline" href={`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}?view=zero`}>MAP → MAP Zero → Editar composição</a>.</p>}
+        <p className="text-sm text-muted-foreground">DM não é a participação final. Pessoas, cargos e capital são alterados em MAP → MAP Inicial → Editar composição.</p>
+        {preview.error && <p role="alert" className="text-sm text-amber-700">{preview.error} Complete a composição em <a className="underline" href={`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}?view=zero`}>MAP → MAP Inicial → Editar composição</a>.</p>}
       </>}
       {historical && !base.revisao && !editing && !readOnly && <Button onClick={() => setEditing(true)}>Revisar composição original</Button>}
       {mode === "zero" && !editing && !(historical && !base.revisao) && <>
@@ -754,18 +754,18 @@ function MapInicialCalculator({
       {(mode === "dm" || editing) && <div className="space-y-3">
         {(snapshot.ativa || historical) && !readOnly && <label className="block space-y-2 text-sm">{historical ? "Fonte dos dados originais e motivo da revisão" : "Motivo da correção"}<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={historical ? "Ex.: composição conferida no MOU original" : "Explique o que precisa ser corrigido"} /></label>}
         {historical && !readOnly && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={reviewed} disabled={saveMutation.isPending} onChange={e => setReviewed(e.target.checked)} />Revisei a composição original e entendo que este registro não altera o MAP Atual.</label>}
-        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || ((snapshot.ativa || historical) && !motivo.trim()) || (historical && !reviewed)}>{saveMutation.isPending ? "Salvando…" : historical ? "Confirmar composição original" : mode === "dm" ? "Salvar DM" : "Salvar MAP Zero"}</Button>}
+        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || ((snapshot.ativa || historical) && !motivo.trim()) || (historical && !reviewed)}>{saveMutation.isPending ? "Salvando…" : historical ? "Confirmar composição original" : mode === "dm" ? "Salvar DM" : "Salvar MAP Inicial"}</Button>}
         {mode === "dm" ? <Button variant="outline" onClick={() => navigate(`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}`)}>Abrir MAP</Button> : <Button variant="outline" disabled={saveMutation.isPending} onClick={() => { if (confirmDiscardChanges()) { setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setBase(snapshot); setMotivo(""); setEditing(false); } }}>Cancelar edição</Button>}</div>
       </div>}
 
-      {mode === "zero" && (!historical || base.revisao > 0) && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Comparar MAP Zero × MAP Atual</summary>
+      {mode === "zero" && (!historical || base.revisao > 0) && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Comparar MAP Inicial × MAP Atual</summary>
       <Card>
-        <CardHeader><CardTitle className="text-lg">MAP Zero × MAP Atual</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">MAP Inicial × MAP Atual</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">O MAP Atual considera a base vigente, os aportes {byValue ? "adicionais pagos" : "pagos"} e as transferências aceitas.</p>
           {mapQuery.isError && <p role="alert" className="text-sm text-red-600">Não foi possível consultar o MAP Atual.</p>}
-          <div className="space-y-2 sm:hidden">{(mapQuery.data && !mapQuery.isError ? comparisonParticipants : []).map((item) => { const current = mapQuery.data?.atual.find((row) => row.memberId === (item.memberId || item.participantId)); return <div key={String(item.participantId)} className="rounded-lg border p-3 text-sm"><p className="font-semibold">{item.nome}</p><div className="mt-2 grid grid-cols-2 gap-2 text-xs"><div><p className="text-muted-foreground">CPP Inicial</p><p>{formatBRL(Number(item.cppTotal || 0))}</p></div><div><p className="text-muted-foreground">MAP Zero</p><p>{Number(item.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p></div><div><p className="text-muted-foreground">Valor atual</p><p>{formatBRL(Number(current?.value || 0))}</p></div><div><p className="text-muted-foreground">MAP Atual</p><p>{Number(current?.percent || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p></div></div></div>; })}</div>
-          <div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-3">Participante</th><th className="py-2 pr-3 text-right">CPP Inicial</th><th className="py-2 pr-3 text-right">MAP Zero</th><th className="py-2 pr-3 text-right">Valor atual</th><th className="py-2 text-right">MAP Atual</th></tr></thead><tbody>{(mapQuery.data && !mapQuery.isError ? comparisonParticipants : []).map((item) => { const current = mapQuery.data?.atual.find((row) => row.memberId === (item.memberId || item.participantId)); return <tr key={String(item.participantId)} className="border-b last:border-0"><td className="py-2 pr-3 font-medium">{item.nome}</td><td className="py-2 pr-3 text-right">{formatBRL(Number(item.cppTotal || 0))}</td><td className="py-2 pr-3 text-right">{Number(item.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</td><td className="py-2 pr-3 text-right">{formatBRL(Number(current?.value || 0))}</td><td className="py-2 text-right">{Number(current?.percent || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</td></tr>; })}</tbody></table></div>
+          <div className="space-y-2 sm:hidden">{(mapQuery.data && !mapQuery.isError ? comparisonParticipants : []).map((item) => { const current = mapQuery.data?.atual.find((row) => row.memberId === (item.memberId || item.participantId)); return <div key={String(item.participantId)} className="rounded-lg border p-3 text-sm"><p className="font-semibold">{item.nome}</p><div className="mt-2 grid grid-cols-2 gap-2 text-xs"><div><p className="text-muted-foreground">CPP Inicial</p><p>{formatBRL(Number(item.cppTotal || 0))}</p></div><div><p className="text-muted-foreground">MAP Inicial</p><p>{Number(item.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p></div><div><p className="text-muted-foreground">Valor atual</p><p>{formatBRL(Number(current?.value || 0))}</p></div><div><p className="text-muted-foreground">MAP Atual</p><p>{Number(current?.percent || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</p></div></div></div>; })}</div>
+          <div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-3">Participante</th><th className="py-2 pr-3 text-right">CPP Inicial</th><th className="py-2 pr-3 text-right">MAP Inicial</th><th className="py-2 pr-3 text-right">Valor atual</th><th className="py-2 text-right">MAP Atual</th></tr></thead><tbody>{(mapQuery.data && !mapQuery.isError ? comparisonParticipants : []).map((item) => { const current = mapQuery.data?.atual.find((row) => row.memberId === (item.memberId || item.participantId)); return <tr key={String(item.participantId)} className="border-b last:border-0"><td className="py-2 pr-3 font-medium">{item.nome}</td><td className="py-2 pr-3 text-right">{formatBRL(Number(item.cppTotal || 0))}</td><td className="py-2 pr-3 text-right">{Number(item.mapPercentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</td><td className="py-2 pr-3 text-right">{formatBRL(Number(current?.value || 0))}</td><td className="py-2 text-right">{Number(current?.percent || 0).toLocaleString("pt-BR", { maximumFractionDigits: 5 })}%</td></tr>; })}</tbody></table></div>
         </CardContent>
       </Card>
       </details>}

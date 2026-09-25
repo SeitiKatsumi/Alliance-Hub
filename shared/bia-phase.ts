@@ -4,7 +4,8 @@ export const BIA_PHASES = {
 } as const;
 export type BiaPhase = keyof typeof BIA_PHASES;
 export function biaPhaseLabel(value: unknown): string {
-  return BIA_PHASES[value as BiaPhase] || (value === "em_formacao" ? "Em estruturação" : value === "ativa" ? "Ativa · fase a revisar" : "Fase a revisar");
+  const phase=BIA_PHASES[value as BiaPhase];
+  return phase ? `${["em_execucao","em_operacao","em_distribuicao"].includes(String(value))?"Ativa · ":""}${phase}` : (value === "em_formacao" ? "Em estruturação" : value === "ativa" ? "Ativa · fase a revisar" : "Fase a revisar");
 }
 export function biaAllowsFinance(value: unknown) {
   return ["ativa", "em_execucao", "em_operacao", "em_distribuicao"].includes(String(value));

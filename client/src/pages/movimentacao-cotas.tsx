@@ -60,7 +60,7 @@ export default function MovimentacaoCotasPage() {
           const params = new URLSearchParams(search); params.set("view", next);
           navigate(`${window.location.pathname}?${params.toString()}`);
         }} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="atual">MAP Atual</TabsTrigger><TabsTrigger value="zero">MAP Zero</TabsTrigger><TabsTrigger value="historico">Histórico</TabsTrigger></TabsList>
+          <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="atual">MAP Atual</TabsTrigger><TabsTrigger value="zero">MAP Inicial</TabsTrigger><TabsTrigger value="historico">Histórico</TabsTrigger></TabsList>
           <TabsContent value="atual">{view === "atual" && <FluxoCaixaPage initialBiaId={internalBiaId} embedded cotasOnly />}</TabsContent>
           <TabsContent value="zero">{view === "zero" && <BiaMapZero biaId={internalBiaId} />}</TabsContent>
           <TabsContent value="historico">{view === "historico" && <BiaMapHistory biaId={internalBiaId} />}</TabsContent>

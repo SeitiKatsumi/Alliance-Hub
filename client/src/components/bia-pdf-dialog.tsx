@@ -7,13 +7,13 @@ import { biaPdfSections, printBiaSummary, type BiaPdfSection } from "../lib/prin
 export function BiaPdfDialog({reviewRef,name,disabled,modelFive,certified,brandUrl,brandCode}:{reviewRef:RefObject<HTMLDivElement|null>;name:string;disabled:boolean;modelFive:boolean;certified:boolean;brandUrl:string;brandCode:string|null}) {
   const [open,setOpen]=useState(false),[error,setError]=useState("");
   const [selected,setSelected]=useState<BiaPdfSection[]>(biaPdfSections.map(s=>s.id));
-  const available=biaPdfSections.filter(s=>modelFive || s.id==="dados" || s.id==="map");
+  const available=biaPdfSections.filter(s=>modelFive || !["condicoes","cpp"].includes(s.id));
   const sections=selected.filter(id=>available.some(s=>s.id===id));
   return <Dialog open={open} onOpenChange={value=>{setOpen(value);setError("");}}>
     <DialogTrigger asChild><Button type="button" variant="outline" disabled={disabled || !brandUrl}><FileDown className="mr-2 h-4 w-4"/>Salvar resumo em PDF</Button></DialogTrigger>
     <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
       <DialogHeader><DialogTitle>O que deseja incluir no PDF?</DialogTitle><DialogDescription>Escolha as seções do resumo de {name || "sua BIA"}. Os dados preenchidos não serão alterados.</DialogDescription></DialogHeader>
-      <div className="space-y-2">{available.map(section=><label key={section.id} className="flex cursor-pointer items-start gap-3 rounded-lg border p-4 has-[:checked]:border-[#b9a36b] has-[:checked]:bg-[#b9a36b]/5">
+      <div className="max-h-[55vh] space-y-2 overflow-y-auto">{available.map(section=><label key={section.id} className="flex cursor-pointer items-start gap-3 rounded-lg border p-4 has-[:checked]:border-[#b9a36b] has-[:checked]:bg-[#b9a36b]/5">
         <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[#001d32]" checked={selected.includes(section.id)} onChange={e=>setSelected(current=>e.target.checked?[...current,section.id]:current.filter(id=>id!==section.id))}/>
         <span><span className="block text-sm font-semibold">{section.label}</span><span className="mt-1 block text-xs text-muted-foreground">{section.description}</span></span>
       </label>)}</div>

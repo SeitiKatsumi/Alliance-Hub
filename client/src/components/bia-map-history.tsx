@@ -7,15 +7,16 @@ type Row = { memberId: string; name: string; value: number; percent: number; gro
 type Version = { id: string; tipo: "zero" | "atual"; numero: number; revisao_base: number; criado_em: string;
   autor: { name?: string }; motivo: string; hash: string;
   snapshot?: { rows: Row[]; base: { moeda: string } } };
-const label = (v: Version) => v.tipo === "zero" ? `MAP Zero — revisão ${v.numero}` : `MAP ${v.numero}`;
+const label = (v: Version) => v.tipo === "zero" ? `MAP Inicial — revisão ${v.numero}` : `MAP ${v.numero}`;
 const money = (value: number, currency: string) => new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
-export function BiaMapHistory({ biaId }: { biaId: string }) {
+export function BiaMapHistory({ biaId, initialOnly = false }: { biaId: string; initialOnly?: boolean }) {
   const [selected, setSelected] = useState("");
   const [comparison, setComparison] = useState("");
   const prefix = `/api/bias/${biaId}/map/versoes`;
   const versions = useQuery<Version[]>({ queryKey: [prefix], queryFn: async () => (await apiRequest("GET", prefix)).json() });
-  const selectedId = selected || versions.data?.[0]?.id || "";
+  const availableVersions=versions.data?.filter(v=>!initialOnly || v.tipo==="zero");
+  const selectedId = selected || availableVersions?.[0]?.id || "";
   const detail = useQuery<Version>({ queryKey: [prefix, selectedId], enabled: !!selectedId,
     queryFn: async () => (await apiRequest("GET", `${prefix}/${selectedId}`)).json() });
   const previous = useQuery<Version>({ queryKey: [prefix, comparison], enabled: !!comparison,
@@ -28,14 +29,14 @@ export function BiaMapHistory({ biaId }: { biaId: string }) {
   return <Card><CardHeader><CardTitle>Histórico do MAP</CardTitle></CardHeader><CardContent className="space-y-4">
     {versions.isPending && <p className="text-sm text-muted-foreground">Carregando histórico…</p>}
     {(versions.isError || detail.isError || (comparison && previous.isError)) && <p role="alert" className="text-sm text-red-600">Não foi possível carregar as versões. Atualize a página para tentar novamente.</p>}
-    {versions.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma versão registrada. As revisões serão preservadas ao salvar o MAP Zero.</p>}
-    {!!versions.data?.length && <>
+    {availableVersions?.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma versão registrada. As revisões serão preservadas ao salvar o MAP Inicial.</p>}
+    {!!availableVersions?.length && <>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1 text-sm">Versão<select className="block h-10 w-full rounded-md border bg-background px-3" value={selectedId} onChange={(e) => setSelected(e.target.value)}>
-          {versions.data.map((v) => <option value={v.id} key={v.id}>{label(v)}</option>)}
+          {availableVersions.map((v) => <option value={v.id} key={v.id}>{label(v)}</option>)}
         </select></label>
         <label className="space-y-1 text-sm">Comparar com<select className="block h-10 w-full rounded-md border bg-background px-3" value={comparison} onChange={(e) => setComparison(e.target.value)}>
-          <option value="">Sem comparação</option>{versions.data.filter((v) => v.id !== selectedId).map((v) => <option value={v.id} key={v.id}>{label(v)}</option>)}
+          <option value="">Sem comparação</option>{availableVersions.filter((v) => v.id !== selectedId).map((v) => <option value={v.id} key={v.id}>{label(v)}</option>)}
         </select></label>
       </div>
       {detail.data && <div className="space-y-1 text-sm">

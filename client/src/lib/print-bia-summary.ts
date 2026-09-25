@@ -5,6 +5,9 @@ export const biaPdfSections = [
   {id:"dados",label:"Resumo dos dados",description:"Identificação, objetivo, localização e valores da BIA."},
   {id:"condicoes",label:"Capitalização e integralização",description:"Instrumentos, parcelas, periodicidade, correção e detalhes do plano."},
   {id:"map",label:"MAP Inicial",description:"Participantes, funções, aportes e participações iniciais."},
+  {id:"juridico",label:"Estrutura Jurídica",description:"Formalização, responsável, quadro societário e conta."},
+  {id:"ativos",label:"Ativos Vinculados",description:"Cadastro e indicadores dos ativos, sem efeitos patrimoniais."},
+  {id:"documentos",label:"Documentos",description:"Relação dos anexos informativos."},
   {id:"cpp",label:"Detalhamento das CPPs",description:"Composição das participações por natureza econômica."},
 ] as const;
 export type BiaPdfSection = typeof biaPdfSections[number]["id"];
@@ -49,7 +52,8 @@ export const biaSummaryPrintCss = `
   dl { display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); margin: 0; }
   dt, dd { margin: 0; padding: 8px 12px; border-bottom: 1px solid #e5ebef; }
   dt { font-weight: bold; background: #f2f5f7; } dd { white-space: pre-wrap; overflow-wrap: anywhere; }
-  table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 12px 0; font-size: 10px; line-height: 1.4; }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 12px 0; font-size: 10px; line-height: 1.4; break-inside: avoid; }
+  [data-pdf-asset] { break-inside: avoid; }
   th, td { padding: 5px; border-bottom: 1px solid #dbe3e9; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   thead { display: table-header-group; background: #001d32; color: white; }
   tbody tr:nth-child(even) { background: #f3f6f8; }
@@ -59,7 +63,7 @@ export const biaSummaryPrintCss = `
   [data-print-hide] { display: none; }
   .print-toolbar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: white; border-bottom: 1px solid #dbe3e9; color: #526578; }
   .print-toolbar button { border: 0; border-radius: 6px; padding: 12px 20px; background: #001d32; color: white; font: bold 13px Arial; cursor: pointer; }
-  @media print { body { background: white; } .print-toolbar, .report-footer, .report-masthead { display: none; } .report { max-width: none; padding: 6mm 0 0; margin: 0; box-shadow: none; } }
+  @media print { body { background: white; } .print-toolbar, .report-footer, .report-masthead { display: none; } .report { max-width: none; padding: 6mm 0 3mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; margin: 0; box-shadow: none; } }
   @media screen and (max-width: 650px) { .report, .report-masthead, .report-footer { margin: 0 12px; padding: 20px; } .report-footer { flex-wrap: wrap; } .report-footer p { flex-basis: 100%; } }
 `;
 
@@ -93,6 +97,7 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
     if (!sections.includes(node.dataset.pdfSection as BiaPdfSection)) node.remove();
   });
   content.querySelectorAll("details").forEach(detail=>{detail.open=true;});
+  content.querySelectorAll<HTMLAnchorElement>('a[href^="/api/assets/"]').forEach(link=>{link.href=new URL(link.getAttribute('href')!,window.location.origin).href;});
   report.append(header,content,make("footer","Prévia para revisão. Não substitui MOU ou documentos assinados e não confirma aportes nem pagamentos.","report-note"));
   const footer=make("footer","","report-footer");
   const images:HTMLImageElement[]=[];

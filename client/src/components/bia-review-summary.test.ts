@@ -36,7 +36,7 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     const created:any[]=[];
     let failImage=false;
     const original={} as HTMLElement;
-    const popup={document:{open(){},write(){},close(){},title:"",head:{append(){}},body:{append(...nodes:any[]){appended.push(...nodes);}},createElement:(tag:string)=>{const node={tag,width:0,height:0,getContext:()=>({drawImage(){}}),toDataURL:()=>"data:image/png;base64,TEST",append(){},setAttribute(){},decode:()=>failImage?Promise.reject(new Error("image unavailable")):Promise.resolve()};created.push(node);return node;},importNode:(node:HTMLElement,deep:boolean)=>{assert.equal(node,original);assert.equal(deep,true);return {querySelectorAll:(selector:string)=>selector==="details"?details:selector==="[data-print-hide]"?[hidden]:nodes};}},focus(){},print(){printed++;},requestAnimationFrame:(fn:()=>void)=>fn()};
+    const popup={document:{open(){},write(){},close(){},title:"",head:{append(){}},body:{append(...nodes:any[]){appended.push(...nodes);}},createElement:(tag:string)=>{const node={tag,width:0,height:0,getContext:()=>({drawImage(){}}),toDataURL:()=>"data:image/png;base64,TEST",append(){},setAttribute(){},decode:()=>failImage?Promise.reject(new Error("image unavailable")):Promise.resolve()};created.push(node);return node;},importNode:(node:HTMLElement,deep:boolean)=>{assert.equal(node,original);assert.equal(deep,true);return {querySelectorAll:(selector:string)=>selector.startsWith('a[')?[]:selector==="details"?details:selector==="[data-print-hide]"?[hidden]:nodes};}},focus(){},print(){printed++;},requestAnimationFrame:(fn:()=>void)=>fn()};
     Object.defineProperty(globalThis,"window",{configurable:true,value:{open:()=>popup,location:{origin:"https://example.test"}}});
     assert.equal(printBiaSummary(original,"Teste",undefined,false,brandUrl,"OFICIAL01"),true);
     assert.equal(printed,0); // no printing before the image decode completes
@@ -55,7 +55,7 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     assert.ok(created.some(n=>n.alt==="BUILT Certified Alliance - Aliança Certificada"));
     assert.equal(popup.document.title,"Resumo da BIA - Teste");
     assert.ok(hidden.removed);
-    for(let mask=1;mask<16;mask++){
+    for(let mask=1;mask<(1<<biaPdfSections.length);mask++){
       const chosen=biaPdfSections.filter((_,i)=>mask & (1<<i)).map(s=>s.id);
       nodes.forEach(n=>{n.removed=false;});
       assert.equal(printBiaSummary(original,"Teste",chosen,false,brandUrl),true);
@@ -91,13 +91,13 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     assert.match(biaSummaryPrintCss,/table-layout: fixed/);
     assert.ok(readFileSync(new URL("../../public/branding/bia-header-artwork.png",import.meta.url)).length>0);
     const page=readFileSync(new URL("../pages/bia-nova.tsx",import.meta.url),"utf8");
-    assert.match(page,/step===3 && <BiaPdfDialog[^>]+disabled=\{busy \|\| !preview.map\}/);
+    assert.match(page,/step===5 && <BiaPdfDialog[^>]+disabled=\{busy \|\| !preview.map\}/);
     assert.match(page,/certified=\{form.selo_certified_alliance===true\}/);
     assert.match(page,/brandCode=\{brand.code\}/);
     const dialog=readFileSync(new URL("./bia-pdf-dialog.tsx",import.meta.url),"utf8");
     assert.match(dialog,/DialogTrigger/);assert.match(dialog,/Salvar resumo em PDF/);
     assert.match(dialog,/disabled=\{disabled \|\| !sections.length \|\| !brandUrl\}/);
-    assert.match(dialog,/modelFive \|\| s.id==="dados" \|\| s.id==="map"/);
+    assert.match(dialog,/!\["condicoes","cpp"\]\.includes\(s.id\)/);
   } finally {
     globalThis.fetch=previousFetch;
     if(previousReader)Object.defineProperty(globalThis,"FileReader",previousReader);else Reflect.deleteProperty(globalThis,"FileReader");

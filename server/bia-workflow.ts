@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { biaSetupSchema } from "../shared/bia-setup";
 import { CURRENCIES, BIA_DESTINACOES, BIA_OBJETIVOS, BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { BIA_PHASES, nextBiaPhase, type BiaPhase } from "../shared/bia-phase";
 
@@ -22,6 +23,11 @@ export function validateBiaDraft(body:any) {
   if(!body || typeof body!=="object" || Array.isArray(body))throw failure("Rascunho inválido.",400);
   const allowed = ["nome_bia","objetivo_alianca","destinacao","moeda","localizacao","latitude","longitude","observacoes","map_inicial","imagem_directus_id","anexos","selo_certified_alliance","info_comercial","valor_geral_venda_vgv","valor_realizado_venda","comissao_prevista_corretor","ir_previsto","inss_previsto","manutencao_pos_obra_prevista"];
   const data = Object.fromEntries(allowed.filter(k=>body[k] !== undefined).map(k=>[k,body[k]]));
+  if(body.estrutura_bia !== undefined) {
+    const parsed=biaSetupSchema.safeParse(body.estrutura_bia);
+    if(!parsed.success)throw failure("Estrutura jurídica, ativos ou Governança inválidos: " + parsed.error.issues[0].message,400);
+    data.estrutura_bia=parsed.data;
+  }
   for(const field of ["nome_bia","objetivo_alianca","destinacao","moeda","localizacao","observacoes"])if(data[field]!=null && typeof data[field]!=="string")throw failure("Dados gerais inválidos.",400);
   if(data.map_inicial == null)delete data.map_inicial;
   if (!String(data.nome_bia || "").trim() || String(data.nome_bia).length > 200) throw failure("Informe o nome da BIA (até 200 caracteres).",400);

@@ -39,8 +39,8 @@ test("prévia do MAP não exige equipe completa, mas preserva validações econ�
   assert.equal(automaticCapital.map.participantes[0].tipoCppCapital.id,"capital");
   assert.doesNotMatch(missingNature.error,/MAP Zero|antes do aceite|salve/);
   assert.match(run({...input,participantes:[person,person]}).error,/uma ficha/);
-  assert.match(source,/step===3 && preview.map && preview.teamPending/);
-  assert.match(source,/disabled=\{busy \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
+  assert.match(source,/step===5 && preview.map && preview.teamPending/);
+  assert.match(source,/disabled=\{busy \|\| legalBlockers\(form.estrutura_bia\).length>0 \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
   assert.match(source,/void members.refetch\(\);void defaults.refetch\(\)/);
 });
 
@@ -56,7 +56,7 @@ test("gerar prévia depende da composição, sem bloquear silenciosamente por no
   assert.equal(disabled(0,"  ",{}),true);
   assert.equal(disabled(0,"Nome",null),false);
   assert.match(source,/disabled=\{busy \|\| !form.nome_bia.trim\(\)\} onClick=\{\(\)=>save\(\)\}/);
-  assert.match(source,/disabled=\{busy \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
+  assert.match(source,/disabled=\{busy \|\| legalBlockers\(form.estrutura_bia\).length>0 \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
   assert.match(source,/Preencher nome da BIA/);
 });
 
@@ -145,7 +145,7 @@ test("BIA criada não vira sucesso completo quando Informações falham, nem rep
     const notifications:any[] = [], requests:any[] = [];
     let closed=0;
     const scope = {
-      bia:null,infoForm:{ativo_qualificacao:"Imóvel de teste"},form:{nome_bia:"BIA de teste"},isEdit:false,
+      bia:null,structuredInfo:false,page:false,infoForm:{ativo_qualificacao:"Imóvel de teste"},form:{nome_bia:"BIA de teste"},isEdit:false,
       queryClient:{invalidateQueries:()=>{}},toast:(message:any)=>notifications.push(message),onClose:()=>closed++,
       fetch:async(url:string,options:any)=>{
         requests.push({url,...options});

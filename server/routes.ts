@@ -6,6 +6,8 @@ import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-port
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
+import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from "./bia-setup";
+import { legalBlockers, legacyBiaSetup, biaAssetFromPortfolio, type BiaSetup } from "../shared/bia-setup";
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
 import { formatBiaPercent } from "@shared/bia-numbers";
@@ -7497,8 +7499,8 @@ export async function registerRoutes(
     const memberIds = Array.from(new Set([...biaFormalParticipantIds(bia), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
     for (const memberId of memberIds) await tx.execute(sql`
       INSERT INTO agenda_tarefas (user_id, membro_id, titulo, descricao, data, prioridade, contexto_tipo, contexto_id, origem_tarefa_id)
-      SELECT id, ${memberId}, ${active ? "MAP Zero corrigido" : "Revise o MOU da BIA"},
-        ${active ? `A base da BIA ${bia.nome_bia} recebeu a revisão ${base.revisao}. Consulte o histórico do MAP.` : `O MAP Zero da BIA ${bia.nome_bia} mudou para a revisão ${base.revisao}. Aceite novamente em Notificações antes da ativação.`},
+      SELECT id, ${memberId}, ${active ? "MAP Inicial corrigido" : "Revise o MOU da BIA"},
+        ${active ? `A base da BIA ${bia.nome_bia} recebeu a revisão ${base.revisao}. Consulte o histórico do MAP.` : `O MAP Inicial da BIA ${bia.nome_bia} mudou para a revisão ${base.revisao}. Aceite novamente em Notificações antes da ativação.`},
         CURRENT_DATE, 'media', 'bia', ${String(bia.id)}, ${`map:${bia.id}:${base.revisao}`}
       FROM users WHERE membro_directus_id = ${memberId}`);
   }
@@ -7509,8 +7511,8 @@ export async function registerRoutes(
     calculateInitialMap(Number(base.valor_origem), base.participantes, base.estrutura_economica);
     if(Number(base.modelo_calculo)>=3)validateInitialClassifications(base.participantes);
     const signers = Array.from(new Set([...(base.origem_id ? [] : biaFormalParticipantIds(bia)), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
-    for (const memberId of signers) if (!await hasBiaMouAceito(biaId, memberId)) throw Object.assign(new Error("Todos os participantes precisam aceitar a revisão vigente do MAP Zero antes da ativação."), { statusCode: 409 });
-    if (!base.revisao) await archiveMapBase(tx, bia, base, `ativacao:${base.id}`, "MAP Zero na ativação");
+    for (const memberId of signers) if (!await hasBiaMouAceito(biaId, memberId)) throw Object.assign(new Error("Todos os participantes precisam aceitar a revisão vigente do MAP Inicial antes da ativação."), { statusCode: 409 });
+    if (!base.revisao) await archiveMapBase(tx, bia, base, `ativacao:${base.id}`, "MAP Inicial na ativação");
     const result = await operation();
     await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET ativado_em = COALESCE(ativado_em, now()) WHERE bia_id = ${biaId}`);
     return result;
@@ -7550,7 +7552,7 @@ export async function registerRoutes(
       // Clone the previous payload before comparing; never rewrite signed content.
       const stored = await loadInitialMapSnapshot(String(bia.id), tx);
       if (mapContentHash(mapBaseContent(stored)) === mapContentHash(mapBaseContent(next))) return;
-      if (!base.revisao && base.snapshot_hash) await archiveMapBase(tx, bia, stored, `preservado:${base.id}`, "MAP Zero assinado preservado");
+      if (!base.revisao && base.snapshot_hash) await archiveMapBase(tx, bia, stored, `preservado:${base.id}`, "MAP Inicial assinado preservado");
       await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET participantes = ${JSON.stringify(participants)}::jsonb,
         status = 'rascunho', snapshot_hash = NULL, atualizado_em = now() WHERE bia_id = ${String(bia.id)}`);
       await archiveMapBase(tx, bia, next, randomUUID(), "Participantes preenchidos pela estruturação; confira os índices e pesos");
@@ -7598,7 +7600,7 @@ export async function registerRoutes(
     if (!biaId) return mapOperationContext.run({ ...mapOperationContext.getStore(), tx: db }, operation);
     const targetBia = directusRelationId(data?.bia);
     if (before && targetBia && targetBia !== biaId && (await loadInitialMapSnapshot(biaId) || await loadInitialMapSnapshot(targetBia))) {
-      throw Object.assign(new Error("Não é permitido mover um lançamento entre BIAs com MAP Zero. Corrija o lançamento na BIA de origem."), { statusCode: 409 });
+      throw Object.assign(new Error("Não é permitido mover um lançamento entre BIAs com MAP Inicial. Corrija o lançamento na BIA de origem."), { statusCode: 409 });
     }
     return withMapLock(biaId, async (tx, base) => {
       if (!base) return operation();
@@ -7669,12 +7671,23 @@ export async function registerRoutes(
           if(!requirements.canActivate)return;
           calculateInitialMap(Number(base.valor_origem),base.participantes,base.estrutura_economica);
           if(Number(base.modelo_calculo)>=3)validateInitialClassifications(base.participantes);
-          await transitionBiaPhase(phaseDeps,{biaId:String(bia.id),eventId:`aceites:${base.revisao}`,event:"aceites_concluidos",ready:true,reason:`Aceites concluídos da revisão ${base.revisao}`,actor:mapActor()});
+          const submitted=await readBiaSetup(tx,String(bia.id));
+          const acceptances=submitted?(await tx.execute(sql`SELECT id,membro_id,mou_versao,map_revisao,aceito_em FROM bia_mou_aceites WHERE bia_id=${String(bia.id)} AND mou_versao=${BIA_MOU_VERSAO} AND map_revisao=${base.revisao}`)).rows:[];
+          await transitionBiaPhase(phaseDeps,{biaId:String(bia.id),eventId:`aceites:${base.revisao}`,event:"aceites_concluidos",ready:true,reason:`Aceites concluídos da revisão ${base.revisao}`,actor:{...mapActor(),estruturaRevisao:submitted?.revisao || null,mouVersao:BIA_MOU_VERSAO,aceites:acceptances}});
           await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET ativado_em=COALESCE(ativado_em,now()) WHERE bia_id=${String(bia.id)}`);
           bia=await phaseDeps.fetch(String(bia.id));
         }
         if(bia.situacao === "em_execucao") {
-          if(base)await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET ativado_em=COALESCE(ativado_em,now()) WHERE bia_id=${String(bia.id)}`);
+          if(base){
+            const activation=(await tx.execute(sql`SELECT * FROM bia_fase_eventos WHERE bia_id=${String(bia.id)} AND evento_id=${`aceites:${base.revisao}`} AND aplicado=true`)).rows[0];
+            if(activation){
+              await tx.execute(sql`UPDATE bia_map_inicial_snapshots SET ativado_em=COALESCE(ativado_em,(SELECT criado_em FROM bia_fase_eventos WHERE id=${activation.id})) WHERE bia_id=${String(bia.id)}`);
+              if(activation.autor?.estruturaRevisao){
+                const submitted=(await tx.execute(sql`SELECT * FROM bia_estrutura_versoes WHERE bia_id=${String(bia.id)} AND revisao=${activation.autor.estruturaRevisao}`)).rows[0];
+                if(submitted)await appendBiaSetup(tx,{biaId:String(bia.id),event:`ativacao:${base.revisao}`,data:submitted.dados,context:{...submitted.contexto,estruturaRevisao:submitted.revisao,map:initialMapSnapshotView(base),participantes:base.participantes,documentos:submitted.contexto.documentos || [],ativacaoEvento:activation.id,ativacaoRegistradaEm:activation.criado_em,fase:"em_execucao"},reason:"Aceites obrigatórios concluídos",actor:activation.autor});
+              }
+            }
+          }
           const origin=(await tx.execute(sql`SELECT id FROM bia_imovel_origens WHERE bia_id=${String(bia.id)} AND status='ativa' LIMIT 1`)).rows[0];
           if(origin)await transitionBiaPhase(phaseDeps,{biaId:String(bia.id),eventId:`imovel:${origin.id}`,event:"imovel_associado",ready:true,reason:"Imóvel formalmente associado",actor:mapActor()});
         }
@@ -7817,7 +7830,7 @@ export async function registerRoutes(
     `);
     const draft = result.rows?.[0];
     if (draft && calculated) await archiveMapBase(tx,
-      await directusFetchOne("bias_projetos", opts.biaId, "fields=*"), draft, `criacao:${draft.id}`, "MAP Zero criado na estruturação");
+      await directusFetchOne("bias_projetos", opts.biaId, "fields=*"), draft, `criacao:${draft.id}`, "MAP Inicial criado na estruturação");
     return loadInitialMapSnapshot(opts.biaId, tx);
     });
   }
@@ -7846,20 +7859,20 @@ export async function registerRoutes(
       let dadosContratuais: Record<string, unknown> = opts.dadosContratuais;
 
       if (snapshot) {
-        if (!snapshot.revisao) throw Object.assign(new Error("Revise e salve o MAP Zero antes de coletar novos aceites."), { statusCode: 409 });
+        if (!snapshot.revisao) throw Object.assign(new Error("Revise e salve o MAP Inicial antes de coletar novos aceites."), { statusCode: 409 });
         assertMapRevision(Number(snapshot.revisao || 0), mapOperationContext.getStore()?.req?.body?.map_revisao);
         let calculation: InitialMapCalculation;
         try {
           calculation = calculateInitialMap(Number(snapshot.valor_origem), Array.isArray(snapshot.participantes) ? snapshot.participantes : [], snapshot.estrutura_economica);
           if(Number(snapshot.modelo_calculo)>=3)validateInitialClassifications(calculation.participantes);
         } catch (error: any) {
-          const invalid: any = new Error(`O MAP Zero precisa ser concluído antes do primeiro aceite: ${error.message}`);
+          const invalid: any = new Error(`O MAP Inicial precisa ser concluído antes do primeiro aceite: ${error.message}`);
           invalid.statusCode = 409;
           throw invalid;
         }
         const calculatedHash = initialMapHash(calculation, String(snapshot.moeda || "BRL"));
         if (snapshot.status === "bloqueado" && snapshot.snapshot_hash && snapshot.snapshot_hash !== calculatedHash) {
-          const inconsistent: any = new Error("O MAP Zero bloqueado não corresponde às evidências gravadas.");
+          const inconsistent: any = new Error("O MAP Inicial bloqueado não corresponde às evidências gravadas.");
           inconsistent.statusCode = 409;
           throw inconsistent;
         }
@@ -9141,22 +9154,22 @@ export async function registerRoutes(
     y -= 28;
 
     for (const [sectionIndex, section] of sections.entries()) {
-      omitMapFooter = section.body.includes("MAP Zero |");
+      omitMapFooter = /MAP (?:Zero|Inicial) \|/.test(section.body);
       if (sectionIndex > 0) newPage();
       sectionTitle(section.title);
       const rawParagraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
       const paragraphs = splitPdfParagraphs(section.body);
       const normalizedSectionTitle = normalizePdfText(section.title);
-      if (!rawParagraphs.some((item) => item.startsWith("MAP Zero |")) && (normalizedSectionTitle.includes("Mapa de Aloca\u00E7\u00E3o") || normalizedSectionTitle.includes("Mapa de Alocacao"))) {
+      if (!rawParagraphs.some((item) => /^MAP (?:Zero|Inicial) \|/.test(item)) && (normalizedSectionTitle.includes("Mapa de Aloca\u00E7\u00E3o") || normalizedSectionTitle.includes("Mapa de Alocacao"))) {
         const tableStart = rawParagraphs.findIndex((item) => item.includes("Aloca\u00E7\u00E3o") || item.includes("Alocacao"));
-        const mapInitialDetails = rawParagraphs.filter((item) => item.startsWith("MAP Zero |"));
+        const mapInitialDetails = rawParagraphs.filter((item) => /^MAP (?:Zero|Inicial) \|/.test(item));
         const intro = (tableStart >= 0 ? rawParagraphs.slice(0, tableStart) : rawParagraphs.slice(0, 5))
-          .filter((item) => !item.startsWith("MAP Zero |"));
+          .filter((item) => !/^MAP (?:Zero|Inicial) \|/.test(item));
         infoBox(intro);
         allocationTable(rawParagraphs);
         if (mapInitialDetails.length) {
-          paragraph("Composição preservada do MAP Zero", { font: "F2", color: navy, size: 10.5 });
-          for (const detail of mapInitialDetails) paragraph(detail.replace(/^MAP Zero \|\s*/, ""), { color: slate, width: 96 });
+          paragraph(mapInitialDetails.some(item=>item.startsWith("MAP Zero |"))?"Composição preservada do MAP Zero":"Composição preservada do MAP Inicial", { font: "F2", color: navy, size: 10.5 });
+          for (const detail of mapInitialDetails) paragraph(detail.replace(/^MAP (?:Zero|Inicial) \|\s*/, ""), { color: slate, width: 96 });
         }
         const last = rawParagraphs[rawParagraphs.length - 1];
         if (last && last.includes("Este mapa")) paragraph(last, { color: slate, width: 96 });
@@ -9742,11 +9755,11 @@ export async function registerRoutes(
     if (Number(initialSnapshot?.modelo_calculo)===5) return [`BIA: ${mouValue(bia.nome_bia)}`,`ID da BIA: ${biaId}`,`MAP Inicial — revisão ${initialSnapshot.revisao}`,...economicStructureDocumentLines({valorOrigem:Number(initialSnapshot.valor_origem),estrutura:initialSnapshot.estrutura_economica,participantes:initialSnapshot.participantes},initialSnapshot.moeda)].join("\n");
     if (initialSnapshot) return [
       `BIA: ${mouValue(bia.nome_bia)}`, `ID da BIA: ${biaId}`,
-      `MAP Zero — revisão ${Number(initialSnapshot.revisao || 0)}`,
+      `MAP Inicial — revisão ${Number(initialSnapshot.revisao || 0)}`,
       `Valor de Origem: ${formatPdfMoney(Number(initialSnapshot.valor_origem), initialSnapshot.moeda)}`,
       `Divisor Multiplicador: ${formatPdfPercent(Number(initialSnapshot.divisor_multiplicador))}`,
       `Base Econômica Inicial (BEI): ${formatPdfMoney(Number(initialSnapshot.base_economica_inicial), initialSnapshot.moeda)}`,
-      ...(initialSnapshot.participantes || []).map((p: any) => `MAP Zero | ${p.nome} | Cargos: ${(p.cargos || []).join(", ")} | ${p.tipo === "guardiao" ? "Guardião" : "Multiplicador"} | Índice: ${formatPdfPercent(p.indiceContribuicao)} | Peso: ${formatPdfPercent(p.pesoCapital)} | ${p.tipoCppContribuicao?.nome || "CPP Origem"}: ${formatPdfMoney(p.cppOrigem, initialSnapshot.moeda)} | ${p.tipoCppCapital?.nome || "CPP Capital"}: ${formatPdfMoney(p.cppCapital, initialSnapshot.moeda)} | CPP Total: ${formatPdfMoney(p.cppTotal, initialSnapshot.moeda)} | MAP: ${formatPdfPercent(p.mapPercentual)}`),
+      ...(initialSnapshot.participantes || []).map((p: any) => `MAP Inicial | ${p.nome} | Cargos: ${(p.cargos || []).join(", ")} | ${p.tipo === "guardiao" ? "Guardião" : "Multiplicador"} | Índice: ${formatPdfPercent(p.indiceContribuicao)} | Peso: ${formatPdfPercent(p.pesoCapital)} | ${p.tipoCppContribuicao?.nome || "CPP Origem"}: ${formatPdfMoney(p.cppOrigem, initialSnapshot.moeda)} | ${p.tipoCppCapital?.nome || "CPP Capital"}: ${formatPdfMoney(p.cppCapital, initialSnapshot.moeda)} | CPP Total: ${formatPdfMoney(p.cppTotal, initialSnapshot.moeda)} | MAP: ${formatPdfPercent(p.mapPercentual)}`),
       ...(initialSnapshot.participantes || []).flatMap((p:any)=>p.modeloCalculo === 4 ? (p.contribuicoes || []).map((c:any)=>`${p.nome} | ${c.cargo} | DM ${formatBiaPercent(c.indice)} | ${c.tipoCpp?.nome || "Sem contribuição"} | ${formatPdfMoney(c.valor,initialSnapshot.moeda)}`) : []),
     ].join("\n");
     const moeda = bia.moeda || "BRL";
@@ -10295,7 +10308,7 @@ export async function registerRoutes(
           },
         ];
         if (captured?.documento_texto) sections.push({ title: "Documento apresentado para aceite", body: captured.documento_texto });
-        if (captured?.map_inicial) sections.push({ title: "Evidência do MAP Zero", body: `Revisão: ${captured.map_inicial.versao}\nHash: ${captured.map_inicial.hash}` });
+        if (captured?.map_inicial) sections.push({ title: "Evidência do MAP Inicial", body: `Revisão: ${captured.map_inicial.versao}\nHash: ${captured.map_inicial.hash}` });
       } else {
         const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
         const body = (documento.chave === "codigo_etica" ? codigoEticaPorVersao(documento.versao) : term?.body) || [
@@ -10730,7 +10743,7 @@ export async function registerRoutes(
       const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
       if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
-      if (await loadInitialMapSnapshot(String(bia.id))) return res.status(409).json({ error: "Esta BIA já usa o MAP Zero atual." });
+      if (await loadInitialMapSnapshot(String(bia.id))) return res.status(409).json({ error: "Esta BIA já usa o MAP Inicial atual." });
       const access = await resolveBiaAccessForRequest(bia, req);
       const canEdit = mapIsActive(bia, null) ? canReviewLegacyMapBase(bia, (req.session as any).membroId, (req.session as any).role)
         : hasBiaAccess(access.permissions, "configuracao_bia", "edit");
@@ -10763,7 +10776,7 @@ export async function registerRoutes(
         base_economica_inicial: calculation.baseEconomicaInicial, participantes: calculation.participantes };
       const version = await withMapLock(String(bia.id), async (tx, current) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"legacy-zero:" + bia.id}))`);
-        if (current) throw Object.assign(new Error("Esta BIA já usa o MAP Zero atual."), { statusCode: 409 });
+        if (current) throw Object.assign(new Error("Esta BIA já usa o MAP Inicial atual."), { statusCode: 409 });
         const freshBia = await directusFetchOne("bias_projetos", String(bia.id), "fields=*");
         if(freshBia.situacao === "encerrada")throw Object.assign(new Error("BIA encerrada: composição disponível somente para consulta."),{statusCode:409});
         if (mapIsActive(freshBia, null) && !canReviewLegacyMapBase(freshBia, (req.session as any).membroId, (req.session as any).role))
@@ -10805,7 +10818,7 @@ export async function registerRoutes(
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
       const baseBefore = await loadInitialMapSnapshot(String(bia.id));
       if (mapIsActive(bia, baseBefore)) {
-        if (!canCorrectMapBase(bia, (req.session as any).membroId)) return res.status(403).json({ error: "Somente o Diretor da Aliança ou o Aliado BUILT desta BIA podem corrigir o MAP Zero." });
+        if (!canCorrectMapBase(bia, (req.session as any).membroId)) return res.status(403).json({ error: "Somente o Diretor da Aliança ou o Aliado BUILT desta BIA podem corrigir o MAP Inicial." });
       } else if (!await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
       const calculation = await calculateSubmittedInitialMap(req.body, Number(baseBefore?.modelo_calculo));
       const moeda = String(req.body?.moeda || bia.moeda || "BRL").trim().toUpperCase() || "BRL";
@@ -10831,7 +10844,7 @@ export async function registerRoutes(
           await assertInitialCommitmentsCompatible(tx,String(bia.id),nextBase,await directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=*`));
         }
         if (current.revisao && mapContentHash(mapBaseContent(current)) === mapContentHash(mapBaseContent(nextBase))) return current;
-        if (current.snapshot_hash && !current.revisao) await archiveMapBase(tx, freshBia, current, `preservado:${current.id}`, "MAP Zero assinado preservado");
+        if (current.snapshot_hash && !current.revisao) await archiveMapBase(tx, freshBia, current, `preservado:${current.id}`, "MAP Inicial assinado preservado");
         await getBiaAllocationMap(freshBia, String(bia.id), { base: nextBase, strict: true, executor: tx });
         const result = await tx.execute(sql`
           UPDATE bia_map_inicial_snapshots
@@ -10855,7 +10868,7 @@ export async function registerRoutes(
         await notifyMapRevision(tx, freshBia, updated, active);
         return updated;
       });
-      if (!saved) return res.status(409).json({ error: "O MAP Zero foi alterado por outra operação. Recarregue a página." });
+      if (!saved) return res.status(409).json({ error: "O MAP Inicial foi alterado por outra operação. Recarregue a página." });
       let directusSync: "ok" | "pending" = "ok";
       await withMapLock(String(bia.id), async (_tx, latest) => directusUpdate("bias_projetos", String(bia.id), {
         valor_origem: Number(latest.valor_origem),
@@ -10864,7 +10877,7 @@ export async function registerRoutes(
         custo_final_previsto: Number((Number(latest.base_economica_inicial) - Number(latest.valor_origem)).toFixed(5)),
       })).catch(() => {
         directusSync = "pending";
-        console.warn("[bia-map-inicial] MAP Zero salvo; espelho Directus pendente.");
+        console.warn("[bia-map-inicial] MAP Inicial salvo; espelho Directus pendente.");
       });
       return res.json({ ...initialMapSnapshotView(saved), directusSync, canEdit: true, ativa: mapIsActive(bia, saved) });
     } catch (error: any) {
@@ -10908,7 +10921,7 @@ export async function registerRoutes(
       const snapshot = version.snapshot;
       const roleModel=snapshot.base.participantes?.some((p:any)=>Number(p.modeloCalculo)>=4);
       const percent=roleModel?formatBiaPercent:formatPdfPercent;
-      const title = version.tipo === "zero" ? `MAP Zero — revisão ${version.numero}` : `MAP ${version.numero}`;
+      const title = version.tipo === "zero" ? `MAP Inicial — revisão ${version.numero}` : `MAP ${version.numero}`;
       const body = [snapshot.biaName, `Data: ${new Date(version.criado_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
         `Responsável: ${version.autor.name || "Sistema"}`, `Motivo: ${version.motivo}`, `Revisão da base: ${version.revisao_base}`,
         `Hash: ${version.hash}`, `Valor de Origem: ${formatPdfMoney(Number(snapshot.base.valor_origem), snapshot.base.moeda)}`,
@@ -11167,6 +11180,7 @@ export async function registerRoutes(
         await withMapLock(id,async(tx)=>{
           const prior=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${id}`)).rows[0];
           if(prior) { if(prior.autor_id !== req.session.directusUserId) throw Object.assign(new Error("Sem acesso ao rascunho."),{statusCode:403}); return prior; }
+          await validateBiaAssetLinks(req,data.estrutura_bia);
           if(await directusFetchOne("bias_projetos",id,"fields=id"))throw Object.assign(new Error("Chave já utilizada por uma BIA existente."),{statusCode:409});
           return (await tx.execute(sql`INSERT INTO bia_estruturacao_rascunhos (bia_id,autor_id,dados) VALUES (${id},${req.session.directusUserId},${JSON.stringify(data)}::jsonb) RETURNING *`)).rows[0];
         });
@@ -11210,7 +11224,7 @@ export async function registerRoutes(
             const team = biaTeamFromMapParticipants(initialMap.participantes);
             for (const field of Object.values(BIA_PARTICIPANT_ROLE_FIELDS)) {
               if (team[field] !== (directusRelationId(createBody[field]) || null))
-                throw new Error("Os cargos da Equipe devem corresponder aos participantes do MAP Zero.");
+                throw new Error("Os cargos da Equipe devem corresponder aos participantes do MAP Inicial.");
             }
             if (!hasRequiredBiaTeam(team))
               throw new Error("Defina o Aliado BUILT e o Diretor de Aliança na Equipe.");
@@ -11218,7 +11232,7 @@ export async function registerRoutes(
           const roles = collectBiaParticipantRoles(createBody);
           for (const [id, memberRoles] of Array.from(roles)) {
             if (memberRoles.some(role => role !== "terceiro") && !initialMap.participantes.some(p => p.memberId === id))
-              throw new Error("Inclua no MAP Zero todas as pessoas da Equipe.");
+              throw new Error("Inclua no MAP Inicial todas as pessoas da Equipe.");
           }
           createBody.socios_guardioes = initialMap.participantes.filter(p => p.memberId && p.tipo === "guardiao").map(p => p.memberId);
           createBody.socios_multiplicadores = initialMap.participantes.filter(p => p.memberId && p.tipo === "multiplicador").map(p => p.memberId);
@@ -11358,6 +11372,14 @@ export async function registerRoutes(
       res.status(error.statusCode || 500).json({ error: error.message });
     }
   }
+  async function validateBiaAssetLinks(req:any,data:BiaSetup|undefined,prior?:BiaSetup) {
+    await validateBiaPortfolioLinks(data,prior,id=>resolveCarteiraAccess(id,{...requireCarteiraActor(req),isPlatformAdmin:false}));
+  }
+  registerBiaSetupRoutes(app,{db,ensure:ensureBiaMapInicialSnapshotsTable,access:requireBiaModuleAccess,lock:withMapLock,validateAssets:validateBiaAssetLinks,legacy:async(id,bia)=>{
+    const local=await storage.getBiaInfoComercial(id);
+    return {...bia,info_comercial:{...(local || {}),...pickFilledBiaInfoComercialFields(bia)}};
+  }});
+
   app.post("/api/bias", createBiaHandler);
 
   async function requireBiaDraftAccess(req:any,res:any) {
@@ -11407,10 +11429,12 @@ export async function registerRoutes(
       await withMapLock(String(req.params.id),async(tx)=>{
         const current=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${String(req.params.id)} FOR UPDATE`)).rows[0];
         if(!current || current.concluido)throw Object.assign(new Error("Estruturação já concluída ou indisponível."),{statusCode:409});
+        if(data.estrutura_bia===undefined && current.dados.estrutura_bia!==undefined)data.estrutura_bia=current.dados.estrutura_bia;
         assertMapRevision(Number(current.revisao),req.body.revisaoEsperada);
         if ((current.dados.map_inicial?.modeloCalculo || 4) !== (data.map_inicial?.modeloCalculo || 4)) throw Object.assign(new Error("O rascunho deve preservar sua versão econômica original."),{statusCode:409});
         if(mapContentHash(current.dados)===mapContentHash(data))return current;
         if(current.conclusao_iniciada)throw Object.assign(new Error("Conclusão iniciada. Recupere a operação antes de editar."),{statusCode:409});
+        await validateBiaAssetLinks(req,data.estrutura_bia,current.dados.estrutura_bia);
         const bia=await directusFetchOne("bias_projetos",String(req.params.id),"fields=id,situacao");
         if(bia?.situacao!=="em_estruturacao")throw Object.assign(new Error("Conclusão pendente de recuperação. Repita Concluir estruturação sem alterar os dados."),{statusCode:409});
         return (await tx.execute(sql`UPDATE bia_estruturacao_rascunhos SET dados=${JSON.stringify(data)}::jsonb,revisao=revisao+1,atualizado_em=now() WHERE bia_id=${String(req.params.id)} RETURNING *`)).rows[0];
@@ -11426,8 +11450,10 @@ export async function registerRoutes(
         const draft=(await tx.execute(sql`SELECT * FROM bia_estruturacao_rascunhos WHERE bia_id=${String(req.params.id)} FOR UPDATE`)).rows[0];
         if(!draft)throw Object.assign(new Error("Rascunho indisponível."),{statusCode:404});
         if(draft.concluido)return;
+        await assertBiaSetupStorage(tx);
         assertMapRevision(Number(draft.revisao),req.body.revisaoEsperada);
         const data=validateBiaDraft(draft.dados);
+        if(!draft.conclusao_iniciada && legalBlockers(legacyBiaSetup(data)).length)throw Object.assign(new Error(legalBlockers(legacyBiaSetup(data)).join(" ")),{statusCode:400});
         if(!data.destinacao || !data.objetivo_alianca || !String(data.localizacao || "").trim() || !String(data.observacoes || "").trim())throw Object.assign(new Error("Preencha Destinação, Objetivo, Localização e Descrição."),{statusCode:400});
         const calculation=await calculateSubmittedInitialMap(data.map_inicial,data.map_inicial?.modeloCalculo === 5 ? 5 : 4);
         const team=biaTeamFromMapParticipants(calculation.participantes);
@@ -11452,6 +11478,7 @@ export async function registerRoutes(
         const capture:any={status:(s:number)=>{status=s;return capture;},json:(data:any)=>{response=data;return capture;}};
         await createBiaHandler({...req,session:req.session,biaDraftId:draft.bia_id,body:{...draft.dados,...team}},capture);
         if(status>=400)throw Object.assign(new Error(response?.error || "Conclusão pendente. Repita a operação."),{statusCode:status});
+        await appendBiaSetup(tx,{biaId:String(draft.bia_id),event:`submissao:${draft.revisao}`,data:legacyBiaSetup(draft.dados),context:{revisaoRascunho:draft.revisao,bei:calculation.estrutura || null,map:calculation,participantes:calculation.participantes,documentos:draft.dados.anexos || []},reason:"Estruturação concluída",actor:mapActor()});
         await tx.execute(sql`UPDATE bia_estruturacao_rascunhos SET concluido=true WHERE bia_id=${draft.bia_id}`);
         await tx.execute(sql`INSERT INTO bia_fase_eventos (bia_id,evento_id,fase_anterior,fase,motivo,autor,aplicado) VALUES (${draft.bia_id},'estrutura_concluida','em_estruturacao','em_captacao','Estruturação concluída',${JSON.stringify(mapActor())}::jsonb,true) ON CONFLICT DO NOTHING`);
         return response;
@@ -11509,7 +11536,7 @@ export async function registerRoutes(
       const initialMapSnapshot = await loadInitialMapSnapshot(biaUpdateId);
       if (initialMapSnapshot && requestedFields.some((field) => calculatorFields.has(field))) {
         return res.status(409).json({
-          error: "Esta BIA usa o novo MAP Zero. Atualize os valores pela Calculadora do MAP Zero.",
+          error: "Esta BIA usa o novo MAP Inicial. Atualize os valores pela Calculadora do MAP Inicial.",
           code: "INITIAL_MAP_ENDPOINT_REQUIRED",
         });
       }
@@ -13132,7 +13159,15 @@ export async function registerRoutes(
   app.get("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      if (!await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "view")) return;
+      const auth=await requireBiaModuleAccess(req,res,req.params.id,"configuracao_bia","view");if(!auth)return;
+      await ensureBiaMapInicialSnapshotsTable();
+      const structured=await readBiaSetup(db,String(auth.bia.id));
+      if(structured){
+        const info={...structured.dados.juridico.info};
+        if(structured.dados.ativos.length===1)for(const [key,value] of Object.entries(structured.dados.ativos[0].info))if(key.startsWith("ativo_"))info[key]=value;
+        if(!canAccessSetupBank(req.session,auth.access.permissions,"view"))for(const key of ["banco","agencia","conta","tipo_conta","titular_conta","chave_pix"])info[key]="";
+        return res.json({...info,estrutura_versionada:true});
+      }
       const localInfo = await storage.getBiaInfoComercial(req.params.id).catch((error: any) => {
         console.warn(`[bia-info] leitura local indisponivel: ${error?.message || error}`);
         return null;
@@ -13154,7 +13189,9 @@ export async function registerRoutes(
   app.put("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      if (!await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "edit")) return;
+      const auth=await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "edit");if(!auth)return;
+      await ensureBiaMapInicialSnapshotsTable();
+      if(await readBiaSetup(db,String(auth.bia.id)))return res.status(409).json({error:"Use Estrutura jurídica e ativos para editar os dados versionados desta BIA."});
       const infoPayload = pickBiaInfoComercialFields(req.body);
       let directusInfo = infoPayload;
       try {
@@ -17535,6 +17572,12 @@ ${inputText.slice(0, 18000)}`,
         WHERE ${carteiraAccessibleWhere(actor)}
         ORDER BY i.updated_at DESC
       `);
+      if(req.query.para_bia==='1') {
+        // Sharing a descriptive snapshot requires ownership or explicit administration,
+        // not global platform-admin privileges or read-only portfolio access.
+        const allowed=await Promise.all((result.rows || []).map(row=>resolveCarteiraAccess(String(row.id),{...actor,isPlatformAdmin:false})));
+        return res.json(allowed.filter(access=>access && ['proprietario','administracao'].includes(access.nivel) && (!access.imovel.status || access.imovel.status==='ativo')).map(access=>biaAssetFromPortfolio(access!.imovel)));
+      }
       res.json(await Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor))));
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -17863,7 +17906,7 @@ ${inputText.slice(0, 18000)}`,
               )
             `);
             const base = await loadInitialMapSnapshot(String(bia.id), tx);
-            await archiveMapBase(tx, bia, base, `criacao:${base.id}`, "MAP Zero criado pela copropriedade aceita");
+            await archiveMapBase(tx, bia, base, `criacao:${base.id}`, "MAP Inicial criado pela copropriedade aceita");
           });
       } catch (error) {
         await directusDelete("bias_projetos", String(bia.id)).catch(() => {});

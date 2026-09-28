@@ -1,5 +1,6 @@
 import { BIA_SETUP_SQL, appendBiaSetup, assertBiaSetupStorage } from "./bia-setup";
-import { emptyBiaSetup, legalBlockers, legacyBiaSetup, parseBiaSetup } from "../shared/bia-setup";
+import { emptyBiaSetup, legalBlockers, legacyBiaSetup, parseBiaSetup, biaConsortiumSchema } from "../shared/bia-setup";
+import { emptyBiaBudget } from "../shared/bia-budget";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -32,6 +33,8 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
  const root=`http://127.0.0.1:${(server.address() as any).port}/api/bias`,id="12345678-1234-4234-8234-123456789abc";
  const call=(method:string,path:string,body?:any,user="autor")=>fetch(root+path,{method,headers:{"content-type":"application/json","x-user":user},body:body?JSON.stringify(body):undefined});
  const legal=emptyBiaSetup();legal.juridico.oabResponsavel='SP 123456';
+ legal.orcamento={...emptyBiaBudget('BRL'),inicio:'2026-10'};
+ legal.ativosIndefinidos=false;legal.ativos=[{...legacyBiaSetup({info_comercial:{ativo_endereco:'Base'}}).ativos[0],id:'consortium',tipo:'consorcio',info:{},consorcio:biaConsortiumSchema.parse({cota:'2352',valorCarta:1000000,prazoMeses:220,parcelaAteContemplacao:2795,diaVencimento:10})}];
  const data={nome_bia:"BIA com capa",moeda:"BRL",imagem_directus_id:"capa-1",map_inicial:{modeloCalculo:5,participantes:[]},estrutura_bia:legal};
  try {
   const created=await call("POST","",{...data,_rascunho:true,chaveCriacao:id});assert.equal(created.status,200);
@@ -53,12 +56,15 @@ test("capa e nome do rascunho sincronizam na criação, edição e repetição a
   const pending=await (await call("PUT",`/${id}/rascunho`,edited)).json();
   assert.equal(pending.apresentacao_pendente,true);assert.equal(pending.revisao,2);assert.equal(pending.dados.imagem_directus_id,"capa-2");
   const stored=await (await call("GET",`/${id}/rascunho`)).json();assert.equal(stored.dados.imagem_directus_id,"capa-2");
+  assert.equal(stored.dados.estrutura_bia.orcamento.inicio,'2026-10');
+  assert.deepEqual(stored.dados.estrutura_bia.ativos[0].consorcio,legal.ativos[0].consorcio);
   fail=false;
   const retried=await (await call("PUT",`/${id}/rascunho`,{...edited,revisaoEsperada:2})).json();
   assert.equal(retried.apresentacao_pendente,undefined);assert.equal(retried.revisao,2);
   assert.deepEqual(writes.at(-1),{nome_bia:"BIA V2",imagem_directus_id:"capa-2"});
   assert.equal((await call("PUT",`/${id}/rascunho`,{...edited,imagem_directus_id:"",revisaoEsperada:2})).status,200);assert.equal(official.imagem_directus_id,null);
   const oldClient=JSON.parse(JSON.stringify({...edited,imagem_directus_id:'',revisaoEsperada:3}));delete oldClient.estrutura_bia.juridico.oabResponsavel;
+  delete oldClient.estrutura_bia.ativos[0].tipo;delete oldClient.estrutura_bia.ativos[0].consorcio;
   const preserved=await (await call('PUT',`/${id}/rascunho`,oldClient)).json();assert.equal(preserved.dados.estrutura_bia.juridico.oabResponsavel,'SP 123456');assert.equal(preserved.revisao,3);
   const count=writes.length;await pg.exec(`UPDATE bia_estruturacao_rascunhos SET conclusao_iniciada=true WHERE bia_id='${id}'`);
   assert.equal((await call("PUT",`/${id}/rascunho`,{...edited,imagem_directus_id:"",revisaoEsperada:3})).status,200);assert.equal(writes.length,count);

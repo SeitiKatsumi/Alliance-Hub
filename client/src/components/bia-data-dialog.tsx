@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { BiaMapHistory } from "./bia-map-history";
 import { BiaReviewSummary } from "./bia-review-summary";
+import { BiaBudgetSummary } from "./bia-budget-fields";
 import { biaBrandDataUrl, buildBiaBrandSvg, buildBiaHeaderSvg, downloadBiaBrandPng, loadBiaBrandArtwork } from "../lib/bia-brand";
 import { printBiaSummary } from "../lib/print-bia-summary";
 
@@ -31,6 +32,7 @@ export function BiaDataDialog({ bia }: { bia: BiaData }) {
 
 function BiaDataContent({ bia }: { bia: BiaData }) {
   const queries = useQueryClient();
+  const setup=useQuery<any>({queryKey:[`/api/bias/${bia.id}/estrutura`]});
   const summaryRef = useRef<HTMLDivElement>(null), brandsRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(""), [downloading, setDownloading] = useState(false);
   // Identity comes from the authorized BIA detail, never its internal ID or draft defaults.
@@ -46,7 +48,7 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
   function pdf(element: HTMLDivElement | null) {
     setError("");
     if (!element || !canExport) return;
-    if (!printBiaSummary(element,bia.nome_bia,["dados","condicoes"],bia.selo_certified_alliance===true,vertical,code,"data")) setError("Permita pop-ups neste site para abrir o PDF e tente novamente.");
+    if (!printBiaSummary(element,bia.nome_bia,["dados","condicoes","orcamento"],bia.selo_certified_alliance===true,vertical,code,"data")) setError("Permita pop-ups neste site para abrir o PDF e tente novamente.");
   }
   async function png(url: string, landscape: boolean) {
     setDownloading(true); setError("");
@@ -64,8 +66,9 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
         <div ref={summaryRef} className="space-y-4">
           <section data-pdf-section="dados" className="rounded-lg border p-5"><h2 className="mb-3 text-lg font-semibold">Identificação da BIA</h2><dl className="grid gap-2 text-sm sm:grid-cols-[180px_1fr]">{rows.map(([label,value])=><Fragment key={label}><dt className="font-medium">{label}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{value || "Não informado"}</dd></Fragment>)}</dl></section>
           {bia.map_inicial && <BiaReviewSummary form={form} map={bia.map_inicial} consultation/>}
+          {setup.isPending?<p data-print-hide>Carregando orçamento…</p>:setup.isError?<p data-print-hide role="alert">Não foi possível consultar o orçamento. <Button type="button" variant="outline" onClick={()=>setup.refetch()}>Tentar novamente</Button></p>:<BiaBudgetSummary value={setup.data.dados} moeda={form.moeda} valorOrigem={bia.map_inicial?.valorOrigem}/>}
         </div>
-        <Button variant="outline" disabled={!canExport} onClick={()=>pdf(summaryRef.current)}><FileDown className="mr-2 h-4 w-4"/>Salvar resumo em PDF</Button>
+        <Button variant="outline" disabled={!canExport || setup.isPending || setup.isError} onClick={()=>pdf(summaryRef.current)}><FileDown className="mr-2 h-4 w-4"/>Salvar resumo em PDF</Button>
         <p className="text-xs text-muted-foreground">Somente consulta. Para alterar dados, estrutura jurídica ou ativos, use Editar.</p>
       </TabsContent>
       <TabsContent value="marcas" className="space-y-4">

@@ -103,7 +103,7 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     assert.match(biaSummaryPrintCss,/table-layout: fixed/);
     assert.ok(readFileSync(new URL("../../public/branding/bia-header-artwork.png",import.meta.url)).length>0);
     const page=readFileSync(new URL("../pages/bia-nova.tsx",import.meta.url),"utf8");
-    assert.match(page,/step===5 && <BiaPdfDialog[^>]+disabled=\{busy \|\| !preview.map\}/);
+    assert.match(page,/step===6 && <BiaPdfDialog[^>]+disabled=\{busy \|\| !preview.map\}/);
     assert.match(page,/certified=\{form.selo_certified_alliance===true\}/);
     assert.match(page,/brandCode=\{brand.code\}/);
     const dialog=readFileSync(new URL("./bia-pdf-dialog.tsx",import.meta.url),"utf8");

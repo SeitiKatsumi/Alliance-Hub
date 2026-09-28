@@ -6,7 +6,8 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { sql } from 'drizzle-orm';
 import { BIA_SETUP_SQL, registerBiaSetupRoutes, appendBiaSetup, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from './bia-setup';
 import { BIA_WORKFLOW_SQL } from './bia-workflow';
-import { emptyBiaSetup, biaAssetFromPortfolio } from '../shared/bia-setup';
+import { emptyBiaSetup, biaAssetFromPortfolio, biaConsortiumSchema } from '../shared/bia-setup';
+import { emptyBiaBudget } from '../shared/bia-budget';
 import { FULL_BIA_ACCESS, EMPTY_BIA_ACCESS } from '../shared/bia-access';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
@@ -38,9 +39,11 @@ test('setup API: authorization, revision, bank redaction, immutability, governan
     const invalidResponse=await call('/estrutura','PUT',{dados:invalid,revisaoEsperada:0,motivo:'Validação'});assert.equal(invalidResponse.status,400);
     assert.equal((await invalidResponse.json()).error,'Corrija CPF/CNPJ legado do responsável jurídico: Informe CPF com 11 dígitos ou CNPJ com 14 dígitos.');
     const value=initial.dados;value.juridico.responsavel='Nome';value.juridico.oabResponsavel='SP 123456';value.juridico.documentoResponsavel='12345678901';
+    value.orcamento={...emptyBiaBudget('BRL'),inicio:'2026-10'};
     value.ativosIndefinidos=false;value.ativos=[biaAssetFromPortfolio({id:'forbidden',nome:'Privado'})];
     assert.equal((await call('/estrutura','PUT',{dados:value,revisaoEsperada:0,motivo:'Ativo de terceiro'})).status,403);
     value.ativos=[biaAssetFromPortfolio({id:'allowed',nome:'Meu imóvel'})];
+    value.ativos.push({...value.ativos[0],id:'consortium',carteiraImovelId:undefined,tipo:'consorcio',consorcio:biaConsortiumSchema.parse({cota:'2352',administradora:'HS Consórcios',valorCarta:1000000,prazoMeses:220,parcelaAteContemplacao:2795,diaVencimento:10})});
     assert.equal((await call('/estrutura','PUT',{dados:value,revisaoEsperada:0,motivo:'Cadastro'})).status,200);
     assert.equal((await (await call('/estrutura')).json()).dados.ativos[0].carteiraImovelId,'allowed');
     assert.equal((await call('/estrutura','PUT',{dados:value,revisaoEsperada:0,motivo:'Concorrente'})).status,409);
@@ -49,9 +52,16 @@ test('setup API: authorization, revision, bank redaction, immutability, governan
     assert.equal((await call('/estrutura','PUT',{dados:config.dados,revisaoEsperada:1,motivo:'Banco'},'config')).status,403);
     config.dados.juridico.info.conta='';
     delete config.dados.juridico.oabResponsavel;
+    delete config.dados.orcamento;
+    delete config.dados.ativos[1].tipo;delete config.dados.ativos[1].consorcio;
     assert.equal((await call('/estrutura','PUT',{dados:config.dados,revisaoEsperada:1,motivo:'Jurídico'},'config')).status,200);
     assert.equal((await (await call('/estrutura')).json()).dados.juridico.info.conta,'SECRET');
     const legal=(await (await call('/estrutura')).json());
+    assert.deepEqual(legal.dados.ativos[1].consorcio,value.ativos[1].consorcio);
+    assert.equal(legal.dados.ativos[1].tipo,'consorcio');
+    assert.deepEqual(legal.historico[0].anterior.ativos[1].consorcio,value.ativos[1].consorcio);
+    assert.equal(legal.dados.orcamento.inicio,'2026-10');
+    assert.equal(legal.historico[0].anterior.orcamento.inicio,'2026-10');
     assert.equal(legal.dados.juridico.oabResponsavel,'SP 123456');assert.equal(legal.dados.juridico.documentoResponsavel,'12345678901');
     assert.equal(legal.historico[0].anterior.juridico.oabResponsavel,'SP 123456');
     const gov=await (await call('/governanca','GET',undefined,'governance')).json();assert.equal(JSON.stringify(gov).includes('SECRET'),false);assert.equal(gov.participantes[0].cargos.length,2);
@@ -70,9 +80,10 @@ test('setup API: authorization, revision, bank redaction, immutability, governan
 test('activation snapshot recovers after remote phase change and deduplicates the original structure revision',async()=>{
   const pg=new PGlite();await pg.exec(BIA_SETUP_SQL+BIA_WORKFLOW_SQL+`CREATE TABLE bia_map_inicial_snapshots (bia_id text,ativado_em timestamp);CREATE TABLE bia_imovel_origens (id text,bia_id text,status text);INSERT INTO bia_map_inicial_snapshots VALUES ('recover',null)`);
   const db=drizzle(pg),setup=emptyBiaSetup();setup.juridico.responsavel='Original';
+  setup.orcamento={...emptyBiaBudget('BRL'),inicio:'2026-10',meses:6};
   await appendBiaSetup(db,{biaId:'recover',event:'submissao:1',data:setup,context:{documentos:['doc-v1']},reason:'Submissão',actor:{}});
   await pg.exec(`INSERT INTO bia_fase_eventos(bia_id,evento_id,fase_anterior,fase,motivo,autor,aplicado,criado_em) VALUES ('recover','aceites:1','em_captacao','em_execucao','Aceites','{"estruturaRevisao":1}',true,'2026-09-25T00:00:00')`);
-  setup.juridico.responsavel='Alteração posterior';await appendBiaSetup(db,{biaId:'recover',event:'edit',data:setup,context:{},reason:'Alteração',actor:{}});
+  setup.juridico.responsavel='Alteração posterior';setup.orcamento.meses=12;await appendBiaSetup(db,{biaId:'recover',event:'edit',data:setup,context:{},reason:'Alteração',actor:{}});
   const source=readFileSync(new URL('./routes.ts',import.meta.url),'utf8'),ast=ts.createSourceFile('routes.ts',source,ts.ScriptTarget.Latest,true);
   let fn='';function visit(n:ts.Node){if(ts.isFunctionDeclaration(n)&&n.name?.text==='reconcileBiaPhases')fn=n.getText(ast);ts.forEachChild(n,visit);}visit(ast);
   const base={revisao:1,participantes:[]},bia={id:'recover',situacao:'em_execucao'};
@@ -82,8 +93,10 @@ test('activation snapshot recovers after remote phase change and deduplicates th
     await reconcile('recover');await reconcile('recover');
     const result=(await pg.query<any>("SELECT * FROM bia_estrutura_versoes WHERE evento='ativacao:1'")).rows;
     assert.equal(result.length,1);assert.equal(result[0].dados.juridico.responsavel,'Original');assert.deepEqual(result[0].contexto.documentos,['doc-v1']);
+    assert.equal(result[0].dados.orcamento.meses,6);
     assert.equal(result[0].contexto.estruturaRevisao,1);
     const current=await readBiaSetup(db,'recover');assert.equal(current.dados.juridico.responsavel,'Alteração posterior');assert.equal(current.revisao,3);
+    assert.equal(current.dados.orcamento.meses,12);
     const updated=await appendBiaSetup(db,{biaId:'recover',expectedRevision:3,event:'next-edit',data:current.dados,context:{},reason:'Nova alteração',actor:{}});assert.equal(updated.revisao,4);
     assert.equal((await pg.query<any>("SELECT ativado_em=(SELECT criado_em FROM bia_fase_eventos WHERE evento_id='aceites:1') AS preserved FROM bia_map_inicial_snapshots")).rows[0].preserved,true);
   }finally{await pg.close();}

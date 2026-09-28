@@ -30,7 +30,7 @@ test('legal name search keeps editable names, alphabetical suggestions and expli
   assert.doesNotMatch(source,/useEffect|\/api\/bias\/.*(?:convite|participante)/);
 });
 test('legal summary and PDF distinguish OAB from legacy CPF and escape names',()=>{
-  const Summary=component('./bia-setup-fields.tsx','BiaSetupSummary',{React,Fragment:React.Fragment,ASSET_METRICS:[],AssetTotals:()=>null});
+  const Summary=component('./bia-setup-fields.tsx','BiaSetupSummary',{React,Fragment:React.Fragment,ASSET_METRICS:[],AssetTotals:()=>null,BiaBudgetSummary:()=>null});
   const value=emptyBiaSetup();Object.assign(value.juridico,{oabResponsavel:'SP 123456',documentoResponsavel:'12345678901',responsavel:'João <script>'});
   const html=renderToStaticMarkup(React.createElement(Summary,{value,moeda:'BRL'}));
   assert.match(html,/OAB do responsável jurídico<\/dt><dd[^>]*>SP 123456/);

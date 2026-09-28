@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { BIA_INFO_COMERCIAL_FIELDS } from "./bia-form-options";
 import { BIA_PARTICIPANT_ROLE_LABELS } from "./bia-access";
+import { biaBudgetSchema } from "./bia-budget";
 
-export const BIA_CREATION_STEPS = ["Dados da BIA", "Base econômica inicial", "MAP Inicial", "Estrutura Jurídica", "Ativos Vinculados", "Revisão", "Ativação"];
+export const BIA_CREATION_STEPS = ["Dados da BIA", "Capitalização e direitos econômicos", "MAP Inicial", "Estrutura Jurídica", "Ativos Vinculados", "CAPEX e OPEX", "Revisão", "Ativação"];
 export const LEGAL_TYPES = ["SPE Ltda", "SPE S.A.", "Sociedade Limitada Patrimonial", "Holding Patrimonial", "Outra"] as const;
 export const LEGAL_STATES = ["A constituir", "Em constituição", "Constituída"] as const;
 export const ASSET_STATES = ["A definir", "Em análise", "Em negociação", "Em aquisição", "Adquirido", "Em operação", "Alienado"] as const;
@@ -18,11 +19,18 @@ const legalInfoSchema=infoSchema.transform(info=>Object.fromEntries(Object.entri
 const assetInfoSchema=infoSchema.transform(info=>Object.fromEntries(Object.entries(info).map(([k,v])=>[k,k.startsWith("ativo_")?v:""])));
 const metricsSchema = z.object(Object.fromEntries(ASSET_METRICS.map(([k])=>[k,money]))).strip();
 const party = z.object({id:z.string().min(1).max(100),memberId:text,nome:text,documento:document,cotas:money});
+export const biaConsortiumSchema=z.object({
+  cota:z.string().max(100).default(""),administradora:text,valorCarta:money,
+  prazoMeses:z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable().default(null),
+  parcelaAteContemplacao:money,
+  diaVencimento:z.number().int().min(1).max(31).nullable().default(null),
+});
 export const biaSetupSchema = z.object({
   versao:z.literal(1),
+  orcamento:biaBudgetSchema.optional(),
   juridico:z.object({modalidade:z.enum(["","societaria","contratual"]),tipo:z.enum(["",...LEGAL_TYPES]),situacao:z.enum(["",...LEGAL_STATES]),instrumento:text,situacaoInstrumento:text,responsavel:text,oabResponsavel:z.string().trim().max(100).default(""),documentoResponsavel:document,objeto:text,capitalSocial:money,administrador:text,info:legalInfoSchema,socios:z.array(party).max(200)}),
   ativosIndefinidos:z.boolean(),
-  ativos:z.array(z.object({id:z.string().min(1).max(100),carteiraImovelId:z.string().min(1).max(100).optional(),nome:text,situacao:z.enum(["",...ASSET_STATES]),titular:text,dataVinculo:date,valorReferencia:money,info:assetInfoSchema,indicadores:metricsSchema})).max(100),
+  ativos:z.array(z.object({id:z.string().min(1).max(100),tipo:z.enum(['imovel','consorcio']).optional(),consorcio:biaConsortiumSchema.optional(),carteiraImovelId:z.string().min(1).max(100).optional(),nome:text,situacao:z.enum(["",...ASSET_STATES]),titular:text,dataVinculo:date,valorReferencia:money,info:assetInfoSchema,indicadores:metricsSchema})).max(100),
   indicadoresLegados:metricsSchema,
   governanca:z.array(z.object({cargo:z.string().max(200),memberId:z.string().min(1).max(100),inicio:date,responsabilidades:text})).max(200),
 }).superRefine((v,ctx)=>{
@@ -31,6 +39,10 @@ export const biaSetupSchema = z.object({
   const portfolioIds=v.ativos.map(a=>a.carteiraImovelId).filter(Boolean);
   if(new Set(portfolioIds).size!==portfolioIds.length)ctx.addIssue({code:"custom",message:"Este ativo da Carteira já foi adicionado à BIA"});
   if(v.ativosIndefinidos && v.ativos.length)ctx.addIssue({code:"custom",message:"Remova os ativos cadastrados antes de marcar ativo indefinido"});
+  v.ativos.forEach((a,i)=>{
+    if((a.tipo==='consorcio')!==!!a.consorcio)ctx.addIssue({code:'custom',path:['ativos',i,'consorcio'],message:'Dados do consórcio incompatíveis com o tipo do ativo'});
+    if(a.tipo==='consorcio' && a.carteiraImovelId)ctx.addIssue({code:'custom',path:['ativos',i,'tipo'],message:'Um imóvel da Carteira não pode ser convertido em consórcio'});
+  });
   const roles=Object.values(BIA_PARTICIPANT_ROLE_LABELS);
   if(v.governanca.some(g=>!roles.includes(g.cargo as any)) || new Set(v.governanca.map(g=>g.cargo)).size!==v.governanca.length)ctx.addIssue({code:"custom",message:"Funções inválidas ou repetidas"});
 });
@@ -64,7 +76,12 @@ export function legalBlockers(setup:BiaSetup):string[] {
 
 // Old clients may omit new identifiers; omission must not erase a stored value.
 export function parseBiaSetup(value:any,previous?:BiaSetup):BiaSetup {
+  if(previous && Array.isArray(value?.ativos))value={...value,ativos:value.ativos.map((a:any)=>{
+    const prior=previous.ativos.find(p=>p.id===a?.id);
+    return prior?{...a,...(a.tipo===undefined && prior.tipo!==undefined?{tipo:prior.tipo}:{}),...(a.consorcio===undefined && prior.consorcio!==undefined?{consorcio:prior.consorcio}:{})}:a;
+  })};
   const parsed=biaSetupSchema.parse(value);
+  if(value.orcamento===undefined && previous?.orcamento!==undefined)parsed.orcamento=previous.orcamento;
   for(const key of ['oabResponsavel','documentoResponsavel'] as const)if(value.juridico[key]===undefined && previous?.juridico[key]!==undefined)parsed.juridico[key]=previous.juridico[key];
   return parsed;
 }
@@ -80,6 +97,12 @@ export function biaSetupValidationMessage(error:any):string {
     'juridico.socios.[].cotas':'quantidade de quotas societárias',
     'ativos.[].dataVinculo':'data de vínculo do ativo',
     'ativos.[].valorReferencia':'valor de referência do ativo',
+    'ativos.[].consorcio.cota':'cota do consórcio',
+    'ativos.[].consorcio.administradora':'administradora do consórcio',
+    'ativos.[].consorcio.valorCarta':'valor da carta',
+    'ativos.[].consorcio.prazoMeses':'prazo do consórcio em meses',
+    'ativos.[].consorcio.parcelaAteContemplacao':'parcela até a contemplação',
+    'ativos.[].consorcio.diaVencimento':'dia do vencimento mensal',
   };
   const label=labels[path] || (path?`campo ${path}`:'estrutura');
   return `Corrija ${label}: ${String(issue.message || 'valor inválido').replace(/\.$/,'')}.`;

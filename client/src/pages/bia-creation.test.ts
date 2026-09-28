@@ -39,13 +39,15 @@ test("prévia do MAP não exige equipe completa, mas preserva validações econ�
   assert.equal(automaticCapital.map.participantes[0].tipoCppCapital.id,"capital");
   assert.doesNotMatch(missingNature.error,/MAP Zero|antes do aceite|salve/);
   assert.match(run({...input,participantes:[person,person]}).error,/uma ficha/);
-  assert.match(source,/step===5 && preview.map && preview.teamPending/);
+  assert.match(source,/step===6 && preview.map && preview.teamPending/);
   assert.match(source,/disabled=\{busy \|\| legalBlockers\(form.estrutura_bia\).length>0 \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
   assert.match(source,/void members.refetch\(\);void defaults.refetch\(\)/);
 });
 
 test("gerar prévia depende da composição, sem bloquear silenciosamente por nome vazio",()=>{
   const source=readFileSync(new URL("./bia-nova.tsx",import.meta.url),"utf8");
+  assert.ok(source.includes('form.nome_bia || "Nova Base Econômica Inicial"'));
+  assert.ok(source.includes('label:steps[1]'));
   const condition=source.match(/<Button disabled=\{([^}]+)\} onClick=\{\(\)=>setStep\(s=>s\+1\)\}/)?.[1];
   assert.ok(condition);
   const disabled=(step:number,nome_bia:string,map:object|null,busy=false)=>new Function("step","form","preview","busy",`return ${condition}`)(step,{nome_bia},{map},busy);

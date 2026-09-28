@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import type { ReactNode } from "react";
 import { BIA_CREATION_STEPS } from "@shared/bia-setup";
 import { hasBiaAccess, EMPTY_BIA_ACCESS, type BiaAccessMatrix } from "@shared/bia-access";
-import { SetupEditor } from "@/components/bia-setup-panel";
+import { SetupEditor, BiaBudgetReadPanel } from "@/components/bia-setup-panel";
 import { BiaMapHistory } from "@/components/bia-map-history";
 import { useUnsavedChanges, confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
 import { CURRENCIES, BIA_DESTINACOES, BIA_OBJETIVOS } from "@shared/bia-form-options";
@@ -56,7 +56,7 @@ import {
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
   X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard, ImageIcon,
-  Clock, CheckCircle, XCircle, Bell, Ticket, Copy, RefreshCw, Target, ArrowLeft, ArrowRight
+  Clock, CheckCircle, XCircle, Bell, Ticket, Copy, RefreshCw, Target, ArrowLeft
 } from "lucide-react";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
@@ -1720,7 +1720,8 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
 }
 
 // ---- BIA Form Sheet ----
-const EDIT_TABS = ["geral", "equipe", "map", "juridico", "ativos", "revisao", "ativacao"];
+const EDIT_TABS = ["geral", "equipe", "map", "juridico", "ativos", "orcamento", "revisao", "ativacao"];
+const EDIT_LABELS = [...BIA_CREATION_STEPS.slice(0,6), "Resumo", "Situação"];
 const IDENTITY_FIELDS = ["nome_bia", "bia_publica", "destinacao", "selo_certified_alliance", "localizacao", "latitude", "longitude", "objetivo_alianca", "observacoes", "imagem_directus_id", "moeda"] as const;
 function BiaFormSurface({page,open,onClose,children}:{page:boolean;open:boolean;onClose:()=>void;children:ReactNode}) {
   if(page)return <main className="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-[1500px] min-w-0 flex-col overflow-hidden px-4 pt-6 sm:px-8">{children}</main>;
@@ -2634,7 +2635,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const changeSection=(tab:string)=>{
     setActiveTab(tab);
     if(tab==="equipe")setEconomicOpened(true);
-    if(tab==="juridico" || tab==="ativos")setSetupOpened(true);
+    if(tab==="juridico" || tab==="ativos" || tab==="orcamento")setSetupOpened(true);
   };
   const memberNames=Object.fromEntries(membros.map(m=>[m.id,getMembroNome(m)]));
 
@@ -2642,7 +2643,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     <>
       <BiaFormSurface page={page} open={open} onClose={closeEditor}>
           <div className={page?"min-h-0 min-w-0 flex-1 overflow-y-auto px-1 pb-6":"flex-1 overflow-y-auto px-6 pt-6 pb-6"}>
-{page?<header className="space-y-4"><Button variant="ghost" className="-ml-3 gap-2 text-muted-foreground" onClick={closeEditor}><ArrowLeft className="h-4 w-4"/>Voltar para a BIA</Button><div><h1 className="text-3xl font-bold">{readOnly?"Visualizar BIA":"Editar BIA"}</h1><div className="mt-3 flex flex-wrap items-center gap-3"><p className="text-muted-foreground">{bia?.nome_bia}</p><Badge variant="secondary">{biaPhaseLabel(form.situacao)}</Badge></div><p className="mt-2 text-sm text-muted-foreground">Atualize os dados da aliança. Alterações econômicas mantêm confirmação própria.</p></div></header>:<SheetHeader>
+{page?<header className="space-y-4"><Button variant="ghost" className="-ml-3 gap-2 text-muted-foreground" onClick={closeEditor}><ArrowLeft className="h-4 w-4"/>Voltar para a BIA</Button><div><h1 className="text-3xl font-bold">{readOnly?"Visualizar BIA":"Editar BIA"}</h1><div className="mt-3 flex flex-wrap items-center gap-3"><p className="text-muted-foreground">{bia?.nome_bia}</p><Badge variant="secondary">{biaPhaseLabel(form.situacao)}</Badge></div><p className="mt-2 text-sm text-muted-foreground">Escolha a área que deseja editar, sem seguir uma sequência. Cada área mantém seu próprio salvamento.</p></div></header>:<SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               {isEdit ?<Pencil className="w-4 h-4 text-brand-gold" /> : <Plus className="w-4 h-4 text-brand-gold" />}
               {isEdit ? readOnly ? "Visualizar BIA" : "Editar BIA" : "Nova BIA"}
@@ -2658,7 +2659,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
           {!page && isEdit && editMapQuery.isError && <p role="alert" className="mt-4 text-sm text-red-600">Não foi possível conferir o MAP Inicial. O salvamento está bloqueado para proteger os valores. <button type="button" className="underline" onClick={() => editMapQuery.refetch()}>Tentar novamente</button></p>}
           {!page && isEdit && <p className="mt-4 rounded-md border p-3 text-sm">Percentuais são editados em <a className="font-medium underline" href={`${getBiaUrl(bia!)}?tab=capital&capital=calculadora`}>Núcleo de Capital → DM</a>.{usesMapZero && <> Pessoas, cargos e capital ficam em <a className="font-medium underline" href={`/movimentacao-cotas/${bia!.id}?view=zero`}>MAP → MAP Inicial → Editar composição</a>.</>}</p>}
           <Tabs value={activeTab} onValueChange={changeSection} className={page?"mt-8 min-w-0":"mt-4"}>
-{page?<><label className="mb-5 block space-y-2 text-sm sm:hidden">Área da edição<select aria-label="Área da edição" className="block h-11 w-full rounded-md border bg-background px-3" value={activeTab} onChange={e=>changeSection(e.target.value)}>{BIA_CREATION_STEPS.map((label,index)=><option key={label} value={EDIT_TABS[index]}>{index+1}. {label}</option>)}</select></label><TabsList aria-label="Áreas da edição" className="mb-6 hidden h-auto grid-cols-2 gap-2 rounded-none border-b bg-transparent p-0 pb-4 sm:grid sm:grid-cols-4 xl:grid-cols-7">{BIA_CREATION_STEPS.map((label,index)=><TabsTrigger key={label} value={EDIT_TABS[index]} className="justify-start gap-2 whitespace-normal rounded-lg px-2 py-3 text-left data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${activeTab===EDIT_TABS[index]?"bg-blue-600 text-white":"bg-muted"}`}>{index+1}</span>{label}</TabsTrigger>)}</TabsList></>:<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-4">
+{page?<><label className="mb-5 block space-y-2 text-sm sm:hidden">Área da edição<select aria-label="Área da edição" className="block h-11 w-full rounded-md border bg-background px-3" value={activeTab} onChange={e=>changeSection(e.target.value)}>{EDIT_LABELS.map((label,index)=><option key={label} value={EDIT_TABS[index]}>{label}</option>)}</select></label><TabsList aria-label="Áreas da edição" className="mb-6 hidden h-auto w-full grid-cols-2 gap-2 rounded-none border-b bg-transparent p-0 pb-4 sm:grid lg:grid-cols-4">{EDIT_LABELS.map((label,index)=><TabsTrigger key={label} value={EDIT_TABS[index]} className="min-w-0 justify-start whitespace-normal rounded-lg px-3 py-3 text-left data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 data-[state=active]:shadow-none">{label}</TabsTrigger>)}</TabsList></>:<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
               <TabsTrigger value="receita" data-testid="tab-receita">Análises</TabsTrigger>
@@ -2674,7 +2675,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Imagem da BIA</Label>
                 <div className="rounded-xl border border-border bg-muted/20 p-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                     <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
                       {biaImagePreview ? (
                         <img src={biaImagePreview} alt="Imagem da BIA" className="h-full w-full object-cover" />
@@ -3052,11 +3053,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
             </TabsContent>
             </fieldset>
             {page && bia && <>
-              <TabsContent value="equipe" forceMount className="min-w-0 space-y-5 data-[state=inactive]:hidden"><h2 className="text-xl font-semibold">Base econômica inicial</h2><p className="text-sm text-muted-foreground">Use Editar composição para atualizar a BEI, as pessoas e suas funções. A revisão econômica é salva aqui, separadamente dos dados cadastrais.</p>{hasBiaAccess(access,"capital_calculadora","view")?(economicOpened && <BiaMapZero biaId={bia.id}/>):<p>Você não tem acesso à composição econômica desta BIA.</p>}</TabsContent>
-              <TabsContent value="map" className="space-y-5"><h2 className="text-xl font-semibold">MAP Inicial</h2><p className="text-sm text-muted-foreground">Consulte as versões preservadas e seus documentos. A composição é editada na Base econômica inicial.</p>{hasBiaAccess(access,"capital_calculadora","view")?<BiaMapHistory biaId={bia.id} initialOnly/>:<p>Você não tem acesso ao MAP desta BIA.</p>}</TabsContent>
-              <div hidden={activeTab!=="juridico" && activeTab!=="ativos"}>{setupOpened && <SetupEditor biaName={form.nome_bia} biaId={bia.id} moeda={bia.moeda || "BRL"} members={memberNames} section={activeTab==="ativos"?"ativos":"juridico"}/>}</div>
-              <TabsContent value="revisao" className="space-y-6"><h2 className="text-xl font-semibold">Revisar alterações</h2><p className="text-sm text-muted-foreground">Este salvamento atualiza somente os Dados da BIA. A BEI e a estrutura jurídica/ativos possuem confirmação e revisão próprias nas respectivas áreas.</p><dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{[["Nome da BIA",form.nome_bia],["Destinação",form.destinacao],["Moeda",form.moeda],["Objetivo",form.objetivo_alianca],["Localização",form.localizacao],["Descrição",form.observacoes],["Anexos",String(existingAnexos.length+pendingFiles.length)]].map(([label,value])=><div key={label} className="min-w-0 border-b pb-3"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value || "Não informado"}</dd></div>)}</dl><Button variant="outline" onClick={()=>changeSection("geral")}>Revisar dados</Button><p role="status" className="text-sm text-muted-foreground">{identityDirty?"Há alterações nos dados ainda não salvas.":"Nenhuma alteração pendente nos dados cadastrais."}</p></TabsContent>
-              <TabsContent value="ativacao" className="space-y-5"><h2 className="text-xl font-semibold">Ativação da BIA</h2><Badge variant="secondary">{biaPhaseLabel(form.situacao)}</Badge><p>Salvar uma edição não ativa a BIA, não muda sua fase e não repete aceites. Consulte os convites, documentos e controles de fase na página da aliança.</p><Button variant="outline" onClick={closeEditor}>Ver situação na página da BIA</Button></TabsContent>
+              <TabsContent value="equipe" forceMount className="min-w-0 space-y-5 data-[state=inactive]:hidden"><h2 className="text-xl font-semibold">{BIA_CREATION_STEPS[1]}</h2><p className="text-sm text-muted-foreground">Use Editar composição para atualizar a BEI, as pessoas e suas funções. A revisão econômica é salva aqui, separadamente dos dados cadastrais.</p>{hasBiaAccess(access,"capital_calculadora","view")?(economicOpened && <BiaMapZero biaId={bia.id} readOnly={readOnly}/>):<p>Você não tem acesso à composição econômica desta BIA.</p>}</TabsContent>
+              <TabsContent value="map" className="space-y-5"><h2 className="text-xl font-semibold">MAP Inicial</h2><p className="text-sm text-muted-foreground">Consulte as versões preservadas e seus documentos. A composição é editada na área {BIA_CREATION_STEPS[1]}.</p>{hasBiaAccess(access,"capital_calculadora","view")?<BiaMapHistory biaId={bia.id} initialOnly/>:<p>Você não tem acesso ao MAP desta BIA.</p>}</TabsContent>
+              <div hidden={activeTab!=="juridico" && activeTab!=="ativos" && activeTab!=="orcamento"}>{setupOpened && <SetupEditor biaName={form.nome_bia} biaId={bia.id} moeda={bia.moeda || "BRL"} members={memberNames} readOnly={readOnly} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem} section={activeTab==="orcamento"?"orcamento":activeTab==="ativos"?"ativos":"juridico"}/>}</div>
+              <TabsContent value="revisao" className="space-y-6"><h2 className="text-xl font-semibold">Resumo dos dados</h2><p className="text-sm text-muted-foreground">Este salvamento atualiza somente os Dados da BIA. A BEI e a estrutura jurídica/ativos e o orçamento possuem confirmação e revisão próprias nas respectivas áreas.</p><dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{[["Nome da BIA",form.nome_bia],["Destinação",form.destinacao],["Moeda",form.moeda],["Objetivo",form.objetivo_alianca],["Localização",form.localizacao],["Descrição",form.observacoes],["Anexos",String(existingAnexos.length+pendingFiles.length)]].map(([label,value])=><div key={label} className="min-w-0 border-b pb-3"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value || "Não informado"}</dd></div>)}</dl><Button variant="outline" onClick={()=>changeSection("geral")}>Revisar dados</Button><p role="status" className="text-sm text-muted-foreground">{identityDirty?"Há alterações nos dados ainda não salvas.":"Nenhuma alteração pendente nos dados cadastrais."}</p><BiaBudgetReadPanel biaId={bia.id} moeda={bia.moeda || "BRL"} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem}/><Button type="button" variant="outline" onClick={()=>changeSection("orcamento")}>Revisar CAPEX e OPEX</Button></TabsContent>
+              <TabsContent value="ativacao" className="space-y-5"><h2 className="text-xl font-semibold">Situação da BIA</h2><Badge variant="secondary">{biaPhaseLabel(form.situacao)}</Badge><p>Salvar uma edição não ativa a BIA, não muda sua fase e não repete aceites. Consulte os convites, documentos e controles de fase na página da aliança.</p><Button variant="outline" onClick={closeEditor}>Ver situação na página da BIA</Button></TabsContent>
             </>}
           </Tabs>
           </div>
@@ -3064,7 +3065,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
           <div className={page?"z-10 shrink-0 border-t bg-background py-4":"shrink-0 border-t bg-background px-6 py-4"}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {page && <span className="text-sm text-muted-foreground">{BIA_CREATION_STEPS[EDIT_TABS.indexOf(activeTab)]} · {EDIT_TABS.indexOf(activeTab)+1} de 7</span>}
+                {page && <span className="text-sm text-muted-foreground">{EDIT_LABELS[EDIT_TABS.indexOf(activeTab)]}</span>}
                 {!readOnly && isEdit && canDelete && bia && (
                   <Button
                     type="button"
@@ -3080,12 +3081,12 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 )}
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                {page && activeTab!=="geral" && <Button variant="outline" disabled={saveMutation.isPending} onClick={()=>changeSection(EDIT_TABS[EDIT_TABS.indexOf(activeTab)-1])}>Voltar</Button>}
+
                 <Button variant="outline" onClick={closeEditor} disabled={saveMutation.isPending}>
                   Cancelar
                 </Button>
-                {page && activeTab!=="revisao" && <Button disabled={saveMutation.isPending} onClick={()=>changeSection(EDIT_TABS[Math.min(EDIT_TABS.indexOf(activeTab)+1,5)])}>Continuar<ArrowRight className="ml-2 h-4 w-4"/></Button>}
-                {!readOnly && (!page || activeTab==="revisao") && <Button
+
+                {!readOnly && (!page || activeTab==="geral" || activeTab==="revisao") && <Button
                   onClick={handleSaveClick}
                   disabled={saveMutation.isPending || uploading || isLoading || mapCheckPending || (!page && isEdit && editMapQuery.isError) || (page && !identityDirty) || (!isEdit && hasIncompleteInstallments)}
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"

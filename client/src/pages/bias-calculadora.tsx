@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { BiaNumberInput, BiaRoleComposition } from "@/components/bia-role-composition";
+import { BiaExistingCompositionFields, BiaNumberInput, BiaRoleComposition } from "@/components/bia-role-composition";
 import { BiaEconomicStructureFields, EconomicMapPreview } from "@/components/bia-economic-structure";
 import { formatBiaPercent } from "@shared/bia-numbers";
 import { useLocation } from "wouter";
@@ -397,16 +397,16 @@ export function useInitialMapSnapshot(biaId?: string | null) {
   });
 }
 
-export function BiaMapZero({ biaId }: { biaId: string }) {
+export function BiaMapZero({ biaId, readOnly=false }: { biaId: string; readOnly?:boolean }) {
   const query = useInitialMapSnapshot(biaId);
   const { data: membros = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
   if (query.isPending) return <p>Carregando MAP Inicial…</p>;
   if (query.isError && !query.data) return <p role="alert">{query.error.message} <Button onClick={() => query.refetch()}>Tentar novamente</Button></p>;
-  if (!query.data) return <LegacyMapZero biaId={biaId} membros={membros} />;
-  return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros} embedded readOnly={false} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
+  if (!query.data) return <LegacyMapZero biaId={biaId} membros={membros} readOnly={readOnly} />;
+  return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros} embedded readOnly={readOnly} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
 }
 
-function LegacyMapZero({ biaId, membros }: { biaId: string; membros: Membro[] }) {
+function LegacyMapZero({ biaId, membros, readOnly=false }: { biaId: string; membros: Membro[]; readOnly?:boolean }) {
   const query = useQuery<InitialMapSnapshotApi>({
     queryKey: ["/api/bias", biaId, "map-zero-legado"],
     queryFn: async () => (await apiRequest("GET", `/api/bias/${biaId}/map-zero-legado`)).json(),
@@ -415,11 +415,11 @@ function LegacyMapZero({ biaId, membros }: { biaId: string; membros: Membro[] })
   if (query.isPending) return <p>Preparando composição para revisão…</p>;
   if (!query.data) return <p role="alert">Não foi possível carregar a composição. <Button onClick={() => query.refetch()}>Tentar novamente</Button></p>;
   return <MapInicialCalculator key={biaId} snapshot={query.data} bia={{ id: biaId }} bias={[]} membros={membros}
-    embedded readOnly={false} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
+    embedded readOnly={readOnly} onSelectBia={() => {}} mode="zero" queryFailed={query.isError} retryQuery={() => query.refetch()} />;
 }
 
 export function MapZeroFields({
-  valorOrigem, setValorOrigem, participantes, setParticipantes, membros, byValue = true, readOnly = false, creationTeam,
+  valorOrigem, setValorOrigem, participantes, setParticipantes, membros, byValue = true, readOnly = false, creationTeam, moeda="BRL",
 }: {
   valorOrigem: number;
   setValorOrigem: (value: number) => void;
@@ -428,6 +428,7 @@ export function MapZeroFields({
   membros: Membro[];
   byValue?: boolean;
   readOnly?: boolean;
+  moeda?: string;
   creationTeam?: {canEditAlly: boolean; communityAllyId?: string};
 }) {
   const [confirmation, setConfirmation] = useState<{message:string; apply:()=>void} | null>(null);
@@ -439,12 +440,12 @@ export function MapZeroFields({
         if (!hasRequiredBiaTeam(team)) throw new Error("Defina o Aliado BUILT e o Diretor de Aliança.");
       }
       const calculation = calculateInitialMap(valorOrigem, participantes);
-      if (creationTeam) validateInitialClassifications(calculation.participantes);
+      if (byValue || creationTeam) validateInitialClassifications(calculation.participantes);
       return { calculation, error: null as string | null };
     } catch (error: any) {
       return { calculation: null, error: error.message as string };
     }
-  }, [participantes, valorOrigem, !!creationTeam]);
+  }, [participantes, valorOrigem, byValue, !!creationTeam]);
   const calculatedById = new Map((preview.calculation?.participantes || []).map(item => [item.participantId, item]));
   const usedMembers = new Set(participantes.map(item => item.memberId).filter(Boolean));
   const roles = Object.keys(BIA_PARTICIPANT_ROLE_FIELDS) as Array<keyof typeof BIA_PARTICIPANT_ROLE_FIELDS>;
@@ -474,6 +475,8 @@ export function MapZeroFields({
       <p>Participação inicial: <strong>{(calculated?.mapPercentual || 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:5})}%</strong></p>
     </div>;
   };
+
+  if (!creationTeam) return <BiaExistingCompositionFields valorOrigem={valorOrigem} onValueChange={setValorOrigem} participants={participantes} onChange={setParticipantes} members={membros} byValue={byValue} readOnly={readOnly} moeda={moeda} preview={preview}/>;
 
   return <div className="min-w-0 space-y-4">
     <fieldset disabled={readOnly} className="min-w-0 space-y-4">
@@ -700,9 +703,9 @@ function MapInicialCalculator({
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold">
             <div className="rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 p-2 text-brand-navy"><Calculator className="h-6 w-6" /></div>
-            {mode === "dm" ? "DM" : "MAP Inicial"}
+            {mode === "dm" ? "DM" : editing ? "Base Econômica Inicial" : "MAP Inicial"}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Composição inicial da BIA · revisão {base.revisao}. {Number(snapshot.modeloCalculo) >= 4 ? "DM por cargo, capital por pessoa." : "Um índice por pessoa."}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Composição inicial da BIA · revisão {base.revisao}. {Number(snapshot.modeloCalculo) >= 4 ? "DM por função, aporte por pessoa." : "Um índice por pessoa."}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {!embedded && (
@@ -731,7 +734,7 @@ function MapInicialCalculator({
         </div>
       )}
 
-      {snapshot.revisao !== base.revisao && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Há uma revisão mais recente. Seus campos foram preservados. <Button variant="outline" onClick={() => { if (confirmDiscardChanges()) { setBase(snapshot); setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setMotivo(""); } }}>Descartar e carregar revisão atual</Button></p>}
+      {snapshot.revisao !== base.revisao && <p role="alert" className="rounded border border-amber-300 p-3 text-sm">Há uma revisão mais recente. Seus campos foram preservados. <Button variant="outline" onClick={() => { if (confirmDiscardChanges()) { setBase(snapshot); setEstrutura(snapshot.estrutura); setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setReviewed(false); setMotivo(""); } }}>Descartar e carregar revisão atual</Button></p>}
       {mode === "dm" && Number(snapshot.modeloCalculo) >= 4 && <>
         <p>Valor de Origem: {formatBRL(valorOrigem)} · DM total: {preview.calculation ? formatBiaPercent(preview.calculation.divisorMultiplicador) : "Pendente"}</p>
         <BiaRoleComposition valorOrigem={valorOrigem} moeda={base.moeda} participants={participantes} onChange={setParticipantes} members={membros} readOnly={readOnly || saveMutation.isPending} dmOnly />
@@ -749,13 +752,14 @@ function MapInicialCalculator({
         {!readOnly && <Button onClick={() => setEditing(true)}>Editar composição</Button>}
       </>}
       {mode === "zero" && editing && <fieldset disabled={readOnly || locked || saveMutation.isPending} className="min-w-0 space-y-6 border-0 disabled:opacity-90">
-        {snapshot.modeloCalculo === 5 ? <BiaEconomicStructureFields value={{valorOrigem,participantes,estrutura}} onChange={v=>{setValorOrigem(v.valorOrigem);setParticipantes(v.participantes);setEstrutura(v.estrutura);}} members={membros} moeda={base.moeda} readOnly={readOnly || locked}/> : Number(snapshot.modeloCalculo) >= 4 ? <><label>Valor de Origem<BiaNumberInput label="Valor de Origem" value={valorOrigem} onChange={setValorOrigem}/></label><BiaRoleComposition valorOrigem={valorOrigem} moeda={base.moeda} participants={participantes} onChange={setParticipantes} members={membros} readOnly={readOnly || locked}/></> : <MapZeroFields valorOrigem={valorOrigem} setValorOrigem={setValorOrigem} participantes={participantes} setParticipantes={setParticipantes} membros={membros} byValue={byValue} readOnly={readOnly || locked} />}
+        {snapshot.modeloCalculo === 5 ? <BiaEconomicStructureFields value={{valorOrigem,participantes,estrutura}} onChange={v=>{setValorOrigem(v.valorOrigem);setParticipantes(v.participantes);setEstrutura(v.estrutura);}} members={membros} moeda={base.moeda} readOnly={readOnly || locked}/> : <BiaExistingCompositionFields valorOrigem={valorOrigem} onValueChange={setValorOrigem} participants={participantes} onChange={setParticipantes} members={membros} moeda={base.moeda} byValue={byValue} byRole={Number(snapshot.modeloCalculo)>=4} readOnly={readOnly || locked} preview={preview}/>}
       </fieldset>}
       {(mode === "dm" || editing) && <div className="space-y-3">
         {(snapshot.ativa || historical) && !readOnly && <label className="block space-y-2 text-sm">{historical ? "Fonte dos dados originais e motivo da revisão" : "Motivo da correção"}<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={historical ? "Ex.: composição conferida no MOU original" : "Explique o que precisa ser corrigido"} /></label>}
         {historical && !readOnly && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={reviewed} disabled={saveMutation.isPending} onChange={e => setReviewed(e.target.checked)} />Revisei a composição original e entendo que este registro não altera o MAP Atual.</label>}
-        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || ((snapshot.ativa || historical) && !motivo.trim()) || (historical && !reviewed)}>{saveMutation.isPending ? "Salvando…" : historical ? "Confirmar composição original" : mode === "dm" ? "Salvar DM" : "Salvar MAP Inicial"}</Button>}
-        {mode === "dm" ? <Button variant="outline" onClick={() => navigate(`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}`)}>Abrir MAP</Button> : <Button variant="outline" disabled={saveMutation.isPending} onClick={() => { if (confirmDiscardChanges()) { setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setBase(snapshot); setMotivo(""); setEditing(false); } }}>Cancelar edição</Button>}</div>
+        {mode === "zero" && <p role="status" className="text-sm text-muted-foreground">{preview.error || ((snapshot.ativa || historical) && !motivo.trim() ? "Informe o motivo da revisão." : historical && !reviewed ? "Confirme a conferência da composição original." : "Composição pronta para salvar a revisão da BEI.")}</p>}
+        <div className="flex flex-wrap gap-2">{!readOnly && <Button onClick={() => saveMutation.mutate()} disabled={!preview.calculation || saveMutation.isPending || ((snapshot.ativa || historical) && !motivo.trim()) || (historical && !reviewed)}>{saveMutation.isPending ? "Salvando…" : mode === "dm" ? "Salvar DM" : "Salvar revisão da BEI"}</Button>}
+        {mode === "dm" ? <Button variant="outline" onClick={() => navigate(`/movimentacao-cotas/${getBiaPublicRef(bia) || bia.id}`)}>Abrir MAP</Button> : <Button variant="outline" disabled={saveMutation.isPending} onClick={() => { if (confirmDiscardChanges()) { setValorOrigem(Number(snapshot.valorOrigem)); setParticipantes(snapshot.participantes); setEstrutura(snapshot.estrutura); setBase(snapshot); setReviewed(false); setMotivo(""); setEditing(false); } }}>Cancelar edição</Button>}</div>
       </div>}
 
       {mode === "zero" && (!historical || base.revisao > 0) && <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Comparar MAP Inicial × MAP Atual</summary>

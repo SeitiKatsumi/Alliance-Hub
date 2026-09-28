@@ -7,6 +7,7 @@ export const biaPdfSections = [
   {id:"map",label:"MAP Inicial",description:"Participantes, funções, aportes e participações iniciais."},
   {id:"juridico",label:"Estrutura Jurídica",description:"Formalização, responsável, quadro societário e conta."},
   {id:"ativos",label:"Ativos Vinculados",description:"Cadastro e indicadores dos ativos, sem efeitos patrimoniais."},
+  {id:"orcamento",label:"CAPEX e OPEX",description:"Investimentos, despesas, origem dos recursos, cronograma e pendências."},
   {id:"documentos",label:"Documentos",description:"Relação dos anexos informativos."},
   {id:"cpp",label:"Detalhamento das CPPs",description:"Composição das participações por natureza econômica."},
 ] as const;
@@ -54,6 +55,8 @@ export const biaSummaryPrintCss = `
   dt { font-weight: bold; background: #f2f5f7; } dd { white-space: pre-wrap; overflow-wrap: anywhere; }
   table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 12px 0; font-size: 10px; line-height: 1.4; break-inside: avoid; }
   [data-pdf-asset] { break-inside: avoid; }
+  [data-pdf-section="orcamento"] table { break-inside: auto; }
+  [data-pdf-section="orcamento"] table th:first-child { width: 9%; }
   .bia-brand-gallery { display: grid; grid-template-columns: 55mm 1fr; gap: 12mm; break-inside: avoid; }
   th, td { padding: 5px; border-bottom: 1px solid #dbe3e9; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   thead { display: table-header-group; background: #001d32; color: white; }

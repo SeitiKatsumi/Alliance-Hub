@@ -9,8 +9,39 @@ import { transformSync } from "esbuild";
 import ts from "typescript";
 import { validateEconomicStructure } from "../../../shared/member-portfolio";
 import { formatBiaNumber, formatBiaPercent } from "../../../shared/bia-numbers";
+import { BIA_PARTICIPANT_ROLE_FIELDS, BIA_PARTICIPANT_ROLE_LABELS } from "../../../shared/bia-access";
 
 const source=readFileSync(new URL("./bia-economic-structure.tsx",import.meta.url),"utf8");
+
+test("Governança oculta contribuição individual e edita funções sem deslocar índices nem CIs",()=>{
+  const start=source.indexOf('<section data-testid="bei-governance"');
+  const section=source.slice(start,source.indexOf('</section>',start)+10);
+  const roles=new Function('BIA_PARTICIPANT_ROLE_FIELDS','BIA_PARTICIPANT_ROLE_LABELS',transformSync(source.match(/const roles = [^;]+;/)![0],{loader:'ts'}).code+'return roles;')(BIA_PARTICIPANT_ROLE_FIELDS,BIA_PARTICIPANT_ROLE_LABELS);
+  assert.ok(!roles.includes('Contribuição individual'));
+  let people:any[]=[{nome:'Ana',tipo:'guardiao',cotasInvestimento:10,capitalComprometido:100,contribuicoes:[{cargo:'Contribuição individual',indice:0},{cargo:'Aliado BUILT',indice:2,tipoCpp:{id:'origem',nome:'CPP Origem'}}],cargos:['Aliado BUILT']},{nome:'Bruno',contribuicoes:[{cargo:'Contribuição individual',indice:0}],cargos:[]}];
+  const original=structuredClone(people),individual=people[0].contribuicoes[0];
+  let confirmed=true,writes=0;
+  const patch=(i:number,change:any)=>{people=people.map((p,n)=>n===i?{...p,...change}:p);writes++;};
+  const render=new Function('React','Button','BiaNumberInput','roles','selectCss','governanceLabel','formatBiaPercent','economicRightName','readOnly','types','value','dm','money','contribution','window','people','patch',transformSync(`const render=()=>(${section});`,{loader:'tsx'}).code+'return render();');
+  const tree=()=>render(React,'button',()=>null,roles,'',governanceLabel,formatBiaPercent,()=>'',false,{}, {valorOrigem:100},2,String,()=>{}, {confirm:()=>confirmed},people,patch);
+  const nodes=(n:any):any[]=>!n || typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
+  const button=(label:string)=>nodes(tree()).find(n=>n.type==='button' && n.props.children===label);
+  const select=()=>nodes(tree()).find(n=>n.type==='select');
+  const html=renderToStaticMarkup(tree());
+  assert.doesNotMatch(html,/Contribuição individual/);assert.match(html,/Sem função de governança/);
+  assert.equal(nodes(tree()).filter(n=>n.type==='select').length,1);assert.equal(writes,0);assert.deepEqual(people,original);
+  confirmed=false;select().props.onChange({target:{value:'Diretor de Aliança'}});assert.equal(writes,0);
+  confirmed=true;select().props.onChange({target:{value:'Diretor de Aliança'}});
+  assert.equal(people[0].contribuicoes[0],individual);assert.equal(people[0].contribuicoes[1].cargo,'Diretor de Aliança');assert.ok(Number.isNaN(people[0].contribuicoes[1].indice));
+  button('Adicionar função').props.onClick();assert.equal(people[0].contribuicoes[2].cargo,'');
+  assert.match(renderToStaticMarkup(tree()),/Selecione a função/);
+  button('Remover função').props.onClick();assert.equal(people[0].contribuicoes[0],individual);assert.equal(people[0].contribuicoes[1].cargo,'');
+  button('Remover função').props.onClick();assert.deepEqual(people[0].contribuicoes,[individual]);assert.deepEqual(people[0].cargos,[]);
+  assert.equal(people[0].cotasInvestimento,10);assert.equal(people[0].capitalComprometido,100);assert.deepEqual(people[1],original[1]);
+  people[0].contribuicoes=[{cargo:'Aliado BUILT',indice:0}];people[0].cargos=['Aliado BUILT'];
+  button('Remover função').props.onClick();assert.deepEqual(people[0].contribuicoes,[individual]);assert.deepEqual(people[0].cargos,[]);
+  assert.match(source,/<fieldset disabled=\{readOnly\}/);
+});
 test("nome visual do Aliado preserva valor canônico da função",()=>{
   assert.match(source,/<option key=\{role\} value=\{role\}/);
   assert.equal(governanceLabel('Aliado BUILT'),'Aliado Licenciado BUILT');
@@ -103,8 +134,8 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.match(form,/Remover esta função e seu direito/);
   assert.match(form,/>Remover função<\/Button>/);
   assert.match(form,/>Adicionar função<\/Button>/);
-  assert.match(form,/Contribuição individual participa do MAP Inicial pelas CIs e não compõe o DM/);
-  assert.match(form,/Informe o índice das demais funções/);
+  assert.match(form,/Defina as funções de governança e seus direitos econômicos/);
+  assert.match(form,/Informe o índice de cada função/);
   assert.match(form,/flatMap\(p=>p\.contribuicoes \|\| \[\]\)\.filter\(c=>c\.cargo!=="Contribuição individual"\)/);
   assert.match(form,/filter\(\(\{c\}\)=>c\.cargo!=="Contribuição individual"\)\.map/);
   assert.match(form,/\{cargo:"Contribuição individual",indice:0\}/);

@@ -15,6 +15,18 @@ const scope={React,...budget,AlertDialog:dialog,AlertDialogTrigger:dialog,AlertD
 const {BiaBudgetFields,BiaBudgetSummary}=new Function(...Object.keys(scope),transformSync(functions,{loader:'tsx'}).code+';return {BiaBudgetFields,BiaBudgetSummary};')(...Object.values(scope));
 function nodes(node:any):any[]{if(!node || typeof node!=='object')return [];return Array.isArray(node)?node.flatMap(nodes):[node,...nodes(node.props?.children)];}
 
+test('campo de meses não limita nem recorta prazos maiores que 120',()=>{
+  let value=emptyBiaSetup();
+  const render=()=>BiaBudgetFields({value,moeda:'BRL',onChange:(v:any)=>{value=v;}});
+  for(const meses of [220,360,1200,10001]){
+    const input=nodes(render()).find(n=>n.type==='input'&&n.props.type==='number');
+    assert.equal(input.props.max,undefined);assert.equal(input.props.min,1);assert.equal(input.props.step,1);
+    input.props.onChange({target:{value:String(meses)}});
+    assert.equal(value.orcamento?.meses,meses);assert.equal(budget.biaBudgetSchema.parse(value.orcamento).meses,meses);
+  }
+  for(const details of [true,false])assert.match(renderToStaticMarkup(BiaBudgetSummary({value,moeda:'BRL',details})),/Prazo preservado/);
+});
+
 test('remoção exige confirmação na tela, preserva outros itens e permite remover o último pagamento',()=>{
   let value=emptyBiaSetup(),writes=0;
   const render=(disabled=false)=>BiaBudgetFields({value,moeda:'BRL',disabled,onChange:(v:any)=>{value=v;writes++;}});

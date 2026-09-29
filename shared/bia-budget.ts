@@ -10,7 +10,7 @@ const month = z.string().refine(v => !v || /^(19\d{2}|[2-8]\d{3}|9[0-8]\d{2})-(0
 const money = z.number().finite().min(0).max(1e10).nullable().default(null);
 const expense = { id, descricao:text, situacao:z.enum(BUDGET_COST_STATES), ativoId:text, ativoNome:text };
 export const biaBudgetSchema = z.object({
-  moeda:z.string().regex(/^[A-Z]{3}$/), inicio:month, meses:z.number().int().min(1).max(120),
+  moeda:z.string().regex(/^[A-Z]{3}$/), inicio:month, meses:z.number().int().positive().refine(Number.isSafeInteger, 'Informe uma quantidade inteira de meses representável com segurança'),
   capex:z.array(z.object({...expense,valor:money,pagamentos:z.array(z.object({id,mes:month,valor:money})).max(120)})).max(200),
   opex:z.array(z.object({...expense,valorMensal:money,inicio:month,fim:month})).max(200),
   fontes:z.array(z.object({id,descricao:text,tipo:z.enum(BUDGET_SOURCE_TYPES),valor:money,mes:month,situacao:z.enum(BUDGET_SOURCE_STATES),destinacao:z.enum(BUDGET_TARGETS),observacoes:text})).max(200),
@@ -25,13 +25,15 @@ export const biaBudgetSchema = z.object({
 export type BiaBudget = z.infer<typeof biaBudgetSchema>;
 export function emptyBiaBudget(moeda:string):BiaBudget { return {moeda,inicio:'',meses:12,capex:[],opex:[],fontes:[]}; }
 const cents=(v:number)=>Math.round((v+Number.EPSILON)*100);
-const monthIndex=(v:string)=>Number(v.slice(0,4))*12+Number(v.slice(5,7))-1;
+const monthIndex=(v:string)=>{const [year,month]=v.split('-').map(Number);return year*12+month-1;};
 const monthAt=(n:number)=>`${Math.floor(n/12)}-${String(n%12+1).padStart(2,'0')}`;
 
 // Planning only. No ledger, BEI/MAP, bank balance or approval is read or changed here.
 export function projectBiaBudget(budget:BiaBudget|undefined,moeda:string,assets:Array<{id:string;nome:string}>=[],valorOrigem?:number|null) {
   const validation=budget?biaBudgetSchema.safeParse(budget):null;
   if(validation && !validation.success)return {warnings:[`Revise o orçamento: ${validation.error.issues[0].message}.`],partial:true,currencyMismatch:false,capex:null,opex:null,diferenca:null,rows:[]};
+  // ponytail: bound synchronous preview allocation; paginate calculation before expanding beyond 10,000 rows.
+  if(budget && budget.meses>10000)return {warnings:[],projectionNotice:'Prazo preservado. A prévia mensal não é gerada acima de 10.000 meses para evitar travamentos; os totais calculados ficam indisponíveis.',partial:true,currencyMismatch:budget.moeda!==moeda,capex:null,opex:null,diferenca:null,rows:[]};
   const warnings:string[]=[];
   const warn=(message:string)=>{if(!warnings.includes(message))warnings.push(message);};
   let partial=false;
@@ -71,7 +73,7 @@ export function projectBiaBudget(budget:BiaBudget|undefined,moeda:string,assets:
     if(o.fim && o.inicio && o.fim<o.inicio){pending(`Fim anterior ao início: ${o.descricao || 'OPEX'}.`);continue;}
     if(o.valorMensal!==null && o.inicio && start!==null){
       knownOpex=true;
-      const active=rows.filter(r=>r.mes>=o.inicio && (!o.fim || r.mes<=o.fim));
+      const active=rows.filter(r=>monthIndex(r.mes)>=monthIndex(o.inicio) && (!o.fim || monthIndex(r.mes)<=monthIndex(o.fim)));
       for(const r of active){r.opex+=cents(o.valorMensal);opex+=cents(o.valorMensal);}
       if(!active.length)warn(`OPEX fora do horizonte: ${o.descricao || 'item sem descrição'}.`);
       if(budget.capex.some(c=>normalize(c.descricao)===normalize(o.descricao) && c.descricao.trim() && c.ativoId===o.ativoId && c.pagamentos.some(p=>active.some(r=>r.mes===p.mes))))warn(`Possível duplicidade entre CAPEX e OPEX: ${o.descricao}. Confira sem somar a mesma despesa duas vezes.`);

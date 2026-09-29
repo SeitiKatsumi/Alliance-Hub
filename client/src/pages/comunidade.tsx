@@ -972,27 +972,26 @@ function CandidateInfoPanel({
 
   return (
     <div
-      className={`rounded-xl border border-brand-gold/15 ${compact ?"mt-3 p-3" : "p-4"} space-y-3`}
-      style={{ background: "rgba(215,187,125,0.045)" }}
+      className={`rounded-xl border border-border bg-card text-card-foreground ${compact ?"mt-3 p-3" : "p-4"} space-y-3`}
     >
       <div className="flex items-center gap-2">
-        <FileText className="w-3.5 h-3.5 text-brand-gold/60" />
-        <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest">Dados da candidatura</p>
+        <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Dados da candidatura</p>
       </div>
       {allRows.length > 0 && (
         <div className={`grid grid-cols-1 ${compact ?"sm:grid-cols-2" : "sm:grid-cols-2"} gap-2`}>
           {allRows.map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
-              <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">{label}</p>
-              <p className="mt-0.5 text-xs font-mono text-white/75 break-words">{candidateValue(value)}</p>
+            <div key={label} className="min-w-0 rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">{label}</p>
+              <p className="mt-0.5 text-xs font-mono text-card-foreground break-words">{candidateValue(value)}</p>
             </div>
           ))}
         </div>
       )}
       {dados.mensagem && (
-        <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
-          <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">Mensagem</p>
-          <p className="mt-1 text-xs font-mono text-white/65 italic leading-relaxed break-words">"{dados.mensagem}"</p>
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">Mensagem</p>
+          <p className="mt-1 text-xs font-mono text-card-foreground italic leading-relaxed break-words">"{dados.mensagem}"</p>
         </div>
       )}
     </div>

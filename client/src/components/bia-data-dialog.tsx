@@ -83,7 +83,7 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
         <Button variant="outline" disabled={!canExport} onClick={()=>pdf(brandsRef.current)}><FileDown className="mr-2 h-4 w-4"/>Salvar marcas em PDF</Button>
         <p className="text-xs text-muted-foreground">Na janela de impressão, escolha “Salvar como PDF”.</p>
       </TabsContent>
-      <TabsContent value="map" className="space-y-4"><p className="text-sm text-muted-foreground">Escolha uma revisão registrada do MAP Inicial e abra seu PDF. O arquivo preserva os dados históricos, sem recalcular a participação atual.</p><BiaMapHistory biaId={bia.id} initialOnly/></TabsContent>
+<TabsContent value="map" className="space-y-4"><p className="text-sm text-muted-foreground">Escolha uma revisão registrada do MAP Inicial e abra seu PDF. O arquivo preserva os dados históricos, sem recalcular a participação atual.</p><BiaMapHistory biaId={bia.id} initialOnly pdfCode={code}/></TabsContent>
     </Tabs>
   </div>;
 }

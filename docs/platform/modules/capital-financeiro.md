@@ -6,6 +6,8 @@
 
 ### Classificação automática de direitos no modelo 5
 
+No bloco 7, criação e edição exibem apenas funções de governança (Autor/Aliado/diretorias) nos seletores; Contribuição individual não aparece como linha nem opção. Dados individuais existentes permanecem no estado/payload, com CIs e cálculo intactos. Adicionar função abre seleção vazia, sem atribuição automática; remover a última função permite ficar sem Governança e conserva a linha individual técnica de índice zero quando necessária ao contrato legado. Mantém confirmação, funções únicas, índices por função, consulta e salvamento existentes; não converte modelos anteriores nem modifica PDFs/aceites históricos. Regressão: `bia-economic-structure.test.ts`.
+
 Na edição da BEI modelo 5, Direito Econômico é Origem para Autor/Aliado e Liderança para as diretorias; contribuição individual participa pelas CIs, sem direito no DM. A Forma do aporte determina automaticamente a classificação separada do capital: Dinheiro → Capital; Propriedade, bens ou direitos → Propriedade. Não há seletor de Natureza do aporte. A regra compartilhada em `shared/initial-contributions.ts` resolve o catálogo oficial `Tipos_CPP` tanto na interface como em `calculateSubmittedInitialMap`, usado na criação/conclusão e PUT do MAP. Tipo obrigatório ausente impede gravação. Não muda fórmulas, índices, lançamentos ou permissões; não aplica backfill nem altera a leitura de versões/PDFs/aceites históricos ou modelos anteriores.
 
 ### Modelo econômico 4 (nova criação em etapas)
@@ -19,6 +21,8 @@ Rascunho e alterações de MAP não criam caixa. Estruturação, captação, enc
 Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de origem, DM/CPP, cotas e analises financeiras.
 
 ## Telas e URLs
+
+- Dados da BIA → MAP Inicial e Editar BIA → MAP Inicial oferecem **Gerar novo PDF do MAP Inicial** da revisão selecionada. Reutiliza o snapshot autorizado de `map/versoes/:versionId`, o componente tabular modelo5 e a impressão paisagem com marca/código oficial. Não recalcula, cria versão, salva alterações, envia convites ou substitui PDFs antigos/assinados. Mantém link do PDF histórico; modelos anteriores exportam os valores/percentuais registrados sem conversão. Exportação desabilitada em carregamento/erro, revisão incompatível ou ausência de marca/código. Hash identifica a revisão de origem, não os bytes do novo PDF. Regressão em `bia-data-dialog.test.ts`.
 
 - BIAs legadas podem registrar uma composição original revisada em MAP → MAP Zero. Equipe/Valor de Origem atuais são sugestões, não evidência histórica: índices e capital ausentes ficam pendentes. Confirmação exige classificações, fonte dos dados, revisão explícita e revisão esperada. Registro fica apenas em `bia_map_versoes`, com data real, autor, motivo e hash; não cria snapshot operacional, altera MAP Atual, aceites, DM legado, parcelas ou Directus. Revisões anteriores/PDFs permanecem imutáveis. Não é conversão automática nem reconstrução de histórico não registrado.
 - `GET|PUT /api/bias/:id/map-zero-legado`: consulta autenticada com acesso à BIA; configuração durante formação, superadmin ou Diretor/Aliado vinculado após ativação (admin/manager isolados não recebem essa exceção). Confirmações serializam por BIA, repetição sem mudança retorna a mesma versão e conflito retorna 409. A comparação com MAP Atual é informativa. Teste: `server/bia-legacy-zero.test.ts`.

@@ -51,6 +51,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 ## Invariantes
 
+- O painel Dados da candidatura compartilhado entre o card de aprovação e Ver detalhes usa fundo/texto/bordas do tema (card, card-foreground, muted-foreground e border), sem texto branco fixo sobre fundo claro. Mantém os mesmos campos, filtros de dados restritos e fonte autorizada de `/api/convites`; não grava nem amplia acesso. Regressão em `client/src/pages/comunidade-celulas.test.ts` cobre as duas apresentações, ausência de dados e preservação dos filtros.
+
 - Um usuario pode participar de varias comunidades simultaneamente.
 - Uma RO de Comunidade fica visivel aos membros daquela Comunidade sem usar `comunidade_mae` como substituta dos demais vinculos.
 - Celulas existem somente dentro de Comunidades, sem menu global, subcomunidades ou subcelulas. Cada Comunidade possui exatamente uma Celula ativa para cada um dos seis tipos canonicos; registros legados ausentes ou inativos sao regularizados pela API da Comunidade.

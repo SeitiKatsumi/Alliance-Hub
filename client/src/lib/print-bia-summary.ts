@@ -15,10 +15,10 @@ export type BiaPdfSection = typeof biaPdfSections[number]["id"];
 
 const footerText = (name:string, code:string|null) => buildBiaMouFooterText(name.trim() || "em estruturação", code || "");
 
-export const biaSummaryFooterCss = (biaUrl:string, certifiedUrl?:string, headerUrl="", name="", date="", code:string|null=null) => `
+export const biaSummaryFooterCss = (biaUrl:string, certifiedUrl?:string, headerUrl="", name="", date="", code:string|null=null, title="RESUMO DA BIA") => `
   @page {
     @top-left { content: ""; width: 160mm; border-bottom: 1mm solid #d7bb7d; background: url(${JSON.stringify(headerUrl)}) 0 center / 125mm auto no-repeat; }
-    @top-right { content: "RESUMO DA BIA\\A" ${JSON.stringify(date)}; white-space: pre-wrap; font: bold 10pt/1.7 Arial; color: #001d34; text-align: right; padding-right: 10mm; width: 107mm; border-bottom: 1mm solid #d7bb7d; }
+    @top-right { content: ${JSON.stringify(title)} "\\A" ${JSON.stringify(date)}; white-space: pre-wrap; font: bold 10pt/1.7 Arial; color: #001d34; text-align: right; padding-right: 10mm; width: 107mm; border-bottom: 1mm solid #d7bb7d; }
     @top-left-corner { content: ""; border-bottom: 1mm solid #d7bb7d; }
     @top-right-corner { content: ""; border-bottom: 1mm solid #d7bb7d; }
     @bottom-center { content: ${JSON.stringify(footerText(name,code))}; box-sizing: border-box; width: 267mm; border-top: 0.25mm solid #dbc79e; font: 6.7pt/1.35 Arial; color: #001d34; text-align: left; overflow-wrap: anywhere; padding: 0 16mm 0 54mm; background: url(${JSON.stringify(biaUrl)}) 10mm center / auto 19mm no-repeat${certifiedUrl ? `, url(${JSON.stringify(certifiedUrl)}) 34mm center / auto 18mm no-repeat` : ""}; }
@@ -56,6 +56,7 @@ export const biaSummaryPrintCss = `
   table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 12px 0; font-size: 10px; line-height: 1.4; break-inside: avoid; }
   [data-pdf-asset] { break-inside: avoid; }
   [data-pdf-section="orcamento"] table { break-inside: auto; }
+  [data-pdf-section="map"] table, [data-pdf-section="cpp"] table { break-inside: auto; }
   [data-pdf-section="orcamento"] table th:first-child { width: 9%; }
   .bia-brand-gallery { display: grid; grid-template-columns: 55mm 1fr; gap: 12mm; break-inside: avoid; }
   th, td { padding: 5px; border-bottom: 1px solid #dbe3e9; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
@@ -72,14 +73,14 @@ export const biaSummaryPrintCss = `
 `;
 
 // Clone the already-authorized review; omitted sections are removed, not merely hidden.
-export function printBiaSummary(element: HTMLElement, name: string, sections: readonly BiaPdfSection[] = biaPdfSections.map(s=>s.id), certified=false, brandUrl="", code:string|null=null, context: "review" | "data" = "review"): boolean {
+export function printBiaSummary(element: HTMLElement, name: string, sections: readonly BiaPdfSection[] = biaPdfSections.map(s=>s.id), certified=false, brandUrl="", code:string|null=null, context: "review" | "data" | "map" = "review"): boolean {
   if (!sections.length || !brandUrl.startsWith("data:image/svg+xml;")) return false;
   const popup = window.open("", "_blank", "width=1200,height=850");
   if (!popup) return false;
   popup.document.open();
   popup.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body></body></html>');
   popup.document.close();
-  popup.document.title = `Resumo da BIA - ${name || "Em estruturação"}`;
+  popup.document.title = `${context === "map" ? "MAP Inicial" : "Resumo da BIA"} - ${name || "Em estruturação"}`;
   const make = (tag:string,text="",className="") => {
     const node=popup.document.createElement(tag); node.textContent=text; node.className=className; return node;
   };
@@ -94,7 +95,7 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
   toolbar.append(button,status);
   const report=make("main","","report"),header=make("header","","report-header");
   const date=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"});
-  header.append(make("h1",name || "BIA em estruturação"),make("p",context === "review" ? "RESUMO DA BIA • PRÉVIA EM ESTRUTURAÇÃO" : "DADOS DA BIA • CÓPIA PARA CONSULTA","report-meta"));
+  header.append(make("h1",name || "BIA em estruturação"),make("p",context === "review" ? "RESUMO DA BIA • PRÉVIA EM ESTRUTURAÇÃO" : context === "map" ? "MAP INICIAL • NOVA CÓPIA PARA CONSULTA" : "DADOS DA BIA • CÓPIA PARA CONSULTA","report-meta"));
   const content=popup.document.importNode(element,true);
   content.querySelectorAll("[data-print-hide]").forEach(node=>node.remove());
   content.querySelectorAll<HTMLElement>("[data-pdf-section]").forEach(node=>{
@@ -103,7 +104,7 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
   const contentImages=Array.from(content.querySelectorAll<HTMLImageElement>("img"));
   content.querySelectorAll("details").forEach(detail=>{detail.open=true;});
   content.querySelectorAll<HTMLAnchorElement>('a[href^="/api/assets/"]').forEach(link=>{link.href=new URL(link.getAttribute('href')!,window.location.origin).href;});
-  report.append(header,content,make("footer","Prévia para revisão. Não substitui MOU ou documentos assinados e não confirma aportes nem pagamentos.","report-note"));
+  report.append(header,content,make("footer",`${context === "map" ? "Cópia para consulta da revisão registrada." : "Prévia para revisão."} Não substitui MOU ou documentos assinados e não confirma aportes nem pagamentos.`,"report-note"));
   const footer=make("footer","","report-footer");
   const images:HTMLImageElement[]=[];
   const seal=(src:string,alt:string)=>{
@@ -117,7 +118,8 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
   const masthead=make("header","","report-masthead");
   const headerLogo=popup.document.createElement("img");
   headerLogo.alt=`Marca horizontal de ${name || "BIA em estruturação"}`;
-  masthead.append(headerLogo,make("p",`RESUMO DA BIA\n${date}`));
+  const reportTitle=context === "map" ? "MAP INICIAL" : "RESUMO DA BIA";
+  masthead.append(headerLogo,make("p",`${reportTitle}\n${date}`));
   popup.document.body.append(toolbar,masthead,report,footer);
   // Wait for the supplied artwork; otherwise the first print can omit the seals.
   Promise.all([
@@ -134,7 +136,7 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
     // Chromium print margins omit embedded raster logos inside SVG backgrounds.
     const png=renderBiaBrandCanvas(images[0],popup.document.createElement("canvas")).toDataURL("image/png");
     const headerPng=renderBiaBrandCanvas(headerLogo,popup.document.createElement("canvas"),2172,724).toDataURL("image/png");
-    popup.document.head.append(make("style",biaSummaryFooterCss(png,certified?images[1].src:undefined,headerPng,name,date,code)));
+    popup.document.head.append(make("style",biaSummaryFooterCss(png,certified?images[1].src:undefined,headerPng,name,date,code,reportTitle)));
     button.disabled=false;
     status.textContent="Escolha Salvar como PDF no destino de impressão.";
     popup.requestAnimationFrame(()=>{popup.focus();popup.print();});

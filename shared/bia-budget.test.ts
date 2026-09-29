@@ -10,6 +10,22 @@ function budget():BiaBudget {
     opex:[{id:'o',descricao:'Contabilidade',valorMensal:4500,inicio:'2026-10',fim:'',situacao:'Estimativa',ativoId:'',ativoNome:''}],
     fontes:[{id:'f',descricao:'Recursos próprios',tipo:'Aporte',valor:1304000,mes:'2026-10',situacao:'Confirmada pelo responsável',destinacao:'Livre',observacoes:''}]};
 }
+test('horizonte sem teto de 120 preserva prazo, persistência e projeção segura',()=>{
+  for(const meses of [121,220,360,1200]){
+    const b={...budget(),meses},before=structuredClone(b),p=projectBiaBudget(b,'BRL');
+    assert.equal(biaBudgetSchema.parse(b).meses,meses);
+    const setup={...emptyBiaSetup(),orcamento:b};
+    assert.equal(parseBiaSetup(setup).orcamento?.meses,meses);
+    assert.equal(validateBiaDraft({nome_bia:'Teste',moeda:'BRL',estrutura_bia:setup}).estrutura_bia?.orcamento?.meses,meses);
+    assert.equal(p.rows.length,meses);assert.equal(p.opex,4500*meses);assert.deepEqual(b,before);
+  }
+  for(const meses of [0,-1,1.5,Infinity,NaN,Number.MAX_SAFE_INTEGER+1])assert.equal(biaBudgetSchema.safeParse({...emptyBiaBudget('BRL'),meses}).success,false);
+  const huge={...emptyBiaBudget('BRL'),inicio:'2026-10',meses:Number.MAX_SAFE_INTEGER};
+  assert.equal(biaBudgetSchema.parse(huge).meses,huge.meses);
+  const p=projectBiaBudget(huge,'BRL');assert.equal(p.rows.length,0);assert.equal(p.opex,null);assert.match(p.projectionNotice!,/Prazo preservado/);
+  const boundary=budget();boundary.inicio='9899-12';boundary.meses=1202;boundary.opex[0].inicio='9899-12';
+  assert.equal(projectBiaBudget(boundary,'BRL').opex,4500*1202,'recorrência não usa ordem textual ao atravessar ano de cinco dígitos');
+});
 test('orçamento projeta parcelas, meses inclusivos, centavos e dois cenários sem usar VO como caixa',()=>{
   const b=budget(),before=structuredClone(b),p=projectBiaBudget(b,'BRL',[],1000000);
   assert.equal(p.capex,1250000);assert.equal(p.opex,54000);assert.equal(p.diferenca,250000);assert.equal(p.rows.length,12);

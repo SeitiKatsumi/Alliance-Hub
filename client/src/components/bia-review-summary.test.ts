@@ -74,6 +74,13 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     assert.ok(created.some(n=>n.tag==="canvas" && n.width===676 && n.height===706));
     assert.ok(created.some(n=>n.textContent==="DADOS DA BIA • CÓPIA PARA CONSULTA"));
     assert.ok(!created.some(n=>n.textContent==="RESUMO DA BIA • PRÉVIA EM ESTRUTURAÇÃO"));
+    created.length=0;
+    assert.equal(printBiaSummary(original,"Histórica",["dados","map","cpp"],false,brandUrl,"OFICIAL01","map"),true);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(popup.document.title,"MAP Inicial - Histórica");
+    assert.ok(created.some(n=>n.textContent==="MAP INICIAL • NOVA CÓPIA PARA CONSULTA"));
+    assert.ok(created.some(n=>n.tag==="style" && n.textContent.includes('content: "MAP INICIAL"')));
+    assert.ok(created.some(n=>n.textContent?.startsWith("Cópia para consulta da revisão registrada.")));
     const count=printed;
     assert.equal(printBiaSummary(original,"Teste",[],false,brandUrl),false);
     assert.equal(printBiaSummary(original,"Teste"),false);

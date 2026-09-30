@@ -72,7 +72,7 @@ test('orçamento abre diretamente, só altera dados ao editar e preserva consult
   assert.match(editable,/Preenchimento opcional/);
   assert.doesNotMatch(editable,/Pendências e avisos|Informe o mês inicial do planejamento|OPEX não informado/);
   assert.doesNotThrow(()=>budget.biaBudgetSchema.parse(value.orcamento),'linhas incompletas continuam válidas para salvar');
-  assert.match(renderToStaticMarkup(BiaBudgetSummary({value,moeda:'BRL'})),/Pendências e avisos/,'relatório detalhado preserva ressalvas sobre a projeção');
+  assert.doesNotMatch(renderToStaticMarkup(BiaBudgetSummary({value,moeda:'BRL'})),/Pendências e avisos/,'resumo detalhado também não exibe o quadro removido');
   const stored=structuredClone(value);render();assert.deepEqual(value,stored,'abrir não substitui orçamento existente');
   const lists=nodes(render()).filter(n=>n.type==='ul');
   assert.deepEqual(lists.map(n=>n.props['aria-label']),['Investimentos CAPEX','Despesas OPEX']);
@@ -88,6 +88,23 @@ test('orçamento abre diretamente, só altera dados ao editar e preserva consult
   value=emptyBiaSetup();nodes(render()).find(n=>n.type==='input'&&n.props.type==='month').props.onChange({target:{value:'2026-11'}});
   assert.equal(value.orcamento?.inicio,'2026-11');assert.deepEqual(value.orcamento?.capex,[]);
 });
+test('resumo omite avisos de pagamentos e recursos sem alterar orçamento ou projeção',()=>{
+  const value=emptyBiaSetup();value.orcamento=budget.emptyBiaBudget('BRL');
+  value.orcamento.inicio='2026-09';
+  value.orcamento.capex.push({id:'a',descricao:'Carta de Consórcio',valor:1000000,situacao:'Estimativa',ativoId:'',ativoNome:'',pagamentos:[{id:'p',mes:'2026-09',valor:2795}]});
+  const before=structuredClone(value),projection=budget.projectBiaBudget(value.orcamento,'BRL');
+  assert.ok(projection.warnings.some(w=>w.startsWith('Pagamentos diferem')));
+  assert.ok(projection.warnings.includes('Origem dos recursos não informada.'));
+  assert.ok(projection.warnings.some(w=>w.startsWith('Há necessidades sem cobertura')));
+  for(const details of [true,false]){
+    const html=renderToStaticMarkup(BiaBudgetSummary({value,moeda:'BRL',details}));
+    assert.doesNotMatch(html,/Pendências e avisos|Pagamentos diferem|Origem dos recursos não informada|Há necessidades sem cobertura/);
+    assert.match(html,/<table/);assert.match(html,/2\.795,00/);
+  }
+  assert.deepEqual(value,before);
+  assert.deepEqual(budget.projectBiaBudget(value.orcamento,'BRL'),projection);
+});
+
 test('resumo para tela/PDF escapa texto, mantém ausência, moeda e seções sem efeitos financeiros',()=>{
   const value=emptyBiaSetup();value.orcamento=budget.emptyBiaBudget('BRL');value.orcamento.capex.push({id:'a',descricao:'<script>privado</script>',valor:1,situacao:'Estimativa',ativoId:'',ativoNome:'',pagamentos:[]});
   const html=renderToStaticMarkup(BiaBudgetSummary({value,moeda:'USD',valorOrigem:NaN}));

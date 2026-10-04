@@ -1,4 +1,4 @@
-import { canCorrectQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
+import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -3562,11 +3562,12 @@ export default function FluxoCaixaPage({
                   {transferencias.map((t) => {
                     const myMembroId = currentUser?.membro_directus_id;
                     const isOrigem = myMembroId && myMembroId === t.membro_origem_id;
-                    const isDiretorAlianca = myMembroId && selectedBia?.diretor_alianca && myMembroId === selectedBia.diretor_alianca;
-                    const isAliadoBuilt = myMembroId && selectedBia?.aliado_built && myMembroId === selectedBia.aliado_built;
-                    const canApprove =
-                      !isOrigem &&
-                      (isDiretorAlianca || isAliadoBuilt || currentUser?.role === "admin");
+                    const canApprove = canProcessQuotaTransfer(
+                      currentUser?.role,
+                      myMembroId,
+                      selectedBia?.diretor_alianca,
+                      selectedBia?.aliado_built,
+                    );
                     const canEdit = t.status === "pendente" && (isOrigem || currentUser?.role === "admin");
                     const transferAnexos = normalizeTransferAnexos(t.anexos);
                     const statusConfig =

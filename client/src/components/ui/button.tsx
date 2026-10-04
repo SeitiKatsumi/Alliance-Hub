@@ -50,7 +50,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ?Slot : "button"
     const forceWhiteText =
       typeof className === "string" &&
-      /\bbg-(blue-(500|600|700|800|900)|brand-gold|primary)\b/.test(className)
+      className.split(/\s+/).some((token) =>
+        /^(bg-blue-(500|600|700|800|900)|bg-brand-gold|bg-primary)$/.test(token),
+      )
     return (
       <Comp
         className={cn(

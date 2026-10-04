@@ -1,4 +1,4 @@
-import { canCorrectQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
+import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
 import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
@@ -26520,15 +26520,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         return res.json(updated);
       }
 
-      // Membro de origem cannot accept/reject their own transfer request
-      if (sessionMembroId && sessionMembroId === transfer.membro_origem_id) {
-        return res.status(403).json({ error: "O membro de origem nÃ£o pode aceitar ou rejeitar a prÃ³pria solicitaÃ§Ã£o" });
-      }
-      // Only diretor_alianca, aliado_built, or admin can approve/reject
-      const canProcess =
-        sessionRole === "admin" ||
-        (sessionMembroId && biaDiretorAlianca && sessionMembroId === biaDiretorAlianca) ||
-        (sessionMembroId && biaAliadoBuilt && sessionMembroId === biaAliadoBuilt);
+      // Diretor da aliança, aliado BUILT ou administração podem processar
+      // inclusive quando também são o membro de origem da transferência.
+      const canProcess = canProcessQuotaTransfer(sessionRole, sessionMembroId, biaDiretorAlianca, biaAliadoBuilt);
       if (!canProcess) {
         return res.status(403).json({ error: "Sem permissÃ£o para processar esta solicitaÃ§Ã£o" });
       }

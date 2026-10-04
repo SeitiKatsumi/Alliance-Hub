@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { Button } from "../components/ui/button";
+import { canProcessQuotaTransfer } from "../../../shared/quota-correction";
 
 test("MAP não invalida em loop enquanto fontes estão carregando", () => {
   const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
@@ -42,4 +46,21 @@ test("MAP revalida os aportes e reutiliza o calculo compartilhado", () => {
   assert.match(source, /allocateQuotaTransferAmounts\(transferValorRef/);
   assert.match(source, /formatQuotaPercent\(item\.percentual\)/);
   assert.doesNotMatch(source, /transferValorRef\)\.toFixed\(2\)/);
+});
+
+test("movimentação permite que gestor processe a própria linha e mantém Editar legível", () => {
+  const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
+  assert.equal(canProcessQuotaTransfer("user", "rodrigo", "rodrigo", null), true);
+  assert.match(source, /const canApprove = canProcessQuotaTransfer\(/);
+  const editTestId = source.indexOf('data-testid={`btn-editar-transfer-');
+  const editButton = source.slice(source.lastIndexOf("<Button", editTestId), editTestId).match(/className="([^"]+)"/);
+  assert.ok(editButton, "testa as classes do botão real");
+  for (const className of [editButton[1], "text-brand-navy bg-primary/10", "text-brand-navy hover:bg-blue-600", "text-brand-navy focus:bg-brand-gold"]) {
+    const editar = renderToStaticMarkup(createElement(Button, { variant: "outline", className }, "Editar"));
+    assert.match(editar, /text-brand-navy/);
+    assert.doesNotMatch(editar, /text-white/);
+  }
+  for (const className of ["bg-blue-600", "bg-primary", "bg-brand-gold"]) {
+    assert.match(renderToStaticMarkup(createElement(Button, { className }, "Salvar")), /text-white/);
+  }
 });

@@ -6426,16 +6426,18 @@ export async function registerRoutes(
     return null;
   }
 
-  async function getMembroComunidadesLinks(memberId: string) {
+  async function getMembroComunidadesLinks(memberId: string, includeOrigin = false) {
     const col = await getComunidadeCol();
     const fields = "fields=id,nome,sigla,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id.id";
     const [allComunidades, aliadoComunidades] = await Promise.all([
       directusFetchScoped(col, `${fields}&limit=-1`).catch((error: any) => {
         console.warn("[membro-comunidades] Nao foi possivel listar comunidades:", error?.message || error);
+        if (includeOrigin) throw error;
         return [];
       }),
       directusFetchScoped(col, `${fields}&filter[aliado][_eq]=${encodeURIComponent(memberId)}&limit=-1`).catch((error: any) => {
         console.warn("[membro-comunidades] Nao foi possivel listar comunidades do aliado:", error?.message || error);
+        if (includeOrigin) throw error;
         return [];
       }),
     ]);
@@ -6461,6 +6463,12 @@ export async function registerRoutes(
       })
       .filter(Boolean);
     const mae = await resolveMembroComunidadeMae(memberId, links as any[]);
+    // Display-only origin: authorization callers keep receiving actual memberships only.
+    if (includeOrigin && mae?.comunidade_id && !links.some((link: any) => String(link.id) === String(mae.comunidade_id))) {
+      const origin = comunidadesById.get(String(mae.comunidade_id));
+      if (!origin) throw new Error("Não foi possível carregar a comunidade mãe.");
+      links.push({ id: origin.id, nome: origin.nome, sigla: origin.sigla, aliado: origin.aliado || null, papel: "origem" });
+    }
     return links.map((link: any) => {
       const isMae = !!mae?.comunidade_id && String(link.id) === String(mae.comunidade_id);
       return {
@@ -6501,7 +6509,7 @@ export async function registerRoutes(
   app.get("/api/membros/:id/comunidades", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      res.json(await getMembroComunidadesLinks(req.params.id));
+      res.json(await getMembroComunidadesLinks(req.params.id, req.query.incluir_origem === "1"));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

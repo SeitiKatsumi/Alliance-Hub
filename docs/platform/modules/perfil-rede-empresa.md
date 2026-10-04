@@ -33,6 +33,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - Relacoes de comunidade sao muitos-para-muitos. A lista integral de vinculos e a fonte para regras de associacao.
 - ROs usam `community_id` como vinculo oficial com a Comunidade; `strategic_cell_id` e apenas um foco opcional dentro dela.
 - Antes da adesao completa, o primeiro convite e sua ancora `membro_comunidade_mae` sao gravados na mesma transacao. Essa origem nao concede associacao M2M nem deve ser ignorada enquanto o candidato conclui a adesao.
+- O editor de membros solicita `/api/membros/:id/comunidades?incluir_origem=1` para mostrar também a comunidade mãe ainda sem M2M, com `papel=origem` e rótulo de associação não confirmada. A consulta padrão e os consumidores de autorização continuam recebendo somente vínculos efetivos. Não cria associação, aprovação, pagamento ou permissão; preserva mudanças manuais da mãe e não duplica vínculos existentes. Falha de carregamento mostra erro com nova tentativa, não ausência de comunidade.
 
 ## Papeis e permissoes
 

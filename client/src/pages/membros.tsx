@@ -129,7 +129,7 @@ interface ComunidadeVinculo {
   id: string;
   nome?: string | null;
   sigla?: string | null;
-  papel?: "membro" | "aliado" | "ambos";
+  papel?: "membro" | "aliado" | "ambos" | "origem";
   is_mae?: boolean;
   locked?: boolean;
   origem_mae?: "convite" | "legacy_first_link" | "manual_seed" | string | null;
@@ -536,13 +536,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     staleTime: 60000,
   });
 
-  const { data: membroComunidades = [] } = useQuery<ComunidadeVinculo[]>({
-    queryKey: ["/api/membros", membro.id, "comunidades"],
+  const { data: membroComunidades = [], isPending: comunidadesLoading, isError: comunidadesError, refetch: refetchComunidades } = useQuery<ComunidadeVinculo[]>({
+    queryKey: ["/api/membros", membro.id, "comunidades", "origem"],
     queryFn: async () => {
       if (!membro.id) return [];
-      const res = await fetch(`/api/membros/${membro.id}/comunidades`);
-      const json = await res.json().catch(() => []);
-      return Array.isArray(json) ? json : [];
+      const res = await fetch(`/api/membros/${membro.id}/comunidades?incluir_origem=1`);
+      if (!res.ok) throw new Error("Não foi possível carregar as comunidades.");
+      const json = await res.json();
+      if (!Array.isArray(json)) throw new Error("Resposta de comunidades inválida.");
+      return json;
     },
     enabled: !!membro.id,
     staleTime: 30000,
@@ -562,7 +564,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         id: String(comunidade.id),
         nome: comunidade.nome,
         sigla: comunidade.sigla,
-        papel: existing?.papel === "membro" ? "ambos" : existing?.papel || "aliado",
+        papel: existing?.papel === "membro" || existing?.papel === "ambos" ? "ambos" : "aliado",
         is_mae: existing?.is_mae,
         locked: existing?.locked,
         origem_mae: existing?.origem_mae,
@@ -577,11 +579,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     });
   }, [comunidades, membro.id, membroComunidades]);
   const linkedComunidadeIds = useMemo(
-    () => new Set(membroComunidadesList.map((c) => String(c.id))),
+    () => new Set(membroComunidadesList.filter((c) => c.papel !== "origem").map((c) => String(c.id))),
     [membroComunidadesList]
   );
   const comunidadeConvidadorId = selectedComunidadeId || membroComunidadesList[0]?.id || "";
-  const hasAnyComunidade = membroComunidadesList.length > 0;
+  const hasAnyComunidade = linkedComunidadeIds.size > 0;
   const comunidadesDisponiveis = comunidades.filter(c => !linkedComunidadeIds.has(String(c.id)));
   const comunidadeMaeAtual = membroComunidadesList.find(c => c.is_mae);
 
@@ -1086,7 +1088,14 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Vínculo à Comunidade</span>
               </div>
               <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-200 overflow-hidden" data-testid="lista-comunidades-vinculadas">
-                {membroComunidadesList.length === 0 ? (
+                {membro.id && comunidadesLoading ? (
+                  <p role="status" className="px-3 py-3 text-xs text-slate-500">Carregando comunidades...</p>
+                ) : comunidadesError ? (
+                  <div role="alert" className="px-3 py-3 text-sm text-red-600">
+                    Não foi possível carregar as comunidades.
+                    <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => refetchComunidades()}>Tentar novamente</Button>
+                  </div>
+                ) : membroComunidadesList.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-500">Nenhuma comunidade vinculada.</p>
                 ) : (
                   membroComunidadesList.map((c) => {
@@ -1105,7 +1114,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                             )}
                           </div>
                           <p className="mt-0.5 text-[11px] text-slate-500">
-                            {c.is_mae ? "Vínculo inicial do membro" : papelLabel}
+                            {c.papel === "origem" ? "Comunidade de origem · associação não confirmada" : c.is_mae ? "Vínculo inicial do membro" : papelLabel}
                           </p>
                         </div>
                         {canRemove ? (

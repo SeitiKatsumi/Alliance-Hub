@@ -266,14 +266,13 @@ function formatBRL(value: number): string {
   }).format(value);
 }
 
-function formatQuotaTransferValue(value: number | string | null | undefined, wholeReais = false): string {
+function formatQuotaTransferValue(value: number | string | null | undefined): string {
   const amount = Number(value || 0);
-  const hasFractionalCents = Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001;
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-    minimumFractionDigits: wholeReais ? 0 : 2,
-    maximumFractionDigits: wholeReais ? 0 : hasFractionalCents ? 5 : 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
@@ -2161,7 +2160,7 @@ export default function FluxoCaixaPage({
           <div class="row">
             <div class="name">${escapePdfHtml(membroMap[item.membroId] || item.inlineName || "Membro desconhecido")}</div>
             <div class="bar"><div style="width: ${Math.max(0, Math.min(100, item.percentual)).toFixed(2)}%"></div></div>
-            <div class="value">${escapePdfHtml(formatQuotaTransferValue(item.valor, true))}</div>
+            <div class="value">${escapePdfHtml(formatQuotaTransferValue(item.valor))}</div>
             <div class="percent">${formatQuotaPercent(item.percentual)}%</div>
           </div>
         `).join("")}
@@ -3186,7 +3185,7 @@ export default function FluxoCaixaPage({
                           <span className="truncate">{membroMap[item.membroId] || item.inlineName || "Membro desconhecido"}</span>
                         </span>
                         <span className="flex flex-wrap items-center gap-2 sm:justify-end">
-                          <span className="text-muted-foreground">{formatQuotaTransferValue(item.valor, true)}</span>
+                          <span className="text-muted-foreground">{formatQuotaTransferValue(item.valor)}</span>
                           <Badge variant="outline" className="border-brand-gold/50 text-brand-gold bg-brand-gold/10 min-w-[60px] justify-center" data-testid={`text-perc-membro-${item.membroId}`}>
                             {formatQuotaPercent(item.percentual)}%
                           </Badge>
@@ -3240,7 +3239,7 @@ export default function FluxoCaixaPage({
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Membro de Origem</p>
                   <p className="text-sm font-semibold">{membroMap[transferOrigemId] || transferOrigemId}</p>
                   <p className="text-xs text-muted-foreground">
-                    Cotas totais: {formatBRL(transferValorRef)}&nbsp;
+                    Cotas totais: {formatQuotaTransferValue(transferValorRef)}&nbsp;
                     ({formatPercentDisplay(aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual || 0)}% do capital total da BIA)
                   </p>
                 </div>
@@ -3627,14 +3626,13 @@ export default function FluxoCaixaPage({
                             </div>
                           )}
                         </div>
-                        {!!t.correcoes?.length && (
-                          <details className="text-xs max-w-sm break-words">
-                            <summary className="cursor-pointer">Histórico de ajustes ({t.correcoes.length})</summary>
-                            {t.correcoes.map((entry, index) => <p key={index} className="mt-2 whitespace-pre-wrap">
+                          <details className="text-xs max-w-sm break-words" data-testid={`historico-ajustes-${t.id}`}>
+                            <summary className="cursor-pointer">Histórico de ajustes ({t.correcoes?.length || 0})</summary>
+                            {!t.correcoes?.length && <p className="mt-2 text-muted-foreground">Nenhum ajuste registrado.</p>}
+                            {t.correcoes?.map((entry, index) => <p key={index} className="mt-2 whitespace-pre-wrap">
                               {entry.acao === "reverter" ? "Reversão" : "Correção"} · {new Date(entry.data).toLocaleString("pt-BR")}: {formatQuotaTransferValue(entry.antes.valor_total)} ({formatQuotaPercent(entry.antes.percentual_transferencia)}%) → {formatQuotaTransferValue(entry.depois.valor_total)} ({formatQuotaPercent(entry.depois.percentual_transferencia)}%). {entry.motivo}
                             </p>)}
                           </details>
-                        )}
                         <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <Badge variant="outline" className={`text-xs ${statusConfig.cls}`}>{statusConfig.label}</Badge>
                           {!readOnly && t.status === "aceita" && canCorrectQuotaTransfer(currentUser?.role, myMembroId, selectedBia?.diretor_alianca, selectedBia?.aliado_built, t.membro_origem_id) && (

@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { transformSync } from "esbuild";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Button } from "../components/ui/button";
-import { canProcessQuotaTransfer } from "../../../shared/quota-correction";
+import { canCorrectQuotaTransfer, canProcessQuotaTransfer } from "../../../shared/quota-correction";
 
 test("MAP não invalida em loop enquanto fontes estão carregando", () => {
   const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
@@ -46,6 +47,39 @@ test("MAP revalida os aportes e reutiliza o calculo compartilhado", () => {
   assert.match(source, /allocateQuotaTransferAmounts\(transferValorRef/);
   assert.match(source, /formatQuotaPercent\(item\.percentual\)/);
   assert.doesNotMatch(source, /transferValorRef\)\.toFixed\(2\)/);
+});
+
+test("lista de sócios e PDF exibem reais inteiros sem perder precisão operacional", () => {
+  const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("function formatQuotaTransferValue(");
+  const helper = source.slice(start, source.indexOf("function formatQuotaPercent(", start));
+  const format = new Function(transformSync(`${helper}; return formatQuotaTransferValue;`, { loader: "ts" }).code)();
+  for (const [value, expected] of [[43773.24534, "R$ 43.773"], [39553.2625, "R$ 39.553"], [39553.99999, "R$ 39.554"], [0, "R$ 0"]] as const) {
+    assert.equal(format(value, true).replace(/\s/g, " "), expected);
+  }
+  assert.equal(format("43773.24534").replace(/\s/g, " "), "R$ 43.773,24534");
+  assert.equal(source.match(/formatQuotaTransferValue\(item.valor, true\)/g)?.length, 2, "tela e PDF usam o mesmo formato");
+  assert.equal(source.match(/formatQuotaPercent\(item.percentual\)/g)?.length, 2, "percentuais preservados na tela e PDF");
+  assert.match(source, /formatQuotaTransferValue\(correctingTransfer\?\.valor_total\)/);
+});
+
+test("Corrigir aparece na própria transferência aceita somente para gestores com edição", () => {
+  const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
+  const condition = source.match(/\{(!readOnly && t.status === "aceita" && canCorrectQuotaTransfer\([^\n]+\)) && \(/);
+  assert.ok(condition);
+  const visible = new Function("readOnly", "t", "currentUser", "myMembroId", "selectedBia", "canCorrectQuotaTransfer", `return ${condition[1]}`);
+  for (const [role, director, ally, expected] of [
+    ["user", { id: "origem" }, null, true],
+    ["user", null, "origem", true],
+    ["admin", null, null, true],
+    ["superadmin", null, null, true],
+    ["user", "outro", null, false],
+  ] as const) {
+    const args = [{ status: "aceita", membro_origem_id: "origem" }, { role }, "origem", { diretor_alianca: director, aliado_built: ally }, canCorrectQuotaTransfer] as const;
+    assert.equal(visible(false, ...args), expected);
+    assert.equal(visible(true, ...args), false);
+    assert.equal(visible(false, { ...args[0], status: "pendente" }, ...args.slice(1)), false);
+  }
 });
 
 test("movimentação permite que gestor processe a própria linha e mantém Editar legível", () => {

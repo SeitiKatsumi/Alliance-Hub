@@ -20,7 +20,13 @@ test("valida valor e percentual de cotas com cinco casas", () => {
   ]) assert.equal(quotaTransferAmountsSchema.safeParse(input).success, false);
 });
 
-test("corrige pela API com histórico atômico, revalida permissões e preserva caixa", async () => {
+for (const scenario of [
+  { name: "diretor", role: "user", member: "diretor", director: "diretor", ally: "aliado" },
+  { name: "diretor de origem", role: "user", member: "origem", director: "origem", ally: "aliado" },
+  { name: "aliado de origem", role: "user", member: "origem", director: "diretor", ally: "origem" },
+  { name: "admin de origem", role: "admin", member: "origem", director: "diretor", ally: "aliado" },
+  { name: "superadmin de origem", role: "superadmin", member: "origem", director: "diretor", ally: "aliado" },
+]) test(`corrige pela API com histórico atômico, permissões e caixa preservados: ${scenario.name}`, async () => {
   const pg = new PGlite();
   await pg.exec(`CREATE TABLE transferencias_cotas (id varchar PRIMARY KEY, bia_id varchar NOT NULL, membro_origem_id varchar NOT NULL, membro_destino_id varchar NOT NULL, valor_total numeric, percentual_transferencia numeric(5,2), status text NOT NULL, solicitado_por varchar, observacoes text, anexos text[], motivo_rejeicao text, criado_em timestamp DEFAULT now(), atualizado_em timestamp DEFAULT now());`);
   await pg.exec(readFileSync(new URL("../migrations/20260915_quota_corrections.sql", import.meta.url), "utf8"));
@@ -40,7 +46,7 @@ test("corrige pela API com histórico atômico, revalida permissões e preserva 
   const route = source.slice(start, source.indexOf('  app.get("/api/transferencia-cotas"', start));
   new Function("app", "storage", "requireBiaModuleAccess", "directusFetchOne", "canCorrectQuotaTransfer", "quotaCorrectionSchema", "writeMapTransfer", transformSync(route, { loader: "ts" }).code)(app, storage,
     async (req: any, res: any) => { if (req.headers["x-denied"]) { res.status(403).json({error:"Sem acesso à BIA"}); return false; } return true; },
-    async () => ({ diretor_alianca: { id: "diretor" }, aliado_built: "aliado" }), canCorrectQuotaTransfer, quotaCorrectionSchema,
+    async () => ({ diretor_alianca: { id: scenario.director }, aliado_built: scenario.ally }), canCorrectQuotaTransfer, quotaCorrectionSchema,
     async (_biaId: string, _event: string, _reason: string, operation: (tx: any) => Promise<unknown>) => db.transaction(operation)); // BIA legada.
   app.get("/fixture", async (_req, res) => res.json(await storage.getTransferenciaCotas("test")));
   const server = app.listen(0, "127.0.0.1");
@@ -49,15 +55,18 @@ test("corrige pela API com histórico atômico, revalida permissões e preserva 
   const read = async () => (await fetch(`${base}/fixture`)).json();
   const patch = (body: any, headers: Record<string,string> = { "x-role": "admin" }) => fetch(`${base}/api/transferencia-cotas/test/correcao`, { method:"PATCH", headers:{"Content-Type":"application/json", ...headers}, body:JSON.stringify(body) });
   try {
+    const actorHeaders = { "x-role": scenario.role, "x-member": scenario.member };
     const original = await read();
     const input = { valor_total: 174.94321, percentual_transferencia: 50.12345, motivo: 'Correção João d’Ávila & Cia + "Sul"\nvalor digitado errado', atualizado_em: original.atualizado_em };
     assert.equal((await patch(input, {})).status, 401);
-    assert.equal((await patch(input, {"x-role":"user", "x-member":"origem"})).status, 403);
-    assert.equal((await patch(input, {"x-role":"admin", "x-member":"origem"})).status, 403);
-    assert.equal((await patch(input, {"x-role":"admin", "x-denied":"yes"})).status, 403);
+    assert.equal((await patch(input, {"x-role":"user", "x-member":"sem-papel"})).status, 403);
+    if (scenario.director !== "origem" && scenario.ally !== "origem") {
+      assert.equal((await patch(input, {"x-role":"user", "x-member":"origem"})).status, 403);
+    }
+    assert.equal((await patch(input, {...actorHeaders, "x-denied":"yes"})).status, 403);
     for (const bad of [{valor_total:0}, {valor_total:-1}, {valor_total:"174,94"}, {valor_total:1.000001}, {percentual_transferencia:101}, {percentual_transferencia:1.000001}, {motivo:" "}]) assert.equal((await patch({...input,...bad})).status, 400);
     assert.deepEqual(await read(), original);
-    assert.equal((await patch(input, {"x-role":"user", "x-member":"diretor"})).status, 200);
+    assert.equal((await patch(input, actorHeaders)).status, 200);
     const corrected = await read();
     assert.equal(corrected.valor_total, "174.94321");
     assert.equal(corrected.percentual_transferencia, "50.12345");
@@ -81,9 +90,9 @@ test("corrige pela API com histórico atômico, revalida permissões e preserva 
     const reversal = { acao: "reverter", confirmar: true, motivo: 'Reversão — operação duplicada & conferida + "OK"\nç', atualizado_em: beforeReversal.atualizado_em };
     assert.equal((await patch({...reversal, confirmar:false})).status,400);
     assert.equal((await patch({...reversal, motivo:" "})).status,400);
-    assert.equal((await patch(reversal, {"x-role":"user", "x-member":"origem"})).status,403);
+    assert.equal((await patch(reversal, {"x-role":"user", "x-member":"sem-papel"})).status,403);
     assert.deepEqual(await read(),beforeReversal);
-    assert.equal((await patch(reversal)).status,200);
+    assert.equal((await patch(reversal, actorHeaders)).status,200);
     const reversed = await read();
     assert.equal(reversed.status,"revertida");
     assert.equal(reversed.valor_total,beforeReversal.valor_total);

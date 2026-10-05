@@ -266,14 +266,14 @@ function formatBRL(value: number): string {
   }).format(value);
 }
 
-function formatQuotaTransferValue(value: number | string | null | undefined): string {
+function formatQuotaTransferValue(value: number | string | null | undefined, wholeReais = false): string {
   const amount = Number(value || 0);
   const hasFractionalCents = Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001;
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: hasFractionalCents ? 5 : 2,
+    minimumFractionDigits: wholeReais ? 0 : 2,
+    maximumFractionDigits: wholeReais ? 0 : hasFractionalCents ? 5 : 2,
   }).format(amount);
 }
 
@@ -2161,7 +2161,7 @@ export default function FluxoCaixaPage({
           <div class="row">
             <div class="name">${escapePdfHtml(membroMap[item.membroId] || item.inlineName || "Membro desconhecido")}</div>
             <div class="bar"><div style="width: ${Math.max(0, Math.min(100, item.percentual)).toFixed(2)}%"></div></div>
-            <div class="value">${escapePdfHtml(formatQuotaTransferValue(item.valor))}</div>
+            <div class="value">${escapePdfHtml(formatQuotaTransferValue(item.valor, true))}</div>
             <div class="percent">${formatQuotaPercent(item.percentual)}%</div>
           </div>
         `).join("")}
@@ -3186,7 +3186,7 @@ export default function FluxoCaixaPage({
                           <span className="truncate">{membroMap[item.membroId] || item.inlineName || "Membro desconhecido"}</span>
                         </span>
                         <span className="flex flex-wrap items-center gap-2 sm:justify-end">
-                          <span className="text-muted-foreground">{formatQuotaTransferValue(item.valor)}</span>
+                          <span className="text-muted-foreground">{formatQuotaTransferValue(item.valor, true)}</span>
                           <Badge variant="outline" className="border-brand-gold/50 text-brand-gold bg-brand-gold/10 min-w-[60px] justify-center" data-testid={`text-perc-membro-${item.membroId}`}>
                             {formatQuotaPercent(item.percentual)}%
                           </Badge>

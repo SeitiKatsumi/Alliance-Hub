@@ -1,0 +1,35 @@
+{
+  "version": "2026-10-06",
+  "typography": {
+    "family": "Bahnschrift",
+    "width": "condensed (wdth 75) for dynamic name/code",
+    "copyColors": {"light":"#6a7984","dark":"#b1bac1","source":"dominant original slogan pixels; dark white alpha 177/255 composited on #011d33"},
+    "fixedCopy": "original raster lettering: tagline crop 400 398 338 87; Powered by crop 360 550 146 40",
+    "fallback": "DIN Alternate, Arial Narrow, Arial, sans-serif",
+    "nameMaxSvgUnits": {"vertical":22,"whatsapp":22,"horizontal":28},
+    "codeSvgUnits": 11,
+    "exportScale": "4x resolution; typography is sized for the displayed mark, not divided by export scale",
+    "longNames": "wrap and shrink only when necessary to fit",
+    "fontSource": "local system font; not bundled; PNG preserves rasterized appearance"
+  },
+  "runtimeSources": {
+    "bia-brand-artwork.png": {
+      "dimensions": "1138x665",
+      "sha256": "DD7304FC2F631AD1042E3D322C3BA6DCF0928B33C902794215AF38279F292C90",
+      "use": "white BIA and BUILT symbols"
+    },
+    "bia-seal.png": {
+      "dimensions": "1138x665",
+      "sha256": "0272F6C27934FACD110E47D8E3B728FA83121801A4475795B34C3B682A79312A",
+      "use": "navy BIA and BUILT symbols"
+    }
+  },
+  "referenceTemplates": [
+    "bia-square-template.png",
+    "bia-whatsapp-template.png",
+    "bia-header-template.png"
+  ],
+  "composition": "vector backgrounds, borders, rules and text with high-resolution official symbol crops",
+  "dynamicFields": ["name_without_leading_bia", "official_code"],
+  "runtimeImageGeneration": false
+}

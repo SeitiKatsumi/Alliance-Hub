@@ -29,7 +29,7 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
   const previous=Object.getOwnPropertyDescriptor(globalThis,"window");
   const previousFetch=globalThis.fetch, previousReader=Object.getOwnPropertyDescriptor(globalThis,"FileReader");
   try {
-    globalThis.fetch=async input=>{assert.equal(input,"/branding/bia-header-artwork.png");return {ok:true,blob:async()=>new Blob(["png"],{type:"image/png"})} as Response;};
+    globalThis.fetch=async input=>{assert.equal(input,"/branding/bia-seal.png");return {ok:true,blob:async()=>new Blob(["png"],{type:"image/png"})} as Response;};
     Object.defineProperty(globalThis,"FileReader",{configurable:true,value:class {result="data:image/png;base64,TEST";onload?:()=>void;readAsDataURL(){this.onload?.();}}});
     Object.defineProperty(globalThis,"window",{configurable:true,value:{open:()=>null}});
     assert.equal(printBiaSummary({} as HTMLElement,"Teste",undefined,false,brandUrl),false);
@@ -49,8 +49,8 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     assert.equal(appended[1].className,"report-masthead");
     assert.equal(appended[3].className,"report-footer");
     assert.equal(created.filter(n=>n.tag==="img")[0].src,brandUrl);
-    assert.match(decodeURIComponent(created.filter(n=>n.tag==="img")[1].src),/BIA-OFICIAL01/);
-    assert.ok(created.some(n=>n.tag==="canvas" && n.width===2172 && n.height===724));
+    assert.match(decodeURIComponent(created.filter(n=>n.tag==="img")[1].src),/BIA - OFICIAL01/);
+    assert.ok(created.some(n=>n.tag==="canvas" && n.width===3328 && n.height===604));
     assert.ok(created.some(n=>n.tag==="p" && n.textContent===buildBiaMouFooterText("Teste","OFICIAL01")));
     created.length=0;
     assert.equal(printBiaSummary(original,"Teste",["map"],true,brandUrl),true);
@@ -108,7 +108,7 @@ test("exportação filtra seções e aguarda selos; certificação segue a BIA, 
     assert.match(footerCss,/@top-left[^}]*125mm auto no-repeat/);
     assert.match(biaSummaryPrintCss,/\.report-masthead img \{ width: 472px/);
     assert.match(biaSummaryPrintCss,/table-layout: fixed/);
-    assert.ok(readFileSync(new URL("../../public/branding/bia-header-artwork.png",import.meta.url)).length>0);
+    assert.ok(readFileSync(new URL("../../public/branding/bia-seal.png",import.meta.url)).length>0);
     const page=readFileSync(new URL("../pages/bia-nova.tsx",import.meta.url),"utf8");
     assert.match(page,/step===6 && <BiaPdfDialog[^>]+disabled=\{busy \|\| !preview.map\}/);
     assert.match(page,/certified=\{form.selo_certified_alliance===true\}/);

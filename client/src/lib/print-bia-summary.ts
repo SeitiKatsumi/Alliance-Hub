@@ -128,14 +128,14 @@ export function printBiaSummary(element: HTMLElement, name: string, sections: re
       return img.decode();
     })),
     ...images.map(img=>img.decode()),
-    loadBiaBrandArtwork("/branding/bia-header-artwork.png").then(artwork=>{
+    loadBiaBrandArtwork("/branding/bia-seal.png").then(artwork=>{
       headerLogo.src=biaBrandDataUrl(buildBiaHeaderSvg(name,code,artwork));
       return headerLogo.decode();
     }),
   ]).then(()=>{
     // Chromium print margins omit embedded raster logos inside SVG backgrounds.
     const png=renderBiaBrandCanvas(images[0],popup.document.createElement("canvas")).toDataURL("image/png");
-    const headerPng=renderBiaBrandCanvas(headerLogo,popup.document.createElement("canvas"),2172,724).toDataURL("image/png");
+    const headerPng=renderBiaBrandCanvas(headerLogo,popup.document.createElement("canvas"),3328,604).toDataURL("image/png");
     popup.document.head.append(make("style",biaSummaryFooterCss(png,certified?images[1].src:undefined,headerPng,name,date,code,reportTitle)));
     button.disabled=false;
     status.textContent="Escolha Salvar como PDF no destino de impressão.";

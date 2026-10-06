@@ -1,5 +1,11 @@
 # Area de Aliancas, Oportunidades e BIAs
 
+## Marcas personalizadas (2026-10-06)
+
+- Dados da BIA oferece quatro versões: vertical azul, vertical clara, circular para WhatsApp e cabeçalho horizontal. PNGs exportados em 1228×1308, 1228×1308, 1376×1376 e 3328×604 respectivamente. Nome remove somente o prefixo BIA; código vem da consulta autorizada, nunca do ID interno.
+- Nome/código em Bahnschrift condensada (`wdth 75`), com fallback local sem fonte instalada. Tamanhos máximos de nome 22 unidades SVG nas verticais/WhatsApp e 28 na horizontal; código 11. Nomes longos quebram/reduzem. PNG preserva a aparência em pixels; fonte não é redistribuída.
+- Nome e código seguem o slogan original: #6a7984 no claro, #b1bac1 no azul. Slogan/Powered by e símbolos são recortes das artes oficiais, sem substituição de tipografia fixa. Manifesto registra origem e dimensões. PNG/PDF reutilizam os mesmos builders. Sem mudança em dados, autorização, cálculos, capa ou documentos já emitidos.
+
 ## Ativos: imóvel e consórcio (2026-09-28)
 
 - O editor compartilhado de estrutura jurídica, ativos e CAPEX/OPEX não pede Motivo da alteração. O salvamento envia a descrição automática **Atualização pelo editor da estrutura da BIA.**, preservando o contrato da API, autor/data, conteúdo anterior, revisão concorrente e histórico imutável. Motivos históricos não são reescritos; revisões econômicas e Governança mantêm seus controles próprios.

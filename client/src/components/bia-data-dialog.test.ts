@@ -47,7 +47,8 @@ test("Dados da BIA preserva autorização, fonte oficial e exportações sem gra
   assert.match(data,/bia\.codigo_publico\?\.trim\(\) \|\| null/);
   assert.match(data,/canExport = !!code && !!bia\.nome_bia\.trim\(\)/);
   assert.match(data,/disabled=\{!canExport/);
-  for(const label of ["Resumo","Marcas","MAP Inicial","Salvar resumo em PDF","Salvar marcas em PDF","Baixar PNG vertical","Baixar PNG horizontal"]) assert.ok(data.includes(label),label);
+  for(const label of ["Resumo","Marcas","MAP Inicial","Salvar resumo em PDF","Salvar marcas em PDF","Marca quadrada azul","Marca quadrada clara","Ícone para WhatsApp","Cabeçalho horizontal","Baixar PNG azul","Baixar PNG claro","Baixar PNG WhatsApp","Baixar PNG do cabeçalho"]) assert.ok(data.includes(label),label);
+  for(const asset of ["/branding/bia-brand-artwork.png","/branding/bia-seal.png"]) assert.ok(data.includes(asset),asset);
   assert.match(data,/BiaMapHistory biaId=\{bia.id\} initialOnly/);
   assert.match(data,/BiaReviewSummary form=\{form\} map=\{bia.map_inicial\} consultation/);
   assert.match(data,/bia.selo_certified_alliance===true/);

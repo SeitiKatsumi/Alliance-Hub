@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { BiaMapHistory } from "./bia-map-history";
 import { BiaReviewSummary } from "./bia-review-summary";
 import { BiaBudgetSummary } from "./bia-budget-fields";
-import { biaBrandDataUrl, buildBiaBrandSvg, buildBiaHeaderSvg, downloadBiaBrandPng, loadBiaBrandArtwork } from "../lib/bia-brand";
+import { biaBrandDataUrl, buildBiaBrandSvg, buildBiaHeaderSvg, buildBiaWhatsappSvg, downloadBiaBrandPng, loadBiaBrandArtwork, type BiaBrandExportKind } from "../lib/bia-brand";
 import { printBiaSummary } from "../lib/print-bia-summary";
 
 type BiaData = {
@@ -37,28 +37,30 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
   const [error, setError] = useState(""), [downloading, setDownloading] = useState(false);
   // Identity comes from the authorized BIA detail, never its internal ID or draft defaults.
   const code = bia.codigo_publico?.trim() || null;
-  const art = useQuery({queryKey:["/branding/bia-brand-artwork.png"],queryFn:()=>loadBiaBrandArtwork()});
-  const headerArt = useQuery({queryKey:["/branding/bia-header-artwork.png"],queryFn:()=>loadBiaBrandArtwork("/branding/bia-header-artwork.png")});
-  const vertical = useMemo(()=>art.data ? biaBrandDataUrl(buildBiaBrandSvg(bia.nome_bia,code,art.data)) : "",[art.data,bia.nome_bia,code]);
-  const horizontal = useMemo(()=>headerArt.data ? biaBrandDataUrl(buildBiaHeaderSvg(bia.nome_bia,code,headerArt.data)) : "",[headerArt.data,bia.nome_bia,code]);
-  const canExport = !!code && !!bia.nome_bia.trim() && !!vertical && !!horizontal;
+  const darkArt = useQuery({queryKey:["/branding/bia-brand-artwork.png"],queryFn:()=>loadBiaBrandArtwork()});
+  const lightArt = useQuery({queryKey:["/branding/bia-seal.png"],queryFn:()=>loadBiaBrandArtwork("/branding/bia-seal.png")});
+  const squareDark = useMemo(()=>darkArt.data ? biaBrandDataUrl(buildBiaBrandSvg(bia.nome_bia,code,darkArt.data,"square-dark")) : "",[darkArt.data,bia.nome_bia,code]);
+  const squareLight = useMemo(()=>lightArt.data ? biaBrandDataUrl(buildBiaBrandSvg(bia.nome_bia,code,lightArt.data,"square-light")) : "",[lightArt.data,bia.nome_bia,code]);
+  const whatsapp = useMemo(()=>darkArt.data ? biaBrandDataUrl(buildBiaWhatsappSvg(bia.nome_bia,code,darkArt.data)) : "",[darkArt.data,bia.nome_bia,code]);
+  const horizontal = useMemo(()=>lightArt.data ? biaBrandDataUrl(buildBiaHeaderSvg(bia.nome_bia,code,lightArt.data)) : "",[lightArt.data,bia.nome_bia,code]);
+  const canExport = !!code && !!bia.nome_bia.trim() && !!squareDark && !!squareLight && !!whatsapp && !!horizontal;
   const form = {nome_bia:bia.nome_bia,destinacao:bia.destinacao || "",objetivo_alianca:bia.objetivo_alianca || "",moeda:bia.moeda || "BRL",localizacao:bia.localizacao || "",observacoes:bia.observacoes || ""};
   const rows = [["Código público",code ? `BIA-${code}` : "Código oficial indisponível"],["Situação",biaPhaseLabel(bia.situacao as BiaPhase)]];
   if (!bia.map_inicial) rows.push(["Nome",form.nome_bia],["Destinação",form.destinacao],["Objetivo",form.objetivo_alianca],["Moeda",form.moeda],["Localização",form.localizacao],["Descrição",form.observacoes]);
   function pdf(element: HTMLDivElement | null) {
     setError("");
     if (!element || !canExport) return;
-    if (!printBiaSummary(element,bia.nome_bia,["dados","condicoes","orcamento"],bia.selo_certified_alliance===true,vertical,code,"data")) setError("Permita pop-ups neste site para abrir o PDF e tente novamente.");
+    if (!printBiaSummary(element,bia.nome_bia,["dados","condicoes","orcamento"],bia.selo_certified_alliance===true,squareDark,code,"data")) setError("Permita pop-ups neste site para abrir o PDF e tente novamente.");
   }
-  async function png(url: string, landscape: boolean) {
+  async function png(url: string, kind: BiaBrandExportKind) {
     setDownloading(true); setError("");
-    try { await downloadBiaBrandPng(url,bia.nome_bia,code,landscape); }
+    try { await downloadBiaBrandPng(url,bia.nome_bia,code,kind); }
     catch (e) { setError(e instanceof Error ? e.message : "Não foi possível baixar a marca."); }
     finally { setDownloading(false); }
   }
   return <div className="min-h-0 overflow-y-auto pr-1">
     {!code && <div role="status" className="mb-3 text-sm text-amber-700"><p>Código oficial indisponível. Recarregue os dados da BIA para liberar as marcas e o resumo em PDF; nenhum código será criado aqui.</p><Button variant="outline" onClick={()=>void queries.invalidateQueries({queryKey:["/api/bias"]})}>Recarregar dados da BIA</Button></div>}
-    {(art.isError || headerArt.isError) && <div role="alert" className="mb-3 text-sm">Não foi possível carregar as marcas. <Button variant="outline" onClick={()=>{void art.refetch();void headerArt.refetch();}}>Tentar novamente</Button></div>}
+    {(darkArt.isError || lightArt.isError) && <div role="alert" className="mb-3 text-sm">Não foi possível carregar as marcas. <Button variant="outline" onClick={()=>{void darkArt.refetch();void lightArt.refetch();}}>Tentar novamente</Button></div>}
     {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
     <Tabs defaultValue="resumo" className="space-y-4">
       <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="resumo">Resumo</TabsTrigger><TabsTrigger value="marcas">Marcas</TabsTrigger><TabsTrigger value="map">MAP Inicial</TabsTrigger></TabsList>
@@ -73,17 +75,19 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
       </TabsContent>
       <TabsContent value="marcas" className="space-y-4">
         <p className="text-sm text-muted-foreground">Marcas com nome e código oficial da BIA. Os downloads não substituem a capa e não alteram documentos emitidos.</p>
-        {(art.isPending || headerArt.isPending) && <p role="status">Preparando marcas…</p>}
+        {(darkArt.isPending || lightArt.isPending) && <p role="status">Preparando marcas…</p>}
         <div ref={brandsRef}><section data-pdf-section="dados"><h2 className="mb-4 text-lg font-semibold">Marcas personalizadas</h2>
-          <div className="bia-brand-gallery grid gap-4 sm:grid-cols-[1fr_2fr]" style={{breakInside:"avoid"}}>
-            <div className="rounded-lg border p-4"><h3 className="mb-3 font-medium">Marca vertical</h3>{vertical && <img src={vertical} alt={`Marca vertical de ${bia.nome_bia}`} style={{width:"46mm",maxWidth:"100%",height:"auto"}}/>}<div data-print-hide className="mt-4"><Button variant="outline" disabled={!canExport || downloading} onClick={()=>png(vertical,false)}>Baixar PNG vertical</Button><p className="mt-2 text-xs text-muted-foreground">1352 × 1412 pixels</p></div></div>
-            <div className="rounded-lg border p-4"><h3 className="mb-3 font-medium">Marca horizontal</h3>{horizontal && <img src={horizontal} alt={`Marca horizontal de ${bia.nome_bia}`} style={{width:"138mm",maxWidth:"100%",height:"auto"}}/>}<div data-print-hide className="mt-4"><Button variant="outline" disabled={!canExport || downloading} onClick={()=>png(horizontal,true)}>Baixar PNG horizontal</Button><p className="mt-2 text-xs text-muted-foreground">4344 × 1448 pixels</p></div></div>
+          <div className="bia-brand-gallery grid gap-4 sm:grid-cols-2" style={{breakInside:"avoid"}}>
+            <div className="rounded-lg border p-4"><h3 className="mb-3 font-medium">Marca quadrada azul</h3>{squareDark && <img src={squareDark} alt={`Marca quadrada azul de ${bia.nome_bia}`} style={{width:"46mm",maxWidth:"100%",height:"auto"}}/>}<div data-print-hide className="mt-4"><Button variant="outline" disabled={!canExport || downloading} onClick={()=>png(squareDark,"square-dark")}>Baixar PNG azul</Button><p className="mt-2 text-xs text-muted-foreground">1228 × 1308 pixels</p></div></div>
+            <div className="rounded-lg border p-4"><h3 className="mb-3 font-medium">Marca quadrada clara</h3>{squareLight && <img src={squareLight} alt={`Marca quadrada clara de ${bia.nome_bia}`} style={{width:"46mm",maxWidth:"100%",height:"auto"}}/>}<div data-print-hide className="mt-4"><Button variant="outline" disabled={!canExport || downloading} onClick={()=>png(squareLight,"square-light")}>Baixar PNG claro</Button><p className="mt-2 text-xs text-muted-foreground">1228 × 1308 pixels</p></div></div>
+            <div className="rounded-lg border p-4"><h3 className="mb-3 font-medium">Ícone para WhatsApp</h3>{whatsapp && <img src={whatsapp} alt={`Ícone para WhatsApp de ${bia.nome_bia}`} style={{width:"46mm",maxWidth:"100%",height:"auto"}}/>}<div data-print-hide className="mt-4"><Button variant="outline" disabled={!canExport || downloading} onClick={()=>png(whatsapp,"whatsapp")}>Baixar PNG WhatsApp</Button><p className="mt-2 text-xs text-muted-foreground">1376 × 1376 pixels</p></div></div>
+            <div className="rounded-lg border p-4 sm:col-span-2"><h3 className="mb-3 font-medium">Cabeçalho horizontal</h3>{horizontal && <img src={horizontal} alt={`Cabeçalho horizontal de ${bia.nome_bia}`} style={{width:"180mm",maxWidth:"100%",height:"auto"}}/>}<div data-print-hide className="mt-4"><Button variant="outline" disabled={!canExport || downloading} onClick={()=>png(horizontal,"header")}>Baixar PNG do cabeçalho</Button><p className="mt-2 text-xs text-muted-foreground">3328 × 604 pixels</p></div></div>
           </div>
         </section></div>
         <Button variant="outline" disabled={!canExport} onClick={()=>pdf(brandsRef.current)}><FileDown className="mr-2 h-4 w-4"/>Salvar marcas em PDF</Button>
         <p className="text-xs text-muted-foreground">Na janela de impressão, escolha “Salvar como PDF”.</p>
       </TabsContent>
-<TabsContent value="map" className="space-y-4"><p className="text-sm text-muted-foreground">Escolha uma revisão registrada do MAP Inicial e abra seu PDF. O arquivo preserva os dados históricos, sem recalcular a participação atual.</p><BiaMapHistory biaId={bia.id} initialOnly pdfCode={code}/></TabsContent>
+      <TabsContent value="map" className="space-y-4"><p className="text-sm text-muted-foreground">Escolha uma revisão registrada do MAP Inicial e abra seu PDF. O arquivo preserva os dados históricos, sem recalcular a participação atual.</p><BiaMapHistory biaId={bia.id} initialOnly pdfCode={code}/></TabsContent>
     </Tabs>
   </div>;
 }

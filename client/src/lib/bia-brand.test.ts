@@ -29,7 +29,7 @@ test("Bahnschrift e tamanhos da referência são usados em todas as versões",()
     assert.match(svg,/viewBox="360 550 146 40" aria-label="Powered by"/);
     assert.doesNotMatch(svg,/<text[^>]*>(United by Trust\.|Connected by Action\.|Powered by)<\/text>/);
     assert.match(svg,new RegExp(`font-size="${index===3?28:22}"[^>]*>ALIANÇA</text>`));
-    assert.match(svg,/font-size="11">BIA - ABC123<\/text>/);
+    assert.match(svg,/font-size="13">BIA - ABC123<\/text>/);
   }
   const longName="BIA Aliança de Desenvolvimento Imobiliário e Participações Internacionais";
   assert.equal(biaBrandNameLayout(longName).lines.join(" "),biaBrandDisplayName(longName));

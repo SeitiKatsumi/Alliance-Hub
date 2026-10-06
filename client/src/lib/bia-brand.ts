@@ -8,7 +8,7 @@ const brandFontFamily = "Bahnschrift, DIN Alternate, Arial Narrow, Arial, sans-s
 // resolution only; dividing the text size by the export scale made it tiny.
 const brandNameSize = 22;
 const brandHeaderNameSize = 28;
-const brandCodeSize = 11;
+const brandCodeSize = 13;
 // Dominant original slogan pixels: #6a7984 on white; white at alpha 177/255
 // on #011d33, composited as #b1bac1. Symbols retain their original colors.
 const brandCopyColor = {light: "#6a7984", dark: "#b1bac1"};

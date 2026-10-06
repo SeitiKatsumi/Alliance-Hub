@@ -1,5 +1,7 @@
 # AI_HANDOFF.md
 
+- 2026-10-06: Código das quatro marcas aumentado de 11 para 13 unidades SVG (+18%), a pedido do usuário. Fonte, cores, nomes, posições e símbolos preservados. Teste/manifesto/contrato atualizados; sem mudanças em dados ou regras de negócio.
+
 - Validação do pacote de marcas: 374 testes aprovados, build de produção concluído, contrato/diff-check válidos. TypeScript mantém 66 diagnósticos legados, nenhum nos arquivos de marca alterados. Conferência visual local e quatro PNGs de exemplo realizados antes da publicação.
 
 - 2026-10-06: Pacote das quatro marcas BIA: vertical azul/clara, WhatsApp e horizontal; downloads e impressão atualizados. Nome/código maiores em Bahnschrift condensada, nas cores do slogan original; frases fixas e símbolos preservados por recortes oficiais. Fonte dinâmica usa fallback onde Bahnschrift não está instalada. Inclui arte clara, referências, manifesto e regressões. Preview local/PNGs de exemplo e logs não fazem parte da publicação. Sem alterações de dados reais ou deploy CapRover.

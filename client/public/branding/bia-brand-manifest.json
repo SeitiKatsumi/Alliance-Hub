@@ -7,7 +7,7 @@
     "fixedCopy": "original raster lettering: tagline crop 400 398 338 87; Powered by crop 360 550 146 40",
     "fallback": "DIN Alternate, Arial Narrow, Arial, sans-serif",
     "nameMaxSvgUnits": {"vertical":22,"whatsapp":22,"horizontal":28},
-    "codeSvgUnits": 11,
+    "codeSvgUnits": 13,
     "exportScale": "4x resolution; typography is sized for the displayed mark, not divided by export scale",
     "longNames": "wrap and shrink only when necessary to fit",
     "fontSource": "local system font; not bundled; PNG preserves rasterized appearance"

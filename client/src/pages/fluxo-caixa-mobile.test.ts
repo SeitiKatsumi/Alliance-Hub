@@ -49,12 +49,12 @@ test("MAP revalida os aportes e reutiliza o calculo compartilhado", () => {
   assert.doesNotMatch(source, /transferValorRef\)\.toFixed\(2\)/);
 });
 
-test("MAP, movimentações, histórico, confirmações e PDF exibem reais inteiros", () => {
+test("MAP, movimentações, histórico, confirmações e PDF exibem reais com duas casas decimais", () => {
   const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
   const start = source.indexOf("function formatQuotaTransferValue(");
   const helper = source.slice(start, source.indexOf("function formatQuotaPercent(", start));
   const format = new Function(transformSync(`${helper}; return formatQuotaTransferValue;`, { loader: "ts" }).code)();
-  for (const [value, expected] of [[43773.24534, "R$ 43.773"], [39553.2625, "R$ 39.553"], [39553.99999, "R$ 39.554"], ["443.98938", "R$ 444"], [0, "R$ 0"]] as const) {
+  for (const [value, expected] of [[43773.24534, "R$ 43.773,25"], [39553.2625, "R$ 39.553,26"], [39553.99999, "R$ 39.554,00"], ["443.98938", "R$ 443,99"], [36001, "R$ 36.001,00"], [0.01, "R$ 0,01"], [0, "R$ 0,00"]] as const) {
     assert.equal(format(value).replace(/\s/g, " "), expected);
   }
   assert.equal(source.match(/formatQuotaTransferValue\(item.valor\)/g)?.length, 2, "tela e PDF usam o mesmo formato");

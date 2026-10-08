@@ -25,7 +25,7 @@ export function BiaDataDialog({ bia }: { bia: BiaData }) {
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild><Button variant="outline" size="sm" className="gap-2"><Info className="h-4 w-4"/>Dados da BIA</Button></DialogTrigger>
     <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl flex-col overflow-hidden">
-      <DialogHeader><DialogTitle>Dados da BIA</DialogTitle><DialogDescription>{bia.nome_bia} · Resumo, marcas personalizadas e MAP Inicial.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Dados da BIA</DialogTitle><DialogDescription>{bia.nome_bia} · Resumo, participantes, marcas personalizadas e MAP Inicial.</DialogDescription></DialogHeader>
       {open && <BiaDataContent bia={bia}/>}
     </DialogContent>
   </Dialog>;
@@ -64,9 +64,8 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
     {(darkArt.isError || lightArt.isError) && <div role="alert" className="mb-3 text-sm">Não foi possível carregar as marcas. <Button variant="outline" onClick={()=>{void darkArt.refetch();void lightArt.refetch();}}>Tentar novamente</Button></div>}
     {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
     <Tabs defaultValue="resumo" className="space-y-4">
-      <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="resumo">Resumo</TabsTrigger><TabsTrigger value="marcas">Marcas</TabsTrigger><TabsTrigger value="map">MAP Inicial</TabsTrigger></TabsList>
+      <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4"><TabsTrigger value="resumo">Resumo</TabsTrigger><TabsTrigger value="participantes">Participantes</TabsTrigger><TabsTrigger value="marcas">Marcas</TabsTrigger><TabsTrigger value="map">MAP Inicial</TabsTrigger></TabsList>
       <TabsContent value="resumo" className="space-y-4">
-        <BiaPartnersStatus biaId={bia.id}/>
         <div ref={summaryRef} className="space-y-4">
           <section data-pdf-section="dados" className="rounded-lg border p-5"><h2 className="mb-3 text-lg font-semibold">Identificação da BIA</h2><dl className="grid gap-2 text-sm sm:grid-cols-[180px_1fr]">{rows.map(([label,value])=><Fragment key={label}><dt className="font-medium">{label}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{value || "Não informado"}</dd></Fragment>)}</dl></section>
           {bia.map_inicial && <BiaReviewSummary form={form} map={bia.map_inicial} consultation/>}
@@ -75,6 +74,7 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
         <Button variant="outline" disabled={!canExport || setup.isPending || setup.isError} onClick={()=>pdf(summaryRef.current)}><FileDown className="mr-2 h-4 w-4"/>Salvar resumo em PDF</Button>
         <p className="text-xs text-muted-foreground">Somente consulta. Para alterar dados, estrutura jurídica ou ativos, use Editar.</p>
       </TabsContent>
+      <TabsContent value="participantes" className="space-y-4"><BiaPartnersStatus biaId={bia.id}/></TabsContent>
       <TabsContent value="marcas" className="space-y-4">
         <p className="text-sm text-muted-foreground">Marcas com nome e código oficial da BIA. Os downloads não substituem a capa e não alteram documentos emitidos.</p>
         {(darkArt.isPending || lightArt.isPending) && <p role="status">Preparando marcas…</p>}

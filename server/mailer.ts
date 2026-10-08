@@ -521,7 +521,7 @@ export async function enviarSolicitacaoDiretoriaBia(opts: {
     </div>
     <p class="email-copy" style="color:#d1dae3;font-size:13px;line-height:20px">Se o botão não aparecer, <a class="email-gold" href="${BASE_URL}/notificacoes" style="color:#D7BB7D;text-decoration:underline">abra seus convites por este link</a>.</p>
   `, true);
-  await send(opts.diretorEmail, `Convite para ${opts.papel} — ${opts.biaNome}`, html);
+  return send(opts.diretorEmail, `Convite para ${opts.papel} — ${opts.biaNome}`, html);
 }
 
 export async function enviarSolicitacaoSocioBia(opts: {
@@ -544,7 +544,7 @@ export async function enviarSolicitacaoSocioBia(opts: {
     </div>
     <p class="email-copy" style="color:#d1dae3;font-size:13px;line-height:20px">Se o botão não aparecer, <a class="email-gold" href="${BASE_URL}/notificacoes" style="color:#D7BB7D;text-decoration:underline">abra seus convites por este link</a>.</p>
   `, true);
-  await send(opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
+  return send(opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
 }
 
 export async function enviarRespostaSolicitacaoBia(opts: {

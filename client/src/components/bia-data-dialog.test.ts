@@ -38,6 +38,15 @@ test("novo PDF nas duas entradas usa somente revisão autorizada e preserva PDF 
   assert.doesNotMatch(source,/calculateInitialMap|useMutation|"POST"|"PUT"/);
 });
 
+test("Participantes tem aba própria, fora do resumo e da exportação econômica",()=>{
+  const data=readFileSync(new URL("./bia-data-dialog.tsx",import.meta.url),"utf8");
+  assert.match(data, /<TabsTrigger value="participantes">Participantes<\/TabsTrigger>/);
+  assert.match(data, /<TabsContent value="participantes"[^>]*><BiaPartnersStatus biaId=\{bia.id\}\/>/);
+  const summary=data.slice(data.indexOf('<TabsContent value="resumo"'),data.indexOf('<TabsContent value="participantes"'));
+  assert.doesNotMatch(summary,/BiaPartnersStatus/);
+  assert.match(data,/grid-cols-2 sm:grid-cols-4/);
+});
+
 test("Dados da BIA preserva autorização, fonte oficial e exportações sem gravação",()=>{
   const page=readFileSync(new URL("../pages/bia-detalhe.tsx",import.meta.url),"utf8");
   const data=readFileSync(new URL("./bia-data-dialog.tsx",import.meta.url),"utf8");

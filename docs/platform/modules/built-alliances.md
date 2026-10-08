@@ -2,6 +2,12 @@
 
 ## Sócios em Dados da BIA (2026-10-08)
 
+- Participantes e pendências ficam na aba dedicada **Participantes** de Dados da BIA, entre Resumo e Marcas. Mantém lista, atualização e reenvio existentes; Resumo e seu PDF não incluem essa seção. Navegação em quatro colunas no desktop e duas no celular, sem mudar permissões ou endpoints.
+
+- Convites pendentes de sócios/diretores oferecem Reenviar convite somente com `configuracao_bia:edit`. POST `/api/bias/:id/convites/:tipo/:conviteId/reenviar` revalida autorização, BIA do convite, status e e-mail registrado; reutiliza o template original sem criar convite ou alterar aceite. Sem e-mail: 422; processado: 409; SMTP falhou: 502, nunca sucesso silencioso. Limite em memória de um envio por convite/minuto por processo, inclusive cliques concorrentes; reinício limpa esse limite. Resposta confirma aceitação pelo serviço, não entrega na caixa. Leitores não veem botão. Testes usam envio simulado; nenhum e-mail real disparado durante implementação.
+
+- Lista ampliada para **Participantes e pendências**: inclui cinco diretorias e Aliado BUILT, além de sócios, agrupando por membro. Soma convites pendentes de sócios e `bia_diretor_solicitacoes`; pessoa sem vínculo efetivado aparece apenas como convidada, não recebe acesso. Contrato técnico socios-status/socios mantido compatível. Sem gravações ou alteração de ativação/permissões.
+
 - Resumo mostra sócios vinculados e convidados, agrupados por membro, com papéis distintos e convites pendentes primeiro. Atualização ao abrir, manual e a cada 30 segundos enquanto montado; falha nunca equivale a lista vazia.
 - `GET /api/bias/:id/socios-status` exige `configuracao_bia:view`, resolve código/ID pela autorização existente e consulta somente a BIA autorizada. Vínculos vêm do Directus; convites de `bia_socio_solicitacoes` com status `pendente`, mesma fonte do bloqueio de ativação. Contador é de convites, não de pessoas.
 - Vinculado não significa MOU aceito ou pagamento confirmado. Sem gravações, mudança de permissões, aceites, ativação ou documentos históricos. A seção não integra o PDF econômico. Testes: `client/src/components/bia-partners-status.test.ts`.

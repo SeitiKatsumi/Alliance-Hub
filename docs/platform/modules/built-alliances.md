@@ -2,6 +2,8 @@
 
 ## Sócios em Dados da BIA (2026-10-08)
 
+- Botão Atualizar removido da aba Participantes. Consulta automática a cada 30s enquanto visível, ao abrir, ao recuperar foco/conexão e após reenvio; erro informa nova tentativa automática. Sem disparar convites automaticamente. Esta regra substitui a atualização manual descrita abaixo.
+
 - Participantes e pendências ficam na aba dedicada **Participantes** de Dados da BIA, entre Resumo e Marcas. Mantém lista, atualização e reenvio existentes; Resumo e seu PDF não incluem essa seção. Navegação em quatro colunas no desktop e duas no celular, sem mudar permissões ou endpoints.
 
 - Convites pendentes de sócios/diretores oferecem Reenviar convite somente com `configuracao_bia:edit`. POST `/api/bias/:id/convites/:tipo/:conviteId/reenviar` revalida autorização, BIA do convite, status e e-mail registrado; reutiliza o template original sem criar convite ou alterar aceite. Sem e-mail: 422; processado: 409; SMTP falhou: 502, nunca sucesso silencioso. Limite em memória de um envio por convite/minuto por processo, inclusive cliques concorrentes; reinício limpa esse limite. Resposta confirma aceitação pelo serviço, não entrega na caixa. Leitores não veem botão. Testes usam envio simulado; nenhum e-mail real disparado durante implementação.

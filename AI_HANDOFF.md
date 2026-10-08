@@ -1,5 +1,7 @@
 # AI_HANDOFF.md
 
+- 2026-10-08: Participantes sem botao Atualizar. Atualizacao automatica ao montar, recuperar foco/conexao, a cada 30s e apos reenvio. Erro informa nova tentativa automatica. Sem alteracao de API/envio de convites ou deploy.
+
 - 2026-10-08: Dados da BIA ganha aba Participantes dedicada, incluindo socios, cinco diretorias e Aliado, agrupados por pessoa. Convites pendentes permitem reenvio por usuario com configuracao_bia:edit; endpoint revalida BIA/status/email, reutiliza convite/template e retorna falha SMTP, com cooldown por processo de 60s. Testes simulados sem email real. Sem deploy CapRover nesta publicacao.
 
 - 2026-10-08: Dados da BIA > Resumo lista sócios vinculados/convidados, papéis e convites pendentes da fonte oficial, via GET autorizado socios-status. Capital agora tem consulta mínima para sócios Guardiões/Multiplicadores, todos os diretores e Aliado BUILT da própria BIA, inclusive overrides none antigos. Edição existente preservada; autor isolado, terceiro e convite pendente não ganham acesso. Editor informa visualização garantida. Sem migração, alteração financeira, aceite ou deploy CapRover. Testes de fonte/autorização/agrupamento/estados da UI e todos os cargos incluídos.

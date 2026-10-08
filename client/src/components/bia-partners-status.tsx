@@ -14,15 +14,16 @@ export function BiaPartnersStatus({ biaId }: { biaId: string }) {
     queryKey: [`/api/bias/${biaId}/socios-status`],
     staleTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     refetchInterval: 30_000,
   });
   return <section className="rounded-lg border p-5" aria-label="Participantes e pendências">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-lg font-semibold">Participantes e pendências</h2>
-      <Button type="button" variant="outline" size="sm" disabled={query.isFetching} onClick={() => void query.refetch()}>Atualizar</Button>
     </div>
     {query.isPending ? <p role="status">Carregando participantes…</p> : query.isError ?
-      <p role="alert" className="text-sm text-destructive">Não foi possível consultar os participantes. Clique em Atualizar para tentar novamente.</p> :
+      <p role="alert" className="text-sm text-destructive">Não foi possível consultar os participantes. A atualização será tentada novamente automaticamente.</p> :
       <BiaPartnersStatusList data={query.data} biaId={biaId} onRefresh={() => void query.refetch()} />}
   </section>;
 }

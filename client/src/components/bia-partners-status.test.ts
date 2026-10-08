@@ -57,6 +57,11 @@ test("lista mostra nomes, papéis e pendências, com estados vazios e erro disti
   state = { data: { convitesPendentes: 1, socios: [{ membroId: "a", nome: "Ana <teste>", papeis: ["Guardiã"], convitesPendentes: ["Multiplicadora"] }] } };
   assert.match(html(), /Ana &lt;teste&gt;/); assert.match(html(), /Convite pendente de aceite/); assert.match(html(), /Vinculado/);
   assert.match(html(), /Participantes e pendências/);
+  assert.doesNotMatch(html(), />Atualizar</);
+  assert.match(source, /refetchInterval: 30_000/);
+  assert.match(source, /refetchOnWindowFocus: "always"/);
+  assert.match(source, /refetchOnReconnect: "always"/);
+  assert.match(source, /refetchOnMount: "always"/);
   state.data.socios[0].convites = [{id:"i",tipo:"socio"}];
   assert.doesNotMatch(html(), /Reenviar convite/);
   state.data.canReenviar = true;
@@ -64,4 +69,5 @@ test("lista mostra nomes, papéis e pendências, com estados vazios e erro disti
   state = { data: { convitesPendentes: 0, socios: [] } }; assert.match(html(), /Nenhum participante/);
   state = { isPending: true }; assert.match(html(), /Carregando participantes/); assert.doesNotMatch(html(), /Nenhum participante/);
   state = { isError: true }; assert.match(html(), /Não foi possível consultar/); assert.doesNotMatch(html(), /Nenhum participante/);
+  assert.match(html(), /automaticamente/); assert.doesNotMatch(html(), /Clique em Atualizar/);
 });

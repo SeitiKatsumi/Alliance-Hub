@@ -13655,6 +13655,39 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bias/:id/socios-status", async (req, res) => {
+    try {
+      const allowed = await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "view");
+      if (!allowed) return;
+      const { bia } = allowed;
+      const pending = await storage.getBiaSocioSolicitacoesPendentesByBia(String(bia.id));
+      const people = new Map<string, { membroId: string; nome: string; papeis: string[]; convitesPendentes: string[] }>();
+      const person = (id: string, name?: string | null) => {
+        if (!people.has(id)) people.set(id, { membroId: id, nome: name || "", papeis: [], convitesPendentes: [] });
+        const row = people.get(id)!;
+        if (!row.nome && name) row.nome = name;
+        return row;
+      };
+      for (const config of SOCIO_SOLICITACAO_CONFIG) {
+        for (const id of parseBiaMemberList(bia[config.campoSocios])) {
+          const row = person(id);
+          if (!row.papeis.includes(config.papel)) row.papeis.push(config.papel);
+        }
+      }
+      for (const invite of pending) {
+        person(String(invite.socio_membro_id), invite.socio_nome).convitesPendentes.push(invite.papel);
+      }
+      const socios = await Promise.all(Array.from(people.values()).map(async (row) => {
+        const member = await getMembroResumo(row.membroId);
+        return { ...row, nome: member?.nome || row.nome || `Membro ${row.membroId}` };
+      }));
+      socios.sort((a, b) => Number(b.convitesPendentes.length > 0) - Number(a.convitesPendentes.length > 0) || a.nome.localeCompare(b.nome, "pt-BR"));
+      return res.json({ socios, convitesPendentes: pending.length });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: "Não foi possível consultar os sócios e seus convites." });
+    }
+  });
+
   app.get("/api/bia-socio-solicitacoes/bia/:biaId", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {

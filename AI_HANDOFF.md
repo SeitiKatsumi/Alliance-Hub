@@ -1,5 +1,7 @@
 # AI_HANDOFF.md
 
+- 2026-10-08: Dados da BIA > Resumo lista sócios vinculados/convidados, papéis e convites pendentes da fonte oficial, via GET autorizado socios-status. Capital agora tem consulta mínima para sócios Guardiões/Multiplicadores, todos os diretores e Aliado BUILT da própria BIA, inclusive overrides none antigos. Edição existente preservada; autor isolado, terceiro e convite pendente não ganham acesso. Editor informa visualização garantida. Sem migração, alteração financeira, aceite ou deploy CapRover. Testes de fonte/autorização/agrupamento/estados da UI e todos os cargos incluídos.
+
 - 2026-10-06: Código das quatro marcas aumentado de 11 para 13 unidades SVG (+18%), a pedido do usuário. Fonte, cores, nomes, posições e símbolos preservados. Teste/manifesto/contrato atualizados; sem mudanças em dados ou regras de negócio.
 
 - Validação do pacote de marcas: 374 testes aprovados, build de produção concluído, contrato/diff-check válidos. TypeScript mantém 66 diagnósticos legados, nenhum nos arquivos de marca alterados. Conferência visual local e quatro PNGs de exemplo realizados antes da publicação.

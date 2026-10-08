@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { BiaMapHistory } from "./bia-map-history";
 import { BiaReviewSummary } from "./bia-review-summary";
 import { BiaBudgetSummary } from "./bia-budget-fields";
+import { BiaPartnersStatus } from "./bia-partners-status";
 import { biaBrandDataUrl, buildBiaBrandSvg, buildBiaHeaderSvg, buildBiaWhatsappSvg, downloadBiaBrandPng, loadBiaBrandArtwork, type BiaBrandExportKind } from "../lib/bia-brand";
 import { printBiaSummary } from "../lib/print-bia-summary";
 
@@ -65,6 +66,7 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
     <Tabs defaultValue="resumo" className="space-y-4">
       <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="resumo">Resumo</TabsTrigger><TabsTrigger value="marcas">Marcas</TabsTrigger><TabsTrigger value="map">MAP Inicial</TabsTrigger></TabsList>
       <TabsContent value="resumo" className="space-y-4">
+        <BiaPartnersStatus biaId={bia.id}/>
         <div ref={summaryRef} className="space-y-4">
           <section data-pdf-section="dados" className="rounded-lg border p-5"><h2 className="mb-3 text-lg font-semibold">Identificação da BIA</h2><dl className="grid gap-2 text-sm sm:grid-cols-[180px_1fr]">{rows.map(([label,value])=><Fragment key={label}><dt className="font-medium">{label}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{value || "Não informado"}</dd></Fragment>)}</dl></section>
           {bia.map_inicial && <BiaReviewSummary form={form} map={bia.map_inicial} consultation/>}

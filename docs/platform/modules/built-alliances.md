@@ -1,5 +1,11 @@
 # Area de Aliancas, Oportunidades e BIAs
 
+## Sócios em Dados da BIA (2026-10-08)
+
+- Resumo mostra sócios vinculados e convidados, agrupados por membro, com papéis distintos e convites pendentes primeiro. Atualização ao abrir, manual e a cada 30 segundos enquanto montado; falha nunca equivale a lista vazia.
+- `GET /api/bias/:id/socios-status` exige `configuracao_bia:view`, resolve código/ID pela autorização existente e consulta somente a BIA autorizada. Vínculos vêm do Directus; convites de `bia_socio_solicitacoes` com status `pendente`, mesma fonte do bloqueio de ativação. Contador é de convites, não de pessoas.
+- Vinculado não significa MOU aceito ou pagamento confirmado. Sem gravações, mudança de permissões, aceites, ativação ou documentos históricos. A seção não integra o PDF econômico. Testes: `client/src/components/bia-partners-status.test.ts`.
+
 ## Marcas personalizadas (2026-10-06)
 
 - Dados da BIA oferece quatro versões: vertical azul, vertical clara, circular para WhatsApp e cabeçalho horizontal. PNGs exportados em 1228×1308, 1228×1308, 1376×1376 e 3328×604 respectivamente. Nome remove somente o prefixo BIA; código vem da consulta autorizada, nunca do ID interno.

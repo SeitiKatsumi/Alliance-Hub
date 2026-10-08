@@ -56,7 +56,42 @@ test("aplica os padrões de acesso de cada papel", () => {
   assert.equal(capital.capital_analises, "edit");
   assert.equal(capital.capital_calculadora, "edit");
 
-  assert.deepEqual(defaultBiaAccessForRoles(["socio_guardiao", "socio_multiplicador", "terceiro"]), EMPTY_BIA_ACCESS);
+  assert.deepEqual(defaultBiaAccessForRoles(["terceiro"]), EMPTY_BIA_ACCESS);
+});
+
+test("sócios consultam todos os módulos de Capital, mesmo com personalização antiga, sem ganhar edição", () => {
+  for (const role of ["socio_guardiao", "socio_multiplicador"] as const) {
+    for (const override of [null, {}, EMPTY_BIA_ACCESS]) {
+      const access = resolveBiaParticipantPermissions([role], override);
+      for (const key of ["capital_banco", "capital_financeiro", "capital_analises", "capital_calculadora"] as const) {
+        assert.equal(hasBiaAccess(access, key, "view"), true);
+        assert.equal(hasBiaAccess(access, key, "edit"), false);
+      }
+      assert.equal(access.documentos_capital, "none");
+      assert.equal(access.configuracao_bia, "none");
+    }
+    assert.deepEqual(resolveBiaParticipantPermissions([role], null, false), EMPTY_BIA_ACCESS);
+    assert.equal(resolveBiaParticipantPermissions([role, "diretor_capital"], null).capital_financeiro, "edit");
+    assert.equal(resolveBiaParticipantPermissions([role], {capital_financeiro:"edit"}).capital_financeiro, "edit");
+  }
+  for (const roles of [[], ["terceiro"]] as const) {
+    assert.deepEqual(resolveBiaParticipantPermissions([...roles], null), EMPTY_BIA_ACCESS);
+  }
+  const roles = collectBiaParticipantRoles({socios_guardioes:["socio"], convites:[{socio_membro_id:"convidado",status:"pendente"}]});
+  assert.deepEqual(resolveBiaParticipantPermissions(roles.get("convidado") || [], null), EMPTY_BIA_ACCESS);
+});
+
+test("diretores e aliado consultam Capital sem depender de vínculo de sócio", () => {
+  for (const role of ["aliado", "diretor_alianca", "diretor_tecnico", "diretor_obra", "diretor_comercial", "diretor_capital"] as const) {
+    for (const override of [null, EMPTY_BIA_ACCESS]) {
+      const access = resolveBiaParticipantPermissions([role], override);
+      for (const key of ["capital_banco", "capital_financeiro", "capital_analises", "capital_calculadora"] as const) {
+        assert.equal(access[key], role === "diretor_capital" && override === null ? "edit" : "view");
+      }
+    }
+    assert.equal(resolveBiaParticipantPermissions([role], null, false).capital_financeiro, "none");
+  }
+  assert.equal(resolveBiaParticipantPermissions(["autor"], null).capital_financeiro, "none");
 });
 
 test("combina múltiplos papéis sempre pelo maior acesso", () => {

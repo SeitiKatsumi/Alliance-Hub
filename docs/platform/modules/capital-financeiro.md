@@ -61,6 +61,10 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 ## Papeis e permissoes
 
+- Extensão de 2026-10-08: a mesma consulta mínima de Capital também vale para Aliado BUILT e todos os diretores (Aliança, Técnico, Obra, Comercial e Capital), mesmo sem papel de sócio e com override antigo `none`. Diretor de Capital mantém edição padrão; demais permissões de edição existentes não mudam. Autor isolado não recebe consulta automática.
+
+- Sócios Guardiões e Multiplicadores vinculados à própria BIA têm consulta mínima em Banco, Financeiro, Análises e DM, inclusive com personalização antiga `none`. O vínculo de sócio não concede edição; edição já autorizada por cargo acumulado ou permissão explícita permanece. Terceiros e convites pendentes não recebem esse mínimo. Falha na leitura de permissões mantém bloqueio seguro. Regra central em `shared/bia-access.ts`, aplicada pela API e interface; sem migração ou alteração de documentos/finanças.
+
 - Visualizacao/edicao dependem do papel e da matriz `bia_user_permissions`.
 - Operacoes financeiras exigem autorizacao no backend e registro do autor.
 - Exclusao em lote aguarda todos os resultados, atualiza a lista mesmo com falhas e mantém selecionados os itens nao excluidos. A interface informa os totais e o motivo devolvido pela API; itens protegidos exigem uma segunda confirmação explícita (`confirmar_exclusao_protegida: true`). A API revalida a autorização e registra autor, snapshot e confirmação no histórico antes da exclusão. Cancelar a segunda confirmação preserva esses itens; exclusão não cancela cobranças nem estorna pagamentos externos.

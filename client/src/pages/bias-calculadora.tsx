@@ -376,6 +376,7 @@ export interface InitialMapSnapshotApi {
   snapshotHash?: string | null;
   bloqueadoEm?: string | null;
   directusSync?: "ok" | "pending";
+  inviteSync?: "ok" | "pending";
 }
 
 interface CurrentMapResponse {
@@ -680,11 +681,15 @@ function MapInicialCalculator({
       queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/aportes-iniciais`] });
       queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/map/versoes`] });
       queryClient.invalidateQueries({ queryKey: ["/api/bia-mou/minhas-pendencias"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bias/${bia.id}/socios-status`] });
       setMotivo("");
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       toast({
         title: mode === "dm" ? "DM salvo" : "MAP Inicial salvo",
-        description: data.directusSync === "pending"
+        variant: data.inviteSync === "pending" ? "destructive" : "default",
+        description: data.inviteSync === "pending"
+          ? "A composição foi salva, mas os convites ainda não foram sincronizados. Salve novamente para concluir; nenhuma nova revisão será criada se os dados não mudaram."
+          : data.directusSync === "pending"
           ? "O MAP Inicial foi salvo, mas o espelho da BIA está pendente. Salve novamente para repetir a sincronização."
           : "Nenhum lançamento financeiro foi criado.",
       });

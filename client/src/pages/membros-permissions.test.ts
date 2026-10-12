@@ -53,3 +53,16 @@ test("Vitrine preserva selecao explicita junto a Aliado ao salvar e reabrir", ()
   assert.ok(hydrate({role:"user"},[]).includes("user"));
   assert.ok(!hydrate({role:"aliado"},[]).includes("user"));
 });
+
+test("edicao administrativa de membro usa pagina completa organizada por abas", () => {
+  const page = readFileSync(new URL("./membros.tsx", import.meta.url), "utf8");
+  assert.match(page, /data-testid="membro-editor-page"/);
+  assert.match(page, /"Dados gerais"/);
+  assert.match(page, /"Comunidades"/);
+  assert.match(page, /"Perfil e presença"/);
+  assert.match(page, /"Acessos"/);
+  assert.match(page, /"Termos"/);
+  assert.match(page, /"Histórico"/);
+  assert.match(page, /return <MembroEditPage membro=\{editingMembro\}/);
+  assert.doesNotMatch(page, /<Sheet(?:Content)?\b/);
+});

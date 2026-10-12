@@ -2,6 +2,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { Button } from "./ui/button";
+import { useState } from "react";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "./ui/alert-dialog";
 
 export type BiaPartnersStatusData = {
   convitesPendentes: number;
@@ -38,11 +40,34 @@ export function BiaPartnersStatusList({ data, biaId, onRefresh }: { data: BiaPar
         {socio.papeis.map((papel) => <p key={papel} className="mt-1 text-muted-foreground">{papel} — Vinculado</p>)}
         {socio.convitesPendentes.map((papel, index) => <div key={`${papel}-${index}`} className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <p className="font-medium text-amber-800">{papel} — Convite pendente de aceite</p>
-          {data.canReenviar && biaId && socio.convites?.[index] && <ResendBiaInvite biaId={biaId} invite={socio.convites[index]} name={socio.nome} onRefresh={onRefresh}/>}
+          {data.canReenviar && biaId && socio.convites?.[index] && <div className="flex flex-wrap gap-2">
+            <ResendBiaInvite biaId={biaId} invite={socio.convites[index]} name={socio.nome} onRefresh={onRefresh}/>
+            <CancelBiaInvite biaId={biaId} invite={socio.convites[index]} name={socio.nome} role={papel} onRefresh={onRefresh}/>
+          </div>}
         </div>)}
       </li>)}</ul>}
     <p className="text-xs text-muted-foreground">Esta lista reúne sócios, diretores e Aliado BUILT, com seus vínculos e convites. Aceites de MOU e demais requisitos de ativação são verificados separadamente.</p>
   </div>;
+}
+
+function CancelBiaInvite({biaId, invite, name, role, onRefresh}: {biaId:string; invite:{id:string;tipo:"socio"|"diretor"}; name:string; role:string; onRefresh?:()=>void}) {
+  const {toast} = useToast();
+  const [open, setOpen] = useState(false);
+  const cancel = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/bias/${encodeURIComponent(biaId)}/convites/${invite.tipo}/${encodeURIComponent(invite.id)}/cancelar`)).json(),
+    onSuccess: (result) => {setOpen(false); toast({title:"Convite cancelado",description:result.message}); onRefresh?.();},
+    onError: (error:Error) => {toast({title:"Não foi possível cancelar",description:error.message,variant:"destructive"}); onRefresh?.();},
+  });
+  return <AlertDialog open={open} onOpenChange={(value)=>{if(!cancel.isPending)setOpen(value);}}>
+    <AlertDialogTrigger asChild><Button type="button" size="sm" variant="outline" className="text-destructive" aria-label={`Cancelar convite de ${name} para ${role}`}>Cancelar convite</Button></AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>Cancelar convite?</AlertDialogTitle><AlertDialogDescription>Cancelar o convite de {name} para {role}? Ele deixará de ficar pendente e não poderá mais ser aceito. A conta da pessoa, outros vínculos e a composição econômica serão preservados.</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={cancel.isPending}>Manter convite</AlertDialogCancel>
+        <AlertDialogAction disabled={cancel.isPending} onClick={(event)=>{event.preventDefault();cancel.mutate();}}>{cancel.isPending?"Cancelando…":"Confirmar cancelamento"}</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>;
 }
 
 function ResendBiaInvite({biaId, invite, name, onRefresh}: {biaId:string; invite:{id:string;tipo:"socio"|"diretor"}; name:string; onRefresh?:()=>void}) {

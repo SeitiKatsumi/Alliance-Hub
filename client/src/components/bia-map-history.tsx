@@ -48,7 +48,7 @@ export function BiaMapHistory({ biaId, initialOnly = false, pdfCode }: { biaId: 
   const code=pdfCode?.trim() || null;
   const artwork=useQuery({queryKey:["/branding/bia-brand-artwork.png"],queryFn:()=>loadBiaBrandArtwork(),enabled:!!code && initialOnly && !!detail.data?.snapshot});
   const name=detail.data?.snapshot?.biaName || "";
-  const brand=useMemo(()=>artwork.data && code && name?biaBrandDataUrl(buildBiaBrandSvg(name,code,artwork.data)):"",[artwork.data,code,name]);
+  const brand=useMemo(()=>artwork.data && code && name?biaBrandDataUrl(buildBiaBrandSvg(name,code,artwork.data,"square-dark")):"",[artwork.data,code,name]);
   const canGenerate=initialOnly && !!code && !!brand && detail.data?.tipo==="zero" && detail.data.id===selectedId && !!detail.data.snapshot && !versions.isFetching && !versions.isError && !detail.isFetching && !detail.isError && !artwork.isError;
 
   return <Card><CardHeader><CardTitle>Histórico do MAP</CardTitle></CardHeader><CardContent className="space-y-4">

@@ -1,6 +1,7 @@
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { registerBiaInviteResend } from "./bia-invite-resend";
+import { registerBiaInviteCancel } from "./bia-invite-cancel";
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
 import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
@@ -8058,6 +8059,8 @@ export async function registerRoutes(
         item.campo_diretor === config.campoDiretor && item.diretor_membro_id === requestedDiretor
       );
 
+      await storage.cancelBiaDiretorSolicitacoes(opts.biaId, config.campoDiretor, requestedDiretor);
+
       if (currentDiretor && currentDiretor === requestedDiretor) {
         const mouAceito = await hasBiaMouAceito(opts.biaId, requestedDiretor);
         if (mouAceito) {
@@ -8073,8 +8076,6 @@ export async function registerRoutes(
           opts.payload[config.campoPercentual] = null;
         }
       }
-
-      await storage.cancelBiaDiretorSolicitacoes(opts.biaId, config.campoDiretor, requestedDiretor);
 
       if (jaExiste) continue;
 
@@ -8142,20 +8143,15 @@ export async function registerRoutes(
     for (const config of SOCIO_SOLICITACAO_CONFIG) {
       if (!Object.prototype.hasOwnProperty.call(opts.body, config.campoSocios)) continue;
       const requestedIds = parseBiaMemberList(opts.body[config.campoSocios]);
-      const currentIds = opts.currentBia ? parseBiaMemberList(opts.currentBia[config.campoSocios]) : [];
       const requestedSet = new Set(requestedIds);
       const pendentes = await storage.getBiaSocioSolicitacoesPendentesByBia(opts.biaId);
       const efetivados: string[] = [];
 
-      for (const currentId of currentIds) {
-        if (!requestedSet.has(currentId)) {
-          await Promise.all(
-            pendentes
-              .filter((item) => item.campo_socios === config.campoSocios && item.socio_membro_id === currentId)
-              .map((item) => storage.updateBiaSocioSolicitacao(item.id, { status: "cancelado", respondido_em: new Date() } as any))
-          );
-        }
-      }
+      // Convidados ainda não constam dos vínculos efetivados do Directus.
+      // Compare todos os pendentes com a seleção salva, não apenas currentIds.
+      await Promise.all(pendentes
+        .filter((item) => item.campo_socios === config.campoSocios && !requestedSet.has(String(item.socio_membro_id)))
+        .map((item) => storage.updateBiaSocioSolicitacao(item.id, { status: "cancelado", respondido_em: new Date() } as any)));
 
       for (const socioId of requestedIds) {
         if (await hasBiaMouAceito(opts.biaId, socioId)) {
@@ -8182,6 +8178,29 @@ export async function registerRoutes(
       }
     }
     return criadas;
+  }
+
+  async function syncFormationMapInvites(biaId: string, req: any): Promise<"ok" | "pending"> {
+    try {
+      await withMapLock(biaId, async (tx, latest) => {
+        const bia = await directusFetchOne("bias_projetos", biaId, "fields=*");
+        // Corrigir documento histórico de BIA ativa não redefine sua equipe atual.
+        if (mapIsActive(bia, latest)) return;
+        const legacy = latest ? null : (await tx.execute(sql`SELECT snapshot FROM bia_map_versoes
+          WHERE bia_id=${biaId} AND tipo='zero' ORDER BY numero DESC LIMIT 1`)).rows[0];
+        const participants = latest?.participantes || legacy?.snapshot?.base?.participantes;
+        if (!Array.isArray(participants)) throw new Error("Composição salva indisponível.");
+        const team = biaTeamFromMapParticipants(participants);
+        // Somente solicitações. Aceites, vínculos efetivos, finanças e versões permanecem intactos.
+        await processSocioSolicitacoes({biaId, biaNome:bia.nome_bia, body:team, req, currentBia:bia});
+        const body: any = {...team};
+        for (const config of DIRETOR_SOLICITACAO_CONFIG) body[config.campoPercentual] = bia[config.campoPercentual];
+        await processDiretorSolicitacoes({biaId, biaNome:bia.nome_bia, body, payload:{}, req, currentBia:bia});
+      });
+      return "ok";
+    } catch {
+      return "pending";
+    }
   }
 
   function normalizeText(value: any): string {
@@ -10800,7 +10819,8 @@ export async function registerRoutes(
           actor: mapActor(), biaName: freshBia.nome_bia || String(bia.id),
           footer: "" });
       });
-      return res.json(legacyZeroView(bia, version, true));
+      const inviteSync = !mapIsActive(bia, null) ? await syncFormationMapInvites(String(bia.id), req) : "ok";
+      return res.json({ ...legacyZeroView(bia, version, true), inviteSync });
     } catch (error: any) { return res.status(error?.statusCode || 400).json({ error: error.message }); }
   });
 
@@ -10888,7 +10908,8 @@ export async function registerRoutes(
         directusSync = "pending";
         console.warn("[bia-map-inicial] MAP Inicial salvo; espelho Directus pendente.");
       });
-      return res.json({ ...initialMapSnapshotView(saved), directusSync, canEdit: true, ativa: mapIsActive(bia, saved) });
+      const inviteSync = !mapIsActive(bia, saved) ? await syncFormationMapInvites(String(bia.id), req) : "ok";
+      return res.json({ ...initialMapSnapshotView(saved), directusSync, inviteSync, canEdit: true, ativa: mapIsActive(bia, saved) });
     } catch (error: any) {
       return res.status(error?.statusCode || 400).json({ error: error.message });
     }
@@ -13551,7 +13572,33 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/bia-diretor-solicitacoes/:id/aceitar", async (req, res) => {
+  // Serializa aceite/recusa/cancelamento do mesmo convite, inclusive entre processos.
+  const withBiaInviteLock = (type: string, handler: any) => async (req: any, res: any) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      await db.transaction(async (tx) => {
+        const key = `bia-invite:${type === "param" ? req.params.tipo : type}:${req.params.conviteId || req.params.id}`;
+        const result = await tx.execute(sql`SELECT pg_try_advisory_xact_lock(hashtext(${key})) AS locked`);
+        if (!result.rows[0]?.locked) return res.status(409).json({ error: "Este convite está sendo processado. Tente novamente." });
+        await handler(req, res);
+      });
+    } catch {
+      if (!res.headersSent) res.status(503).json({ error: "Não foi possível processar o convite agora." });
+    }
+  };
+
+  registerBiaInviteCancel(app, {
+    authorize: (req, res) => requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "edit"),
+    lock: withBiaInviteLock,
+    cancel: async (type, id, biaId) => {
+      const table = type === "socio" ? sql`bia_socio_solicitacoes` : sql`bia_diretor_solicitacoes`;
+      const result = await db.execute(sql`UPDATE ${table} SET status = 'cancelado', respondido_em = now()
+        WHERE id = ${id} AND bia_id = ${biaId} AND status = 'pendente' RETURNING id`);
+      return result.rows.length === 1;
+    },
+  });
+
+  app.patch("/api/bia-diretor-solicitacoes/:id/aceitar", withBiaInviteLock("diretor", async (req: any, res: any) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
       const sessionMembroId = (req.session as any).membroId as string | null;
@@ -13606,9 +13653,9 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  }));
 
-  app.patch("/api/bia-diretor-solicitacoes/:id/recusar", async (req, res) => {
+  app.patch("/api/bia-diretor-solicitacoes/:id/recusar", withBiaInviteLock("diretor", async (req: any, res: any) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
       const sessionMembroId = (req.session as any).membroId as string | null;
@@ -13641,7 +13688,7 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  }));
 
   // ========== BIA SOCIO SOLICITACOES ==========
 
@@ -13725,7 +13772,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/bia-socio-solicitacoes/:id/aceitar", async (req, res) => {
+  app.patch("/api/bia-socio-solicitacoes/:id/aceitar", withBiaInviteLock("socio", async (req: any, res: any) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
       const sessionMembroId = (req.session as any).membroId as string | null;
@@ -13778,9 +13825,9 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  }));
 
-  app.patch("/api/bia-socio-solicitacoes/:id/recusar", async (req, res) => {
+  app.patch("/api/bia-socio-solicitacoes/:id/recusar", withBiaInviteLock("socio", async (req: any, res: any) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
       const sessionMembroId = (req.session as any).membroId as string | null;
@@ -13815,7 +13862,7 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  }));
 
   // ========== FLUXO DE CAIXA (from Directus) ==========
   await ensureFluxoCaixaHistoricoTable().catch((err: any) => {

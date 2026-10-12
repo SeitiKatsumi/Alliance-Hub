@@ -50,7 +50,7 @@ test("consulta de sócios usa autorização da BIA, pendências oficiais e agrup
 test("lista mostra nomes, papéis e pendências, com estados vazios e erro distintos", () => {
   const source = readFileSync(new URL("./bia-partners-status.tsx", import.meta.url), "utf8");
   let state: any;
-  const scope = { React, Button: "button", useQuery: () => state, useToast:()=>({toast:()=>{}}), useMutation:()=>({isPending:false,mutate:()=>{}}) };
+  const scope = { React, Button: "button", useState:()=>[false,()=>{}], ...Object.fromEntries(["AlertDialog","AlertDialogTrigger","AlertDialogContent","AlertDialogHeader","AlertDialogTitle","AlertDialogDescription","AlertDialogFooter","AlertDialogCancel","AlertDialogAction"].map(key=>[key,({children}:any)=>children])), useQuery: () => state, useToast:()=>({toast:()=>{}}), useMutation:()=>({isPending:false,mutate:()=>{}}) };
   const compiled = transformSync(source.slice(source.indexOf("export function BiaPartnersStatus(")).replaceAll("export function", "function"), { loader: "tsx" }).code;
   const Component = new Function(...Object.keys(scope), compiled + ";return BiaPartnersStatus;")(...Object.values(scope));
   const html = () => renderToStaticMarkup(React.createElement(Component, { biaId: "bia" }));
@@ -64,8 +64,12 @@ test("lista mostra nomes, papéis e pendências, com estados vazios e erro disti
   assert.match(source, /refetchOnMount: "always"/);
   state.data.socios[0].convites = [{id:"i",tipo:"socio"}];
   assert.doesNotMatch(html(), /Reenviar convite/);
+  assert.doesNotMatch(html(), /Cancelar convite/);
   state.data.canReenviar = true;
   assert.match(html(), /Reenviar convite para Ana/);
+  assert.match(html(), /Cancelar convite de Ana/);
+  assert.match(html(), /Confirmar cancelamento/);
+  assert.match(source, /event.preventDefault\(\);cancel.mutate\(\)/);
   state = { data: { convitesPendentes: 0, socios: [] } }; assert.match(html(), /Nenhum participante/);
   state = { isPending: true }; assert.match(html(), /Carregando participantes/); assert.doesNotMatch(html(), /Nenhum participante/);
   state = { isError: true }; assert.match(html(), /Não foi possível consultar/); assert.doesNotMatch(html(), /Nenhum participante/);

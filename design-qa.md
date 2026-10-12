@@ -1,3 +1,58 @@
+# Design QA — Editar BIA em página completa (2026-09-25)
+
+## CAPEX e OPEX — 2026-09-28
+
+- Abertura direta: removido Adicionar orçamento; campos/horizonte e ações de CAPEX/OPEX aparecem mesmo sem orçamento salvo. QA autenticada desktop/mobile390 confirmou botão intermediário ausente, Mês inicial presente e Continuar habilitado; largura/scrollWidth 390px. Nenhuma interação de preenchimento ou gravação real. Teste comprova que renderizar não chama onChange e que a primeira edição preserva os defaults/captura a moeda.
+
+- Ajuste de preenchimento opcional: quadro Pendências e avisos removido somente do editor compartilhado. Na criação autenticada com linha CAPEX vazia, DOM confirmou zero quadros e Continuar habilitado; avanço à Revisão mostrou “CAPEX e OPEX: Opcional — pode preencher depois”. Retorno preservou campos. Desktop e mobile390 conferidos, sem salvar/recarregar o formulário do usuário. Relatório detalhado/PDF inalterado nesta revisão.
+
+- Criação autenticada em localhost3004 confirma etapa 6 entre Ativos e Revisão, oito etapas e ausência legada explícita. Evidência `output/design/budget-desktop.png`; nenhuma gravação em dados reais.
+- Editor autenticado `/bias/CVJKVYQQKZ/editar` também conferido: orçamento ausente, Histórico, motivo e Salvar revisão do orçamento desabilitado sem motivo; não adicionados dados. Mobile real com largura/scrollWidth 390px; evidência `output/design/budget-mobile.png`.
+- Componente real em fixture isolada `http://localhost:3018`: CAPEX 1.250.000, OPEX 54.000 em 12 meses e 13.500 em 3; diferença indicativa 250.000 versus VO de 1.000.000 sem usar VO como caixa. Inclusão e zero explícito, pagamentos, cenário de consulta desabilitado e divergência BRL/USD conferidos.
+- Viewport 390×844: documento com largura/scrollWidth 375px, sem overflow global; campos empilhados e tabela com rolagem própria. Desktop usa componentes/cores existentes BUILT, sem dependências novas.
+- PDF de QA (24 meses): quatro páginas A4 paisagem, cabeçalho/marca/rodapé existentes, números de página e cabeçalho de tabela repetido. Sem corte ou sobreposição. Dados fictícios; nenhum PDF histórico alterado.
+- Salvamento real não executado; API aguarda confirmação de reinício. Persistência, omissão por cliente antigo, revisão concorrente e congelamento foram validados nas regressões PostgreSQL isoladas, sem usar produção.
+
+## Referência e evidências
+
+- Referência escolhida: `C:/Users/ESPC/.codex/generated_images/01a03c5a-030c-7a00-b22e-59847fabf6b7/exec-ecf20456-9821-455e-84bb-6a3f86f1ac37.png`, 1488×1058. O usuário pediu explicitamente aproveitar o estilo e os componentes existentes da BUILT.
+- Implementação: `http://localhost:3004/bias/RA56FHGGMY/editar`, estado autenticado, Dados da BIA, sem alterações pendentes.
+- Desktop: `output/design/bia-editar-desktop.png`, captura 1473×1617, viewport CSS 1488×1058. Mobile: `output/design/bia-editar-mobile.png`, captura 375×1814, viewport CSS 390×844. Capturas full-page; os 15px de scrollbar não integram a imagem. A comparação usa a região visível até a altura do viewport, excluindo o fundo extra da captura, sem redimensionamento.
+- Referência e desktop final foram abertos conjuntamente na mesma chamada de comparação. Textos, navegação, capa e ações estão legíveis na visualização integral; não foi necessário ampliar um recorte separado.
+
+## Verificação e iterações
+
+- Tipografia: família, títulos navy, rótulos e controles reutilizados da BUILT. Texto completo e quebra dos nomes das etapas preservados.
+- Layout: página completa no lugar do drawer, sete áreas numeradas, formulário branco e rodapé de ações persistente. Cabeçalho global e campos adicionais existentes são diferenças intencionais em relação ao conceito.
+- Cores: tokens de navy, azul ativo, fundo claro e bordas atuais; badge de fase existente preservado em vez de reproduzir a cor ilustrativa do mock.
+- Imagens: logo original e capa já cadastrada reutilizados, sem substitutos gerados ou perda de proporção.
+- Conteúdo: nomes canônicos das sete áreas; confirmação econômica independente explicitada; edição cadastral não promete ativar ou reapresentar aceites.
+- Iteração 1: [P2 corrigido] grade de sete etapas ocupava altura excessiva no mobile. Substituída abaixo de `sm` por seletor nativo rotulado; screenshot final confirma campo de nome e capa acessíveis, sem overflow horizontal. Rodapé permite quebra de linha na Revisão.
+- Iteração 2: captura desktop/mobile final comparada; nenhuma pendência visual P0/P1/P2. Área ativa, nome da BIA, capa e botões mantêm hierarquia coerente com a opção escolhida e com o produto.
+- Interações verificadas: navegação entre áreas, BEI existente, histórico do MAP Inicial carregado, revisão sem mudanças com salvar desabilitado, alteração temporária/restauração do nome sem salvar, Ativação informativa e retorno a Dados. Console consultado sem erros JavaScript registrados.
+- Jurídico/ativos: estado de falha com botão Tentar novamente observado. A migração `20260925_bia_setup.sql` continua não aplicada; gravações reais dessas áreas estão bloqueadas pelo ambiente e não foram homologadas. Esta aprovação é de layout/navegação, não de prontidão integral do fluxo de sete etapas para produção.
+- 325 testes, contrato e build aprovados; TypeScript mantém 66 diagnósticos legados. Sem gravar dados da BIA, alterar aceites ou publicar.
+
+## Checklist e limites
+
+- [x] Estilo BUILT, navegação desktop/mobile e preservação dos editores existentes.
+- [x] Teste de regressão para rota/permissão, salvamento cadastral isolado e áreas persistentes.
+- [ ] Homologar gravação jurídica/ativos após autorização e aplicação da migração pendente.
+- P3: o editor econômico reutilizado apresenta o estado de sua versão separadamente da fase operacional do cabeçalho; nenhuma regra de fase foi alterada nesta entrega.
+
+final result: passed
+
+## BEI existente — edição unificada (2026-09-28)
+
+- Escopo: apresentação dos modelos antigos pelo componente real `BiaExistingCompositionFields`; modelo 5 e modo DM preservados. Fixture local com dados fictícios e sem salvamento em `http://localhost:3017`.
+- Desktop e mobile390 conferidos: participante/aporte separado de funções/DM; classificações recolhidas; sem novos campos CI/integralização em modelos antigos. `scrollWidth=clientWidth=390`; tabela do resumo tem rolagem própria.
+- Testes visuais: por peso, por aporte, por função; alteração de índice para zero produz zero real; campos ausentes mostram Pendente; classificações pendentes abertas; consulta desabilita campos; digitação de múltiplas funções não altera DM nem resultado; console sem erros.
+- Evidências: `output/design/bei-unified-desktop.png` e `output/design/bei-unified-mobile.png`.
+- Validação técnica: 342 testes, contrato/impacto/build aprovados; 66 diagnósticos TypeScript legados, sem aumento. Testes preservam IDs, precisão, classificações, cálculo e comportamento de troca de pessoa por modelo; suítes existentes cobrem API/autorização/revisões/modelo 5/histórico.
+- Limitação: fluxo autenticado Editar → BEI/atalhos em BIA real não conferido; sessão local aguarda login do usuário. Sem gravações reais, commit, push ou deploy. Resultado: conferência isolada aprovada; homologação autenticada pendente.
+
+---
+
 # Design QA — Equipe e DM em largura total (2026-09-22)
 
 - Fonte: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-a7389f25-03ec-405f-b2fc-861a68e07da2.png`, 984×700.
@@ -13,6 +68,42 @@
 - Limite: validação desta alteração visual, não homologação das fases financeiras do plano maior.
 
 final result: passed
+
+---
+
+# Design QA — Editor administrativo de usuários por abas
+
+## Referência e normalização
+
+- Fonte visual: `C:/Users/ESPC/.codex/generated_images/01a0576e-5359-7303-9604-562493bc5314/exec-7aaf7e4a-7374-42b1-8cd4-ceac5ea725e0.png` (1487 × 1058 px), segunda opção escolhida pelo usuário.
+- Implementação: `http://localhost:3004/admin`, editor em página completa dentro de Cadastro Geral.
+- Viewports planejados: desktop 1440 × 1024 e mobile 390 × 844, densidade 1:1.
+- Estado planejado: usuário administrador autenticado, membro de teste aberto em Dados gerais; depois navegação pelas seis abas sem salvar.
+- Captura da implementação, dimensões CSS, comparação integral conjunta e recortes focados: bloqueados porque o reinício do servidor local encerrou a sessão autenticada e a rota redirecionou para o login.
+
+## Verificação disponível
+
+- Fontes e tipografia: a implementação reutiliza a tipografia e os pesos atuais da BUILT; a comparação renderizada está pendente.
+- Espaçamento e layout: build aprovado; a página usa cabeçalho, abas roláveis, conteúdo com resumo lateral no desktop e empilhamento responsivo no mobile. A comparação renderizada está pendente.
+- Cores e tokens: navy, azul, slate, verde e âmbar reutilizam os tokens e componentes existentes; a comparação renderizada está pendente.
+- Imagens e ativos: avatar, marca da empresa, selos e ícones existentes foram preservados; nenhum ativo substituto foi criado.
+- Cópia e conteúdo: Dados gerais, Comunidades, Perfil e presença, Acessos, Termos e Histórico reutilizam os mesmos campos, taxonomias, endpoints e estado do editor anterior.
+- Interações: teste de regressão confirma página completa e ausência do drawer; 324 testes, contrato e build passaram. Navegação real entre abas e console aguardam sessão autenticada.
+- TypeScript: mantém os 66 diagnósticos legados, sem diagnóstico nos arquivos alterados.
+
+## Findings
+
+- [P1] Evidência visual autenticada ausente.
+  - Local: `/admin`, Cadastro Geral, edição de usuário.
+  - Evidência: o localhost responde 200, mas o navegador está na tela de login após o restart; não existe captura pós-implementação do estado alvo.
+  - Impacto: impede validar fidelidade, overflow, foco, estados das abas e console segundo o gate de Design QA.
+  - Correção: autenticar no navegador já aberto, capturar desktop e mobile, exercitar as seis abas e comparar em conjunto com a referência.
+
+## Histórico de iterações
+
+- Iteração 1 — implementação compilada e coberta por regressão; verificação visual bloqueada antes da primeira comparação por ausência de sessão.
+
+final result: blocked
 
 ---
 

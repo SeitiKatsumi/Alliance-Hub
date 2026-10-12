@@ -6,6 +6,8 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 
 ## Telas e URLs
 
+- O portal auxiliar de desenvolvimento usa a identidade `BUILT — Ambientes locais` nas versões React e HTML estática. A chave interna de armazenamento é preservada por compatibilidade com projetos já salvos; não altera rotas, portas ou permissões.
+
 - `/` e `/painel`: painel principal em `client/src/pages/painel.tsx`.
 - A Carteira integra as abas do Inicio e nao aparece como modulo separado no menu lateral; `/carteira` preserva compatibilidade por redirecionamento.
 - Aura permanece acessivel pelos cards do Inicio e do resumo do Meu Perfil, sem modulo separado no menu lateral.

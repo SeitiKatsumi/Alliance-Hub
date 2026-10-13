@@ -46,7 +46,7 @@ Este diretório documenta o comportamento que precisa permanecer coerente entre 
 - `shared/bia-access.ts` e `shared/company-access.ts`: matrizes compartilhadas de acesso.
 - `docs/DIRECTUS_FRONTEND.md`: integração histórica com Directus.
 - `docs/AURA_PERCEBIDA_2026.md`: especificação especializada de Aura.
-- `replit.md`: decisões históricas; pode estar desatualizado e não substitui este contrato.
+- `HISTORICO_TECNICO.md`: decisões históricas; pode estar desatualizado e não substitui este contrato.
 
 ## Regra de precedência
 

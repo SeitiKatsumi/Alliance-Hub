@@ -197,7 +197,7 @@ interface AdminMonetizationData {
   }>;
   transactions: Array<{
     id: string;
-    source: "membership" | "ads" | "pinbank";
+    source: "membership" | "ads" | "bank";
     label: string;
     user_name: string;
     user_email?: string | null;
@@ -2369,7 +2369,7 @@ function AdminMonetizationPanel({
   const sourceLabels = {
     membership: "Adesao",
     ads: "Anuncio",
-    pinbank: "PINBANK",
+    bank: "Banco (histórico)",
   };
 
   return (
@@ -2437,14 +2437,14 @@ function AdminMonetizationPanel({
               tone="violet"
             />
             <AdminMetric
-              label="PINBANK recebido"
+              label="Cobranças BIA recebidas"
               value={formatAdminMoney(data.summary.bia_collections_received)}
               detail={`Cobranças das BIAs em ${data.period_days} dias`}
               icon={WalletCards}
               tone="green"
             />
             <AdminMetric
-              label="PINBANK pendente"
+              label="Cobranças BIA pendentes"
               value={formatAdminMoney(data.summary.bia_collections_pending)}
               detail="Valores operacionais das BIAs"
               icon={ReceiptText}

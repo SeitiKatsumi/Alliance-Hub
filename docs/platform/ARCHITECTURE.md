@@ -9,7 +9,7 @@ flowchart LR
   API --> DX[(Directus)]
   API --> FILES[Arquivos e PDFs]
   API --> MAIL[E-mail]
-  API --> EXT[Stripe / Asaas / Pinbank / OpenAI / Mapas]
+  API --> EXT[Stripe / Asaas / OpenAI / Mapas]
   JOBS[cron e timers] --> PG
   JOBS --> DX
   JOBS --> MAIL
@@ -25,6 +25,8 @@ flowchart LR
 - Redirecionamentos legados existem para módulos de BIA, OPA, Vitrine, Agenda e Notificações.
 
 ## Backend
+
+- A base Asaas está isolada em `server/asaas/`, com contratos públicos em `shared/asaas.ts`. Consultas não escrevem dados nem fazem chamadas externas; o receptor Sandbox registra referências de eventos sem efeitos financeiros. Armazenamento em esquemas Sandbox/produção separados; cliente de negócio bloqueia operações e produção. A integração Asaas antiga continua separada até sua consolidação.
 
 - Express 5 com sessão persistida.
 - Grande parte das rotas está em `server/routes.ts`; helpers de domínio ficam em arquivos como `bia-lifecycle.ts`, `valor-origem-sync.ts` e `opportunity-platform.ts`.

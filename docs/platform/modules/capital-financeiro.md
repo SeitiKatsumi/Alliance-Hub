@@ -20,6 +20,8 @@ Rascunho e alterações de MAP não criam caixa. Estruturação, captação, enc
 
 Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de origem, DM/CPP, cotas e analises financeiras.
 
+A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Banco da BIA. Várias BIAs da empresa podem compartilhar a conta, mas a autorização de consulta continua por BIA (`capital_banco=view`); IDs externos, chaves e referências de cofre não são retornados. Sem armazenamento não presume ausência de conta. Produção, cobranças e transferências permanecem bloqueadas; conta aprovada não habilita operações automaticamente. Histórico financeiro anterior permanece independente.
+
 ## Telas e URLs
 
 - Toda transferência exibe Histórico de ajustes, independentemente do papel do usuário, de ser a origem, do status ou do modo de consulta. Sem registros, mostra contagem zero e "Nenhum ajuste registrado"; com registros, mantém os dados reais de correção/reversão. Não cria histórico retroativo nem altera permissões de edição.
@@ -50,7 +52,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - `/api/bias/:id/aportes`, `/info-comercial`, `/banco*`.
 - Chamadas de capital geram tarefas deduplicadas para finalidade `capital` e/ou contribuicao `Aporte Financeiro`.
 - Saidas agendadas geram um unico lembrete por e-mail dois dias corridos antes do vencimento para o responsavel do lancamento ou, sem ele, para o Diretor de Capital.
-- Endpoints de percentuais/DM, valor de origem, cotas, transferencias, cobrancas e Pinbank.
+- Endpoints de percentuais/DM, valor de origem, cotas, transferencias e cobrancas. Banco em transição para Asaas: consulta histórica preservada; abertura, documentos e operações do provedor anterior desativados. Nenhuma conta, cobrança ou aceite é convertido automaticamente.
 - Para BIAs novas, `GET|PUT /api/bias/:id/map-inicial` mantem o rascunho/snapshot e `GET /api/bias/:id/map` retorna o MAP atual oficial. BIAs anteriores sem snapshot continuam nos endpoints e campos legados.
 
 ## Dados e fontes de verdade

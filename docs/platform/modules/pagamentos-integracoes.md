@@ -13,11 +13,15 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## APIs e provedores
 
+- Base Asaas isolada em `server/asaas/`: consultas administrativas e vínculo da conta da SPE/holding por BIA, receptor Sandbox que persiste apenas referências de eventos. Variáveis Sandbox próprias, sem herança das credenciais antigas. Produção e operações externas bloqueadas, inclusive com configuração presente. Detalhes em `docs/ASAAS_BASE.md`.
+- `GET /api/admin/asaas/status`: admin/superadmin ativo, nunca funcionário. `GET /api/bias/:biaId/banco/asaas/status`: `capital_banco=view`, ID canônico autorizado. `POST /api/webhooks/asaas/sandbox`: token próprio, persistência/deduplicação sem efeitos financeiros.
+- Armazenamento separado em `asaas_sandbox`/`asaas_production`: contas, vínculos BIA, intenções e eventos. Consultas não aplicam migração nem escrevem dados; sem estrutura mostram pendência. Nenhum ID/aceite antigo é convertido.
+
 - Anuidade de Membro BUILT de R$ 3.197/ano: Asaas no Brasil e Stripe nos demais paises.
 - Plano Empresa de R$ 3.836,40/ano: checkout Asaas ou Stripe; upgrade de membro vigente cobra R$ 639,40 e preserva a data de renovacao.
 - PostgreSQL `membro_anuidades` e a fonte de vigencia; `/api/me` separa usuario cadastrado, Membro BUILT, comunidades e permissoes.
 - `ends_at` e `current_period_end` sao as datas oficiais de renovacao. `billing_suspended` interrompe novas cobrancas iniciadas pela plataforma e `frozen_at` pausa a contagem sem revogar acesso.
-- Pinbank DEV em `server/pinbank/`: transporte autenticado, intenções persistidas, conta PJ, documentos e consultas. A habilitação externa depende das credenciais de homologação no servidor.
+- Banco da BIA em migração para Asaas; adaptadores, painel de homologação e operações do provedor anterior removidos. `server/bia-bank-history.ts` mantém apenas consulta histórica autorizada e bloqueia chamadas operacionais antigas com 410. Asaas já possui cobranças em `server/routes.ts`; subcontas, KYC, saldo, extrato, comprovantes, split e repasses ainda exigem implementação e homologação. Plano: `docs/ASAAS_MIGRACAO_PLANO.md`.
 - OpenAI em rotas de audio, texto, arquivo e analise.
 - Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
 
@@ -53,7 +57,8 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 - Retentativa usa o mesmo identificador quando a operacao for a mesma.
 - Upload valida autenticacao, autorizacao, tamanho, MIME e propriedade.
 - A plataforma continua com mensagem acionavel quando servico opcional esta indisponivel.
-- O cliente valida `Content-Type` e JSON antes de usar respostas Pinbank. HTML, JSON inválido ou status incompatível informa indisponibilidade e mantém operações bloqueadas.
+- Falha na leitura do histórico bancário retorna 503, nunca lista vazia simulando ausência de registros. Consulta usa ID autorizado da BIA e projeção mínima; payloads do provedor e documentos pessoais permanecem privados.
+- Migrações antigas, termos aceitos e registros financeiros do provedor anterior permanecem como evidência histórica. Nenhuma exclusão de dados, conversão de IDs, cancelamento externo ou transferência real acontece nesta etapa.
 
 ## Efeitos e dependencias
 
@@ -64,7 +69,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 - `server/aura-audio.test.ts`
 - `server/valor-origem-sync.test.ts`
-- `client/src/lib/pinbank-response.test.ts`
-- `server/pinbank/pinbank.test.ts`, `server/pinbank/http.test.ts` e `server/pinbank/recovery.test.ts`
+- `server/bia-bank-history.test.ts`
+- `server/asaas/foundation.test.ts` e `client/src/components/asaas-status.test.ts`.
 - Testes de webhook/idempotencia devem ser adicionados antes de alterar cobrancas.
 - Ao alterar: testar sucesso, timeout, resposta invalida, repeticao, assinatura ausente, arquivo malformado e provedor indisponivel.

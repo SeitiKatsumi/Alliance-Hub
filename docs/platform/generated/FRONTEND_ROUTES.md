@@ -14,9 +14,13 @@
 - `/aura`
 - `/aura/:membroId`
 - `/avaliar-aura/:token`
+- `/banco-ativos`
 - `/bias`
 - `/bias-calculadora`
 - `/bias/:id`
+- `/bias/:id/editar`
+- `/bias/:id/estruturacao`
+- `/bias/nova`
 - `/built-capital`
 - `/built-capital/chamadas`
 - `/built-capital/chamadas/:id`
@@ -25,8 +29,12 @@
 - `/carteira/novo`
 - `/comunidade`
 - `/comunidade/:id`
+- `/comunidade/:id/celulas/:cellId`
+- `/convite-imovel/:token`
 - `/convite/:token`
 - `/convites`
+- `/convites-alianca`
+- `/demandas/nova`
 - `/diretoria-alianca`
 - `/documentacao`
 - `/documentacao/relatorio-funcionalidades`
@@ -53,6 +61,7 @@
 - `/painel`
 - `/rastreabilidade/:codigo`
 - `/resultados`
+- `/ro-convite/:token`
 - `/vitrine`
 - `/vitrine/:id`
 - `/vitrine/demandas`

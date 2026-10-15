@@ -20,6 +20,12 @@ const scheduledPayment: PaymentReminderItem = {
   },
 };
 
+test('opt-out is recorded as suppressed, never as an email sent or a retry',async()=>{
+  let suppressed:boolean|undefined;
+  const result=await deliverPaymentReminder({reserve:async()=>'reservation',send:async()=>({ok:true,skipped:true}),markSent:async(_id,skipped)=>{suppressed=skipped;},release:async()=>{throw Error('Must not requeue opt-out');}});
+  assert.equal(result,'skipped');assert.equal(suppressed,true);
+});
+
 test("calcula dois dias corridos no calendario de Sao Paulo", () => {
   assert.equal(paymentReminderTargetDate(new Date("2026-12-30T15:00:00Z")), "2027-01-01");
 });

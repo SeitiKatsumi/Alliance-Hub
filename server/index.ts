@@ -8,8 +8,7 @@ import { setupGoogleAuth } from "./auth-google";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { Pool } from "pg";
-import { publicBankResponse } from "./pinbank/redact";
-import { registerPinbankRoutes } from "./pinbank/routes";
+import { publicBankResponse } from "./bank-response";
 
 const app = express();
 const httpServer = createServer(app);
@@ -124,7 +123,7 @@ app.use((req, res, next) => {
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
-    const normalizedBody = normalizeJsonText(/pinbank|\/banco(?:\/|$)/i.test(path) ? publicBankResponse(bodyJson) : bodyJson);
+    const normalizedBody = normalizeJsonText(/\/banco(?:\/|$)/i.test(path) ? publicBankResponse(bodyJson) : bodyJson);
     capturedJsonResponse = normalizedBody;
     return originalResJson.apply(res, [normalizedBody, ...args]);
   };
@@ -133,7 +132,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && !/pinbank|\/banco(?:\/|$)/i.test(path)) {
+      if (capturedJsonResponse && !/\/banco(?:\/|$)/i.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -147,18 +146,6 @@ app.use((req, res, next) => {
 (async () => {
   setupGoogleAuth(app);
   await registerRoutes(httpServer, app);
-  registerPinbankRoutes(app, async (req) => {
-    const session = req.session as any;
-    if (session?.email) {
-      try {
-        const { storage } = await import("./storage");
-        const user = await storage.getUserByEmail(session.email);
-        if (user?.ativo) return user.role || session.role || "user";
-      } catch { /* Session role remains the fail-closed fallback. */ }
-    }
-    return session?.role || "user";
-  });
-
   // ── Reminder cron: runs every 30 minutes, sends 24h/48h/72h reminders for termos_pendentes
   cron.schedule("*/30 * * * *", async () => {
     try {

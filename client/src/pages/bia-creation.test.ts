@@ -8,6 +8,28 @@ import { biaTeamFromMapParticipants, hasRequiredBiaTeam, BIA_PARTICIPANT_ROLE_LA
 import { calculateInitialMap } from "../../../shared/member-portfolio";
 import { validateInitialClassifications, withAutomaticEconomicRights } from "../../../shared/initial-contributions";
 
+test("criação não permite conceder manualmente o selo Certified Alliance", () => {
+  const page = readFileSync(new URL("./bia-nova.tsx", import.meta.url), "utf8");
+  assert.ok(!page.includes('aria-label="Selo Certified Alliance"'));
+  const legacy = readFileSync(new URL("./bias.tsx", import.meta.url), "utf8");
+  assert.ok(!legacy.includes('data-testid="switch-selo"'));
+});
+
+test("nova aliança começa pela tese do próprio perfil e permite revisar sem sair", () => {
+  const page = readFileSync(new URL("./bia-nova.tsx", import.meta.url), "utf8");
+  const selector = readFileSync(new URL("../components/bia-business-type.tsx", import.meta.url), "utf8");
+  assert.ok(!page.includes('if (!form.business_type_code && !id)'));
+  const start = page.indexOf('{step===0 && <><h2');
+  assert.ok(page.indexOf('<BiaBusinessType', start) < page.indexOf('Nome da BIA *', start));
+  assert.match(selector, /preferences\.data\?\.business_type_codes\.includes\(code\)/);
+  assert.match(selector, /apiRequest\("PUT", "\/api\/me\/celulas-preferencias"/);
+  assert.match(selector, /Revisar tipos de negócios/);
+  assert.match(selector, /setDraft\(\[\.\.\.preferences\.data!\.business_type_codes\]\)/);
+  assert.ok(!selector.includes('Dialog'));
+  assert.match(selector, /aria-expanded=\{open\}/);
+  assert.match(selector, /if \(value && !data.business_type_codes.includes\(value\)\) onChange\(""\)/);
+});
+
 test("prévia do MAP não exige equipe completa, mas preserva validações econômicas e de duplicidade", () => {
   const source=readFileSync(new URL("./bia-nova.tsx",import.meta.url),"utf8");
   const parsed=ts.createSourceFile("bia-nova.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
@@ -39,13 +61,15 @@ test("prévia do MAP não exige equipe completa, mas preserva validações econ�
   assert.equal(automaticCapital.map.participantes[0].tipoCppCapital.id,"capital");
   assert.doesNotMatch(missingNature.error,/MAP Zero|antes do aceite|salve/);
   assert.match(run({...input,participantes:[person,person]}).error,/uma ficha/);
-  assert.match(source,/step===5 && preview.map && preview.teamPending/);
+  assert.match(source,/step===6 && preview.map && preview.teamPending/);
   assert.match(source,/disabled=\{busy \|\| legalBlockers\(form.estrutura_bia\).length>0 \|\| generalPending.length>0 \|\| !preview.map \|\| preview.teamPending/);
   assert.match(source,/void members.refetch\(\);void defaults.refetch\(\)/);
 });
 
 test("gerar prévia depende da composição, sem bloquear silenciosamente por nome vazio",()=>{
   const source=readFileSync(new URL("./bia-nova.tsx",import.meta.url),"utf8");
+  assert.ok(source.includes('form.nome_bia || "Nova Base Econômica Inicial"'));
+  assert.ok(source.includes('label:steps[1]'));
   const condition=source.match(/<Button disabled=\{([^}]+)\} onClick=\{\(\)=>setStep\(s=>s\+1\)\}/)?.[1];
   assert.ok(condition);
   const disabled=(step:number,nome_bia:string,map:object|null,busy=false)=>new Function("step","form","preview","busy",`return ${condition}`)(step,{nome_bia},{map},busy);

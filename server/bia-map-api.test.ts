@@ -79,6 +79,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
     return calculateMap((options.entries || entries).map((e: any) => ({memberId: "d", value: e.valor, status: e.status})), transfers, mapRowsFromBase(options.base), true);
   };
   const scope: Record<string, any> = {
+    syncFormationMapInvites: async () => "ok",
     app, db:testDb, sql, biaAllowsFinance, formatBiaPercent, mapOperationContext: context, ensureBiaMapInicialSnapshotsTable: async () => {},
     appendMapVersion, assertMapRevision, canCorrectMapBase, mapBaseContent, mapContentHash, mapRowsFromBase,
     createHash, randomUUID, calculateInitialMap, MAP_DYNAMIC_FOOTER, assertInitialCommitmentsCompatible, validateInitialClassifications,

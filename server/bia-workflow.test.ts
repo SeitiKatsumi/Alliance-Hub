@@ -8,17 +8,26 @@ import { transformSync } from "esbuild";
 import { sql } from "drizzle-orm";
 import { biaAllowsFinance } from "../shared/bia-phase";
 
+test("rascunho preserva a tese canônica sem exigir conversão de BIAs antigas", () => {
+  const input = { nome_bia: "Teste", moeda: "BRL" };
+  assert.equal(validateBiaDraft({...input,business_type_code:"FLIPPING"}).business_type_code,"FLIPPING");
+  assert.equal(validateBiaDraft(input).business_type_code,undefined);
+  for (const business_type_code of ["INVALID", "REAL_ESTATE_AUCTIONS", {}, 12]) assert.throws(() => validateBiaDraft({...input,business_type_code}), /tipo de negócio/);
+});
+
 test("fase: intenção durável, recuperação, sequência, repetição e encerramento",async()=>{
   const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL);
-  const db=drizzle(pg);let phase="em_captacao",fail=true,writes=0;
-  const deps={db,fetch:async()=>({situacao:phase}),update:async(_id:string,data:any)=>{if(fail)throw new Error("Directus indisponível");writes++;phase=data.situacao;}};
+  const db=drizzle(pg);let phase="em_captacao",fail=true,writes=0,certified=false;
+  const deps={db,fetch:async()=>({situacao:phase,selo_certified_alliance:certified}),update:async(_id:string,data:any)=>{if(fail)throw new Error("Directus indisponível");writes++;phase=data.situacao;if(data.selo_certified_alliance!==undefined)certified=data.selo_certified_alliance;}};
   const input={biaId:"teste",eventId:"aceites:1",event:"aceites_concluidos" as const,ready:true,reason:"Aceites vigentes",actor:{id:"autor"}};
   try {
     await assert.rejects(transitionBiaPhase(deps,input),/indisponível/);
+    assert.equal(certified,false);
     assert.equal((await pg.query<any>("SELECT * FROM bia_fase_eventos")).rows[0].aplicado,false);
     await assert.rejects(transitionBiaPhase(deps,{...input,eventId:"outro"}),/pendente/);
     fail=false;
     assert.equal(await transitionBiaPhase(deps,input),"em_execucao");
+    assert.equal(certified,true);
     await transitionBiaPhase(deps,input);assert.equal(writes,1);
     await assert.rejects(transitionBiaPhase(deps,{...input,eventId:"distribuir",event:"resultado_aprovado"}),/fase necessária/);
     await transitionBiaPhase(deps,{...input,eventId:"imovel",event:"imovel_associado"});
@@ -26,6 +35,7 @@ test("fase: intenção durável, recuperação, sequência, repetição e encerr
     await assert.rejects(transitionBiaPhase(deps,{...input,eventId:"fechar",event:"encerramento",ready:false}),/pendentes/);
     await transitionBiaPhase(deps,{...input,eventId:"fechar",event:"encerramento"});
     assert.equal(phase,"encerrada");
+    assert.equal(certified,true);
     assert.equal((await pg.query<any>("SELECT count(*)::int n FROM bia_fase_eventos")).rows[0].n,4);
   } finally {await pg.close();}
 });
@@ -33,6 +43,7 @@ test("fase: intenção durável, recuperação, sequência, repetição e encerr
 test("rascunho preserva ausência e campos antigos, rejeita números formatados e entradas inválidas",()=>{
   const input={nome_bia:"BIA teste",moeda:"BRL",valor_geral_venda_vgv:null,info_comercial:{ativo_numero_matricula:"00123"},map_inicial:{modeloCalculo:4,valorOrigem:null,participantes:[]}};
   const draft=validateBiaDraft(input);
+  assert.equal(validateBiaDraft({...input,selo_certified_alliance:true}).selo_certified_alliance,false);
   assert.equal(draft.map_inicial.valorOrigem,null);
   assert.equal(draft.info_comercial.ativo_numero_matricula,"00123");
   assert.throws(()=>validateBiaDraft({...input,valor_geral_venda_vgv:"1.000,00"}),/inválido/);

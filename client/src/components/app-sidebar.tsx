@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from './preferences-provider';
 import { LayoutDashboard, Users, UserCircle, Briefcase, Gem, BellRing, FileCheck2 } from "lucide-react";
 import {
   Sidebar,
@@ -13,6 +14,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
@@ -22,6 +24,8 @@ import builtLogo from "@assets/Logo_Built_3_Horizontal_Negativo.png";
 const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENABLED !== "false";
 
 export function AppSidebar() {
+  const { t } = useLocale();
+  const { setOpenMobile } = useSidebar();
   const { user } = useAuth();
   const isLimitedCoOwner = user?.role === "coproprietario";
   const isSuperAdmin = user?.role === "admin";
@@ -67,14 +71,16 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu onClick={(event) => {
+              if ((event.target as HTMLElement).closest('a, button')) setOpenMobile(false);
+            }}>
 
               {/* Inicio */}
               {canInicio && <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/"} data-testid="nav-dashboard" className="text-sm">
                   <Link href={isLimitedCoOwner ? "/?tab=carteira" : "/"}>
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>{isLimitedCoOwner ? "Imóveis compartilhados" : "Início"}</span>
+                    <span>{t(isLimitedCoOwner ? "Imóveis compartilhados" : "Início")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
@@ -83,7 +89,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={location.startsWith("/agenda-alertas") || location === "/agenda" || location === "/notificacoes"} data-testid="nav-agenda-alertas" className="text-sm">
                   <Link href="/agenda-alertas?view=resumo">
                     <BellRing className="w-3.5 h-3.5" />
-                    <span className="truncate">Agenda e Alertas</span>
+                    <span className="truncate">{t('Agenda e Alertas')}</span>
                     {alertBadge && (
                       <span
                         className="ml-auto inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
@@ -101,7 +107,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={location === "/convites-alianca"} data-testid="nav-convites-alianca" className="text-sm">
                   <Link href="/convites-alianca">
                     <FileCheck2 className="w-3.5 h-3.5" />
-                    <span>Convites de aliança</span>
+                    <span>{t('Convites de aliança')}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
@@ -109,14 +115,14 @@ export function AppSidebar() {
               {!isLimitedCoOwner && canVitrine && <SidebarMenuItem>
                 <SidebarMenuButton isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
                   <Gem className="w-3.5 h-3.5" />
-                  <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Vitrine" : "BUILT Vitrine"}</span>
+                  <span>{t(MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Vitrine" : "BUILT Vitrine")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
 
               {canAlliances && <SidebarMenuItem>
                 <SidebarMenuButton isActive={isLimitedCoOwner ? location.includes("view=aliancas") : location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas" onClick={() => isLimitedCoOwner ? navigate("/?tab=carteira&view=aliancas") : handleEnvironmentClick("alliances", MEMBER_PORTFOLIO_V2_ENABLED ? "/area-aliancas?tab=bias" : "/area-aliancas?tab=opas")}>
                   <Users className="w-3.5 h-3.5" />
-                  <span>{isLimitedCoOwner ? "Alianças compartilhadas" : MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances"}</span>
+                  <span>{t(isLimitedCoOwner ? "Alianças compartilhadas" : MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
 
@@ -133,7 +139,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location === "/admin" || location === "/membros"} data-testid="nav-membros" className="text-sm">
                     <Link href="/admin">
                       <Users className="w-3.5 h-3.5" />
-                      <span>Administração</span>
+                      <span>{t('Administração')}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -144,7 +150,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={location === "/meu-perfil"} data-testid="nav-meu-perfil" className="text-sm">
                   <Link href="/meu-perfil">
                     <UserCircle className="w-3.5 h-3.5" />
-                    <span>Meu Perfil</span>
+                    <span>{t('Meu Perfil')}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>}

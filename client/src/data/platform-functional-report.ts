@@ -186,7 +186,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     summary: "Cobranças, análise assistida, mapas e serviços conectados à plataforma.",
     features: [
       { id: "adesao-pagamento", title: "Adesão e pagamento por link", description: "Fluxo de convite, aceite e confirmação de pagamento de adesão.", status: "disponivel" },
-      { id: "pinbank", title: "Integração PINBANK", description: "Estrutura para onboarding, conta, Pix e boleto em ambiente de testes.", status: "homologacao" },
+      { id: "asaas-banco", title: "Banco da BIA — Asaas", description: "Migração planejada para conta, Pix, boleto e repasses; operações bancárias aguardam implementação e homologação.", status: "homologacao" },
       { id: "openai", title: "Serviços de IA", description: "Análise de documentos, transcrição, sugestões e explicações com revisão humana.", status: "evolucao" },
       { id: "mapas-geocodificacao", title: "Mapas e geocodificação", description: "Localização de BIAs, OBAs, comunidades e imóveis.", status: "disponivel" },
       { id: "armazenamento-documentos", title: "Armazenamento de arquivos", description: "Upload e recuperação protegida de imagens, comprovantes e documentos.", status: "disponivel" },

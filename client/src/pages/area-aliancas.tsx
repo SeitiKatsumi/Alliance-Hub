@@ -1834,7 +1834,7 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
 
       <Tabs value={activeTab} onValueChange={updateAreaTab} className="space-y-5">
         {!forcedArea && (
-        <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
+        <TabsList className="flex h-auto w-full justify-start flex-wrap sm:flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
           <TabsTrigger
             value="oportunidades"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
@@ -1896,7 +1896,7 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
         <TabsContent value="rede" className="space-y-5">
           {activeTab === "rede" && (
             <Tabs value={activeRedeTab} onValueChange={setActiveRedeTab} className="space-y-5">
-              <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
+              <TabsList className="flex h-auto w-full justify-start flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
                 <TabsTrigger
                   value="membros"
                   className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
@@ -1945,7 +1945,7 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
           {activeTab === "landbank" && (
             <Tabs value={activeLandBankTab} onValueChange={updateLandBankTab} className="space-y-5">
               <BiaStructuringQueue compact />
-              <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
+              <TabsList className="flex h-auto w-full justify-start flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
                 {landBankCategories.map((category) => {
                   const Icon = category.icon;
                   return (

@@ -23,7 +23,7 @@ type ProjectDraft = Omit<LocalProject, "id">;
 const STORAGE_KEY = "codex-localhost-portal-projects";
 
 const DEFAULT_PROJECTS: LocalProject[] = [
-  { id: "built-3003", name: "Projeto Codex atual", port: 3003, path: "/", kind: "Full stack" },
+  { id: "built-3003", name: "Projeto BUILT", port: 3003, path: "/", kind: "Full stack" },
   { id: "api-5000", name: "API local", port: 5000, path: "/api/health", kind: "Backend" },
   { id: "vite-5173", name: "Vite padrão", port: 5173, path: "/", kind: "Frontend" },
   { id: "vite-5174", name: "Vite alternativo", port: 5174, path: "/", kind: "Frontend" },
@@ -185,11 +185,11 @@ export default function PortalLocalhostsPage() {
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded border border-white/15 px-2.5 py-1 text-xs text-white/75">
               <Monitor className="h-3.5 w-3.5" />
-              Codex Localhosts
+              BUILT — Ambientes locais
             </div>
             <h1 className="text-3xl font-semibold leading-tight md:text-4xl">Portal de portas locais</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/70">
-              Abra, monitore e organize os localhost dos seus projetos Codex em um só painel.
+              Abra, monitore e organize os ambientes locais dos seus projetos em um só painel.
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">

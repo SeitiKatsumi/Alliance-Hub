@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import nodemailer from "nodemailer";
+import { configureEmailPreferencePolicy } from './email-preference-policy';
 
 test("convites de diretoria e sócio mantêm ação antecipada e alternativa em mobile", async (t) => {
+  configureEmailPreferencePolicy(async () => true);
   const messages: any[] = [];
   t.mock.method(nodemailer, "createTransport", () => ({sendMail: async (message:any) => {messages.push(message);return {messageId:"preview-only"};}}));
   const mailer = await import("./mailer");

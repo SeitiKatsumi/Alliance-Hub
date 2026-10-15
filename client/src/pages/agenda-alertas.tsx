@@ -190,16 +190,16 @@ export default function AgendaAlertasPage() {
                   <p className="mt-2 text-2xl font-bold text-foreground">{summary?.agenda.overdue_count || 0}</p>
                   <p className="text-xs text-muted-foreground">tarefas que precisam de atenção</p>
                 </div>}
-                <div className="rounded-lg border border-red-100 bg-red-50/40 p-4">
-                  <p className="flex items-center gap-2 text-xs font-semibold text-red-700"><AlertTriangle className="h-4 w-4" /> Pendências ativas</p>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4" /> Pendências ativas</p>
                   <p className="mt-2 text-2xl font-bold text-foreground">{summary?.pending_count || 0}</p>
                   <p className="text-xs text-muted-foreground">itens que exigem sua ação</p>
                 </div>
               </section>
 
-              <div className={`grid gap-6 ${canViewAgenda ? "lg:grid-cols-2" : "grid-cols-1"}`}>
-                {canViewAgenda && <section className="space-y-3" aria-labelledby="proximos-compromissos">
-                  <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+              <div className={`grid min-w-0 grid-cols-1 gap-6 ${canViewAgenda ? "lg:grid-cols-2" : ""}`}>
+                {canViewAgenda && <section className="min-w-0 space-y-3" aria-labelledby="proximos-compromissos">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">
                     <div>
                       <h2 id="proximos-compromissos" className="text-lg font-bold text-foreground">Próximos compromissos</h2>
                       <p className="text-xs text-muted-foreground">Até cinco itens da sua agenda.</p>
@@ -231,8 +231,8 @@ export default function AgendaAlertasPage() {
                   </div>
                 </section>}
 
-                <section className="space-y-3" aria-labelledby="alertas-prioritarios">
-                  <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+                <section className="min-w-0 space-y-3" aria-labelledby="alertas-prioritarios">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">
                     <div>
                       <h2 id="alertas-prioritarios" className="text-lg font-bold text-foreground">Alertas prioritários</h2>
                       <p className="text-xs text-muted-foreground">Itens que ainda precisam de uma decisão.</p>

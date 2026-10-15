@@ -49,3 +49,14 @@ test("perfil exclusivo de imóvel oculta áreas de contribuição no onboarding 
   assert.match(profile, /contributionAreasRequired && <section[^>]+data-testid="section-areas-contribuicao"/);
   assert.match(onboarding, /requiresContributionAreas\(purposes\) && <Panel title=\{publicLabel\("ContributionArea"\)\}/);
 });
+
+test("Configurações é categoria própria sem pendência nem salvamento cadastral", () => {
+  const page = readFileSync(new URL("./meu-perfil.tsx", import.meta.url), "utf8");
+  assert.match(page, /key: "settings" as const, icon: Settings, pending: null/);
+  assert.match(page, /account: \{ title: "Conta e segurança", description: "Acesso, senha e seu link pessoal de convite\."/);
+  const settings = page.slice(page.indexOf(') : activeCategory === "settings" ? ('), page.indexOf('{activeCategory !== "account" && <div'));
+  assert.match(settings, /<PlatformPreferences \/>/);
+  assert.doesNotMatch(settings, /handleSave|profileSummary|Notificações|Switch/);
+  const sidebar = readFileSync(new URL("../components/app-sidebar.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(sidebar, /href="\/configuracoes"/);
+});

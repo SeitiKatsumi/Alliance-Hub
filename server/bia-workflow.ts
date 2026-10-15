@@ -2,7 +2,8 @@ import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { biaSetupSchema } from "../shared/bia-setup";
 import { CURRENCIES, BIA_DESTINACOES, BIA_OBJETIVOS, BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
-import { BIA_PHASES, nextBiaPhase, type BiaPhase } from "../shared/bia-phase";
+import { BIA_PHASES, nextBiaPhase, biaAllowsFinance, type BiaPhase } from "../shared/bia-phase";
+import { STRATEGIC_CELL_BUSINESS_TYPES } from "../shared/strategic-cells";
 
 export const BIA_WORKFLOW_SQL = `
 CREATE TABLE IF NOT EXISTS bia_estruturacao_rascunhos (
@@ -23,6 +24,10 @@ export function validateBiaDraft(body:any) {
   if(!body || typeof body!=="object" || Array.isArray(body))throw failure("Rascunho inválido.",400);
   const allowed = ["nome_bia","objetivo_alianca","destinacao","moeda","localizacao","latitude","longitude","observacoes","map_inicial","imagem_directus_id","anexos","selo_certified_alliance","info_comercial","valor_geral_venda_vgv","valor_realizado_venda","comissao_prevista_corretor","ir_previsto","inss_previsto","manutencao_pos_obra_prevista"];
   const data = Object.fromEntries(allowed.filter(k=>body[k] !== undefined).map(k=>[k,body[k]]));
+  if (body.business_type_code !== undefined) {
+    if (typeof body.business_type_code !== "string" || (body.business_type_code !== "" && !STRATEGIC_CELL_BUSINESS_TYPES.some(([, code]) => code === body.business_type_code))) throw failure("Escolha um tipo de negócio válido.",400);
+    data.business_type_code = body.business_type_code;
+  }
   if(body.estrutura_bia !== undefined) {
     const parsed=biaSetupSchema.safeParse(body.estrutura_bia);
     if(!parsed.success)throw failure("Estrutura jurídica, ativos ou Governança inválidos: " + parsed.error.issues[0].message,400);
@@ -68,6 +73,8 @@ export function validateBiaDraft(body:any) {
   if(data.anexos == null)delete data.anexos;
   if(data.imagem_directus_id && (typeof data.imagem_directus_id!=="string" || !/^[a-zA-Z0-9-]{1,100}$/.test(data.imagem_directus_id)))throw failure("Imagem inválida.",400);
   if(data.selo_certified_alliance!=null && typeof data.selo_certified_alliance!=="boolean")throw failure("Selo inválido.",400);
+  // Certification is awarded by activation, never by a draft checkbox.
+  if (data.selo_certified_alliance !== undefined) data.selo_certified_alliance = false;
   return data;
 }
 
@@ -93,7 +100,7 @@ export async function transitionBiaPhase(deps:{db:any;fetch:(id:string)=>Promise
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`bia-phase:${input.biaId}`}))`);
       const current=await deps.fetch(input.biaId);
       if(current.situacao!==intent.fase && current.situacao!==intent.fase_anterior)throw failure("A fase mudou durante a conciliação. Revise o histórico.");
-      if(current.situacao!==intent.fase)await deps.update(input.biaId,{situacao:intent.fase});
+      if(current.situacao!==intent.fase || (biaAllowsFinance(intent.fase) && current.selo_certified_alliance !== true))await deps.update(input.biaId,{situacao:intent.fase,...(biaAllowsFinance(intent.fase) ? {selo_certified_alliance:true} : {})});
       await tx.execute(sql`UPDATE bia_fase_eventos SET aplicado=true WHERE id=${intent.id}`);
     });
   }

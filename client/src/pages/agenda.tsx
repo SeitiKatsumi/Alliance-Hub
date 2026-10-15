@@ -390,8 +390,8 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
 
   return (
     <div className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6"}>
-      {!embedded && <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className={`flex flex-col gap-3 sm:flex-row sm:items-start ${embedded ? "sm:justify-end" : "sm:justify-between"}`}>
+        {!embedded && <div>
           <p className="text-xs text-muted-foreground">Início / Agenda</p>
           <h1 className="mt-2 flex items-center gap-3 text-2xl font-bold text-foreground">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-700">
@@ -402,12 +402,12 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
           <p className="mt-1 text-sm text-muted-foreground">
             Organize ações, tarefas e acompanhamentos da sua rotina BUILT.
           </p>
-        </div>
+        </div>}
         <Button onClick={openCreate} className="gap-2 bg-blue-600 text-white hover:bg-blue-700" data-testid="btn-nova-acao-agenda">
           <Plus className="h-4 w-4" />
           Nova ação
         </Button>
-      </div>}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
         {(["pendente", "em_andamento", "concluida", "cancelada"] as AgendaStatus[]).map(status => (

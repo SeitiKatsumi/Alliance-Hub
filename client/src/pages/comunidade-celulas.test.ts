@@ -1,6 +1,52 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { transformSync } from "esbuild";
+
+test("Dados da candidatura mantém contraste no card e detalhes sem ampliar dados restritos", () => {
+  const page = readFileSync(new URL("./comunidade.tsx", import.meta.url), "utf8");
+  const source = page.slice(page.indexOf("function candidateValue("), page.indexOf("interface ComunidadePageProps"));
+  const Panel = new Function("React", "FileText", transformSync(source, { loader: "tsx" }).code + ";return CandidateInfoPanel;")(React, () => null);
+  const convite = { candidato_nome: "Candidata Exemplo", candidato_email: "exemplo@example.test", dados_contratuais: { cidade: "Vitória", cpf: "documento-restrito", telefone: "contato-restrito", mensagem: "Olá <script>", cargo: "Engenharia", token: "segredo-oculto" } };
+  const before = JSON.stringify(convite);
+  for (const compact of [true, false]) {
+    const html = renderToStaticMarkup(React.createElement(Panel, { convite, compact }));
+    assert.match(html, /bg-card text-card-foreground/);
+    assert.match(html, /text-muted-foreground/);
+    assert.match(html, /border-border bg-muted\/30/);
+    assert.doesNotMatch(html, /(?:text|border|bg)-white/);
+    assert.match(html, /Candidata Exemplo/);
+    assert.match(html, /Vitória/);
+    assert.match(html, /Olá &lt;script&gt;/);
+    assert.doesNotMatch(html, /documento-restrito|contato-restrito|segredo-oculto|<script>/);
+    assert.equal(html.includes("Engenharia"), !compact);
+    const authorized = renderToStaticMarkup(React.createElement(Panel, { convite, compact, showRestrictedData: true }));
+    assert.match(authorized, /documento-restrito/);
+    assert.match(authorized, /contato-restrito/);
+    assert.doesNotMatch(authorized, /segredo-oculto/);
+  }
+  assert.equal(renderToStaticMarkup(React.createElement(Panel, { convite: {} })), "");
+  assert.equal(JSON.stringify(convite), before);
+  assert.equal((page.match(/<CandidateInfoPanel convite=/g) || []).length, 2);
+});
+
+test("aceite do MOU mantém conteúdo rolável e ações visíveis no celular", () => {
+  const page = readFileSync(new URL("./comunidade.tsx", import.meta.url), "utf8");
+  const start = page.indexOf("<Dialog open={!!mouPendente && !mouDadosOpen}");
+  const end = page.indexOf("{/* Aura Evaluation Dialog", start);
+  const dialogs = page.slice(start, end);
+
+  assert.ok(start > 0 && end > start);
+  assert.equal((dialogs.match(/h-\[100dvh\] max-h-\[100dvh\] w-screen/g) || []).length, 2);
+  assert.equal((dialogs.match(/grid-rows-\[auto_minmax\(0,1fr\)_auto\]/g) || []).length, 2);
+  assert.equal((dialogs.match(/min-h-0[^"\n]*overflow-y-auto[^"\n]*overscroll-contain/g) || []).length, 2);
+  assert.equal((dialogs.match(/safe-area-inset-bottom/g) || []).length, 2);
+  assert.match(dialogs, /data-testid="btn-aceitar-mou-bia"/);
+  assert.match(dialogs, /data-testid="btn-concluir-mou-dados"/);
+  assert.equal((dialogs.match(/className="w-full[^"\n]*sm:w-auto"/g) || []).length, 4);
+});
 
 test("Comunidade mantém as seis Células oficiais em uma aba própria", () => {
   const page = readFileSync(new URL("./comunidade-detalhe.tsx", import.meta.url), "utf8");

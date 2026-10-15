@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import { emailDeliveryDecision } from './email-preference-policy';
+import type { MailCategory } from '../shared/user-preferences';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
@@ -126,7 +128,10 @@ function decodeMixedMojibakeUtf8(value: string): string {
     .replace(/\u00A0/g, " ");
 }
 
-async function send(to: string, subject: string, html: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+async function send(category: MailCategory, to: string, subject: string, html: string): Promise<{ ok: boolean; skipped?: boolean; messageId?: string; error?: string }> {
+  const decision = await emailDeliveryDecision(to, category);
+  if (decision === 'suppressed') return {ok:true, skipped:true};
+  if (decision === 'unavailable') return {ok:false,error:'Não foi possível verificar as preferências de e-mail.'};
   const safeTo = to.replace(/^(.{2}).*(@.*)$/, "$1***$2");
   const cleanSubject = decodeMixedMojibakeUtf8(subject);
   const cleanHtml = decodeMixedMojibakeUtf8(html);
@@ -199,7 +204,7 @@ export async function enviarConvite(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/convite/${opts.token}`;
-  return send(
+  return send("invites",
     opts.candidatoEmail,
     `Você foi convidado para a ${opts.comunidadeNome} — BUILT Alliances`,
     baseTemplate(`
@@ -245,7 +250,7 @@ export async function notificarAliadoCandidatura(opts: {
     ? `<div style="background:rgba(215,187,125,0.08);border-left:3px solid rgba(215,187,125,0.4);padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0"><p style="color:rgba(255,255,255,0.7);margin:0;font-size:13px">Este candidato selecionou <strong style="color:#D7BB7D">Área de Alianças</strong> — ele seguirá para o pagamento antes da aprovação formal.</p></div>`
     : "";
 
-  await send(
+  await send("community",
     opts.aliadoEmail,
     `Nova candidatura na ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -273,7 +278,7 @@ export async function enviarAprovacao(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/adesao/${opts.token}`;
-  return send(
+  return send("essential",
     opts.candidatoEmail,
     `Sua candidatura foi aprovada! — ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -297,7 +302,7 @@ export async function enviarConviteAdesaoMembro(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/adesao/${opts.token}`;
-  return send(
+  return send("essential",
     opts.candidatoEmail,
     `Convite de adesao BUILT - ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -320,7 +325,7 @@ export async function enviarRejeicao(opts: {
   invitadorEmail?: string;
   invitadorNome?: string;
 }) {
-  await send(
+  await send("essential",
     opts.candidatoEmail,
     `Atualização sobre sua candidatura — ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -331,7 +336,7 @@ export async function enviarRejeicao(opts: {
     `)
   );
   if (opts.invitadorEmail) {
-    await send(
+    await send("essential",
       opts.invitadorEmail,
       `Candidatura rejeitada — ${opts.comunidadeNome}`,
       baseTemplate(`
@@ -350,7 +355,7 @@ export async function enviarTermos(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/adesao/${opts.token}`;
-  await send(
+  await send("essential",
     opts.candidatoEmail,
     `[Lembrete] Termos de Adesão — ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -372,7 +377,7 @@ export async function enviarPagamento(opts: {
   valor: string;
 }) {
   const link = `${BASE_URL}/pagamento/${opts.token}`;
-  await send(
+  await send("essential",
     opts.candidatoEmail,
     `Instruções de Pagamento — ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -407,7 +412,7 @@ export async function enviarNovoMembro(opts: {
     </div>
   `);
   for (const email of opts.emails) {
-    await send(email, `Novo membro na ${opts.comunidadeNome}!`, html);
+    await send("community", email, `Novo membro na ${opts.comunidadeNome}!`, html);
   }
 }
 
@@ -417,7 +422,7 @@ export async function enviarResetSenha(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/login?reset=${opts.token}`;
-  return send(
+  return send("essential",
     opts.email,
     "Redefinição de senha — BUILT Alliances",
     baseTemplate(`
@@ -455,7 +460,7 @@ export async function enviarSolicitacaoBiaParaAliado(opts: {
       <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver BIAs Pendentes</a>
     </div>
   `);
-  await send(opts.aliadoEmail, `BIA "${opts.biaNome}" aguarda sua aprovação`, html);
+  await send("bia", opts.aliadoEmail, `BIA "${opts.biaNome}" aguarda sua aprovação`, html);
 }
 
 export async function enviarResultadoAprovacaoBia(opts: {
@@ -485,7 +490,7 @@ export async function enviarResultadoAprovacaoBia(opts: {
   const subject = opts.aprovado
     ? `✅ BIA "${opts.biaNome}" aprovada!`
     : `BIA "${opts.biaNome}" não aprovada`;
-  await send(opts.diretorEmail, subject, html);
+  await send("bia", opts.diretorEmail, subject, html);
 }
 
 function biaInvitationAction(label: string): string {
@@ -521,7 +526,7 @@ export async function enviarSolicitacaoDiretoriaBia(opts: {
     </div>
     <p class="email-copy" style="color:#d1dae3;font-size:13px;line-height:20px">Se o botão não aparecer, <a class="email-gold" href="${BASE_URL}/notificacoes" style="color:#D7BB7D;text-decoration:underline">abra seus convites por este link</a>.</p>
   `, true);
-  await send(opts.diretorEmail, `Convite para ${opts.papel} — ${opts.biaNome}`, html);
+  return send("invites", opts.diretorEmail, `Convite para ${opts.papel} — ${opts.biaNome}`, html);
 }
 
 export async function enviarSolicitacaoSocioBia(opts: {
@@ -544,7 +549,7 @@ export async function enviarSolicitacaoSocioBia(opts: {
     </div>
     <p class="email-copy" style="color:#d1dae3;font-size:13px;line-height:20px">Se o botão não aparecer, <a class="email-gold" href="${BASE_URL}/notificacoes" style="color:#D7BB7D;text-decoration:underline">abra seus convites por este link</a>.</p>
   `, true);
-  await send(opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
+  return send("invites", opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
 }
 
 export async function enviarRespostaSolicitacaoBia(opts: {
@@ -565,7 +570,7 @@ export async function enviarRespostaSolicitacaoBia(opts: {
       <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver notificacoes</a>
     </div>
   `);
-  await send(opts.destinatarioEmail, `${titulo}: ${opts.papel} - ${opts.biaNome}`, html);
+  await send("bia", opts.destinatarioEmail, `${titulo}: ${opts.papel} - ${opts.biaNome}`, html);
 }
 
 export async function enviarNovoIntegranteBia(opts: {
@@ -583,7 +588,7 @@ export async function enviarNovoIntegranteBia(opts: {
       <a href="${BASE_URL}/area-aliancas?tab=bias" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver BIA</a>
     </div>
   `);
-  await send(opts.destinatarioEmail, `Novo integrante na BIA ${opts.biaNome}`, html);
+  await send("bia", opts.destinatarioEmail, `Novo integrante na BIA ${opts.biaNome}`, html);
 }
 
 export async function enviarContaBiaAberta(opts: {
@@ -600,7 +605,7 @@ export async function enviarContaBiaAberta(opts: {
       <a href="${BASE_URL}/area-aliancas?tab=bias" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar BIAs</a>
     </div>
   `);
-  await send(opts.destinatarioEmail, `Conta da BIA criada com sucesso - ${opts.biaNome}`, html);
+  await send("essential", opts.destinatarioEmail, `Conta da BIA criada com sucesso - ${opts.biaNome}`, html);
 }
 
 export async function enviarChamadaAlianca(opts: {
@@ -659,7 +664,7 @@ export async function enviarChamadaAlianca(opts: {
     </div>
     <p style="color:rgba(255,255,255,0.45);font-size:12px">Voce tambem pode acompanhar esta chamada em ${BASE_URL}/notificacoes.</p>
   `);
-  await send(opts.destinatarioEmail, opts.titulo, html);
+  await send("agenda", opts.destinatarioEmail, opts.titulo, html);
 }
 
 export async function notificarInteresseOpa(opts: {
@@ -679,7 +684,7 @@ export async function notificarInteresseOpa(opts: {
   const msgBlock = opts.mensagem
     ? `<div style="background:rgba(255,255,255,0.04);border-left:3px solid rgba(215,187,125,0.35);padding:10px 14px;margin:16px 0;border-radius:0 6px 6px 0"><p style="color:rgba(255,255,255,0.65);margin:0;font-size:13px;font-style:italic">"${opts.mensagem}"</p></div>`
     : "";
-  await send(
+  await send("opportunities",
     opts.destinatarioEmail,
     `Interesse manifestado na OBA "${opts.opaNome}"`,
     baseTemplate(`
@@ -709,7 +714,7 @@ export async function notificarInvitadorAvaliarAura(opts: {
   avaliacaoToken: string;
 }) {
   const link = `${BASE_URL}/avaliar-aura/${opts.avaliacaoToken}`;
-  await send(
+  await send("community",
     opts.invitadorEmail,
     `Registre a Percepção de Aura de ${opts.candidatoNome} — BUILT Alliances`,
     baseTemplate(`
@@ -751,7 +756,7 @@ export async function notificarAliadoAposAuraInvitador(opts: {
         ${opts.auraPalavras?.length ? `<p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0">${opts.auraPalavras.join(" · ")}</p>` : ""}
       </div>`
     : "";
-  await send(
+  await send("community",
     opts.aliadoEmail,
     `Nova candidatura com Aura registrada — ${opts.candidatoNome}`,
     baseTemplate(`
@@ -793,7 +798,7 @@ export async function enviarLembreteVencimentoPagamento(opts: {
   const valor = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
     .format(Number.isFinite(opts.valor) ? opts.valor : 0);
   const link = `${BASE_URL}/bias/${encodeURIComponent(opts.biaRef)}?tab=capital&capital=financeiro`;
-  return send(
+  return send("agenda",
     opts.destinatarioEmail,
     "Lembrete: pagamento vence em 2 dias — BUILT Alliances",
     baseTemplate(`
@@ -820,7 +825,7 @@ export async function enviarLembreteTermos(opts: {
   intervalHours: 24 | 48 | 72;
 }) {
   const link = `${BASE_URL}/adesao/${opts.conviteToken}`;
-  await send(
+  await send("essential",
     opts.candidatoEmail,
     `Lembrete: Termos de Adesão aguardando sua assinatura — BUILT Alliances`,
     baseTemplate(`
@@ -846,7 +851,7 @@ export async function notificarAliadoConviteExpirado(opts: {
   candidatoNome: string;
   comunidadeNome: string;
 }) {
-  await send(
+  await send("invites",
     opts.aliadoEmail,
     `Convite expirado — ${opts.candidatoNome} não aceitou os termos`,
     baseTemplate(`
@@ -865,7 +870,7 @@ export async function enviarRejeicaoVitrine(opts: {
   invitadorEmail?: string;
   invitadorNome?: string;
 }) {
-  await send(
+  await send("essential",
     opts.candidatoEmail,
     `Candidatura não aprovada — BUILT Alliances`,
     baseTemplate(`
@@ -876,7 +881,7 @@ export async function enviarRejeicaoVitrine(opts: {
     `)
   );
   if (opts.invitadorEmail) {
-    await send(
+    await send("essential",
       opts.invitadorEmail,
       `Candidatura rejeitada — ${opts.candidatoNome}`,
       baseTemplate(`
@@ -904,7 +909,7 @@ export async function enviarAprovacaoVitrine(opts: {
     </div>
     <p style="color:rgba(255,255,255,0.55);font-size:13px">Bem-vindo à rede BUILT.</p>
   `);
-  await send(opts.candidatoEmail, "Parabéns, você foi aprovado na BUILT!", html);
+  await send("essential", opts.candidatoEmail, "Parabéns, você foi aprovado na BUILT!", html);
 }
 
 export async function enviarAprovacaoVitrineInvitador(opts: {
@@ -922,7 +927,7 @@ export async function enviarAprovacaoVitrineInvitador(opts: {
       <a href="${BASE_URL}/comunidade" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Comunidade</a>
     </div>
   `);
-  await send(opts.invitadorEmail, `${opts.candidatoNome} foi aprovado na ${opts.comunidadeNome}!`, html);
+  await send("community", opts.invitadorEmail, `${opts.candidatoNome} foi aprovado na ${opts.comunidadeNome}!`, html);
 }
 
 export async function notificarNovaOportunidade(opts: {
@@ -934,7 +939,7 @@ export async function notificarNovaOportunidade(opts: {
   url: string;
 }) {
   const link = `${BASE_URL}${opts.url}`;
-  return send(
+  return send("opportunities",
     opts.email,
     `Nova ${opts.selo} para você avaliar: ${opts.titulo}`,
     baseTemplate(`
@@ -958,7 +963,7 @@ export async function enviarConviteRo(opts: {
   conviteUrl: string;
 }) {
   const safe = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
-  return send(
+  return send("invites",
     opts.email,
     `Convite para uma Reunião de Oportunidades — ${opts.comunidade}`,
     baseTemplate(`
@@ -979,7 +984,7 @@ export async function enviarConviteCoproprietarioImovel(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/convite-imovel/${encodeURIComponent(opts.token)}`;
-  return send(
+  return send("invites",
     opts.email,
     `Confirme sua participação no imóvel ${opts.imovel}`,
     baseTemplate(`

@@ -804,7 +804,7 @@ function AnuncioHeroCard({
       onMouseLeave={() => setHovered(false)}
       className="relative aspect-[16/9] max-h-[360px] overflow-hidden rounded-2xl border border-brand-gold/35"
       style={{
-        background: "rgba(255,255,255,0.97)",
+        background: "hsl(var(--card) / 0.97)",
         border: "1.5px solid rgba(37,99,235,0.35)",
         boxShadow: "0 10px 28px rgba(37,99,235,0.1)",
         cursor: href || !anuncio ? "pointer" : "default",
@@ -1634,7 +1634,7 @@ export default function VitrinePage() {
               style={{
                 aspectRatio: "1/1",
                 border: "1.5px solid rgba(37,99,235,0.35)",
-                background: "rgba(255,255,255,0.97)",
+                background: "hsl(var(--card) / 0.97)",
                 cursor: membroId ? "pointer" : "default",
                 boxShadow: "0 2px 12px rgba(37,99,235,0.1)",
               }}
@@ -1646,12 +1646,12 @@ export default function VitrinePage() {
                   <Megaphone className="w-4 h-4 text-blue-600" />
                 </div>
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-center"
-                  style={{ color: "#001D34", letterSpacing: "0.12em" }}>
+                  style={{ color: "hsl(var(--foreground))", letterSpacing: "0.12em" }}>
                   Espaço disponível
                 </p>
                 {membroId && (
                   <span className="text-[10px] font-mono text-center transition-colors duration-200"
-                    style={{ color: "rgba(0,29,52,0.5)" }}>
+                    style={{ color: "hsl(var(--muted-foreground))" }}>
                     Clique para destacar
                   </span>
                 )}
@@ -2280,7 +2280,7 @@ export default function VitrinePage() {
       {/* ===== DESTAQUE DIALOG ===== */}
       <Dialog open={anuncioDialogOpen} onOpenChange={setAnuncioDialogOpen}>
         <DialogContent
-          className="max-w-xl border-brand-gold/20 text-white"
+          className="vitrine-ad-dialog max-w-xl border-brand-gold/20 text-white"
           style={{ background: "#050f1c" }}
         >
           <DialogHeader>

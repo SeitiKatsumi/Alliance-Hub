@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { resetContentScroll } from "@/lib/content-scroll";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -6,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InviteQrCode } from "@/components/invite-qr-code";
+import { PlatformPreferences } from "@/components/platform-preferences";
+import { useLocale } from '@/components/preferences-provider';
 import { ModuleInfo } from "@/components/module-info";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import { Input } from "@/components/ui/input";
@@ -26,7 +29,7 @@ import {
   User, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle, CheckCircle2, Globe, Navigation, Search,
   ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw, ChevronDown,
-  Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
+  Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck, Settings,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
   ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info, Eye, EyeOff,
   Home, Landmark, Settings2, Circle, Layers3, ArrowLeft, ArrowRight
@@ -53,9 +56,9 @@ import {
   type AccountPurpose,
   type AccountPurposeObjectives,
 } from "@shared/initial-onboarding";
-import { STRATEGIC_CELL_BUSINESS_TYPES, STRATEGIC_CELL_TYPES } from "@shared/strategic-cells";
+import { STRATEGIC_CELL_BUSINESS_TYPES, STRATEGIC_CELL_TYPES, getRetiredBusinessTypes, normalizeStrategicCellPreferences, formatBusinessThesisLabel } from "@shared/strategic-cells";
 
-type ProfileCategory = ProfileDataCategory | "account";
+type ProfileCategory = ProfileDataCategory | "account" | "settings";
 type StrategicCellTypeOption = {
   code: string;
   public_name: string;
@@ -780,6 +783,7 @@ function hasAporteFinanceiro(tipos?: string[] | null): boolean {
 }
 
 export default function MeuPerfilPage() {
+  const { t } = useLocale();
   const { user } = useAuth();
   const { toast } = useToast();
   const publicLabel = usePublicLabels();
@@ -1503,6 +1507,11 @@ export default function MeuPerfilPage() {
             </div>
           </section>
 
+          <section aria-label="Configurações" className="space-y-4">
+            <h2 className="text-lg font-bold">{t('Configurações')}</h2>
+            <PlatformPreferences />
+          </section>
+
           <section className="rounded-lg border border-slate-200 bg-white p-5">
             <div className="flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-blue-600" />
@@ -1656,17 +1665,19 @@ export default function MeuPerfilPage() {
     activity: { title: "Atuação e interesses", description: "Sua atuação profissional, expertise e áreas de interesse." },
     company: { title: "Empresa e Vitrine", description: "Informações da empresa e presença na Vitrine BUILT." },
     account: { title: "Conta e segurança", description: "Acesso, senha e seu link pessoal de convite." },
+    settings: { title: "Configurações", description: "Aparência, notificações por e-mail e idioma." },
   };
   const profileCategories = [
     { key: "identity" as const, icon: User, pending: categoryPending.identity.length },
     { key: "activity" as const, icon: Briefcase, pending: categoryPending.activity.length },
     { key: "company" as const, icon: Store, pending: categoryPending.company.length },
     { key: "account" as const, icon: ShieldCheck, pending: null },
+    { key: "settings" as const, icon: Settings, pending: null },
   ];
 
   function openProfileCategory(category: ProfileCategory) {
     setActiveCategory(category);
-    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+    requestAnimationFrame(resetContentScroll);
   }
 
   function closeProfileCategory() {
@@ -1674,7 +1685,7 @@ export default function MeuPerfilPage() {
     url.searchParams.delete("campo");
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     setActiveCategory(null);
-    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+    requestAnimationFrame(resetContentScroll);
   }
 
   const profilePreview = (
@@ -1778,8 +1789,8 @@ export default function MeuPerfilPage() {
                 <span className="flex items-start gap-4">
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600"><CategoryIcon className="h-6 w-6" /></span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-bold text-[#001D34]">{categoryCopy[key].title}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-slate-500">{categoryCopy[key].description}</span>
+                    <span className="block text-sm font-bold text-[#001D34]">{t(categoryCopy[key].title)}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-slate-500">{t(categoryCopy[key].description)}</span>
                   </span>
                 </span>
                 <span className="mt-auto flex items-end justify-between gap-3 pt-5">
@@ -1788,7 +1799,7 @@ export default function MeuPerfilPage() {
                   ) : (
                     <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">{pending} {pending === 1 ? "item pendente" : "itens pendentes"}</span>
                   )}
-                  <span className="ml-auto inline-flex items-center gap-2 text-xs font-semibold text-blue-700">Editar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
+                  <span className="ml-auto inline-flex items-center gap-2 text-xs font-semibold text-blue-700">{t(key === "settings" ? "Abrir" : "Editar")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
                 </span>
               </button>
             );
@@ -1902,28 +1913,41 @@ export default function MeuPerfilPage() {
   return (
     <div className="profile-light-page min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-brand-navy">
       <style>{`
-        .profile-light-page { background: #f8fafc !important; color: #001d34 !important; }
+        .profile-light-page {
+          --profile-bg: #f8fafc; --profile-card: #ffffff; --profile-fg: #001d34;
+          --profile-border: #e2e8f0; --profile-input-border: #d8dee8;
+          --profile-muted: #475569; --profile-link: #1d4ed8;
+          background: var(--profile-bg) !important; color: var(--profile-fg) !important;
+        }
+        @media screen {
+          .dark .profile-light-page {
+            --profile-bg: hsl(var(--background)); --profile-card: hsl(var(--card));
+            --profile-fg: hsl(var(--foreground)); --profile-border: hsl(var(--border));
+            --profile-input-border: hsl(var(--input)); --profile-muted: hsl(var(--muted-foreground));
+            --profile-link: #93c5fd;
+          }
+        }
         .profile-light-page * { min-width: 0; }
         .profile-light-page .profile-aside { background: #001d34; }
         .profile-light-page .profile-onboarding-card,
         .profile-light-page .profile-section {
-          border: 1px solid #e2e8f0 !important;
-          background: #ffffff !important;
+          border: 1px solid var(--profile-border) !important;
+          background: var(--profile-card) !important;
           border-radius: 0.75rem !important;
           box-shadow: none !important;
         }
         .profile-light-page .profile-media-row,
         .profile-light-page .profile-onboarding-card .rounded-xl[style],
         .profile-light-page .profile-onboarding-card .rounded-lg[style] {
-          background: #f8fafc !important;
-          border-color: #e2e8f0 !important;
+          background: var(--profile-bg) !important;
+          border-color: var(--profile-border) !important;
         }
         .profile-light-page input,
         .profile-light-page textarea,
         .profile-light-page button[role="combobox"] {
-          background: #f8fafc !important;
-          border-color: #d8dee8 !important;
-          color: #001d34 !important;
+          background: var(--profile-bg) !important;
+          border-color: var(--profile-input-border) !important;
+          color: var(--profile-fg) !important;
           font-family: inherit !important;
           min-height: 2.5rem;
           box-shadow: none !important;
@@ -1948,15 +1972,15 @@ export default function MeuPerfilPage() {
           border-color: #2563eb !important;
           box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
         }
-        .profile-light-page [class*="text-white"] { color: #475569 !important; }
+        .profile-light-page [class*="text-white"] { color: var(--profile-muted) !important; }
         .profile-light-page .profile-aside [class*="text-white"] { color: inherit !important; }
         .profile-light-page h1,
         .profile-light-page h2,
         .profile-light-page h3,
-        .profile-light-page .font-bold { color: #001d34 !important; }
+        .profile-light-page .font-bold { color: var(--profile-fg) !important; }
         .profile-light-page [class*="text-brand-gold"],
         .profile-light-page [data-testid^="chip-"],
-        .profile-light-page [data-testid^="btn-rede-"] span { color: #1d4ed8 !important; }
+        .profile-light-page [data-testid^="btn-rede-"] span { color: var(--profile-link) !important; }
         .profile-light-page [data-testid="btn-salvar-perfil"],
         .profile-light-page [data-testid="btn-continuar-perfil"],
         .profile-light-page [data-testid="btn-add-company-employee"] { color: #ffffff !important; }
@@ -1993,15 +2017,15 @@ export default function MeuPerfilPage() {
       <header className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8">
         {activeCategory && (
           <button type="button" onClick={closeProfileCategory} className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" data-testid="btn-voltar-profile-hub">
-            <ArrowLeft className="h-4 w-4" /> Voltar para Meu Perfil
+            <ArrowLeft className="h-4 w-4" /> {t('Voltar para Meu Perfil')}
           </button>
         )}
         <h1 className="flex items-center gap-2 text-2xl font-bold text-[#001D34]">
-          {activeCategory ? categoryCopy[activeCategory].title : "Meu Perfil"}
+          {t(activeCategory ? categoryCopy[activeCategory].title : "Meu Perfil")}
           <ModuleInfo title="Meu Perfil" description="Controle o nome público, finalidades, áreas de contribuição, atuação, contatos e dados de formalização usados nos módulos da BUILT." />
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-500">
-          {activeCategory ? categoryCopy[activeCategory].description : "Gerencie suas informações por categoria."}
+          {t(activeCategory ? categoryCopy[activeCategory].description : "Gerencie suas informações por categoria.")}
         </p>
       </header>
 
@@ -2013,6 +2037,10 @@ export default function MeuPerfilPage() {
           </div>
         ) : activeCategory === null ? (
           profileHub
+        ) : activeCategory === "settings" ? (
+          <section className="mx-auto w-full max-w-3xl" aria-label="Configurações da plataforma" data-testid="profile-settings">
+            <PlatformPreferences />
+          </section>
         ) : (
           <>
             {activeCategory !== "account" && <div className="xl:hidden">
@@ -2129,8 +2157,8 @@ export default function MeuPerfilPage() {
                 </section>}
 
                 <section className="profile-section p-4" data-testid="section-celulas-interesse">
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-[#001D34]"><Layers3 className="h-4 w-4 text-blue-600" />{contributionAreasRequired ? "3" : "2"}. Tipos de Negócio de interesse</h3>
-                  <p className="mt-1 text-xs text-slate-500">Selecione os negócios que interessam a você. O sistema vincula automaticamente cada escolha à Célula correspondente em todas as suas Comunidades.</p>
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-[#001D34]"><Layers3 className="h-4 w-4 text-blue-600" />{contributionAreasRequired ? "3" : "2"}. Teses de interesse</h3>
+                  <p className="mt-1 text-xs text-slate-500">Selecione as teses que interessam a você, organizadas por Célula. O sistema vincula automaticamente cada escolha à Célula correspondente em todas as suas Comunidades.</p>
                   <div className="mt-4 space-y-4">
                     {strategicCellTypes.map((cell) => <div key={cell.code}>
                       <p className="mb-2 text-[11px] font-semibold text-slate-500">{cell.public_name}</p>
@@ -2140,11 +2168,18 @@ export default function MeuPerfilPage() {
                           const businessTypeCodes = selected ? current.business_type_codes.filter((code) => code !== businessType.code) : [...current.business_type_codes, businessType.code];
                           return {
                             business_type_codes: businessTypeCodes,
-                            strategic_cell_type_codes: strategicCellTypes.filter((item) => item.business_types.some((type) => businessTypeCodes.includes(type.code))).map((item) => item.code),
+                            strategic_cell_type_codes: normalizeStrategicCellPreferences([], businessTypeCodes).cellTypeCodes,
                           };
-                        })} className={`rounded-full border px-3 py-2 text-xs ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"}`}>{businessType.public_name}</button>;
+                        })} className={`rounded-full border px-3 py-2 text-xs ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"}`}>{formatBusinessThesisLabel(businessType.public_name)}</button>;
                       })}</div>
                     </div>)}
+                    {getRetiredBusinessTypes(strategicCellDraft.business_type_codes).length > 0 && <div>
+                      <p className="mb-2 text-xs text-slate-500">Escolhas anteriores fora do catálogo atual. Você pode removê-las e selecionar uma das novas teses.</p>
+                      <div className="flex flex-wrap gap-2">{getRetiredBusinessTypes(strategicCellDraft.business_type_codes).map((item) => <button key={item.code} type="button" className="rounded-full border px-3 py-2 text-xs" aria-label={`Remover escolha anterior: ${item.publicName}`} onClick={() => setStrategicCellDraft((current) => {
+                        const businessTypeCodes = current.business_type_codes.filter((code) => code !== item.code);
+                        return { business_type_codes: businessTypeCodes, strategic_cell_type_codes: normalizeStrategicCellPreferences([], businessTypeCodes).cellTypeCodes };
+                      })}>{item.publicName} ×</button>)}</div>
+                    </div>}
                   </div>
                 </section>
                 </>}
@@ -2936,6 +2971,7 @@ export default function MeuPerfilPage() {
                 </Button>
               </div>
             </section>}
+
 
             {/* Meu Convite */}
             {activeCategory === "account" &&

@@ -1,5 +1,7 @@
 ﻿import { Switch, Route, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { resetContentScroll } from "@/lib/content-scroll";
+import { PreferencesProvider } from '@/components/preferences-provider';
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO } from "@shared/code-of-ethics";
 import { apiRequest, queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
@@ -1179,6 +1181,7 @@ function AlliancesRouteGuard() {
 function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [location, navigate] = useLocation();
+  useEffect(() => { resetContentScroll(); }, [location]);
   const { toast } = useToast();
   const opportunityInviteToken = location === "/login" ? new URLSearchParams(window.location.search).get("convite") : null;
   const [opportunityInviteError, setOpportunityInviteError] = useState("");
@@ -1416,6 +1419,7 @@ function ProtectedApp() {
   };
 
   return (
+    <PreferencesProvider key={user?.id} userId={String(user?.id || '')}>
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         {!user?.company_employee && <PerfilOnboardingModal membroId={user?.membro_directus_id} fallbackUser={user} />}
@@ -1440,7 +1444,7 @@ function ProtectedApp() {
               </Button>
             </div>
           </header>
-          <main className="flex-1 overflow-auto overflow-x-hidden bg-background">
+          <main data-app-scroll className="min-w-0 flex-1 overflow-auto overflow-x-hidden bg-background">
             {companyRouteDenied ? (
               <div className="flex min-h-[55vh] items-center justify-center px-5">
                 <div className="max-w-md text-center">
@@ -1541,6 +1545,7 @@ function ProtectedApp() {
         </div>
       </div>
     </SidebarProvider>
+    </PreferencesProvider>
   );
 }
 

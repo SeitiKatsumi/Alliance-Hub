@@ -972,27 +972,26 @@ function CandidateInfoPanel({
 
   return (
     <div
-      className={`rounded-xl border border-brand-gold/15 ${compact ?"mt-3 p-3" : "p-4"} space-y-3`}
-      style={{ background: "rgba(215,187,125,0.045)" }}
+      className={`rounded-xl border border-border bg-card text-card-foreground ${compact ?"mt-3 p-3" : "p-4"} space-y-3`}
     >
       <div className="flex items-center gap-2">
-        <FileText className="w-3.5 h-3.5 text-brand-gold/60" />
-        <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest">Dados da candidatura</p>
+        <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Dados da candidatura</p>
       </div>
       {allRows.length > 0 && (
         <div className={`grid grid-cols-1 ${compact ?"sm:grid-cols-2" : "sm:grid-cols-2"} gap-2`}>
           {allRows.map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
-              <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">{label}</p>
-              <p className="mt-0.5 text-xs font-mono text-white/75 break-words">{candidateValue(value)}</p>
+            <div key={label} className="min-w-0 rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">{label}</p>
+              <p className="mt-0.5 text-xs font-mono text-card-foreground break-words">{candidateValue(value)}</p>
             </div>
           ))}
         </div>
       )}
       {dados.mensagem && (
-        <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
-          <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">Mensagem</p>
-          <p className="mt-1 text-xs font-mono text-white/65 italic leading-relaxed break-words">"{dados.mensagem}"</p>
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">Mensagem</p>
+          <p className="mt-1 text-xs font-mono text-card-foreground italic leading-relaxed break-words">"{dados.mensagem}"</p>
         </div>
       )}
     </div>
@@ -2120,7 +2119,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                 value={aprovacoesSearch}
                 onChange={(event) => setAprovacoesSearch(event.target.value)}
                 placeholder={notificacoesTab === "opas" ?"Buscar por OBA, tipo, núcleo ou status..." : "Buscar por nome, e-mail, comunidade ou status..."}
-                className="h-10 pl-9 bg-white border-brand-gold/40 text-brand-navy placeholder:text-brand-navy/45 focus-visible:ring-brand-gold/40"
+                className="h-10 pl-9 bg-background border-brand-gold/40 text-foreground placeholder:text-muted-foreground focus-visible:ring-brand-gold/40"
                 data-testid="input-busca-aprovacoes"
               />
             </div>
@@ -2141,7 +2140,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
           <div className="rounded-2xl border border-brand-gold/25 bg-white overflow-hidden shadow-sm">
             <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/20 bg-brand-gold/5">
               <Ticket className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
+              <span className="text-xs font-mono text-foreground uppercase tracking-widest">
                 {mostrarHistoricoAprovacoes ?"Histórico de Aprovações" : "Aprovações Pendentes"}
               </span>
               {!mostrarHistoricoAprovacoes && totalAprovacoesPendentes > 0 && (
@@ -2981,8 +2980,8 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       </AlertDialog>
 
       <Dialog open={!!mouPendente && !mouDadosOpen} onOpenChange={open => { if (!open) { setMouPendente(null); setMouAceito(false); setMouDadosOpen(false); } }}>
-        <DialogContent className="max-w-3xl max-h-[86vh] overflow-hidden border-blue-200 bg-white text-brand-navy">
-          <DialogHeader>
+        <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-blue-200 bg-white p-0 text-brand-navy sm:h-auto sm:max-h-[86vh] sm:w-full sm:max-w-3xl sm:gap-4 sm:p-6">
+          <DialogHeader className="px-4 pb-3 pt-[calc(1.25rem+env(safe-area-inset-top))] pr-12 text-left sm:p-0">
             <DialogTitle className="flex items-center gap-2 text-brand-navy">
               <FileText className="h-5 w-5 text-blue-600" />
               {mouPendente?.titulo || "MOU Padrão BUILT"}
@@ -2991,9 +2990,9 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
               Leia e aceite o MOU para concluir sua participação nesta BIA.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-0 sm:pb-0">
             <div
-              className="max-h-[46vh] select-none overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700"
+              className="max-h-[42dvh] min-h-48 select-none overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 sm:max-h-[46vh] sm:min-h-0"
               onCopy={(event) => event.preventDefault()}
               onCut={(event) => event.preventDefault()}
               onContextMenu={(event) => event.preventDefault()}
@@ -3012,17 +3011,18 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
               <span>{ACCEPTANCE_LOCATION_NOTICE}</span>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 gap-2 border-t border-slate-200 bg-white px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:border-0 sm:p-0">
             <Button
               variant="outline"
               onClick={() => { setMouPendente(null); setMouAceito(false); }}
+              className="w-full sm:w-auto"
             >
               Cancelar
             </Button>
             <Button
               onClick={openMouDadosForm}
               disabled={!mouAceito || concluirMouMutation.isPending}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
               data-testid="btn-aceitar-mou-bia"
             >
               <CheckCircle className="mr-2 h-4 w-4" />
@@ -3039,8 +3039,8 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
           setMouAceito(false);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[88vh] overflow-hidden border-blue-200 bg-white text-brand-navy">
-          <DialogHeader>
+        <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-blue-200 bg-white p-0 text-brand-navy sm:h-auto sm:max-h-[88vh] sm:w-full sm:max-w-4xl sm:gap-4 sm:p-6">
+          <DialogHeader className="px-4 pb-3 pt-[calc(1.25rem+env(safe-area-inset-top))] pr-12 text-left sm:p-0">
             <DialogTitle className="flex items-center gap-2 text-brand-navy">
               <UserCheck className="h-5 w-5 text-blue-600" />
               Dados para formalização da BIA
@@ -3050,7 +3050,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[62vh] overflow-y-auto pr-2">
+          <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-0 sm:pb-0 sm:pr-2">
             <div className="space-y-5">
               <div className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dados pessoais</p>
@@ -3229,18 +3229,19 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 gap-2 border-t border-slate-200 bg-white px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:border-0 sm:p-0">
             <Button
               variant="outline"
               onClick={() => { setMouDadosOpen(false); setMouPendente(null); setMouAceito(false); }}
               disabled={concluirMouMutation.isPending}
+              className="w-full sm:w-auto"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSubmitMouDados}
               disabled={concluirMouMutation.isPending}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
               data-testid="btn-concluir-mou-dados"
             >
               {concluirMouMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}

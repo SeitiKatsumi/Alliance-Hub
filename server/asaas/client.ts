@@ -1,0 +1,50 @@
+import type { AsaasConfig } from "./config";
+
+export class AsaasError extends Error {
+  constructor(public readonly code: string, message: string, public readonly status = 503) { super(message); }
+}
+
+// Implementado para a próxima etapa, sem liberação de chamadas nesta entrega.
+export class AsaasClient {
+  constructor(private readonly config: AsaasConfig) {}
+
+  async request(method: "GET" | "POST" | "PUT" | "DELETE", endpoint: string, body?: unknown): Promise<Record<string, unknown>> {
+    if (this.config.environment !== "sandbox") throw new AsaasError("PRODUCTION_BLOCKED", "Produção Asaas bloqueada.");
+    if (!this.config.configurationValid || !this.config.enabled || !this.config.apiKey) throw new AsaasError("NOT_CONFIGURED", "Sandbox Asaas não configurado.");
+    // A base não permite operações externas; mesmo credenciais configuradas não ativam movimentações.
+    throw new AsaasError("EXTERNAL_REQUESTS_DISABLED", "Chamadas externas aguardam homologação.");
+  }
+
+}
+
+// Transporte desacoplado. A próxima etapa poderá conectá-lo ao cliente após homologação.
+// Nenhuma rota ou tarefa desta base instancia este transporte.
+export class AsaasTransport {
+  constructor(private readonly config: AsaasConfig, private readonly transport: typeof fetch = fetch, private readonly timeoutMs = 15_000) {}
+
+  async request(endpoint: string, options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {}): Promise<Record<string, unknown>> {
+    if (this.config.environment !== "sandbox" || !this.config.configurationValid || !this.config.enabled || !this.config.apiKey) throw new AsaasError("NOT_CONFIGURED", "Sandbox Asaas não configurado.");
+    if (!/^\/[A-Za-z0-9/_-]+(?:\?[A-Za-z0-9_=&%.-]*)?$/.test(endpoint) || endpoint.includes("..") || endpoint.includes("//")) throw new AsaasError("INVALID_ENDPOINT", "Endpoint Asaas inválido.", 400);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const method = options.method || "GET";
+      if (!["GET", "POST", "PUT", "DELETE"].includes(method) || (method === "GET" && options.body !== undefined)) throw new AsaasError("INVALID_REQUEST", "Pedido Asaas inválido.", 400);
+      const response = await this.transport(`https://api-sandbox.asaas.com/v3${endpoint}`, {
+        method, redirect: "error", signal: controller.signal,
+        headers: { access_token: this.config.apiKey, "User-Agent": "BUILT/1.0", Accept: "application/json", ...(options.body === undefined ? {} : { "Content-Type": "application/json" }) },
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      });
+      if (!response.ok) throw new AsaasError("PROVIDER_ERROR", "O Asaas não confirmou a consulta.", 502);
+      if (!/^application\/(?:json|[\w.-]+\+json)(?:\s*;|$)/i.test(response.headers.get("content-type") || "")) throw new AsaasError("INVALID_RESPONSE", "Resposta Asaas inválida.", 502);
+      let data: unknown;
+      try { data = await response.json(); }
+      catch { throw new AsaasError(controller.signal.aborted ? "TIMEOUT" : "INVALID_RESPONSE", controller.signal.aborted ? "Consulta Asaas excedeu o prazo; resultado não confirmado." : "Resposta Asaas inválida.", 502); }
+      if (!data || typeof data !== "object" || Array.isArray(data)) throw new AsaasError("INVALID_RESPONSE", "Resposta Asaas inválida.", 502);
+      return data as Record<string, unknown>;
+    } catch (error) {
+      if (error instanceof AsaasError) throw error;
+      throw new AsaasError(controller.signal.aborted ? "TIMEOUT" : "TRANSPORT_ERROR", controller.signal.aborted ? "Consulta Asaas excedeu o prazo; resultado não confirmado." : "Não foi possível consultar o Asaas.", 502);
+    } finally { clearTimeout(timer); }
+  }
+}

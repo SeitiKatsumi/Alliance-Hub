@@ -1,10 +1,14 @@
 # Capital e Financeiro da BIA
 
+- Mobile (2026-10-15): abas do Capital em duas colunas no celular/quatro no desktop; campos de lançamento e seletores podem encolher, datas empilham e rodapé não transborda. Seleção financeira preserva referência quando nenhuma seleção foi removida, evitando ciclo durante carregamento. Sem alterações de valores, cálculo, autorização ou gravação. Regressão: `client/src/lib/mobile-layout.test.ts`.
+
 - Nova BIA preenche Equipe + DM em fichas unicas por participante; MAP Zero e somente a previa automatica expansivel, sem outro formulario/aba durante a criacao. `MapZeroFields` e compartilhado com a Calculadora; POST e PUT mantem a mesma validacao/calculo no backend. DM total e a soma dos indices individuais, distinta da participacao final; totais parciais nao representam composicao concluida. Capital comprometido e natureza sao preservados sem conversao pelo peso arredondado. Criar a BIA com MAP completo grava base e revisao juntas, sem lancamentos financeiros; aportes e parcelas permanecem em etapa separada. Apos criar, MAP Zero, MAP Atual e Historico continuam em Capital; MOU/aceites e BIAs antigas nao mudam.
 
 ## Objetivo e usuarios
 
 ### Classificação automática de direitos no modelo 5
+
+No bloco 7, criação e edição exibem apenas funções de governança (Autor/Aliado/diretorias) nos seletores; Contribuição individual não aparece como linha nem opção. Dados individuais existentes permanecem no estado/payload, com CIs e cálculo intactos. Adicionar função abre seleção vazia, sem atribuição automática; remover a última função permite ficar sem Governança e conserva a linha individual técnica de índice zero quando necessária ao contrato legado. Mantém confirmação, funções únicas, índices por função, consulta e salvamento existentes; não converte modelos anteriores nem modifica PDFs/aceites históricos. Regressão: `bia-economic-structure.test.ts`.
 
 Na edição da BEI modelo 5, Direito Econômico é Origem para Autor/Aliado e Liderança para as diretorias; contribuição individual participa pelas CIs, sem direito no DM. A Forma do aporte determina automaticamente a classificação separada do capital: Dinheiro → Capital; Propriedade, bens ou direitos → Propriedade. Não há seletor de Natureza do aporte. A regra compartilhada em `shared/initial-contributions.ts` resolve o catálogo oficial `Tipos_CPP` tanto na interface como em `calculateSubmittedInitialMap`, usado na criação/conclusão e PUT do MAP. Tipo obrigatório ausente impede gravação. Não muda fórmulas, índices, lançamentos ou permissões; não aplica backfill nem altera a leitura de versões/PDFs/aceites históricos ou modelos anteriores.
 
@@ -18,7 +22,15 @@ Rascunho e alterações de MAP não criam caixa. Estruturação, captação, enc
 
 Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de origem, DM/CPP, cotas e analises financeiras.
 
+A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Banco da BIA. Várias BIAs da empresa podem compartilhar a conta, mas a autorização de consulta continua por BIA (`capital_banco=view`); IDs externos, chaves e referências de cofre não são retornados. Sem armazenamento não presume ausência de conta. Produção, cobranças e transferências permanecem bloqueadas; conta aprovada não habilita operações automaticamente. Histórico financeiro anterior permanece independente.
+
 ## Telas e URLs
+
+- Toda transferência exibe Histórico de ajustes, independentemente do papel do usuário, de ser a origem, do status ou do modo de consulta. Sem registros, mostra contagem zero e "Nenhum ajuste registrado"; com registros, mantém os dados reais de correção/reversão. Não cria histórico retroativo nem altera permissões de edição.
+
+- Valores em reais do MAP e das movimentações de cotas aparecem com exatamente duas casas decimais (centavos, inclusive ,00) em todos os resumos: alocação, histórico antes/depois, confirmações e PDF correspondente; porcentagens mantêm até cinco casas. O mesmo formatador atende todos esses consumidores. É somente apresentação: cálculos, payloads, valores armazenados e campos editáveis conservam a precisão original, inclusive ao abrir uma correção. Não altera lançamentos bancários nem documentos já emitidos.
+
+- Dados da BIA → MAP Inicial e Editar BIA → MAP Inicial oferecem **Gerar novo PDF do MAP Inicial** da revisão selecionada. Reutiliza o snapshot autorizado de `map/versoes/:versionId`, o componente tabular modelo5 e a impressão paisagem com marca/código oficial. Não recalcula, cria versão, salva alterações, envia convites ou substitui PDFs antigos/assinados. Mantém link do PDF histórico; modelos anteriores exportam os valores/percentuais registrados sem conversão. Exportação desabilitada em carregamento/erro, revisão incompatível ou ausência de marca/código. Hash identifica a revisão de origem, não os bytes do novo PDF. Regressão em `bia-data-dialog.test.ts`.
 
 - BIAs legadas podem registrar uma composição original revisada em MAP → MAP Zero. Equipe/Valor de Origem atuais são sugestões, não evidência histórica: índices e capital ausentes ficam pendentes. Confirmação exige classificações, fonte dos dados, revisão explícita e revisão esperada. Registro fica apenas em `bia_map_versoes`, com data real, autor, motivo e hash; não cria snapshot operacional, altera MAP Atual, aceites, DM legado, parcelas ou Directus. Revisões anteriores/PDFs permanecem imutáveis. Não é conversão automática nem reconstrução de histórico não registrado.
 - `GET|PUT /api/bias/:id/map-zero-legado`: consulta autenticada com acesso à BIA; configuração durante formação, superadmin ou Diretor/Aliado vinculado após ativação (admin/manager isolados não recebem essa exceção). Confirmações serializam por BIA, repetição sem mudança retorna a mesma versão e conflito retorna 409. A comparação com MAP Atual é informativa. Teste: `server/bia-legacy-zero.test.ts`.
@@ -42,7 +54,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - `/api/bias/:id/aportes`, `/info-comercial`, `/banco*`.
 - Chamadas de capital geram tarefas deduplicadas para finalidade `capital` e/ou contribuicao `Aporte Financeiro`.
 - Saidas agendadas geram um unico lembrete por e-mail dois dias corridos antes do vencimento para o responsavel do lancamento ou, sem ele, para o Diretor de Capital.
-- Endpoints de percentuais/DM, valor de origem, cotas, transferencias, cobrancas e Pinbank.
+- Endpoints de percentuais/DM, valor de origem, cotas, transferencias e cobrancas. Banco em transição para Asaas: consulta histórica preservada; abertura, documentos e operações do provedor anterior desativados. Nenhuma conta, cobrança ou aceite é convertido automaticamente.
 - Para BIAs novas, `GET|PUT /api/bias/:id/map-inicial` mantem o rascunho/snapshot e `GET /api/bias/:id/map` retorna o MAP atual oficial. BIAs anteriores sem snapshot continuam nos endpoints e campos legados.
 
 ## Dados e fontes de verdade
@@ -52,6 +64,10 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - Cards, calculadora, analises e PDF sao consumidores; nao podem definir formulas independentes.
 
 ## Papeis e permissoes
+
+- Extensão de 2026-10-08: a mesma consulta mínima de Capital também vale para Aliado BUILT e todos os diretores (Aliança, Técnico, Obra, Comercial e Capital), mesmo sem papel de sócio e com override antigo `none`. Diretor de Capital mantém edição padrão; demais permissões de edição existentes não mudam. Autor isolado não recebe consulta automática.
+
+- Sócios Guardiões e Multiplicadores vinculados à própria BIA têm consulta mínima em Banco, Financeiro, Análises e DM, inclusive com personalização antiga `none`. O vínculo de sócio não concede edição; edição já autorizada por cargo acumulado ou permissão explícita permanece. Terceiros e convites pendentes não recebem esse mínimo. Falha na leitura de permissões mantém bloqueio seguro. Regra central em `shared/bia-access.ts`, aplicada pela API e interface; sem migração ou alteração de documentos/finanças.
 
 - Visualizacao/edicao dependem do papel e da matriz `bia_user_permissions`.
 - Operacoes financeiras exigem autorizacao no backend e registro do autor.
@@ -79,7 +95,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - A analise de preco por m2 valida o raio real de 20 km; quando o endereco completo nao e reconhecido, tenta bairro/cidade, cidade/estado e CEP cadastrados, sem dispensar a verificacao geografica.
 - No mobile, a navegacao do Capital permite rolagem horizontal sem sobrepor rotulos, os indicadores financeiros refluem sem cortar valores e cada lancamento aparece como cartao legivel; no desktop, a lista permanece em tabela.
 - O PDF do MAP usa a logomarca horizontal oficial e cabecalho branco, sem tarja ou fundo carregado, para preservar legibilidade e economia na impressao.
-- Transferencia de cotas totaliza exatamente 100%, preserva valores e percentuais com cinco casas decimais e exige destinatarios pertencentes a BIA. O rateio por percentual conserva o total mesmo abaixo de um centavo por destinatario; valores zerados nao podem ser gravados.
+- Transferencia de cotas totaliza exatamente 100%, preserva valores e percentuais com cinco casas decimais e exige destinatarios pertencentes a BIA. O rateio por percentual conserva o total mesmo abaixo de um centavo por destinatario; valores zerados nao podem ser gravados. Diretor da Alianca, Aliado BUILT e administracao podem aceitar ou rejeitar inclusive uma transferencia em que sejam o membro de origem; os demais membros nao podem processar solicitacoes.
 - Webhook/cobranca e idempotente.
 
 ## Estados e transicoes
@@ -126,7 +142,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - `client/src/pages/fluxo-caixa-mobile.test.ts`
 - Ao alterar: reconciliar manualmente o mesmo caso em calculadora, visao geral, financeiro e analises; testar zero, arredondamento, status e repeticao de webhook.
 
-- Transferências aceitas podem ter valor e percentual corrigidos pela administração (admin/superadmin), diretor da aliança ou aliado BUILT com acesso de edição ao financeiro da BIA. O membro de origem não corrige a própria transferência, preservando a separação de aprovação. Motivo obrigatório; histórico JSONB registra autor, data, antes/depois no mesmo UPDATE. Controle de concorrência rejeita versão desatualizada. Origem, destino, anexos, status e data original permanecem; MAP/PDF usam o valor corrigido, sem movimentar dinheiro ou alterar o Directus. Migração: `20260915_quota_corrections.sql`.
+- Transferências aceitas podem ter valor e percentual corrigidos pela administração (admin/superadmin), diretor da aliança ou aliado BUILT com acesso de edição ao financeiro da BIA, inclusive quando são o membro de origem. Ser a origem, isoladamente, não concede permissão. Motivo obrigatório; histórico JSONB registra autor, data, antes/depois no mesmo UPDATE. Controle de concorrência rejeita versão desatualizada. Origem, destino, anexos, status e data original permanecem; MAP/PDF usam o valor corrigido, sem movimentar dinheiro ou alterar o Directus. Migração: `20260915_quota_corrections.sql`.
 
 - A reversão usa as mesmas permissões e histórico da correção, exige motivo e confirmação explícita e altera somente o status da transferência aceita para `revertida`, atomicamente com a auditoria. Reversões não são reaplicáveis nem editáveis; continuam na lista/PDF, fora do cálculo do MAP. Demais transferências são recalculadas pelo motor atual, sem estorno bancário ou exclusão do registro.
 

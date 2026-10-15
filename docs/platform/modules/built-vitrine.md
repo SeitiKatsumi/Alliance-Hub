@@ -41,6 +41,10 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 
 ## Invariantes
 
+- Modal de anúncio mantém superfície institucional escura em ambos os temas, com rótulos e textos auxiliares de contraste reforçado. Modais compartilhados restringem a coluna ao espaço disponível e os seletores truncam valores longos sem esconder o ícone. Nenhuma alteração de publicação, termos, pagamento ou upload.
+
+- Espaços de anúncios vazios (hero e cinco destaques) usam `--card`, `--foreground` e `--muted-foreground`, acompanhando Claro/Escuro. Não aplica filtro às imagens publicadas nem modifica conteúdo, links, visibilidade, criação ou pagamento de anúncios. Regressão executa os elementos reais em `client/src/components/appearance-settings.test.ts`.
+
 - A explicacao do modulo fica em um controle de informacao acionavel no cabecalho da pagina, nunca no item do menu lateral.
 - O termo da BUILT Vitrine nao integra o aceite inicial do onboarding; ele e exibido e registrado, com versao e evidencia de localizacao, no primeiro acesso ao modulo.
 - A finalidade escolhida nao bloqueia a consulta da Area de Vitrine.

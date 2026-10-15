@@ -42,6 +42,11 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 
 ## Invariantes
 
+- E-mails opcionais respeitam cinco preferências da conta: convites, agenda/lembretes, atualizações de BIA, oportunidades/demandas e comunidade/rede. Todos os31 envios em `mailer.ts` são classificados explicitamente antes do SMTP. Recuperação de senha, comunicações de acesso/decisão cadastral, termos e pagamentos continuam essenciais e não podem ser desativadas. Sem conta/preferência, comportamento legado; endereço compartilhado é suprimido se qualquer conta ativa vinculada desativou a categoria. Erro de consulta de preferência impede envio opcional, não libera silenciosamente.
+- Supressão é resultado explícito `skipped`, não falha SMTP nem envio aceito. Reenvio manual de BIA informa a preferência do destinatário sem contorná-la; lembrete suprimido conserva reserva com status próprio para não reenfileirar; distribuição por onda registra canal e-mail ignorado sem mexer no aviso interno. Supressão não cancela convite, vínculo, aceites, cobrança, tarefa ou notificações internas. Regressões em `server/user-preferences.test.ts`, `server/payment-reminders.test.ts` e `client/src/components/platform-preferences.test.ts`.
+
+- Resumo mobile usa grades que podem encolher e cabeçalhos com quebra de linha; ações não podem sair da tela. Pendências usam contraste específico para tema escuro. Menu móvel fecha ao escolher destino; nenhuma mudança de contador, consulta ou convite.
+
 - E-mails de convite para diretoria e socios de BIA exibem a acao antes dos detalhes, com botao HTML de fundo solido, largura fluida e link alternativo. A logo tem largura explicita; aceitar/recusar continua exigindo acesso e autorizacao na plataforma. E-mails ja enviados nao sao modificados.
 - Convites protegem fundo azul-marinho, botao dourado e texto com gradientes de cor unica e recorte de texto restrito ao Gmail. Cores inline permanecem como fallback; texto nao vira imagem. Previa de navegador nao substitui validacao no aplicativo de e-mail em modo escuro.
 

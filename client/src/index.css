@@ -2,6 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Compatibilidade das telas legadas com cores claras fixas. Somente tela:
+   impressões e artes oficiais não herdam estas substituições. Variantes
+   dark: explícitas têm prioridade; data-theme-fixed preserva arte/previews. */
+@media screen {
+  :where(.dark) :is(.bg-\[\#f8fafc\], .bg-\[\#f6f8fb\], .bg-\[\#F7F8FA\], .bg-\[\#f6f4ef\], .bg-\[\#FCFAF5\]):where(:not([data-theme-fixed], [data-theme-fixed] *)) { background-color: hsl(var(--background)); }
+  :where(.dark) .text-\[\#10263a\] { color: hsl(var(--foreground)); }
+  :where(.dark) .via-white { --tw-gradient-stops: var(--tw-gradient-from), hsl(var(--card)) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+  :where(.dark) .to-white { --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position); }
+  :where(.dark) :is(.from-blue-50\/90, .from-emerald-50\/90, .from-violet-50\/90, .from-cyan-50\/90) { --tw-gradient-from: hsl(var(--muted)) var(--tw-gradient-from-position); }
+  :where(.dark) :is(.bg-cyan-50, .bg-cyan-50\/50, .bg-cyan-100, .bg-sky-50, .bg-sky-100) { background-color: hsl(195 50% 16%); }
+  :where(.dark) :is(.text-cyan-600, .text-cyan-700, .text-cyan-800, .text-sky-600, .text-sky-700, .text-sky-800) { color: hsl(190 80% 75%); }
+  :where(.dark) :is(.border-cyan-200, .border-sky-200) { border-color: hsl(195 50% 32%); }
+  :where(.dark) :is(.bg-white, .bg-white\/80, .bg-white\/90, .bg-slate-50, .bg-gray-50):where(:not([data-theme-fixed], [data-theme-fixed] *)) { background-color: hsl(var(--card)); }
+  :where(.dark) :is(.bg-slate-100, .bg-slate-200, .bg-gray-100, .bg-gray-200):where(:not([data-theme-fixed], [data-theme-fixed] *)) { background-color: hsl(var(--muted)); }
+  :where(.dark) :is(.text-black, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700, .text-brand-navy, .text-\[\#001D34\], .text-\[\#001d34\]):where(:not([data-theme-fixed], [data-theme-fixed] *)) { color: hsl(var(--foreground)); }
+  :where(.dark) :is(.text-slate-600, .text-slate-500, .text-gray-600, .text-gray-500):where(:not([data-theme-fixed], [data-theme-fixed] *)) { color: hsl(var(--muted-foreground)); }
+  :where(.dark) :is(.border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300):where(:not([data-theme-fixed], [data-theme-fixed] *)) { border-color: hsl(var(--border)); }
+  :where(.dark) :is(.hover\:bg-white, .hover\:bg-slate-50, .hover\:bg-slate-100, .hover\:bg-gray-50, .hover\:bg-gray-100):hover { background-color: hsl(var(--muted)); }
+  :where(.dark) :is(.hover\:text-slate-700, .hover\:text-slate-900, .hover\:text-gray-900):hover { color: hsl(var(--foreground)); }
+  :where(.dark) :is(.divide-slate-200, .divide-gray-200) > :not([hidden]) ~ :not([hidden]) { border-color: hsl(var(--border)); }
+
+  :where(.dark) :is(.bg-blue-50, .bg-blue-50\/50, .bg-blue-100, .bg-indigo-50, .bg-indigo-100) { background-color: hsl(217 65% 18%); }
+  :where(.dark) :is(.text-blue-600, .text-blue-700, .text-blue-800, .text-blue-900, .text-indigo-600, .text-indigo-700, .text-indigo-800) { color: hsl(213 94% 78%); }
+  :where(.dark) :is(.border-blue-100, .border-blue-200, .border-blue-300, .border-indigo-200) { border-color: hsl(217 55% 35%); }
+  :where(.dark) :is(.bg-amber-50, .bg-amber-100, .bg-yellow-50, .bg-yellow-100, .bg-orange-50, .bg-orange-100) { background-color: hsl(35 45% 15%); }
+  :where(.dark) :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-yellow-700, .text-yellow-800, .text-orange-600, .text-orange-700, .text-orange-800) { color: hsl(43 90% 73%); }
+  :where(.dark) :is(.border-amber-100, .border-amber-200, .border-amber-300, .border-yellow-200, .border-orange-200) { border-color: hsl(35 55% 35%); }
+  :where(.dark) :is(.bg-emerald-50, .bg-emerald-100, .bg-green-50, .bg-green-100, .bg-teal-50, .bg-teal-100) { background-color: hsl(160 40% 14%); }
+  :where(.dark) :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-green-600, .text-green-700, .text-green-800, .text-teal-700) { color: hsl(155 70% 73%); }
+  :where(.dark) :is(.border-emerald-200, .border-emerald-300, .border-green-200, .border-teal-200) { border-color: hsl(160 45% 32%); }
+  :where(.dark) :is(.bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100) { background-color: hsl(350 45% 17%); }
+  :where(.dark) :is(.text-red-600, .text-red-700, .text-red-800, .text-rose-600, .text-rose-700, .text-rose-800) { color: hsl(350 90% 80%); }
+  :where(.dark) :is(.border-red-200, .border-red-300, .border-rose-200) { border-color: hsl(350 45% 35%); }
+  :where(.dark) :is(.bg-purple-50, .bg-purple-100, .bg-violet-50, .bg-violet-100) { background-color: hsl(270 35% 19%); }
+  :where(.dark) :is(.text-purple-600, .text-purple-700, .text-purple-800, .text-violet-600, .text-violet-700) { color: hsl(270 90% 82%); }
+  :where(.dark) :is(.border-purple-200, .border-violet-200) { border-color: hsl(270 40% 38%); }
+}
+
+/* PDF/impresso permanece claro, independentemente da preferência de tela. */
+@media print {
+  :root.dark {
+    color-scheme: light;
+    --background: 0 0% 100%; --foreground: 208 100% 10%;
+    --card: 0 0% 100%; --card-foreground: 208 100% 10%;
+    --popover: 0 0% 100%; --popover-foreground: 208 100% 10%;
+    --muted: 210 20% 96%; --muted-foreground: 204 11% 47%;
+    --border: 38 30% 85%; --card-border: 38 30% 80%;
+    --primary: 208 100% 10%; --primary-foreground: 0 0% 100%;
+    --secondary: 217 91% 60%; --secondary-foreground: 208 100% 10%;
+    --accent: 217 91% 60%; --accent-foreground: 208 100% 10%;
+  }
+}
+
 .notifications-page,
 .notifications-page .font-mono {
   font-family: var(--font-sans) !important;
@@ -14,6 +67,7 @@
 
 /* LIGHT MODE - Built Alliances Brand */
 :root {
+  color-scheme: light;
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
 
@@ -112,6 +166,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
 
@@ -138,7 +193,7 @@
   --popover: 222 47% 10%;
   --popover-foreground: 210 20% 98%;
   --popover-border: 215 28% 17%;
-  --primary: 217 91% 60%;
+  --primary: 221 83% 53%;
   --primary-foreground: 0 0% 100%;
   --secondary: 215 28% 17%;
   --secondary-foreground: 210 20% 98%;
@@ -306,4 +361,11 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+/* This branded dialog has a deliberately dark surface in both themes. */
+@media screen {
+  .vitrine-ad-dialog [class*="text-white/"] { color: #bdc9d7; }
+  .vitrine-ad-dialog [class*="placeholder:text-white/"]::placeholder { color: #a7b7ca; }
+  .vitrine-ad-dialog [class*="text-brand-gold"] { color: #d7bb7d; }
+  .vitrine-ad-dialog label { font-size: 0.875rem; }
 }

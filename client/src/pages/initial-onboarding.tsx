@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { formatBusinessThesisLabel } from "@shared/strategic-cells";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -379,13 +380,13 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
       <Panel title="Áreas de atuação" subtitle="Use a mesma classificação do seu perfil BUILT.">
         <ProfileActivityFields value={config} onChange={set} />
       </Panel>
-      <Panel title="Quais Tipos de Negócio interessam a você?" subtitle="Selecione quantos quiser. O sistema vinculará automaticamente cada escolha à Célula correspondente da sua Comunidade.">
+      <Panel title="Quais teses interessam a você?" subtitle="Selecione quantas quiser, organizadas por Célula. O sistema vinculará automaticamente cada escolha à Célula correspondente da sua Comunidade.">
         <div className="space-y-5">
           {cellTypes.map((cell) => <div key={cell.code}>
             <p className="text-xs font-semibold text-slate-500">{cell.public_name}</p>
             <div className="mt-2 grid gap-2 md:grid-cols-2">{cell.business_types.map((businessType) => {
               const selected = selectedBusinessTypeCodes.includes(businessType.code);
-              return <button type="button" key={businessType.code} aria-pressed={selected} onClick={() => toggleBusinessType(businessType.code)} className={`relative rounded-md border p-3 text-left text-sm transition ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "bg-white hover:border-blue-300"}`}><span className="block pr-6 font-semibold">{businessType.public_name}</span>{selected && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-blue-600" />}</button>;
+              return <button type="button" key={businessType.code} aria-pressed={selected} onClick={() => toggleBusinessType(businessType.code)} className={`relative rounded-md border p-3 text-left text-sm transition ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "bg-white hover:border-blue-300"}`}><span className="block pr-6 font-semibold">{formatBusinessThesisLabel(businessType.public_name)}</span>{selected && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-blue-600" />}</button>;
             })}</div>
           </div>)}
         </div>

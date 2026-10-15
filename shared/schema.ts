@@ -115,6 +115,13 @@ export const users = pgTable("users", {
   created_at: timestamp("created_at").defaultNow(),
 });
 
+export const userPlatformPreferences = pgTable('user_platform_preferences', {
+  user_id: varchar('user_id').primaryKey().references(() => users.id, {onDelete:'cascade'}),
+  language: text('language').notNull().default('pt-BR'),
+  email: jsonb('email').$type<Record<string,boolean>>().notNull().default({invites:true,agenda:true,bia:true,opportunities:true,community:true}),
+  updated_at: timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+});
+
 export const companyEmployeeAccounts = pgTable("company_employee_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   owner_user_id: text("owner_user_id").notNull(),

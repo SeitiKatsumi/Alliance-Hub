@@ -28,7 +28,7 @@ export function BiaBrandPreview({name,brand}:{name:string;brand:ReturnType<typeo
           setDownloading(true);setError("");
           try {await downloadBiaBrandPng(brand.url,name,brand.code);} catch(e) {setError(e instanceof Error?e.message:"Não foi possível baixar a marca.");} finally {setDownloading(false);}
         }}>{downloading?"Gerando PNG…":"Baixar marca em PNG"}</Button>
-        <p className="text-xs text-muted-foreground">PNG em alta resolução · 1352 × 1412 pixels</p>
+        <p className="text-xs text-muted-foreground">PNG em alta resolução · 1228 × 1308 pixels</p>
         {error && <p role="alert" className="text-destructive">{error}</p>}
       </div>
     </div>

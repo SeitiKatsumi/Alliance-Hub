@@ -4,8 +4,6 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
 import express from "express";
-import { readFileSync } from "node:fs";
-import { transformSync } from "esbuild";
 import { INITIAL_CONTRIBUTIONS_SQL, registerInitialContributions, decorateInitialEntries, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { calculateInitialMap, calculateMap } from "../shared/member-portfolio";
 import { commitmentsFromMap, isCashEntry } from "../shared/initial-contributions";
@@ -61,19 +59,6 @@ test("API de aportes: autorização, falha parcial, repetição, pares, revisão
  const decorated=await decorateInitialEntries(db,Array.from(entries.values()));
  assert.equal(decorated.filter(e=>e.status==="pago" && isCashEntry(e)).length,1,"Apenas o capital em dinheiro, não o par patrimonial");
  assert.equal(calculateMap(decorated.filter(e=>e.tipo==="entrada").map(e=>({...e,memberId:"d",value:e.valor})),[],[{memberId:"d",value:1100}])[0].value,1100);
- // Exercise the real banking route guard before any provider call, not just the UI filter.
- const sourceCode=readFileSync(new URL("./routes.ts",import.meta.url),"utf8");
- const start=sourceCode.indexOf('  app.post("/api/bias/:biaId/banco/cobrancas",');
- const bankingRoute=sourceCode.slice(start,sourceCode.indexOf('  app.post("/api/bias/:biaId/banco/cobrancas/:chargeId/cancelar"',start));
- let providerCalls=0;
- const bankScope:any={app,requireBiaBancoAccess:async()=>({id:"bia"}),pinbank:{configured:true,getConfigStatus:()=>({configured:true}),createBoleto:async()=>{providerCalls++;return{};}},ensureBiaBankAccount:async()=>({}),resolvePinbankCodigoCliente:()=>1,buildPinbankChargePayload:()=>({}),directusFetchOne:async(_c:string,id:string)=>decorated.find(e=>e.id===id),directusRelationId:(v:any)=>v?.id||v,isCashEntry,withMapLock:lock,saveBiaBankCharge:async()=>({}),getAuditActor:()=>({})};
- bankScope.assertBiaFinancialPhase=async()=>{}; // This fixture is operational; phase gates have dedicated workflow tests.
- new Function(...Object.keys(bankScope),transformSync(bankingRoute,{loader:"ts",target:"es2020"}).code)(...Object.values(bankScope));
- const charge=async(id:string)=>(await fetch(`http://127.0.0.1:${address.port}/api/bias/bia/banco/cobrancas`,{method:"POST",headers:{"content-type":"application/json","x-member":"d"},body:JSON.stringify({fluxoCaixaId:id})})).status;
- assert.equal(await charge(rights.movimentos[0].id),409);
- assert.equal(await charge("missing"),404);
- decorated.find(e=>e.id===incoming.id)!.conciliacao_pendente=true;
- assert.equal(await charge(incoming.id),409);assert.equal(providerCalls,0);
  view=(await request("GET")).body;assert.equal(view.resumo.find((c:any)=>c.componente==="contribuicao").integralizado,100);
  const altered=items.map(c=>({...c,series:c.series.map(s=>({...s,primeiroVencimento:"2026-10-30"}))}));
  assert.equal((await request("PUT","",{...input,revisaoEsperada:2,compromissos:altered})).status,409);

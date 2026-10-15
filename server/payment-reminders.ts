@@ -40,8 +40,8 @@ export type PaymentReminderRecipient = {
 
 type DeliveryDependencies = {
   reserve: () => Promise<string | null>;
-  send: () => Promise<{ ok: boolean }>;
-  markSent: (reservationId: string) => Promise<void>;
+  send: () => Promise<{ ok: boolean; skipped?: boolean }>;
+  markSent: (reservationId: string, skipped?: boolean) => Promise<void>;
   release: (reservationId: string) => Promise<void>;
 };
 
@@ -104,7 +104,7 @@ export function paymentReminderRecipient(item: PaymentReminderItem): PaymentRemi
   return validRecipient(bia?.diretor_capital, "diretor_capital");
 }
 
-export async function deliverPaymentReminder(deps: DeliveryDependencies): Promise<"sent" | "duplicate" | "retry"> {
+export async function deliverPaymentReminder(deps: DeliveryDependencies): Promise<"sent" | "duplicate" | "retry" | "skipped"> {
   const reservationId = await deps.reserve();
   if (!reservationId) return "duplicate";
   try {
@@ -113,8 +113,8 @@ export async function deliverPaymentReminder(deps: DeliveryDependencies): Promis
       await deps.release(reservationId);
       return "retry";
     }
-    await deps.markSent(reservationId);
-    return "sent";
+    await deps.markSent(reservationId, result.skipped);
+    return result.skipped ? "skipped" : "sent";
   } catch (error) {
     await deps.release(reservationId);
     throw error;
@@ -216,8 +216,8 @@ export async function processPaymentReminders(now = new Date()) {
           valor: moneyValue(item.valor),
           dataVencimento: dueDate,
         }),
-        markSent: async (reservationId) => {
-          const sent = JSON.stringify({ status: "enviado", enviado_em: new Date().toISOString() });
+        markSent: async (reservationId, skipped) => {
+          const sent = JSON.stringify(skipped ? {status:'suprimido_preferencia',processado_em:new Date().toISOString()} : { status: "enviado", enviado_em: new Date().toISOString() });
           await db.execute(sql`UPDATE fluxo_caixa_historico SET payload = payload || ${sent}::jsonb WHERE id = ${reservationId}`);
         },
         release: async (reservationId) => {

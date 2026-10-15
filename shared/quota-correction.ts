@@ -29,8 +29,12 @@ export interface QuotaCorrectionRecord {
   depois: { valor_total: string | null; percentual_transferencia: string | null; status?: string };
 }
 
-export function canCorrectQuotaTransfer(role: unknown, memberId: unknown, director: unknown, ally: unknown, origin?: unknown): boolean {
+export function canProcessQuotaTransfer(role: unknown, memberId: unknown, director: unknown, ally: unknown): boolean {
   const id = (value: any) => String(value?.id ?? value ?? "");
-  if (memberId && origin && id(memberId) === id(origin)) return false;
-  return role === "admin" || role === "superadmin" || Boolean(memberId && [id(director), id(ally)].includes(id(memberId)));
+  const normalizedRole = String(role || "").toLowerCase();
+  return normalizedRole === "admin" || normalizedRole === "superadmin" || Boolean(memberId && [id(director), id(ally)].includes(id(memberId)));
+}
+
+export function canCorrectQuotaTransfer(role: unknown, memberId: unknown, director: unknown, ally: unknown, _origin?: unknown): boolean {
+  return canProcessQuotaTransfer(role, memberId, director, ally);
 }

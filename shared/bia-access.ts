@@ -169,8 +169,14 @@ export function hasRequiredBiaTeam(team: { aliado_built?: string | null; diretor
   return Boolean(team.aliado_built && team.diretor_alianca);
 }
 
+export function partnerCapitalReadAccess(roles: readonly string[]): Partial<BiaAccessMatrix> {
+  return roles.some((role) => ["socio_guardiao", "socio_multiplicador", "aliado", "diretor_alianca", "diretor_tecnico", "diretor_obra", "diretor_comercial", "diretor_capital"].includes(role))
+    ? { capital_banco: "view", capital_financeiro: "view", capital_analises: "view", capital_calculadora: "view" }
+    : {};
+}
+
 export function defaultBiaAccessForRoles(roles: BiaParticipantRole[]): BiaAccessMatrix {
-  const matrices: Partial<BiaAccessMatrix>[] = [];
+  const matrices: Partial<BiaAccessMatrix>[] = [partnerCapitalReadAccess(roles)];
   for (const role of roles) {
     if (role === "autor") matrices.push({ diretoria: "view" });
     if (role === "aliado" || role === "diretor_alianca") {
@@ -215,5 +221,5 @@ export function resolveBiaParticipantPermissions(
   const base = override === null || override === undefined
     ? defaultBiaAccessForRoles(roles)
     : normalizeBiaAccessMatrix(override);
-  return mergeBiaAccess(base, managerFloor);
+  return mergeBiaAccess(base, managerFloor, partnerCapitalReadAccess(roles));
 }

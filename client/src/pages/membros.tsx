@@ -10,10 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription
-} from "@/components/ui/sheet";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
@@ -38,7 +34,7 @@ import {
   Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle,
   CheckCircle2, FileText, Trash2, Settings, BarChart3, Flame, Clock3,
   BadgeDollarSign, CreditCard, Megaphone, ReceiptText, CircleAlert, WalletCards,
-  ArrowRightLeft, HandCoins, Target, Timer
+  ArrowLeft, ArrowRightLeft, HandCoins, Target, Timer
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
@@ -129,7 +125,7 @@ interface ComunidadeVinculo {
   id: string;
   nome?: string | null;
   sigla?: string | null;
-  papel?: "membro" | "aliado" | "ambos";
+  papel?: "membro" | "aliado" | "ambos" | "origem";
   is_mae?: boolean;
   locked?: boolean;
   origem_mae?: "convite" | "legacy_first_link" | "manual_seed" | string | null;
@@ -201,7 +197,7 @@ interface AdminMonetizationData {
   }>;
   transactions: Array<{
     id: string;
-    source: "membership" | "ads" | "pinbank";
+    source: "membership" | "ads" | "bank";
     label: string;
     user_name: string;
     user_email?: string | null;
@@ -292,7 +288,7 @@ function hashColor(str: string): string {
   return colors[Math.abs(hash) % colors.length][1];
 }
 
-// ---- Membro Edit Sheet ----
+// ---- Membro Edit Page ----
 const ROLE_OPTIONS = [
   { value: "user", label: "BUILT Vitrine", desc: "Acesso ao ambiente de vitrine", color: "#facc15" },
   { value: "membro", label: "BUILT Alliances", desc: "Acesso ao ambiente de alianças", color: "#22c55e" },
@@ -354,6 +350,17 @@ const TERM_ACCEPTANCE_FIELDS = [
 const TERM_ACCEPTANCE_FIELD_NAMES = new Set<string>(
   TERM_ACCEPTANCE_FIELDS.flatMap(term => [term.acceptedAt, term.version])
 );
+
+type MemberEditorTab = "dados" | "comunidades" | "perfil" | "acessos" | "termos" | "historico";
+
+const MEMBER_EDITOR_TABS = [
+  { key: "dados", label: "Dados gerais", description: "Identificação, contato, empresa e endereço.", icon: User },
+  { key: "comunidades", label: "Comunidades", description: "Vínculos, comunidade mãe e origem do convite.", icon: Users },
+  { key: "perfil", label: "Perfil e presença", description: "Atuação profissional, presença na rede e selos.", icon: Briefcase },
+  { key: "acessos", label: "Acessos", description: "Conta, ambientes e permissões da plataforma.", icon: Shield },
+  { key: "termos", label: "Termos", description: "Aceites registrados para este usuário.", icon: FileText },
+  { key: "historico", label: "Histórico", description: "Observações administrativas do cadastro.", icon: Clock3 },
+] as const satisfies ReadonlyArray<{ key: MemberEditorTab; label: string; description: string; icon: typeof User }>;
 
 const MEMBRO_EDITABLE_FIELDS = [
   "nome",
@@ -489,7 +496,7 @@ function TermAcceptanceReadOnly({ membro }: { membro: Membro }) {
   );
 }
 
-function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => void }) {
+function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => void }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -523,6 +530,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [selectedComunidadeMaeId, setSelectedComunidadeMaeId] = useState<string>("");
   const [showComunidadeMaeEditor, setShowComunidadeMaeEditor] = useState(false);
   const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
+  const [activeEditorTab, setActiveEditorTab] = useState<MemberEditorTab>("dados");
 
   const { data: comunidades = [] } = useQuery<Array<{ id: string; nome?: string; sigla?: string; aliado?: string | { id?: string; nome?: string } | null }>>({
     queryKey: ["/api/comunidades"],
@@ -536,13 +544,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     staleTime: 60000,
   });
 
-  const { data: membroComunidades = [] } = useQuery<ComunidadeVinculo[]>({
-    queryKey: ["/api/membros", membro.id, "comunidades"],
+  const { data: membroComunidades = [], isPending: comunidadesLoading, isError: comunidadesError, refetch: refetchComunidades } = useQuery<ComunidadeVinculo[]>({
+    queryKey: ["/api/membros", membro.id, "comunidades", "origem"],
     queryFn: async () => {
       if (!membro.id) return [];
-      const res = await fetch(`/api/membros/${membro.id}/comunidades`);
-      const json = await res.json().catch(() => []);
-      return Array.isArray(json) ? json : [];
+      const res = await fetch(`/api/membros/${membro.id}/comunidades?incluir_origem=1`);
+      if (!res.ok) throw new Error("Não foi possível carregar as comunidades.");
+      const json = await res.json();
+      if (!Array.isArray(json)) throw new Error("Resposta de comunidades inválida.");
+      return json;
     },
     enabled: !!membro.id,
     staleTime: 30000,
@@ -562,7 +572,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         id: String(comunidade.id),
         nome: comunidade.nome,
         sigla: comunidade.sigla,
-        papel: existing?.papel === "membro" ? "ambos" : existing?.papel || "aliado",
+        papel: existing?.papel === "membro" || existing?.papel === "ambos" ? "ambos" : "aliado",
         is_mae: existing?.is_mae,
         locked: existing?.locked,
         origem_mae: existing?.origem_mae,
@@ -577,11 +587,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     });
   }, [comunidades, membro.id, membroComunidades]);
   const linkedComunidadeIds = useMemo(
-    () => new Set(membroComunidadesList.map((c) => String(c.id))),
+    () => new Set(membroComunidadesList.filter((c) => c.papel !== "origem").map((c) => String(c.id))),
     [membroComunidadesList]
   );
   const comunidadeConvidadorId = selectedComunidadeId || membroComunidadesList[0]?.id || "";
-  const hasAnyComunidade = membroComunidadesList.length > 0;
+  const hasAnyComunidade = linkedComunidadeIds.size > 0;
   const comunidadesDisponiveis = comunidades.filter(c => !linkedComunidadeIds.has(String(c.id)));
   const comunidadeMaeAtual = membroComunidadesList.find(c => c.is_mae);
 
@@ -593,7 +603,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     if (comunidadeMaeAtual?.id) setSelectedComunidadeMaeId(String(comunidadeMaeAtual.id));
   }, [comunidadeMaeAtual?.id]);
 
-  type LinkedUser = { id: string; role: string; username: string; email?: string; membro_directus_id?: string | null; permissions?: Record<string, string> };
+  type LinkedUser = { id: string; role: string; username: string; email?: string; ativo?: boolean; membro_directus_id?: string | null; permissions?: Record<string, string> };
   const fetchLinkedUser = async (url: string): Promise<LinkedUser | null> => {
     const res = await fetch(url);
     if (!res.ok) {
@@ -971,47 +981,80 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 
   const inputCls = "bg-white border-slate-300 text-brand-navy placeholder:text-slate-400 focus:border-brand-gold/60 h-9 text-sm";
   const labelCls = "text-xs text-slate-500 mb-1 block";
+  const activeTabMeta = MEMBER_EDITOR_TABS.find(tab => tab.key === activeEditorTab) || MEMBER_EDITOR_TABS[0];
+  const acceptedTerms = TERM_ACCEPTANCE_FIELDS.filter(term => Boolean((membro as any)[term.acceptedAt])).length;
+  const pendingTerms = TERM_ACCEPTANCE_FIELDS.length - acceptedTerms;
+  const accessNeedsReview = accountLookupUnavailable || !linkedUser;
+  const effectiveRoles = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser?.role || "user"];
+  const primaryRole = getPrimaryRole(effectiveRoles);
+  const primaryRoleLabel = ROLE_OPTIONS.find(option => option.value === primaryRole)?.label || "Membro";
+  const networkBadges = [
+    form.na_vitrine ? "Vitrine" : null,
+    form.em_membros_built ? "Alliances" : null,
+    form.em_built_capital ? "Capital" : null,
+  ].filter(Boolean) as string[];
+  const editorSectionClass = (tab: MemberEditorTab) =>
+    activeEditorTab === tab
+      ? "rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      : "hidden";
 
   return (
-    <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="membro-edit-light w-full sm:max-w-xl flex flex-col p-0 bg-white text-brand-navy border-l border-brand-gold/30">
+    <div className="membro-edit-light min-h-[calc(100vh-7rem)] bg-slate-50 text-brand-navy" data-testid="membro-editor-page">
         <style>{`
+          .membro-edit-light { --member-editor-accent: #9a7430; }
+          @media screen {
+            .dark .membro-edit-light { --member-editor-accent: #93c5fd; }
+          }
           .membro-edit-light [class*="text-white"] {
-            color: #475569 !important;
+            color: hsl(var(--muted-foreground)) !important;
           }
           .membro-edit-light [class*="text-brand-gold"] {
-            color: #9a7430 !important;
+            color: var(--member-editor-accent) !important;
           }
           .membro-edit-light .font-semibold,
           .membro-edit-light .font-bold {
-            color: #001d34 !important;
+            color: hsl(var(--foreground)) !important;
           }
           .membro-edit-light input,
           .membro-edit-light textarea,
           .membro-edit-light button[role="combobox"] {
-            background: #ffffff !important;
-            border-color: #d8dee8 !important;
-            color: #001d34 !important;
+            background: hsl(var(--card)) !important;
+            border-color: hsl(var(--input)) !important;
+            color: hsl(var(--foreground)) !important;
           }
           .membro-edit-light input::placeholder,
           .membro-edit-light textarea::placeholder {
             color: #94a3b8 !important;
           }
           .membro-edit-light [style*="rgba(255,255,255"] {
-            background: #ffffff !important;
-            border-color: rgba(215, 187, 125, 0.28) !important;
+            background: hsl(var(--card)) !important;
+            border-color: hsl(var(--border)) !important;
+          }
+          .membro-edit-light .bg-blue-600,
+          .membro-edit-light .bg-blue-600 * {
+            color: #ffffff !important;
           }
         `}</style>
-        <div className="flex-1 overflow-y-auto">
-          {/* Header */}
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-brand-gold/20 bg-slate-50">
-            <div className="flex items-center gap-4">
-              {/* Avatar with upload */}
+        <div className="mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <button type="button" onClick={onClose} className="hover:text-blue-700">Administração</button>
+            <span>/</span>
+            <button type="button" onClick={onClose} className="hover:text-blue-700">Cadastro Geral</button>
+            <span>/</span>
+            <span className="font-semibold text-brand-navy">{membro.id ? "Editar usuário" : "Novo usuário"}</span>
+          </div>
+
+          <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <Button type="button" variant="outline" size="sm" onClick={onClose} className="shrink-0 border-slate-300">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar
+              </Button>
               <div className="relative shrink-0 cursor-pointer group/avatar" onClick={() => fileInputRef.current?.click()}>
                 <div
-                  className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-bold text-xl font-mono border-2"
+                  className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 font-mono text-lg font-bold sm:h-16 sm:w-16"
                   style={{
-                    background: `radial-gradient(circle at 30% 30%, ${accentColor}18, #ffffff)`,
+                    background: `radial-gradient(circle at 30% 30%, ${accentColor}18, hsl(var(--card)))`,
                     borderColor: `${accentColor}40`,
                     color: accentColor,
                   }}
@@ -1022,14 +1065,14 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     getInitials(nome)
                   )}
                 </div>
-                <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="w-6 h-6 text-white" />
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 transition-opacity group-hover/avatar:opacity-100">
+                  <Camera className="h-5 w-5 text-white" />
                 </div>
                 <div
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-2 flex items-center justify-center"
-                  style={{ background: "#ffffff", borderColor: `${accentColor}40` }}
+                  className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2"
+                  style={{ background: "hsl(var(--card))", borderColor: `${accentColor}40` }}
                 >
-                  <Camera className="w-3.5 h-3.5" style={{ color: accentColor }} />
+                  <Camera className="h-3 w-3" style={{ color: accentColor }} />
                 </div>
                 <input
                   ref={fileInputRef}
@@ -1040,19 +1083,79 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   data-testid="input-foto-membro"
                 />
               </div>
-              <div>
-                <SheetTitle className="text-brand-navy font-mono text-lg">{membro.id ?nome : "Novo Membro"}</SheetTitle>
-                <SheetDescription className="text-slate-500 text-xs mt-0.5">
-                  Clique no avatar para alterar a foto
-                </SheetDescription>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-lg font-bold text-brand-navy sm:text-xl">{membro.id ? nome : "Novo Membro"}</h1>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${linkedUser ? (linkedUser.ativo === false ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700") : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${linkedUser ? (linkedUser.ativo === false ? "bg-red-500" : "bg-emerald-500") : "bg-amber-500"}`} />
+                    {linkedUser ? (linkedUser.ativo === false ? "Conta inativa" : "Conta ativa") : (membro.id ? "Sem conta" : "Novo cadastro")}
+                  </span>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{form.email || newAccEmail || "Adicione um e-mail de contato"}</p>
               </div>
             </div>
-          </SheetHeader>
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={onClose} disabled={saveMutation.isPending || uploading} className="border-slate-300">
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending || uploading}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                data-testid="btn-salvar-membro-topo"
+              >
+                {(saveMutation.isPending || uploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {uploading ? "Enviando foto..." : saveMutation.isPending ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </div>
+          </header>
 
-          <div className="px-6 py-5 space-y-5">
+          <nav className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Seções da edição do usuário" role="tablist">
+            <div className="flex min-w-max">
+              {MEMBER_EDITOR_TABS.map(tab => {
+                const Icon = tab.icon;
+                const active = activeEditorTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveEditorTab(tab.key)}
+                    className={`relative flex h-14 items-center gap-2 px-4 text-sm transition-colors sm:px-5 ${active ? "font-semibold text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-brand-navy"}`}
+                    data-testid={`editor-tab-${tab.key}`}
+                    role="tab"
+                    aria-selected={active}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                    {tab.key === "acessos" && accessNeedsReview && <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="Requer revisão" />}
+                    {tab.key === "termos" && pendingTerms > 0 && <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] text-red-600">{pendingTerms}</span>}
+                    {active && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-600" />}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+
+          <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <main className="min-w-0">
+              <div className="mb-4 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-brand-navy">{activeTabMeta.label}</h2>
+                  <p className="mt-1 text-sm text-slate-500">{activeTabMeta.description}</p>
+                </div>
+                {activeEditorTab === "dados" && (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Informações principais
+                  </span>
+                )}
+              </div>
+
+              <div className="member-editor-body space-y-4">
 
             {/* Identificação */}
-            <div>
+            <div className={editorSectionClass("dados")}>
               <div className="flex items-center gap-2 mb-3">
                 <User className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Identificação</span>
@@ -1077,16 +1180,21 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Vínculo à Comunidade */}
-            <div>
+            <div className={editorSectionClass("comunidades")}>
               <div className="flex items-center gap-2 mb-3">
                 <Users className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Vínculo à Comunidade</span>
               </div>
               <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-200 overflow-hidden" data-testid="lista-comunidades-vinculadas">
-                {membroComunidadesList.length === 0 ? (
+                {membro.id && comunidadesLoading ? (
+                  <p role="status" className="px-3 py-3 text-xs text-slate-500">Carregando comunidades...</p>
+                ) : comunidadesError ? (
+                  <div role="alert" className="px-3 py-3 text-sm text-red-600">
+                    Não foi possível carregar as comunidades.
+                    <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => refetchComunidades()}>Tentar novamente</Button>
+                  </div>
+                ) : membroComunidadesList.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-500">Nenhuma comunidade vinculada.</p>
                 ) : (
                   membroComunidadesList.map((c) => {
@@ -1105,7 +1213,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                             )}
                           </div>
                           <p className="mt-0.5 text-[11px] text-slate-500">
-                            {c.is_mae ? "Vínculo inicial do membro" : papelLabel}
+                            {c.papel === "origem" ? "Comunidade de origem · associação não confirmada" : c.is_mae ? "Vínculo inicial do membro" : papelLabel}
                           </p>
                         </div>
                         {canRemove ? (
@@ -1259,14 +1367,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
-            <TermAcceptanceReadOnly membro={membro} />
-
-            <Separator className="bg-brand-gold/20" />
+            <div className={editorSectionClass("termos")}>
+              <TermAcceptanceReadOnly membro={membro} />
+            </div>
 
             {/* Dados da Empresa */}
-            <div>
+            <div className={editorSectionClass("dados")}>
               <div className="flex items-center gap-2 mb-3">
                 <Building2 className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Dados da Empresa</span>
@@ -1324,10 +1430,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Contato */}
-            <div>
+            <div className={editorSectionClass("dados")}>
               <div className="flex items-center gap-2 mb-3">
                 <Phone className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Contato</span>
@@ -1360,10 +1464,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Endereço */}
-            <div>
+            <div className={editorSectionClass("dados")}>
               <div className="flex items-center gap-2 mb-3">
                 <MapPin className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Endereço</span>
@@ -1404,7 +1506,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <div>
+            <div className={editorSectionClass("perfil")}>
               <div className="flex items-center gap-2 mb-3">
                 <Settings className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Campos do Meu Perfil</span>
@@ -1553,10 +1655,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Presença na Rede */}
-            <div>
+            <div className={editorSectionClass("perfil")}>
               <div className="flex items-center gap-2 mb-3">
                 <Wifi className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Presença na Rede</span>
@@ -1599,10 +1699,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Selos */}
-            <div>
+            <div className={editorSectionClass("perfil")}>
               <div className="flex items-center gap-2 mb-3">
                 <Briefcase className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Selos</span>
@@ -1639,10 +1737,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Permissões da Plataforma */}
-            <div>
+            <div className={editorSectionClass("acessos")}>
               <div className="flex items-center gap-2 mb-3">
                 <Shield className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Permissões da Plataforma</span>
@@ -1868,10 +1964,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               )}
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
             {/* Observações */}
-            <div>
+            <div className={editorSectionClass("historico")}>
               <div className="flex items-center gap-2 mb-3">
                 <Activity className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Observações</span>
@@ -1899,34 +1993,91 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             )}
           </div>
+            </main>
+
+            <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-4" aria-label="Visão rápida do usuário">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-blue-600" />
+                <h3 className="font-bold text-brand-navy">Visão rápida</h3>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Informações principais deste usuário.</p>
+
+              <div className="mt-5 space-y-4 border-t border-slate-200 pt-4 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Função na plataforma</p>
+                  <p className="mt-1 font-semibold text-brand-navy">{primaryRoleLabel}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Comunidade mãe</p>
+                  <p className="mt-1 font-semibold text-brand-navy">{comunidadeMaeAtual?.nome || comunidadeMaeAtual?.sigla || "Não definida"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Presença na rede</p>
+                  <p className="mt-1 flex items-center gap-2 font-semibold text-brand-navy">
+                    <span className={`h-2 w-2 rounded-full ${networkBadges.length ? "bg-emerald-500" : "bg-slate-300"}`} />
+                    {networkBadges.length ? `${networkBadges.length} ambiente${networkBadges.length > 1 ? "s" : ""}` : "Sem publicação"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <p className="text-xs font-semibold text-slate-600">Ambientes e selos</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {networkBadges.length ? networkBadges.map(badge => (
+                    <span key={badge} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{badge}</span>
+                  )) : <span className="text-xs text-slate-400">Nenhum ambiente ativo</span>}
+                </div>
+              </div>
+
+              {accessNeedsReview && (
+                <button
+                  type="button"
+                  onClick={() => setActiveEditorTab("acessos")}
+                  className="mt-5 w-full rounded-lg border border-amber-200 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                    <CircleAlert className="h-4 w-4" />
+                    Acesso requer revisão
+                  </span>
+                  <span className="mt-1 block text-xs text-amber-700">Verifique a conta e as permissões deste usuário.</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setActiveEditorTab("termos")}
+                className="mt-3 w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+              >
+                <span className="text-xs text-slate-500">Termos e aceites</span>
+                <span className="mt-1 block text-sm font-semibold text-brand-navy">{acceptedTerms} de {TERM_ACCEPTANCE_FIELDS.length} aceitos</span>
+              </button>
+            </aside>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-brand-gold/20 flex justify-end gap-2 bg-white">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={saveMutation.isPending || uploading}
-            className="border-slate-300 text-slate-600 hover:text-brand-navy hover:bg-slate-50"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || uploading}
-            className="bg-brand-gold !text-white hover:bg-brand-gold/90 hover:!text-white font-semibold [&_*]:!text-white"
-            style={{ color: "#FFFFFF" }}
-            data-testid="btn-salvar-membro"
-          >
-            {(saveMutation.isPending || uploading) ?(
-              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /><span className="!text-white" style={{ color: "#FFFFFF" }}>{uploading ?"Enviando foto..." : "Salvando..."}</span></>
-            ) : (
-              <><Save className="w-3.5 h-3.5 mr-2" /><span className="!text-white" style={{ color: "#FFFFFF" }}>Salvar alterações</span></>
-            )}
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
+        <footer className="sticky bottom-0 z-20 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saveMutation.isPending || uploading} className="hidden text-slate-600 sm:inline-flex">
+              Descartar mudanças
+            </Button>
+            <div className="flex w-full min-w-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row">
+              <Button type="button" variant="outline" onClick={onClose} disabled={saveMutation.isPending || uploading} className="border-slate-300">
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending || uploading}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                data-testid="btn-salvar-membro"
+              >
+                {(saveMutation.isPending || uploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {uploading ? "Enviando foto..." : saveMutation.isPending ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </div>
+          </div>
+        </footer>
+    </div>
   );
 }
 
@@ -2222,7 +2373,7 @@ function AdminMonetizationPanel({
   const sourceLabels = {
     membership: "Adesao",
     ads: "Anuncio",
-    pinbank: "PINBANK",
+    bank: "Banco (histórico)",
   };
 
   return (
@@ -2290,14 +2441,14 @@ function AdminMonetizationPanel({
               tone="violet"
             />
             <AdminMetric
-              label="PINBANK recebido"
+              label="Cobranças BIA recebidas"
               value={formatAdminMoney(data.summary.bia_collections_received)}
               detail={`Cobranças das BIAs em ${data.period_days} dias`}
               icon={WalletCards}
               tone="green"
             />
             <AdminMetric
-              label="PINBANK pendente"
+              label="Cobranças BIA pendentes"
               value={formatAdminMoney(data.summary.bia_collections_pending)}
               detail="Valores operacionais das BIAs"
               icon={ReceiptText}
@@ -2585,16 +2736,33 @@ export default function MembrosPage() {
     );
   }
 
+  if (editingMembro) {
+    return <MembroEditPage membro={editingMembro} onClose={() => setEditingMembro(null)} />;
+  }
+
   return (
     <div className="membros-light-page min-h-screen bg-slate-50 text-brand-navy">
       <style>{`
         .membros-light-page {
-          background: #f8fafc !important;
-          color: #001d34 !important;
+          --members-bg: #f8fafc; --members-card: #ffffff; --members-fg: #001d34;
+          --members-heading: #000000; --members-muted: #475569; --members-accent: #9a7430;
+          --members-border: rgba(215, 187, 125, 0.35); --members-input-border: #d8dee8;
+          --members-sticky: rgba(255, 255, 255, 0.96); --members-caption: #64748b;
+          background: var(--members-bg) !important;
+          color: var(--members-fg) !important;
+        }
+        @media screen {
+          .dark .membros-light-page {
+            --members-bg: hsl(var(--background)); --members-card: hsl(var(--card));
+            --members-fg: hsl(var(--foreground)); --members-heading: hsl(var(--foreground));
+            --members-muted: hsl(var(--muted-foreground)); --members-accent: #93c5fd;
+            --members-border: hsl(var(--border)); --members-input-border: hsl(var(--input));
+            --members-sticky: hsl(var(--card) / 0.96); --members-caption: hsl(var(--muted-foreground));
+          }
         }
         .membros-light-page > .relative.overflow-hidden {
-          background: #ffffff !important;
-          border-bottom-color: rgba(215, 187, 125, 0.35) !important;
+          background: var(--members-card) !important;
+          border-bottom-color: var(--members-border) !important;
           min-height: 180px !important;
         }
         .membros-light-page > .relative.overflow-hidden .absolute.inset-0,
@@ -2603,30 +2771,30 @@ export default function MembrosPage() {
           opacity: 0.35;
         }
         .membros-light-page [class*="text-white"] {
-          color: #475569 !important;
+          color: var(--members-muted) !important;
         }
         .membros-light-page h1,
         .membros-light-page h2,
         .membros-light-page h3,
         .membros-light-page .font-bold {
-          color: #001d34 !important;
+          color: var(--members-fg) !important;
         }
         .membros-light-page [class*="text-brand-gold"] {
-          color: #9a7430 !important;
+          color: var(--members-accent) !important;
         }
         .membros-light-page h1.text-brand-gold,
         .membros-light-page h1 {
-          color: #000000 !important;
+          color: var(--members-heading) !important;
         }
         .membros-light-page .sticky {
-          background: rgba(255, 255, 255, 0.96) !important;
-          border-bottom-color: rgba(215, 187, 125, 0.35) !important;
+          background: var(--members-sticky) !important;
+          border-bottom-color: var(--members-border) !important;
         }
         .membros-light-page .sticky input,
         .membros-light-page .sticky button[role="combobox"] {
-          background: #ffffff !important;
-          border-color: #d8dee8 !important;
-          color: #001d34 !important;
+          background: var(--members-card) !important;
+          border-color: var(--members-input-border) !important;
+          color: var(--members-fg) !important;
           font-family: inherit !important;
           letter-spacing: 0 !important;
         }
@@ -2639,17 +2807,17 @@ export default function MembrosPage() {
           font-family: inherit !important;
           letter-spacing: 0 !important;
         }
-        .membros-light-page .inline-flex.items-center.rounded-lg {
-          background: #ffffff !important;
-          border-color: rgba(215, 187, 125, 0.35) !important;
+        .membros-light-page .members-stats {
+          background: var(--members-card) !important;
+          border-color: var(--members-border) !important;
           box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
         }
-        .membros-light-page .inline-flex.items-center.rounded-lg .font-mono {
-          color: #9a7430 !important;
+        .membros-light-page .members-stats .font-mono {
+          color: var(--members-accent) !important;
           font-family: inherit !important;
         }
-        .membros-light-page .inline-flex.items-center.rounded-lg [class*="uppercase"] {
-          color: #64748b !important;
+        .membros-light-page .members-stats [class*="uppercase"] {
+          color: var(--members-caption) !important;
           letter-spacing: 0 !important;
         }
         .membros-light-page [data-testid^="card-membro-"] {
@@ -2751,7 +2919,7 @@ export default function MembrosPage() {
           <p className="text-sm text-slate-600 mb-6">
             {isLoading ?"Carregando perfis..." : `${membros.length} nós ativos na rede`}
           </p>
-          <div className="inline-flex items-center rounded-lg border border-brand-gold/10 py-3" style={{ background: "rgba(0,10,20,0.6)", backdropFilter: "blur(8px)" }}>
+          <div data-testid="member-statistics" className="members-stats grid grid-cols-2 sm:inline-flex items-center rounded-lg border border-brand-gold/10 py-3" style={{ background: "var(--members-card)", backdropFilter: "blur(8px)" }}>
             <StatItem label="Cadastros" value={stats.total} icon={Users} />
             <StatItem label="Empresas" value={stats.empresas} icon={Building2} />
             <StatItem label="Estados" value={stats.estados} icon={Globe} />
@@ -3165,14 +3333,6 @@ export default function MembrosPage() {
       </div>
 
       </div>
-      )}
-
-      {/* Edit Sheet */}
-      {editingMembro && (
-        <MembroEditSheet
-          membro={editingMembro}
-          onClose={() => setEditingMembro(null)}
-        />
       )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

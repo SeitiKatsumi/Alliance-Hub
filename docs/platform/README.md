@@ -37,7 +37,7 @@ Este diretório documenta o comportamento que precisa permanecer coerente entre 
 | Aura | [aura](./modules/aura.md) | vínculo entre membros, léxico, IA, áudio |
 | Agenda e notificações | [agenda-notificacoes](./modules/agenda-notificacoes.md) | deduplicação, polling, ações pendentes |
 | Administração | [administracao](./modules/administracao.md) | superadmin, monetização, auditoria |
-| Pagamentos e integrações | [pagamentos-integracoes](./modules/pagamentos-integracoes.md) | webhooks, Pinbank, Stripe, OpenAI |
+| Pagamentos e integrações | [pagamentos-integracoes](./modules/pagamentos-integracoes.md) | webhooks, Asaas, Stripe, OpenAI |
 
 ## Fontes auxiliares existentes
 
@@ -46,7 +46,7 @@ Este diretório documenta o comportamento que precisa permanecer coerente entre 
 - `shared/bia-access.ts` e `shared/company-access.ts`: matrizes compartilhadas de acesso.
 - `docs/DIRECTUS_FRONTEND.md`: integração histórica com Directus.
 - `docs/AURA_PERCEBIDA_2026.md`: especificação especializada de Aura.
-- `replit.md`: decisões históricas; pode estar desatualizado e não substitui este contrato.
+- `HISTORICO_TECNICO.md`: decisões históricas; pode estar desatualizado e não substitui este contrato.
 
 ## Regra de precedência
 

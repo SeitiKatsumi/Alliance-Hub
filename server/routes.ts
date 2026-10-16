@@ -6304,6 +6304,10 @@ export async function registerRoutes(
         await ensureVitrineFields();
       }
       const directusPayload = await normalizeDirectusPatchPayload("cadastro_geral", payload);
+      if (sessionRole === "admin" && (directusPayload.em_membros_built === true || (Array.isArray(directusPayload.Outras_redes_as_quais_pertenco) && directusPayload.Outras_redes_as_quais_pertenco.includes("BUILT_PROUD_MEMBER")))) {
+        const mother = await getStoredMembroComunidadeMae(String(req.params.id));
+        if (mother?.comunidade_id) await setMembroInComunidadeM2M(String(req.params.id), String(mother.comunidade_id), true);
+      }
       console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(directusPayload));
       let item: any;
       try {
@@ -11196,10 +11200,11 @@ export async function registerRoutes(
 
       if (!canCreate && sessionMembroId) {
         try {
-          const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco");
+          const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco,em_membros_built");
           if (membro) {
             const redes: string[] = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
             const tiposAlianca: string[] = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
+            if (membro.em_membros_built === true || redes.includes("BUILT_PROUD_MEMBER") || sessionRole === "membro") { canCreate = true; isDiretorAlianca = true; }
             if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) {
               isAliadoBuilt = true;
               canCreate = true;

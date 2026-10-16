@@ -6,6 +6,18 @@
    impressões e artes oficiais não herdam estas substituições. Variantes
    dark: explícitas têm prioridade; data-theme-fixed preserva arte/previews. */
 @media screen {
+  /* Completion notices use translucent light backgrounds not covered by the legacy palette. */
+  .dark [data-testid="dashboard-profile-completion"] {
+    background-color: hsl(217 65% 18%);
+    border-color: hsl(217 55% 35%);
+  }
+  .dark [data-testid="dashboard-profile-completion"]:hover {
+    background-color: hsl(217 60% 23%);
+  }
+  .dark [data-testid="profile-recommendation"] {
+    background-color: hsl(35 45% 15%);
+    border-color: hsl(35 55% 35%);
+  }
   :where(.dark) :is(.bg-\[\#f8fafc\], .bg-\[\#f6f8fb\], .bg-\[\#F7F8FA\], .bg-\[\#f6f4ef\], .bg-\[\#FCFAF5\]):where(:not([data-theme-fixed], [data-theme-fixed] *)) { background-color: hsl(var(--background)); }
   :where(.dark) .text-\[\#10263a\] { color: hsl(var(--foreground)); }
   :where(.dark) .via-white { --tw-gradient-stops: var(--tw-gradient-from), hsl(var(--card)) var(--tw-gradient-via-position), var(--tw-gradient-to); }

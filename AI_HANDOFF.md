@@ -1,5 +1,13 @@
 # AI_HANDOFF.md
 
+- 2026-10-16: Regularização Carlos Alberto Morethes Júnior confirmada no Directus remoto via túnel: em_membros_built já true, somente selo BNI (não promover/reemitir badges). Mãe oficial A01 Vitória existia em membro_comunidade_mae, mas M2M ausente; inserido exclusivamente esse vínculo via nested create e relido com sucesso, preservando outros membros/selos/âncora. Autorizado explicitamente pelo usuário nesta conversa. Liberação de criação reconhece também em_membros_built=true; código ainda local, não declarar publicado em produção.
+
+- Validação da correção: 409 testes e build/contrato aprovados. Associação real confirmada; permissões de funcionário e isolamento por BIA mantidos. API local reiniciada para carregar liberação. Sem commit/push/deploy nesta solicitação.
+
+- 2026-10-16: Membro BUILT/Proud Member liberado em Alliances e criação de BIA, sem virar Aliado; aprovação não Aliado permanece. Editor confirma mãe via PATCH autorizado antes de salvar membro sem vínculo; PATCH administrativo do selo assegura M2M à mãe conhecida. Candidatos/consultas não são promovidos. Regularização específica Carlos em verificação; não declarar aplicada sem confirmar. Sem commit/push/deploy.
+
+- 2026-10-16: Corrigidos os dois avisos de completude em dark (painel e meu-perfil): classes claras bg-blue-50/60 e bg-amber-50/70 escapavam da paleta legada; regras screen por data-testid com fundo/borda escuros e hover azul, sem mudar modo claro/impressão/dados. Regressão appearance-settings.test.ts. Sem commit/push/deploy.
+
 - 2026-10-15: Certified Alliance deixa de ter controle manual em bia-nova/bias. validateBiaDraft força false; transição oficial para fase ativa grava selo junto da fase, com recuperação da escrita remota. directusCreate/Update de BIA reforçam regra e impedem habilitação manual antes de ativa; encerramento preserva selo adquirido. Não executado backfill nem ativação de dados reais. Sem commit/push/deploy.
 
 - Verificação do selo: 407 testes aprovados após preservar ausência do campo nos rascunhos legados (campo informado é forçado para false, omitido não incrementa revisão por mudança artificial). Build/contrato aprovados, TypeScript65 legados. Regressão valida falha remota sem selo, ativação com selo, repetição sem duplicação e encerramento preservado. Nenhuma BIA real foi ativada; API local reiniciada para carregar a regra.

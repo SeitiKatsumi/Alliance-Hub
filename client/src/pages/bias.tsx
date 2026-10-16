@@ -3359,6 +3359,9 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
 
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const canCreateBia = !!user && (
+    user.em_membros_built === true ||
+    user.role === "membro" ||
+    redes.includes("BUILT_PROUD_MEMBER") ||
     user.role === "admin" ||
     user.role === "superadmin" ||
     user.role === "manager" ||

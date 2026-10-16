@@ -1,5 +1,9 @@
 # Perfis, Rede, Empresas e Comunidades
 
+- 16/10/2026: ao salvar um Proud Member sem associação efetiva, o editor administrativo confirma a Comunidade Mãe pelo endpoint autorizado existente, em vez de bloquear o salvamento. Promoção administrativa com selo também assegura M2M à mãe conhecida. Origem de convite de candidato não vira associação em consultas; vínculos extras são preservados e falha remota bloqueia sucesso.
+
+- 16/10/2026: avisos Complete seu perfil (Início) e Próxima etapa recomendada (Perfil) têm fundo/borda e hover próprios no tema escuro, corrigindo superfícies claras translúcidas com baixo contraste. Seletores restritos a dark e screen; modo claro e impressão preservados. Sem alteração de completude, navegação ou dados.
+
 ## Objetivo e usuarios
 
 Mantem identidade publica/profissional, empresas, membros da rede, comunidades e acessos delegados de funcionarios.

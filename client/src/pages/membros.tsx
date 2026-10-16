@@ -847,7 +847,10 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
     mutationFn: async () => {
       const selosForm: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
       if (selosForm.includes("BUILT_PROUD_MEMBER") && !hasAnyComunidade) {
-        throw new Error("Todo membro com o selo BUILT Proud Member deve estar vinculado a pelo menos uma comunidade.");
+        if (!comunidadeMaeAtual?.id) throw new Error("Defina a Comunidade Mãe para associar este Membro BUILT.");
+        await apiRequest("PATCH", `/api/membros/${membro.id}/comunidade-mae`, { comunidade_id: String(comunidadeMaeAtual.id) });
+        await queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidades"] });
+        void queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
       }
 
       let fotoId: string | undefined;

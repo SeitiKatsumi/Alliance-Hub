@@ -1,5 +1,7 @@
 # Area de Aliancas, Oportunidades e BIAs
 
+- 16/10/2026: Membro BUILT (selo BUILT_PROUD_MEMBER ou papel membro) pode entrar em Alliances e criar BIA antes da primeira participação. Backend verifica identidade/cadastro; selo não transforma membro em Aliado. Criações não Aliado conservam fluxo de aprovação existente. Funcionários continuam sujeitos às permissões empresariais; não amplia consulta a outras BIAs.
+
 - Certified Alliance automático (15/10/2026): removidos os seletores manuais da criação e editor legado. Rascunhos não concedem selo; backend ignora tentativa de habilitá-lo nessa etapa. Ativação oficial concede selo na mesma atualização Directus da fase ativa (ativa/em_execucao/em_operacao/em_distribuicao), sujeita aos requisitos/aceites existentes e à conciliação idempotente. Encerramento não apaga selo já obtido. Sem ativação antecipada, backfill de BIAs antigas ou alteração de documentos históricos. Substitui descrições anteriores de marcação manual do selo.
 
 - Ajuste solicitado em 15/10/2026: Tipo de negócio fica dentro de Dados da BIA, imediatamente acima de Nome da BIA. Não há etapa ou tela inicial separada; Revisar tipos de negócios expande o editor inline no mesmo formulário, sem modal. Substitui a apresentação descrita no item anterior de seleção inicial/modal; persistência e preferências permanecem iguais.

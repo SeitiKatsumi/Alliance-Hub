@@ -19,8 +19,9 @@ export function isBuiltAlliancesMember(user: BuiltEnvironmentAccessSubject | nul
   const role = String(user?.role || "").trim().toLowerCase();
   const seals = Array.isArray(user?.Outras_redes_as_quais_pertenco) ? user.Outras_redes_as_quais_pertenco : [];
   // Developers of alliances must be able to enter before their first BIA exists.
-  return ["admin", "manager", "superadmin", "aliado"].includes(role)
-    || seals.some(seal => ["BUILT_FOUNDING_MEMBER", "BUILT_ALLIANCE_PARTNER"].includes(String(seal)))
+  return ["admin", "manager", "superadmin", "aliado", "membro"].includes(role)
+    || user?.em_membros_built === true
+    || seals.some(seal => ["BUILT_PROUD_MEMBER", "BUILT_FOUNDING_MEMBER", "BUILT_ALLIANCE_PARTNER"].includes(String(seal)))
     || user?.has_alliance_participation === true;
 }
 

@@ -54,6 +54,14 @@ test("Vitrine preserva selecao explicita junto a Aliado ao salvar e reabrir", ()
   assert.ok(!hydrate({role:"aliado"},[]).includes("user"));
 });
 
+test("Proud Member sem vínculo confirma a comunidade mãe antes de salvar", () => {
+  const page = readFileSync(new URL("./membros.tsx", import.meta.url), "utf8");
+  const start = page.indexOf('if (selosForm.includes("BUILT_PROUD_MEMBER") && !hasAnyComunidade)');
+  const block = page.slice(start, page.indexOf('let fotoId', start));
+  assert.match(block, /if \(!comunidadeMaeAtual\?\.id\)/);
+  assert.match(block, /await apiRequest\("PATCH", `\/api\/membros\/\$\{membro.id\}\/comunidade-mae`/);
+});
+
 test("edicao administrativa de membro usa pagina completa organizada por abas", () => {
   const page = readFileSync(new URL("./membros.tsx", import.meta.url), "utf8");
   assert.match(page, /data-testid="membro-editor-page"/);

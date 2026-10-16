@@ -7,6 +7,14 @@ import { transformSync } from "esbuild";
 import ts from "typescript";
 
 const read=(path:string)=>readFileSync(new URL(path,import.meta.url),"utf8");
+test("avisos de conclusão do perfil têm superfícies escuras sem alterar o modo claro", () => {
+  const css = read("../index.css");
+  assert.match(css, /\.dark \[data-testid="dashboard-profile-completion"\]\s*\{[^}]*background-color: hsl\(217 65% 18%\)/);
+  assert.match(css, /\.dark \[data-testid="dashboard-profile-completion"\]:hover\s*\{[^}]*background-color: hsl\(217 60% 23%\)/);
+  assert.match(css, /\.dark \[data-testid="profile-recommendation"\]\s*\{[^}]*background-color: hsl\(35 45% 15%\)/);
+  assert.ok(read("../pages/painel.tsx").includes('data-testid="dashboard-profile-completion"'));
+  assert.ok(read("../pages/meu-perfil.tsx").includes('data-testid="profile-recommendation"'));
+});
 test("aparência: padrão claro, seleção acessível, troca imediata sem escrever perfil",()=>{
   let theme:string|undefined, changes:string[]=[];
   const source=read("./appearance-settings.tsx");

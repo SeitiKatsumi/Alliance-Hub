@@ -13,7 +13,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 ## APIs
 
 - `/api/admin/usage-heatmap`, `/api/admin/monetization` e indicadores administrativos.
-- `GET /api/admin/asaas/status`: somente consulta, sem chamadas externas; produção/capacidades bloqueadas e armazenamento pendente são explícitos.
+- `GET /api/admin/asaas/status`: somente consulta, sem chamadas externas; mostra ambiente, opt-ins e capacidades efetivamente disponíveis, incluindo a trava adicional de Produção.
 - CRUD administrativo de membros/comunidades e configuracoes.
 - `/api/bia-estruturacao-solicitacoes*` para fila compartilhada com os papeis operacionais.
 - `/api/admin/monetization/policies*`, `/api/admin/bias/:id/monetization*` e `/api/admin/taxonomy/*` para politicas versionadas, termos imutaveis e nomes publicos.

@@ -10,6 +10,7 @@ export const interfaceCopy: Record<string, readonly [string,string]> = {
   'Tema da plataforma':['Platform theme','Tema de la plataforma'],
   'Claro':['Light','Claro'], 'Escuro':['Dark','Oscuro'],
   'Padrão da plataforma':['Platform default','Predeterminado de la plataforma'],
+  'Fundos claros e textos escuros':['Light backgrounds and dark text','Fondos claros y textos oscuros'],
   'Fundos escuros e textos claros':['Dark backgrounds and light text','Fondos oscuros y textos claros'],
   'A alteração é aplicada imediatamente e fica salva neste navegador. Não altera seus dados, marcas ou documentos.':['Changes apply immediately and are saved in this browser. Your data, branding and documents remain unchanged.','El cambio se aplica al instante y se guarda en este navegador. No modifica tus datos, marcas ni documentos.'],
   'Notificações por e-mail':['Email notifications','Notificaciones por correo'],

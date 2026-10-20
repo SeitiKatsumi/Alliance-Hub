@@ -98,7 +98,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
     getBiaMouTextoPersonalizado: async () => `MOU apresentado, revisão ${(await (context.getStore()?.tx || db).execute(sql`SELECT revisao FROM bia_map_inicial_snapshots WHERE bia_id='bia'`)).rows[0].revisao}`,
   };
   const activation = source.slice(source.indexOf("  mapBiaActivation = "), source.indexOf("  async function draftMapParticipants"));
-  const financial = source.slice(source.indexOf("  mapFinancialWrite = async"), source.indexOf("  const initialContributions ="));
+  const financial = source.slice(source.indexOf("  mapFinancialWrite = async"), source.indexOf("  const contributionBilling ="));
   const detailRoute = source.slice(source.indexOf('  app.get(["/api/bias/:id/map/versoes/'), source.indexOf("  function prepareBiaPayload"));
   const code = "let mapFinancialWrite, mapBiaActivation;\n" + names.map(n => functions.get(n)).join("\n") + "\n" + activation + financial + route + detailRoute + `
     app.post('/entry/:id', async(req,res)=>{try { res.json(await mapFinancialWrite('fluxo_caixa',req.params.id,req.body,async()=>changeEntry(req.params.id,req.body))); } catch(e) {res.status(500).json({error:e.message});} });

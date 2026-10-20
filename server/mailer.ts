@@ -784,6 +784,20 @@ function escapeEmailHtml(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+export async function enviarAvisoAporte(opts:{email:string;name:string;biaId:string;amount:number;dueDate:string;details:any;kind:string}) {
+  const link=`${BASE_URL}/bias/${encodeURIComponent(opts.biaId)}?tab=capital&capital=financeiro&financeiro=aportes`;
+  const title=opts.kind.startsWith("revision:")?"Valor de aporte atualizado":"Lembrete de pagamento de aporte";
+  const money=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(opts.amount/100);
+  const safeLink=(value:any)=>typeof value==="string" && /^https:\/\/([a-z0-9-]+\.)*asaas\.com\//i.test(value);
+  return send("bia",opts.email,`${title} — BUILT Alliances`,baseTemplate(`<h2>${title}</h2><p>Olá, ${escapeEmailHtml(opts.name||"Participante")}</p><p>Valor: <strong>${escapeEmailHtml(money)}</strong> · vencimento: ${escapeEmailHtml(opts.dueDate)}</p>
+    ${opts.details.pix?`<p>Pix copia e cola:</p><p style="word-break:break-all">${escapeEmailHtml(opts.details.pix)}</p>`:""}
+    ${opts.details.qrImage && /^[A-Za-z0-9+/=]+$/.test(opts.details.qrImage)?`<img alt="QR Code Pix" width="200" src="data:image/png;base64,${opts.details.qrImage}"/>`:""}
+    ${opts.details.barcode?`<p>Linha digitável: ${escapeEmailHtml(opts.details.barcode)}</p>`:""}
+    ${safeLink(opts.details.invoiceUrl)?`<p><a href="${escapeEmailHtml(opts.details.invoiceUrl)}">Abrir cobrança no Asaas</a></p>`:""}
+    ${safeLink(opts.details.bankSlipUrl)?`<p><a href="${escapeEmailHtml(opts.details.bankSlipUrl)}">Abrir boleto</a></p>`:""}
+    <p><a href="${link}">Consultar aportes da BIA</a></p>`));
+}
+
 export async function enviarLembreteVencimentoPagamento(opts: {
   destinatarioEmail: string;
   destinatarioNome: string;

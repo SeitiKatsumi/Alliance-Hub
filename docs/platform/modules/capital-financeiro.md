@@ -1,5 +1,13 @@
 # Capital e Financeiro da BIA
 
+## Aportes: cobranças internas (dashboard removido em 2026-10-20)
+
+Contrato e runbook: [CONTRIBUTION_BILLING.md](../../CONTRIBUTION_BILLING.md). O dashboard `financeiro=acompanhamento` foi removido; Financeiro mantém Lançamentos e Aportes e parcelas. Não existe mais acesso excepcional de consulta para participantes sem permissão financeira. O motor interno conserva cobranças somente de capital em dinheiro confirmado, em conta aprovada/credencial cifrada própria da SPE, nunca fallback BUILT. Sandbox e Produção têm credenciais e opt-ins separados. GET não cria conta/cobrança/lançamento.
+
+Revisão futura usa centavos, prévia/confirmação/motivo/autor, versão e lote idempotente. Protege vencidas/parciais/pagas/processando; sincroniza cobrança e meios antes de aplicar valor, com resultado por item. Preserva compromisso original/documentos/MAP/CPP/IDs. CONFIRMED não é disponível; webhook agenda consulta autoritativa. Migração aditiva 20261019 requer aplicação autorizada; ausência é indisponibilidade, nunca zero. Testes: server/contribution-billing.test.ts.
+
+Lembretes -5/0/+3, 9h São Paulo, configuráveis por BIA, somente pagador, e-mail opcional categoria bia + Agenda. Fila persistente e consulta remota antes de enviar; sem cobrança/link não dispara. Substitui D-2 apenas de movimentos gerenciados. APIs sob /api/bias/:id/aportes-iniciais/cobrancas; webhook Sandbox separado do legado. Sem WhatsApp, índice automático, split, transferência ou abertura de conta.
+
 - Mobile (2026-10-15): abas do Capital em duas colunas no celular/quatro no desktop; campos de lançamento e seletores podem encolher, datas empilham e rodapé não transborda. Seleção financeira preserva referência quando nenhuma seleção foi removida, evitando ciclo durante carregamento. Sem alterações de valores, cálculo, autorização ou gravação. Regressão: `client/src/lib/mobile-layout.test.ts`.
 
 - Nova BIA preenche Equipe + DM em fichas unicas por participante; MAP Zero e somente a previa automatica expansivel, sem outro formulario/aba durante a criacao. `MapZeroFields` e compartilhado com a Calculadora; POST e PUT mantem a mesma validacao/calculo no backend. DM total e a soma dos indices individuais, distinta da participacao final; totais parciais nao representam composicao concluida. Capital comprometido e natureza sao preservados sem conversao pelo peso arredondado. Criar a BIA com MAP completo grava base e revisao juntas, sem lancamentos financeiros; aportes e parcelas permanecem em etapa separada. Apos criar, MAP Zero, MAP Atual e Historico continuam em Capital; MOU/aceites e BIAs antigas nao mudam.
@@ -22,7 +30,7 @@ Rascunho e alterações de MAP não criam caixa. Estruturação, captação, enc
 
 Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de origem, DM/CPP, cotas e analises financeiras.
 
-A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Banco da BIA. Várias BIAs da empresa podem compartilhar a conta, mas a autorização de consulta continua por BIA (`capital_banco=view`); IDs externos, chaves e referências de cofre não são retornados. Sem armazenamento não presume ausência de conta. Produção, cobranças e transferências permanecem bloqueadas; conta aprovada não habilita operações automaticamente. Histórico financeiro anterior permanece independente.
+A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Banco da BIA. `capital_banco=edit` pode criar/reutilizar a subconta, atualizar situação e transferir; `view` consulta vínculo, saldo e histórico mínimo. Sandbox e Produção são isolados e Produção exige opt-in adicional. Conta aprovada somada às flags do ambiente habilita cobranças e transferências. Destinos, chaves e referências do cofre não são devolvidos; histórico anterior permanece independente.
 
 ## Telas e URLs
 
@@ -54,7 +62,7 @@ A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Ban
 - `/api/bias/:id/aportes`, `/info-comercial`, `/banco*`.
 - Chamadas de capital geram tarefas deduplicadas para finalidade `capital` e/ou contribuicao `Aporte Financeiro`.
 - Saidas agendadas geram um unico lembrete por e-mail dois dias corridos antes do vencimento para o responsavel do lancamento ou, sem ele, para o Diretor de Capital.
-- Endpoints de percentuais/DM, valor de origem, cotas, transferencias e cobrancas. Banco em transição para Asaas: consulta histórica preservada; abertura, documentos e operações do provedor anterior desativados. Nenhuma conta, cobrança ou aceite é convertido automaticamente.
+- Endpoints de percentuais/DM, valor de origem, cotas, transferencias e cobrancas. Banco em transição para Asaas: consulta histórica preservada e abertura/vínculo Sandbox autorizados; documentos e operações do provedor anterior continuam desativados. Nenhuma conta, cobrança ou aceite é convertido automaticamente.
 - Para BIAs novas, `GET|PUT /api/bias/:id/map-inicial` mantem o rascunho/snapshot e `GET /api/bias/:id/map` retorna o MAP atual oficial. BIAs anteriores sem snapshot continuam nos endpoints e campos legados.
 
 ## Dados e fontes de verdade

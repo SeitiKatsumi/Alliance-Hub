@@ -15,10 +15,10 @@ test("avisos de conclusão do perfil têm superfícies escuras sem alterar o mod
   assert.ok(read("../pages/painel.tsx").includes('data-testid="dashboard-profile-completion"'));
   assert.ok(read("../pages/meu-perfil.tsx").includes('data-testid="profile-recommendation"'));
 });
-test("aparência: padrão claro, seleção acessível, troca imediata sem escrever perfil",()=>{
+test("aparência: padrão escuro, seleção acessível, troca imediata sem escrever perfil",()=>{
   let theme:string|undefined, changes:string[]=[];
   const source=read("./appearance-settings.tsx");
-  const scope={React,useLocale:()=>({t:(s:string)=>s}),useTheme:()=>({theme,setTheme:(v:string)=>changes.push(v)}),Moon:()=>null,Sun:()=>null,
+  const scope={React,DEFAULT_THEME:"dark",useLocale:()=>({t:(s:string)=>s}),useTheme:()=>({theme,setTheme:(v:string)=>changes.push(v)}),Moon:()=>null,Sun:()=>null,
     Card:"section",CardHeader:"header",CardTitle:"h2",CardDescription:"p",CardContent:"div"};
   const code=transformSync(source.slice(source.indexOf("export function AppearanceSettings")).replace("export function","function"),{loader:"tsx"}).code;
   const Component=new Function(...Object.keys(scope),code+";return AppearanceSettings;")(...Object.values(scope));
@@ -27,24 +27,33 @@ test("aparência: padrão claro, seleção acessível, troca imediata sem escrev
     theme=selected;
     const inputs=radios(Component());
     assert.equal(inputs.length,2);assert.equal(inputs.filter(i=>i.props.checked).length,1);
-    assert.equal(inputs.find(i=>i.props.checked).props.value,selected==="dark"?"dark":"light");
+    assert.equal(inputs.find(i=>i.props.checked).props.value,selected==="light"?"light":"dark");
     for(const input of inputs)input.props.onChange();
     const html=renderToStaticMarkup(React.createElement(Component));
     assert.match(html,/fieldset/);assert.match(html,/Claro/);assert.match(html,/Escuro/);assert.match(html,/neste navegador/);
+    assert.match(html,/Escuro<\/span><span[^>]*>Padrão da plataforma/);
+    assert.match(html,/Claro<\/span><span[^>]*>Fundos claros e textos escuros/);
   }
   assert.deepEqual(changes,["light","dark","light","dark","light","dark"]);
   assert.doesNotMatch(source,/fetch\(|apiRequest|useMutation/);
 });
 
-test("provider fixa padrão claro, persiste chave própria e não acompanha tema do sistema",()=>{
+test("provider fixa padrão escuro, preserva escolha clara e não acompanha tema do sistema",()=>{
   const source=read("./theme-provider.tsx");
-  const scope={React,ThemeProvider:"provider",useEffect:()=>{},useTheme:()=>({theme:"light",setTheme:()=>{}})};
+  let theme:string|undefined="light";
+  const changes:string[]=[];
+  const scope={React,ThemeProvider:"provider",useEffect:(effect:()=>void)=>effect(),useTheme:()=>({theme,setTheme:(value:string)=>changes.push(value)})};
   const code=transformSync(source.slice(source.indexOf("export const")).replaceAll("export ",""),{loader:"tsx"}).code;
-  const Provider=new Function(...Object.keys(scope),code+";return AppThemeProvider;")(...Object.values(scope));
+  const { Provider, Validate }=new Function(...Object.keys(scope),code+";return {Provider:AppThemeProvider,Validate:ValidateTheme};")(...Object.values(scope));
   const node=Provider({children:"child"});
-  assert.equal(node.props.defaultTheme,"light");assert.equal(node.props.enableSystem,false);
+  assert.equal(node.props.defaultTheme,"dark");assert.equal(node.props.enableSystem,false);
   assert.equal(node.props.attribute,"class");assert.equal(node.props.storageKey,"built-ui-theme");
   assert.deepEqual(node.props.themes,["light","dark"]);
+  for(const value of [undefined,"light","dark"]) { theme=value; Validate(); }
+  assert.deepEqual(changes,[],"preferências válidas não são sobrescritas");
+  theme="system"; Validate();
+  theme="invalid"; Validate();
+  assert.deepEqual(changes,["dark","dark"]);
   assert.match(read("../main.tsx"),/<AppThemeProvider><App\s*\/><\/AppThemeProvider>/);
 });
 

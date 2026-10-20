@@ -1,6 +1,6 @@
 # Base Asaas da BUILT
 
-Implementada em 14/10/2026. Esta versão prepara configuração, transporte HTTP, persistência, permissões e acompanhamento. Nenhuma operação externa está habilitada.
+Implementada em 14/10/2026 e ampliada em 20/10/2026. Criação/vínculo, cobranças de aportes, consulta de saldo e transferências Pix/entre contas Asaas são suportados no Sandbox e em Produção. Cada ambiente exige credenciais, webhook, cofre e opt-ins próprios; onboarding documental continua pendente.
 
 ## Modelo de contas
 
@@ -8,36 +8,41 @@ Conforme orientação enviada pelo Asaas, cada SPE ou holding terá uma subconta
 
 ## Configuração
 
-O arquivo `.env.asaas.example` contém somente nomes e valores vazios. A base usa `ASAAS_BASE_ENABLED`, `ASAAS_BASE_ENVIRONMENT`, `ASAAS_SANDBOX_API_KEY`, `ASAAS_SANDBOX_WEBHOOK_TOKEN` e `ASAAS_BAAS_ENABLED`. O padrão é Sandbox desabilitado. As variáveis antigas `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` não são herdadas; o checkout/webhook antigo continua separado e não foi reconfigurado.
+O arquivo `.env.asaas.example` contém somente nomes e valores vazios. A base usa `ASAAS_BASE_ENABLED`, `ASAAS_BASE_ENVIRONMENT`, credenciais/cofre `ASAAS_SANDBOX_*` ou `ASAAS_PRODUCTION_*`, `ASAAS_BAAS_ENABLED`, `ASAAS_CONTRIBUTIONS_ENABLED`, `ASAAS_TRANSFERS_ENABLED` e a trava adicional `ASAAS_PRODUCTION_OPERATIONS_ENABLED`. O padrão continua desabilitado. As variáveis antigas `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` não são herdadas.
 
-Habilitar a base ou informar BaaS não libera operações bancárias. Produção é bloqueada no cliente, chamadas externas são bloqueadas no cliente de negócio e nenhuma rota/tarefa instancia o transporte HTTP desacoplado. Status de configuração não equivale à aprovação do Asaas.
+Habilitar a base ou informar BaaS isoladamente não libera operações. Abertura e transferências exigem `capital_banco=edit`; cobranças de aportes exigem a autorização financeira já definida. Produção só opera com o opt-in adicional, credenciais próprias e conta aprovada. Status de configuração não equivale à aprovação do Asaas.
 
 URLs do transporte são fixas conforme documentação oficial, com redirecionamento bloqueado, User-Agent, autenticação servidor, timeout15s e validação JSON. Não há retentativa de criação financeira nem credenciais no navegador.
 
 ## Persistência
 
-Migração aditiva `20261014_asaas_foundation.sql`, validada em PostgreSQL isolado (PGlite), cria esquemas `asaas_sandbox` e `asaas_production`. Cada um possui accounts, bia_accounts, operations e events. Não modifica tabelas antigas e não é executada pelo carregamento de status.
+As migrações aditivas `20261014_asaas_foundation.sql` e `20261020_asaas_sandbox_subaccounts.sql` criam os esquemas e o cofre cifrado. Cada ambiente possui accounts, account_credentials, bia_accounts, operations e events. Consultas não aplicam migrações.
 
 - Accounts: identificação local, titular/referência da empresa, ID externo, walletId e referência a cofre; nenhuma chave de subconta em texto simples.
-- Bia_accounts: uma conta por BIA e várias BIAs por conta dentro de cada ambiente. O vínculo só deve ser criado por fluxo autorizado futuro, depois de conferir titularidade.
+- Account_credentials: chave da subconta cifrada com AES-256-GCM; a chave mestra fica somente no ambiente do servidor. API, logs e navegador nunca recebem a credencial.
+- Bia_accounts: uma conta por BIA e várias BIAs por conta dentro de cada ambiente. O vínculo Sandbox é criado pelo fluxo autorizado de abertura/reutilização da conta da empresa.
 - Operations: intenção persistida por conta/BIA, executor, tipo, valor inteiro em centavos, referência externa, chave de idempotência e hash canônico. Mesma chave/pedido recupera a intenção; pedido diferente retorna conflito409. Estados: prepared, sent, pending, unknown, completed, rejected, cancelled. Mudanças condicionais impedem sobrescrever estado concorrente/terminal.
 - Events: ID único do evento por ambiente, tipo, origem/entidade, hash e projeção mínima de referências. Duplicados não são reprocessados. Payload integral, documentos, chaves e efeitos financeiros não são registrados nesta base. Campos novos do provedor são tolerados sem serem expostos.
 
-Sem migração no banco configurado, as telas informam armazenamento pendente. Nenhuma criação de esquema acontece nas consultas. A migração não foi aplicada ao banco real nesta entrega.
+Sem migração no banco configurado, as telas informam armazenamento pendente. Nenhuma criação de esquema acontece nas consultas. As duas migrações foram aplicadas ao banco compartilhado de desenvolvimento em 20/10/2026; outros ambientes continuam exigindo execução explícita.
 
 ## APIs e telas
 
 - `GET /api/admin/asaas/status`: admin/superadmin ativo, com verificação servidor do usuário e vínculo empresarial; funcionário, manager e master não recebem acesso. Retorna apenas flags, pendências e capacidades bloqueadas.
 - `GET /api/bias/:biaId/banco/asaas/status`: acesso `capital_banco=view` da BIA solicitada; consulta usa ID canônico autorizado. Retorna estado e resumo mínimo do vínculo local. Nunca expõe chave, credential_reference ou payload externo.
-- `POST /api/webhooks/asaas/sandbox`: base Sandbox habilitada, token próprio no header `asaas-access-token`, ID e tipo de evento obrigatórios. Registra referências de eventos com deduplicação, responde200 após persistir e informa financialEffects=false. Token errado401, formato inválido400, conflito409, falha/configuração/armazenamento503. Produção não é aceita nesse endpoint.
-- Administrativo → Asaas: configuração, BaaS, armazenamento, próximos passos e recursos em preparação, sem cadastro de segredo ou botões financeiros.
-- Capital → Banco: vínculo da SPE/holding e seu estado, com histórico anterior preservado. Conta aprovada não habilita operações automaticamente. Falha de consulta não é apresentada como saldo zero nem ausência de vínculo.
+- `POST /api/bias/:biaId/banco/asaas/accounts`: exige `capital_banco=edit`, ambiente configurado, BaaS e cofre válidos. Valida CNPJ e campos oficiais, consulta duplicidade por CNPJ, cria uma única subconta, cifra imediatamente a chave retornada e vincula a conta à BIA. Timeout fica inconclusivo e bloqueia repetição automática.
+- `POST /api/bias/:biaId/banco/asaas/account/refresh`: exige `capital_banco=edit` e consulta pontualmente `/myAccount/status` com a credencial decifrada apenas em memória.
+- `GET /api/bias/:biaId/banco/asaas/finance`: conta aprovada e `capital_banco=view`; consulta saldo e histórico mínimo de transferências sem expor destino/credencial.
+- `POST /api/bias/:biaId/banco/asaas/transfers`: `capital_banco=edit`, conta aprovada, saldo suficiente, opt-in e confirmação explícita. Suporta chave Pix e wallet vinculada; intenção/idempotência são persistidas antes do POST e resposta incerta nunca é repetida.
+- `POST /api/webhooks/asaas/sandbox|production`: token próprio por ambiente, ID/tipo obrigatórios e deduplicação. Pagamentos entram na fila de conciliação autoritativa; transferências atualizam apenas o estado da intenção, sem confiar no payload para alterar saldo.
+- Administrativo → Asaas: configuração, BaaS, cofre, armazenamento e capacidades; não recebe segredos pelo navegador.
+- Capital → Banco: usuário com edição pode criar a subconta, atualizar a situação e transferir quando habilitado; leitura vê vínculo, saldo e histórico mínimo. Conta aprovada libera cobranças/transferências apenas quando os opt-ins do ambiente também estiverem ativos. Falha de consulta não é apresentada como saldo zero.
 
 Os endpoints antigos de operação bancária permanecem desativados. O receptor existente `/api/webhooks/asaas` e as cobranças atuais permanecem inalterados; o novo receptor não encaminha eventos a eles.
 
 ## Próximos dados necessários
 
-Conta e chave Sandbox configuradas privadamente; token exclusivo de webhook; habilitação BaaS e playbook Asaas; empresa/titular responsável por cada BIA; recursos/limites/taxas do contrato; homologação das jornadas antes de liberar produção. Nenhum documento pessoal real é necessário para desenvolver esta base.
+Onboarding e envio documental conforme `onboardingUrl`; tratamento automático dos eventos cadastrais; conciliação assistida para resposta perdida; recursos/limites/taxas do contrato e playbook de marca; homologação dessas jornadas antes de liberar produção. Dados reais não devem ser usados em testes sem autorização do titular.
 
 ## Fontes oficiais
 
@@ -48,4 +53,4 @@ Conta e chave Sandbox configuradas privadamente; token exclusivo de webhook; hab
 
 ## Verificação
 
-Testes cobrem configuração sem herança, bloqueio produção/operações, transporte simulado, token, evento duplicado, isolamento, autorização, consulta sem escrita, estados e idempotência em banco isolado. Não houve criação de conta, cobrança, transferência ou comunicação real com o Asaas.
+Testes cobrem configuração sem herança, separação Sandbox/Produção, CNPJ, cofre cifrado, transporte simulado, criação única, reutilização entre BIAs, timeout sem retry, saldo, transferência única/idempotente, token, evento duplicado, autorização e estados. A UI usa modais responsivos e exige confirmação humana para criação e transferência.

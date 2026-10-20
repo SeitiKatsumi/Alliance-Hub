@@ -177,7 +177,12 @@ export async function processPaymentReminders(now = new Date()) {
   ]);
   await ensurePaymentReminderIndex(db);
   const targetDate = paymentReminderTargetDate(now);
-  const items = (await decorateInitialEntries(db, await fetchPaymentReminderItems(targetDate))).filter(isCashEntry).filter((item) => isPaymentReminderCandidate(item, targetDate));
+  let items = (await decorateInitialEntries(db, await fetchPaymentReminderItems(targetDate))).filter(isCashEntry).filter((item) => isPaymentReminderCandidate(item, targetDate));
+  const hasBilling=(await db.execute(sql`SELECT to_regclass('bia_contribution_charges') IS NOT NULL AS ready`)).rows[0]?.ready;
+  if(hasBilling) {
+    const managed=(await db.execute(sql`SELECT flow_id FROM bia_contribution_charges`)).rows as Array<{flow_id:string}>;
+    const ids=new Set(managed.map(r=>String(r.flow_id)));items=items.filter(item=>!ids.has(String(item.id)));
+  }
   const totals = { candidates: items.length, sent: 0, duplicate: 0, retry: 0, skipped: 0 };
 
   for (const item of items) {

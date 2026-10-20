@@ -70,6 +70,6 @@ test('every mail call has an explicit category; only the central sender accesses
       count++;assert.ok(ts.isStringLiteral(node.arguments[0]));
       assert.match((node.arguments[0] as ts.StringLiteral).text,/^(essential|invites|agenda|bia|opportunities|community)$/);
     }ts.forEachChild(node,walk);
-  };walk(ast);assert.equal(count,31);
+  };walk(ast);assert.equal(count,32);
   assert.equal((source.match(/transporter.sendMail/g)||[]).length,1);
 });

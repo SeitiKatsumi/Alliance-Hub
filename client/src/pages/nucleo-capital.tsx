@@ -74,10 +74,10 @@ type BankHistoryData = {
   charges: Array<{ id: string; status: string | null; descricao: string | null; valor: string | number | null; data_vencimento: string | null }>;
 };
 
-function BancoBiaPage({ biaId }: { biaId?: string | null; readOnly?: boolean }) {
+function BancoBiaPage({ biaId, readOnly = false }: { biaId?: string | null; readOnly?: boolean }) {
   const history = useQuery<BankHistoryData>({ queryKey: [`/api/bias/${biaId}/banco`], enabled: !!biaId });
   return <div className="space-y-5">
-    {biaId ? <BiaAsaasStatus key={biaId} biaId={biaId} /> : <Card><CardHeader><CardTitle>Banco da BIA</CardTitle></CardHeader><CardContent>
+    {biaId ? <BiaAsaasStatus key={biaId} biaId={biaId} canEdit={!readOnly} /> : <Card><CardHeader><CardTitle>Banco da BIA</CardTitle></CardHeader><CardContent>
       <p>Estamos preparando a integração com o Asaas. Abertura de conta e operações bancárias ficarão disponíveis após a homologação.</p>
       <p className="mt-2 text-sm text-muted-foreground">Os lançamentos e registros financeiros existentes continuam disponíveis para consulta.</p>
     </CardContent></Card>}

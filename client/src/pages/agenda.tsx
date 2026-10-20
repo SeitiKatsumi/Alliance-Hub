@@ -574,6 +574,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                           {tarefa.descricao && (
                             <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{tarefa.descricao}</p>
                           )}
+                          {tarefa.contexto_tipo === "bia_contribution" && tarefa.contexto_id && <a className="mt-2 inline-block text-xs text-primary underline" href={`/bias/${encodeURIComponent(tarefa.contexto_id)}?tab=capital&capital=financeiro&financeiro=aportes`}>Consultar aporte da BIA</a>}
                         </div>
                         <button
                           type="button"

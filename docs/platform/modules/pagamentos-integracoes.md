@@ -1,5 +1,7 @@
 # Pagamentos e Integracoes Externas
 
+- Cobranças de aportes (2026-10-19): adaptador `server/contribution-billing-provider.ts` usa o ambiente selecionado com timeout, sem retry cego de POST e credencial cifrada própria da SPE aprovada/wallet validada. Opt-ins de cobrança e Produção são separados. Webhook agenda consulta autoritativa; legado ignora prefixo built:contribution:. Contrato: [CONTRIBUTION_BILLING.md](../../CONTRIBUTION_BILLING.md).
+
 ## Objetivo e usuarios
 
 Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus e armazenamento. Integracoes sao adaptadores; regras de negocio permanecem no dominio da plataforma.
@@ -13,15 +15,15 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## APIs e provedores
 
-- Base Asaas isolada em `server/asaas/`: consultas administrativas e vínculo da conta da SPE/holding por BIA, receptor Sandbox que persiste apenas referências de eventos. Variáveis Sandbox próprias, sem herança das credenciais antigas. Produção e operações externas bloqueadas, inclusive com configuração presente. Detalhes em `docs/ASAAS_BASE.md`.
-- `GET /api/admin/asaas/status`: admin/superadmin ativo, nunca funcionário. `GET /api/bias/:biaId/banco/asaas/status`: `capital_banco=view`, ID canônico autorizado. `POST /api/webhooks/asaas/sandbox`: token próprio, persistência/deduplicação sem efeitos financeiros.
-- Armazenamento separado em `asaas_sandbox`/`asaas_production`: contas, vínculos BIA, intenções e eventos. Consultas não aplicam migração nem escrevem dados; sem estrutura mostram pendência. Nenhum ID/aceite antigo é convertido.
+- Base Asaas isolada em `server/asaas/`: criação/vínculo de subconta, saldo, cobranças de aportes, transferências Pix/entre contas vinculadas e webhooks, com credenciais próprias por ambiente e sem herança das antigas. Produção exige opt-in adicional e configuração completa. Detalhes em `docs/ASAAS_BASE.md`.
+- `GET /api/admin/asaas/status`: admin/superadmin ativo, nunca funcionário. `GET /api/bias/:biaId/banco/asaas/status`: `capital_banco=view`, ID canônico autorizado. `POST /api/bias/:biaId/banco/asaas/accounts` e `/account/refresh`: `capital_banco=edit`, somente Sandbox. `POST /api/webhooks/asaas/sandbox`: token próprio, persistência/deduplicação sem efeitos financeiros.
+- Armazenamento separado em `asaas_sandbox`/`asaas_production`: contas, credenciais cifradas, vínculos BIA, intenções e eventos. A chave da subconta usa AES-256-GCM com chave mestra apenas no ambiente; navegador, API e logs recebem somente o resumo. Consultas não aplicam migração nem escrevem dados; sem estrutura mostram pendência. Nenhum ID/aceite antigo é convertido.
 
 - Anuidade de Membro BUILT de R$ 3.197/ano: Asaas no Brasil e Stripe nos demais paises.
 - Plano Empresa de R$ 3.836,40/ano: checkout Asaas ou Stripe; upgrade de membro vigente cobra R$ 639,40 e preserva a data de renovacao.
 - PostgreSQL `membro_anuidades` e a fonte de vigencia; `/api/me` separa usuario cadastrado, Membro BUILT, comunidades e permissoes.
 - `ends_at` e `current_period_end` sao as datas oficiais de renovacao. `billing_suspended` interrompe novas cobrancas iniciadas pela plataforma e `frozen_at` pausa a contagem sem revogar acesso.
-- Banco da BIA em migração para Asaas; adaptadores, painel de homologação e operações do provedor anterior removidos. `server/bia-bank-history.ts` mantém apenas consulta histórica autorizada e bloqueia chamadas operacionais antigas com 410. Asaas já possui cobranças em `server/routes.ts`; subcontas, KYC, saldo, extrato, comprovantes, split e repasses ainda exigem implementação e homologação. Plano: `docs/ASAAS_MIGRACAO_PLANO.md`.
+- Banco da BIA em migração para Asaas; adaptadores, painel de homologação e operações do provedor anterior removidos. `server/bia-bank-history.ts` mantém apenas consulta histórica autorizada e bloqueia chamadas operacionais antigas com 410. Abertura/reutilização e consulta de situação da subconta funcionam no Sandbox; onboarding/KYC, saldo, extrato, comprovantes, split, repasses e produção ainda exigem implementação e homologação. Plano: `docs/ASAAS_MIGRACAO_PLANO.md`.
 - OpenAI em rotas de audio, texto, arquivo e analise.
 - Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
 
@@ -37,6 +39,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 - Endpoint de webhook e publico apenas no transporte: assinatura/origem devem ser validadas.
 - Conta, extrato, cobranca e documento bancario exigem acesso a BIA.
 - Chaves, payloads integrais e respostas com PII nao sao enviados ao cliente nem registrados em log.
+- Abertura de subconta exige CNPJ válido, confirmação explícita de Sandbox e acesso `capital_banco=edit`; consulta por CNPJ evita duplicidade, uma tentativa inconclusiva nunca é repetida automaticamente e a chave retornada é cifrada antes do vínculo.
 
 ## Estados e transicoes
 

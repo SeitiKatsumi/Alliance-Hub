@@ -29,6 +29,9 @@ import { and, eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 import { registerBiaBankHistory } from "./bia-bank-history";
 import { registerAsaasFoundation } from "./asaas/routes";
+import { ContributionBilling } from "./contribution-billing";
+import { registerContributionBilling } from "./contribution-billing-routes";
+import { canManageContributionBilling } from "@shared/contribution-billing";
 import { registerUserPreferences, UserPreferencesStore } from './user-preferences';
 import { configureEmailPreferencePolicy } from './email-preference-policy';
 import { PNG } from "pngjs";
@@ -7673,8 +7676,34 @@ export async function registerRoutes(
     });
   };
 
+  const contributionBilling = new ContributionBilling({
+    db,lock:withMapLock,
+    entries:(id)=>directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(id)}&fields=*`),
+    bia:(id)=>directusFetchOne("bias_projetos",id,"fields=id,situacao,moeda"),
+    member:(id)=>directusFetchOne("cadastro_geral",id,"fields=id,nome,email,cpf,cnpj"),
+    updateFlow:(id,data)=>mapOperationContext.run({...mapOperationContext.getStore(),initialContributionWrite:true},()=>directusUpdate("fluxo_caixa",id,data)),
+    userForMember:async(member)=>{const user=member?.email?await storage.getUserByEmail(member.email):null;return user?.ativo?String(user.id):null;},
+    sendNotice:async(input)=>(await import("./mailer")).enviarAvisoAporte(input),
+  });
+  registerContributionBilling(app,contributionBilling,async(req,res,write)=>{
+    const auth=await requireBiaModuleAccess(req,res,String(req.params.id),"capital_financeiro","view");
+    if(!auth)return null;
+    if(!auth.access.isParticipant){res.status(403).json({error:"Participação efetiva na BIA necessária"});return null;}
+    const employee=!!req.session?.companyEmployeeId;
+    const manage=!employee && auth.access.storageAvailable && canManageContributionBilling(auth.access.roles,auth.access.isBypass)
+      && (!auth.access.customized || auth.access.permissions.capital_financeiro==="edit");
+    if(write&&!manage){res.status(403).json({error:"Somente Diretor de Capital, Diretor da Aliança ou Aliado vinculado pode gerenciar aportes"});return null;}
+    if(write){try{await assertBiaFinancialPhase(auth.bia.id);}catch{res.status(409).json({error:"A BIA precisa estar ativa para esta operação"});return null;}}
+    return {biaId:String(auth.bia.id),manage,payerId:!employee&&req.session?.membroId?String(req.session.membroId):null,actorId:String(req.session.directusUserId)};
+  });
+  let billingBusy=false;
+  const billingTimer=setInterval(async()=>{
+    if(billingBusy)return;billingBusy=true;
+    try{await contributionBilling.tick();}catch{console.warn("[contribution-billing] Conciliação pendente; nova tentativa no próximo ciclo");}finally{billingBusy=false;}
+  },60_000);billingTimer.unref();
   const initialContributions = registerInitialContributions(app, {
     db, lock: withMapLock,
+    onConfirmed:(id)=>contributionBilling.enqueue(id),
     access: (req, res, id, level) => requireBiaModuleAccess(req, res, id, "capital_financeiro", level),
     fetchOne: directusFetchOne,
     fetchEntries: (id) => directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(id)}&fields=*`),
@@ -12064,6 +12093,7 @@ export async function registerRoutes(
   // Registrar antes do bloqueio genérico de operações bancárias legadas.
   registerAsaasFoundation(app, {
     db,
+    onSandboxPayment:async(body)=>await contributionBilling.ready()?contributionBilling.webhook(body):false,
     resolvePrincipal: async (req: any) => {
       const session = req.session;
       if (!session?.directusUserId && !session?.userId) return null;
@@ -12074,9 +12104,9 @@ export async function registerRoutes(
       if (!user?.ativo) return null;
       return { id: String(user.id), role: user.role, employee: false };
     },
-    authorizeBia: async (req, res, biaId) => {
-      const auth = await requireBiaModuleAccess(req, res, biaId, "capital_banco", "view");
-      return auth?.bia || null;
+    authorizeBia: async (req, res, biaId, required = "view") => {
+      const auth = await requireBiaModuleAccess(req, res, biaId, "capital_banco", required);
+      return auth ? { ...auth.bia, actorId: String((req.session as any).directusUserId || (req.session as any).userId || "unknown") } : null;
     },
   });
 
@@ -28283,6 +28313,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const event: string = body?.event || "";
     const payment = body?.payment || {};
     const companyReference = String(payment.externalReference || "");
+    // Dedicated contribution reconciliation owns these payments; never fall back to membership by email.
+    if (companyReference.startsWith("built:contribution:")) return res.status(200).json({ received: true, ignored: true });
 
     console.log(`[asaas/webhook] event=${event} paymentId=${payment.id} status=${payment.status}`);
 

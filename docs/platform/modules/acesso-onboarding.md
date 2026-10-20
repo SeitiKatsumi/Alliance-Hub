@@ -80,6 +80,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Preferencias de atualizacao mostram contexto por categoria e ficam salvas apenas como resposta do onboarding; nao criam conexoes nem publicam o perfil.
 - Onboarding, cadastro e Meu Perfil reutilizam a mesma taxonomia e os mesmos campos de atuacao; nao existem nomes alternativos como `regions`, `asset_types`, `main_intent` ou `timeframe` para substituir o perfil oficial.
 - Areas de contribuicao preservam valor canonico, nucleo derivado e metadados visuais compartilhados.
+- Configuração oferece as 20 áreas canônicas, incluindo Liderança Técnica, de Obras, Comercial e de Capital como preferências de contribuição, sem nomear diretores nem conceder permissões. A projeção pública de ofertas permanece com 16 áreas. Cada card possui “i” independente da seleção, reutilizando as explicações do Meu Perfil em `contribution-area-info.tsx`; acessível por toque, mouse e teclado, sem salvar ao consultar.
 - O resumo da jornada reflete em tempo real as areas de contribuicao e a classificacao oficial de atuacao preenchidas na etapa Configuracao.
 - No fluxo novo, somente o Codigo de Etica e as Politicas de Participacao e Protecao sao apresentados antes da Personalizacao; os termos da BUILT Vitrine e do BUILT Capital sao solicitados no primeiro acesso ao respectivo modulo.
 - Aceites anteriores a Personalizacao aparecem como uma preparacao da jornada, sem marcar ou destacar a etapa 5; a numeracao continua reservada as cinco etapas visiveis do onboarding.

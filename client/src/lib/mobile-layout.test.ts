@@ -40,7 +40,7 @@ test('mobile navigation and summary do not center overflowing content', () => {
 test('status queries terminate and branded dialog helper text remains readable', () => {
   const status = read('../components/asaas-status.tsx');
   assert.match(status, /AbortSignal.timeout\(15_000\)/);
-  assert.equal((status.match(/retry: false/g) || []).length, 2);
+  assert.equal((status.match(/retry: false/g) || []).length, 3);
   assert.match(read('../pages/vitrine.tsx'), /vitrine-ad-dialog/);
   assert.match(read('../index.css'), /vitrine-ad-dialog[^\n]*color: #bdc9d7/);
 });

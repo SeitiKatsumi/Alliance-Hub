@@ -1,5 +1,7 @@
 # Agenda, Alertas e Notificacoes
 
+- Aportes (2026-10-19): fila persistente em bia_contribution_notices, somente pagador, padrão -5/0/+3 às 9h São Paulo, canais/dias por BIA. Categoria e-mail bia respeita preferências; Agenda independente, deduplicada por ID e concluída após recebimento. Meios consultados no Asaas imediatamente antes do envio; sem conta/cobrança homologada não envia. D-2 legado preservado fora dos movimentos gerenciados. SMTP incerto não é repetido às cegas. Contrato: [CONTRIBUTION_BILLING.md](../../CONTRIBUTION_BILLING.md).
+
 ## Objetivo e usuarios
 
 Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis de todos os modulos, com destino direto para a acao correta.

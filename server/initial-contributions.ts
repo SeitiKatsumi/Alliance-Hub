@@ -62,6 +62,7 @@ export function registerInitialContributions(app: any, deps: {
   create: (collection: string, data: any) => Promise<any>;
   update: (collection: string, id: string, data: any) => Promise<any>;
   category: (name: string, type: string) => Promise<string>;
+  onConfirmed?: (id:string)=>Promise<void>;
 }) {
   const error = (message: string, statusCode = 409) => Object.assign(new Error(message), { statusCode });
   const actor = (req: any) => ({ userId: req.session?.directusUserId, membroId: req.session?.membroId });
@@ -135,6 +136,10 @@ export function registerInitialContributions(app: any, deps: {
     const result = await deps.lock(id, async (tx, base) => {
       requireBase(base);
       const old = await plan(tx,id); checkRevision(old,req.body);
+      if ((await tx.execute(sql`SELECT to_regclass('bia_contribution_charges') IS NOT NULL AS ready`)).rows[0]?.ready) {
+        const managed=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE bia_id=${id} LIMIT 1`)).rows[0];
+        if(managed)throw error("Este cronograma possui cobranças gerenciadas. Use Atualizar próximas parcelas para revisar a obrigação financeira.");
+      }
       if (old?.estado === "pendente") throw error("Conclua a conciliação pendente antes de alterar o cronograma.");
       if (req.body.revisaoMap !== Number(base.revisao)) throw error("O MAP Inicial mudou. Atualize os compromissos.");
       if (!base.revisao || !Number(base.base_economica_inicial)) throw error("Conclua e salve o MAP Inicial primeiro.");
@@ -194,7 +199,7 @@ export function registerInitialContributions(app: any, deps: {
       await tx.execute(sql`UPDATE bia_aportes_iniciais SET estado='pendente' WHERE bia_id=${id}`);
     });
     // Intent committed before writing Directus; stable IDs make retry safe after a lost response.
-    try { await applyPending(id); res.json({estado:"confirmado"}); }
+    try { await applyPending(id); await deps.onConfirmed?.(id); res.json({estado:"confirmado"}); }
     catch { res.status(503).json({error:"Cronograma salvo, mas a conciliação está pendente. Tente confirmar novamente; não haverá duplicação.",estado:"pendente"}); }
   }));
 
@@ -221,6 +226,6 @@ export function registerInitialContributions(app: any, deps: {
   }));
   return { recover: async () => {
     const ids=(await deps.db.execute(sql`SELECT bia_id FROM bia_aportes_iniciais WHERE estado='pendente'`)).rows;
-    for(const row of ids) await applyPending(String(row.bia_id));
+    for(const row of ids) {await applyPending(String(row.bia_id));await deps.onConfirmed?.(String(row.bia_id));}
   }};
 }

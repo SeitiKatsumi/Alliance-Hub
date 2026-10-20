@@ -26,7 +26,7 @@ flowchart LR
 
 ## Backend
 
-- A base Asaas está isolada em `server/asaas/`, com contratos públicos em `shared/asaas.ts`. Consultas não escrevem dados nem fazem chamadas externas; o receptor Sandbox registra referências de eventos sem efeitos financeiros. Armazenamento em esquemas Sandbox/produção separados; cliente de negócio bloqueia operações e produção. A integração Asaas antiga continua separada até sua consolidação.
+- A base Asaas está isolada em `server/asaas/`, com contratos públicos em `shared/asaas.ts`. Status locais não escrevem; saldo/histórico consultam a credencial cifrada da conta aprovada. Webhooks registram referências idempotentes e acionam conciliação. Sandbox e Produção usam esquemas, credenciais, URLs e opt-ins separados; Produção exige autorização adicional. A integração Asaas antiga continua separada até sua consolidação.
 
 - Express 5 com sessão persistida.
 - Grande parte das rotas está em `server/routes.ts`; helpers de domínio ficam em arquivos como `bia-lifecycle.ts`, `valor-origem-sync.ts` e `opportunity-platform.ts`.

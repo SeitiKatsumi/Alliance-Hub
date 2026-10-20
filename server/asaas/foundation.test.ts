@@ -7,33 +7,58 @@ import { sql } from "drizzle-orm";
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { asaasConfig, publicAsaasStatus } from "./config";
-import { AsaasClient, AsaasTransport, AsaasError } from "./client";
+import { AsaasTransport, AsaasError } from "./client";
 import { AsaasStore } from "./store";
 import { registerAsaasFoundation } from "./routes";
-import { canReadAsaasAdmin, asaasStatusSchema, asaasBiaStatusSchema } from "../../shared/asaas";
+import { canReadAsaasAdmin, asaasStatusSchema, asaasBiaStatusSchema, asaasSubaccountCreateSchema, isValidCnpj } from "../../shared/asaas";
+import { credentialVaultReady, decryptCredential, encryptCredential } from "./credentials";
+import { AsaasSandboxAccounts } from "./accounts";
+import { AsaasAccountOperations } from "./operations";
 
-const fixture = () => asaasConfig({ ASAAS_BASE_ENABLED: "true", ASAAS_BASE_ENVIRONMENT: "sandbox", ASAAS_SANDBOX_API_KEY: "sandbox-fixture-key", ASAAS_SANDBOX_WEBHOOK_TOKEN: "sandbox-fixture-webhook", ASAAS_BAAS_ENABLED: "true" });
-const migration = readFileSync(new URL("../../migrations/20261014_asaas_foundation.sql", import.meta.url), "utf8");
+const vaultKey = Buffer.alloc(32, 7).toString("base64");
+const fixture = () => asaasConfig({ ASAAS_BASE_ENABLED: "true", ASAAS_BASE_ENVIRONMENT: "sandbox", ASAAS_SANDBOX_API_KEY: "sandbox-fixture-key", ASAAS_SANDBOX_WEBHOOK_TOKEN: "sandbox-fixture-webhook", ASAAS_SANDBOX_WEBHOOK_URL: "https://example.test/api/webhooks/asaas/sandbox", ASAAS_SANDBOX_CREDENTIAL_ENCRYPTION_KEY: vaultKey, ASAAS_BAAS_ENABLED: "true", ASAAS_CONTRIBUTIONS_ENABLED: "true", ASAAS_TRANSFERS_ENABLED: "true" });
+const migration = ["20261014_asaas_foundation.sql", "20261020_asaas_sandbox_subaccounts.sql"].map(file => readFileSync(new URL(`../../migrations/${file}`, import.meta.url), "utf8")).join("\n");
 
-test("configuração não herda segredos antigos e mantém produção e operações bloqueadas", async () => {
+const accountInput = () => asaasSubaccountCreateSchema.parse({
+  name: "SPE Sandbox Teste", email: "sandbox@example.com", cpfCnpj: "66.625.514/0001-40",
+  companyType: "LIMITED", mobilePhone: "11999999999", incomeValue: 25000,
+  address: "Avenida Rolf Wiest", addressNumber: "277", complement: "Sala 2",
+  province: "Bom Retiro", postalCode: "89223005", taxRegime: "UNKNOWN", environmentConfirmation: true,
+});
+
+test("configuração não herda segredos antigos e exige autorização própria por ambiente", async () => {
   const inherited = asaasConfig({ ASAAS_API_KEY: "old-secret", ASAAS_WEBHOOK_TOKEN: "old-token" });
   assert.equal(inherited.apiKey, ""); assert.equal(inherited.webhookToken, ""); assert.equal(inherited.enabled, false);
   assert.equal(publicAsaasStatus(inherited, false).state, "disabled");
   const invalid = asaasConfig({ ASAAS_BASE_ENVIRONMENT: "another", ASAAS_BASE_ENABLED: "true", ASAAS_SANDBOX_API_KEY: "secret" });
   assert.equal(invalid.configurationValid, false); assert.equal(invalid.apiKey, ""); assert.equal(invalid.enabled, false);
   const production = asaasConfig({ ASAAS_BASE_ENVIRONMENT: "production", ASAAS_BASE_ENABLED: "true", ASAAS_SANDBOX_API_KEY: "sandbox-key", ASAAS_PRODUCTION_API_KEY: "prod-key" });
-  assert.equal(production.apiKey, ""); assert.equal(publicAsaasStatus(production, true).state, "production_blocked");
-  await assert.rejects(() => new AsaasClient(production).request("POST", "/payments"), (error: AsaasError) => error.code === "PRODUCTION_BLOCKED");
+  assert.equal(production.apiKey, "prod-key"); assert.equal(publicAsaasStatus(production, true).state, "configuration_pending");
+  await assert.rejects(() => new AsaasTransport(production, (async () => { throw Error("must not call"); }) as typeof fetch).request("/payments", { method: "POST", body: {} }), (error: AsaasError) => error.code === "NOT_CONFIGURED");
+  const productionReady=asaasConfig({ASAAS_BASE_ENVIRONMENT:"production",ASAAS_BASE_ENABLED:"true",ASAAS_BAAS_ENABLED:"true",ASAAS_PRODUCTION_OPERATIONS_ENABLED:"true",ASAAS_PRODUCTION_API_KEY:"prod-key",ASAAS_PRODUCTION_WEBHOOK_TOKEN:"prod-token",ASAAS_PRODUCTION_WEBHOOK_URL:"https://example.test/api/webhooks/asaas/production",ASAAS_PRODUCTION_CREDENTIAL_ENCRYPTION_KEY:vaultKey,ASAAS_CONTRIBUTIONS_ENABLED:"true",ASAAS_TRANSFERS_ENABLED:"true"});
+  const productionResult=await new AsaasTransport(productionReady,(async(url)=>{assert.equal(url,"https://api.asaas.com/v3/finance/balance");return Response.json({balance:0});}) as typeof fetch).request("/finance/balance");
+  assert.equal(productionResult.balance,0);
   const configured = fixture();
-  for (const method of ["GET", "POST", "PUT", "DELETE"] as const) await assert.rejects(() => new AsaasClient(configured).request(method, "/payments"), (error: AsaasError) => error.code === "EXTERNAL_REQUESTS_DISABLED");
   const publicStatus = asaasStatusSchema.parse(publicAsaasStatus(configured, true));
-  assert.equal(publicStatus.externalRequestsEnabled, false); assert.equal(publicStatus.operationsEnabled, false);
+  assert.equal(publicStatus.externalRequestsEnabled, true); assert.equal(publicStatus.operationsEnabled, true);
+  assert.equal(publicStatus.credentialVaultReady, true); assert.equal(publicStatus.capabilities.find(item => item.id === "accounts")?.available, true);
   assert.equal(JSON.stringify(publicStatus).includes(configured.apiKey), false);
   assert.equal(JSON.stringify(publicStatus).includes(configured.webhookToken), false);
   for (const role of ["admin", "superadmin"]) assert.equal(canReadAsaasAdmin({ id: "id", role, employee: false }), true);
   for (const role of ["manager", "master", "employee", "user"]) assert.equal(canReadAsaasAdmin({ id: "id", role }), false);
   assert.equal(canReadAsaasAdmin({ id: "id", role: "admin", employee: true }), false);
   assert.equal(canReadAsaasAdmin({ role: "admin" }), false);
+});
+
+test("cadastro e cofre Sandbox validam CNPJ e cifram a credencial sem expor o segredo", () => {
+  assert.equal(isValidCnpj("66.625.514/0001-40"), true);
+  for (const invalid of ["00.000.000/0000-00", "123", "66.625.514/0001-41"]) assert.equal(isValidCnpj(invalid), false);
+  assert.equal(accountInput().cpfCnpj, "66625514000140");
+  assert.equal(credentialVaultReady(vaultKey), true); assert.equal(credentialVaultReady("short"), false);
+  const encrypted = encryptCredential("child-api-key-private", vaultKey);
+  assert.equal(JSON.stringify(encrypted).includes("child-api-key-private"), false);
+  assert.equal(decryptCredential(encrypted, vaultKey), "child-api-key-private");
+  assert.throws(() => decryptCredential(encrypted, Buffer.alloc(32, 8).toString("base64")), (error: AsaasError) => error.code === "CREDENTIAL_KEY_MISMATCH");
 });
 
 test("transporte Sandbox: host fixo, autenticação, JSON, falhas sanitizadas e timeout sem repetição", async () => {
@@ -92,22 +117,97 @@ test("migração aditiva: isolamento, várias BIAs por conta, idempotência, con
   assert.equal((await db.execute(sql`SELECT count(*) AS count FROM asaas_sandbox.operations`)).rows[0].count, 1);
 });
 
+test("subconta Sandbox é criada uma vez, chave fica cifrada e outra BIA reutiliza a conta da empresa", async t => {
+  const pg = new PGlite(); const db = drizzle(pg); t.after(() => pg.close()); await pg.exec(migration);
+  let creations = 0;
+  const transport = (config: ReturnType<typeof fixture>) => ({ request: async (path: string, options: any = {}) => {
+    if (path.startsWith("/accounts?")) return { data: [], hasMore: false };
+    if (path === "/accounts" && options.method === "POST") {
+      creations++;
+      assert.equal(options.body.cpfCnpj, "66625514000140");
+      assert.equal(options.body.webhooks[0].authToken, "sandbox-fixture-webhook");
+      return { id: "external-account", walletId: "wallet-account", apiKey: "child-api-key-private" };
+    }
+    if (path === "/myAccount/status") {
+      assert.equal(config.apiKey, "child-api-key-private");
+      return { general: "APPROVED" };
+    }
+    throw Error(`Unexpected ${path}`);
+  } });
+  const store = new AsaasStore(db, "sandbox");
+  const service = new AsaasSandboxAccounts(store, fixture(), transport);
+  const created = await service.create("bia-one", "actor-one", accountInput());
+  assert.equal(created.created, true); assert.equal(created.account?.state, "approved"); assert.equal(creations, 1);
+  const reused = await service.create("bia-two", "actor-two", accountInput());
+  assert.equal(reused.reused, true); assert.equal(creations, 1);
+  assert.equal((await store.accountForBia("bia-one"))?.id, (await store.accountForBia("bia-two"))?.id);
+  const credential = (await db.execute(sql`SELECT * FROM asaas_sandbox.account_credentials`)).rows[0];
+  assert.equal(JSON.stringify(credential).includes("child-api-key-private"), false);
+  assert.equal(decryptCredential({ ciphertext: credential.ciphertext, initializationVector: credential.initialization_vector, authenticationTag: credential.authentication_tag, keyFingerprint: credential.key_fingerprint }, vaultKey), "child-api-key-private");
+});
+
+test("timeout de criação fica inconclusivo e não repete POST", async t => {
+  const pg = new PGlite(); const db = drizzle(pg); t.after(() => pg.close()); await pg.exec(migration);
+  let creations = 0;
+  const service = new AsaasSandboxAccounts(new AsaasStore(db, "sandbox"), fixture(), () => ({ request: async (path: string) => {
+    if (path.startsWith("/accounts?")) return { data: [], hasMore: false };
+    creations++; throw new AsaasError("TIMEOUT", "timeout", 502);
+  } }));
+  await assert.rejects(() => service.create("bia-timeout", "actor", accountInput()), (error: AsaasError) => error.code === "ACCOUNT_CREATION_UNCONFIRMED");
+  await assert.rejects(() => service.create("bia-timeout", "actor", accountInput()), (error: AsaasError) => error.code === "ACCOUNT_CREATION_UNCONFIRMED");
+  assert.equal(creations, 1);
+});
+
+test("conta aprovada consulta saldo e transfere uma única vez com a credencial cifrada", async t => {
+  const pg = new PGlite(); t.after(() => pg.close()); const db = drizzle(pg);
+  await pg.exec(migration); const store = new AsaasStore(db, "sandbox"), accountId = randomUUID();
+  const encrypted = encryptCredential("child-transfer-key", vaultKey);
+  await db.execute(sql`INSERT INTO asaas_sandbox.accounts(id,label,ownership,owner_id,external_account_id,wallet_id,credential_reference,state)
+    VALUES(${accountId},'SPE operacional','company','company-hash','account-child','wallet-child','database:aes-256-gcm:v1','approved')`);
+  await db.execute(sql`INSERT INTO asaas_sandbox.account_credentials(account_id,ciphertext,initialization_vector,authentication_tag,key_fingerprint)
+    VALUES(${accountId},${encrypted.ciphertext},${encrypted.initializationVector},${encrypted.authenticationTag},${encrypted.keyFingerprint})`);
+  await db.execute(sql`INSERT INTO asaas_sandbox.bia_accounts(bia_id,account_id) VALUES('bia-transfer',${accountId})`);
+  const transfers:any[]=[]; let posts=0;
+  const service = new AsaasAccountOperations(store, fixture(), config => ({ request: async (path:string, options:any={}) => {
+    assert.equal(config.apiKey, "child-transfer-key");
+    if(path==="/finance/balance")return {balance:500};
+    if(path==="/transfers?limit=20")return {data:transfers};
+    if(path==="/transfers"&&options.method==="POST"){posts++;const item={id:"transfer-fixture",status:"DONE",value:options.body.value,operationType:"PIX",externalReference:options.body.externalReference};transfers.push(item);return item;}
+    throw new Error("unexpected path");
+  }}));
+  assert.equal((await service.overview("bia-transfer")).balance,500);
+  const input={destinationType:"PIX" as const,value:25,pixAddressKey:"finance@example.test",pixAddressKeyType:"EMAIL" as const,description:"Teste",idempotencyKey:randomUUID(),confirmation:true};
+  const first=await service.transfer("bia-transfer","actor",input);assert.equal(first.operation.state,"completed");
+  const repeated=await service.transfer("bia-transfer","actor",input);assert.equal(repeated.operation.state,"completed");assert.equal(posts,1);
+  await assert.rejects(()=>service.transfer("bia-transfer","actor",{...input,value:501,idempotencyKey:randomUUID()}),(error:AsaasError)=>error.code==="INSUFFICIENT_BALANCE");
+  assert.deepEqual((await db.execute(sql`SELECT kind,state,external_id FROM asaas_sandbox.operations`)).rows,[{kind:"transfer_pix",state:"completed",external_id:"transfer-fixture"}]);
+});
+
 test("rotas: admin restrito, escopo da BIA, consulta sem escrita e webhook Sandbox sem efeitos financeiros", async t => {
   const pg = new PGlite(); const db = drizzle(pg); t.after(() => pg.close()); await pg.exec(migration);
   const accountId = randomUUID();
   await db.execute(sql`INSERT INTO asaas_sandbox.accounts (id,label,ownership,external_account_id,credential_reference) VALUES (${accountId},'SPE teste','company','external-private','vault-private')`);
   await db.execute(sql`INSERT INTO asaas_sandbox.bia_accounts (bia_id,account_id) VALUES ('canonical-bia',${accountId})`);
   let config = fixture(); let broken = false;
+  let routeCreations = 0;
   const app = express(); app.use(express.json({ limit: "100kb" }));
   const database = { execute: (query: any) => { if (broken) throw Error("database-password-private"); return db.execute(query); } };
   registerAsaasFoundation(app, {
     db: database, config: () => config,
     resolvePrincipal: async req => req.get("x-role") ? { id: "session-user", role: req.get("x-role")!, employee: req.get("x-employee") === "true" } : null,
-    authorizeBia: async (req, res, biaId) => {
+    authorizeBia: async (req, res, biaId, required = "view") => {
       if (!req.get("x-role")) { res.status(401).json({ error: "auth" }); return null; }
-      if (biaId !== "own") { res.status(403).json({ error: "scope" }); return null; }
-      return { id: "canonical-bia" };
+      if (required === "edit" && req.get("x-edit") !== "true") { res.status(403).json({ error: "edit" }); return null; }
+      if (biaId === "own") return { id: "canonical-bia", actorId: "session-user" };
+      if (biaId === "own-create") return { id: "canonical-create", actorId: "session-user" };
+      res.status(403).json({ error: "scope" }); return null;
     },
+    accountTransport: childConfig => ({ request: async (path: string, options: any = {}) => {
+      if (path.startsWith("/accounts?")) return { data: [], hasMore: false };
+      if (path === "/accounts" && options.method === "POST") { routeCreations++; return { id: "route-external", walletId: "route-wallet", apiKey: "route-child-key" }; }
+      if (path === "/myAccount/status") { assert.equal(childConfig.apiKey, "route-child-key"); return { general: "APPROVED" }; }
+      throw Error(`Unexpected ${path}`);
+    } }),
   });
   const server = app.listen(0, "127.0.0.1"); await new Promise<void>(resolve => server.once("listening", resolve));
   t.after(() => new Promise<void>((resolve, reject) => { server.close(error => error ? reject(error) : resolve()); server.closeAllConnections(); }));
@@ -120,9 +220,15 @@ test("rotas: admin restrito, escopo da BIA, consulta sem escrita e webhook Sandb
   for (const role of ["admin", "superadmin"]) assert.equal((await get(admin, role)).status, 200);
   assert.equal((await get("/api/bias/other/banco/asaas/status", "user")).status, 403);
   const bia = asaasBiaStatusSchema.parse(await (await get("/api/bias/own/banco/asaas/status", "user")).json());
-  assert.equal(bia.account?.label, "SPE teste"); assert.equal(bia.operationsEnabled, false);
+  assert.equal(bia.account?.label, "SPE teste"); assert.equal(bia.operationsEnabled, true);
+  assert.equal(bia.accountCreationAvailable, true);
   assert.equal(JSON.stringify(bia).includes("private"), false);
-  assert.equal((await db.execute(sql`SELECT count(*) AS count FROM asaas_sandbox.operations`)).rows[0].count, 0);
+  const createUrl = `http://127.0.0.1:${port}/api/bias/own-create/banco/asaas/accounts`;
+  assert.equal((await fetch(createUrl, { method: "POST", headers: { "content-type": "application/json", "x-role": "user" }, body: JSON.stringify(accountInput()) })).status, 403);
+  const createdResponse = await fetch(createUrl, { method: "POST", headers: { "content-type": "application/json", "x-role": "user", "x-edit": "true" }, body: JSON.stringify(accountInput()) });
+  assert.equal(createdResponse.status, 201); assert.equal(routeCreations, 1);
+  const createdBody = await createdResponse.json(); assert.equal(JSON.stringify(createdBody).includes("route-child-key"), false); assert.equal(createdBody.account.state, "approved");
+  assert.deepEqual((await db.execute(sql`SELECT kind,state FROM asaas_sandbox.operations`)).rows, [{ kind: "create_subaccount", state: "completed" }]);
   const post = (body: unknown, token = "sandbox-fixture-webhook") => fetch(`http://127.0.0.1:${port}/api/webhooks/asaas/sandbox`, { method: "POST", headers: { "content-type": "application/json", "asaas-access-token": token }, body: JSON.stringify(body) });
   const event = { id: "evt_test&1", event: "PAYMENT_RECEIVED", account: { id: "acc-test" }, payment: { id: "pay-test", customer: { cpfCnpj: "document-private" }, access_token: "key-private" } };
   assert.equal((await post(event, "wrong")).status, 401);
@@ -142,5 +248,5 @@ test("rotas: admin restrito, escopo da BIA, consulta sem escrita e webhook Sandb
   assert.equal((await post(event)).status, 503);
   const unavailable = asaasStatusSchema.parse(await (await get(admin, "admin")).json()); assert.equal(unavailable.storageReady, false);
   const unavailableBia = asaasBiaStatusSchema.parse(await (await get("/api/bias/own/banco/asaas/status", "user")).json()); assert.equal(unavailableBia.storageReady, false);
-  assert.equal((await db.execute(sql`SELECT count(*) AS count FROM asaas_sandbox.operations`)).rows[0].count, 0);
+  assert.deepEqual((await db.execute(sql`SELECT kind,state FROM asaas_sandbox.operations`)).rows, [{ kind: "create_subaccount", state: "completed" }]);
 });

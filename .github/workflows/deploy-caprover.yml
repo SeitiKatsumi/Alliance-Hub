@@ -52,6 +52,28 @@ jobs:
       - name: Baixar codigo validado
         uses: actions/checkout@v4
 
+      - name: Empacotar commit validado
+        run: |
+          git archive --format=tar --output=deploy.tar HEAD -- \
+            .dockerignore \
+            captain-definition \
+            Dockerfile \
+            package.json \
+            package-lock.json \
+            start.sh \
+            migrate.cjs \
+            tsconfig.json \
+            vite.config.ts \
+            postcss.config.js \
+            tailwind.config.ts \
+            client \
+            server \
+            shared \
+            script \
+            migrations \
+            attached_assets/Logo_Built_2_Horizontal_Branca_Nova.png \
+            attached_assets/Logo_Built_3_Horizontal_Negativo.png
+
       - name: Conferir configuracao de publicacao
         shell: bash
         env:

@@ -23,6 +23,7 @@ Tambem e possivel iniciar a mesma rotina manualmente em **Actions > Validar e pu
 - Apenas a branch `main` publica em producao.
 - Um novo push cancela uma execucao anterior ainda em andamento, evitando publicar versao ultrapassada.
 - O job de deploy so inicia depois de contrato, testes e build passarem.
+- O deploy empacota em `deploy.tar` somente o codigo, as configuracoes de build, as migracoes e os ativos de marca usados pela aplicacao. Logs, evidencias, arquivos locais, `.git`, `node_modules` e alteracoes nao commitadas nao sao enviados.
 - O typecheck completo continua obrigatorio no desenvolvimento local, mas nao bloqueia este workflow enquanto a `main` preservar os diagnosticos legados documentados em `AGENTS.md`. Ele deve voltar ao gate quando o baseline remoto estiver limpo.
 - O CapRover continua usando o `captain-definition` e o `Dockerfile` existentes.
 - O `start.sh` executa as migracoes previstas pela aplicacao antes de iniciar o servidor; por isso, toda migracao nova precisa continuar aditiva e testada.

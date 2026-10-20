@@ -1,0 +1,70 @@
+name: Validar e publicar no CapRover
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: caprover-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validar aplicacao
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar plataforma
+        run: npm run platform:verify
+
+  deploy:
+    name: Publicar no CapRover
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Baixar codigo validado
+        uses: actions/checkout@v4
+
+      - name: Conferir configuracao de publicacao
+        shell: bash
+        env:
+          CAPROVER_SERVER: ${{ secrets.CAPROVER_SERVER }}
+          CAPROVER_APP: ${{ secrets.CAPROVER_APP }}
+          CAPROVER_APP_TOKEN: ${{ secrets.CAPROVER_APP_TOKEN }}
+        run: |
+          missing=0
+          for variable in CAPROVER_SERVER CAPROVER_APP CAPROVER_APP_TOKEN; do
+            if [ -z "${!variable}" ]; then
+              echo "::error title=Configuracao ausente::Cadastre o segredo $variable no ambiente production do GitHub."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Enviar para o CapRover
+        uses: caprover/deploy-from-github@v1.1.2
+        with:
+          server: ${{ secrets.CAPROVER_SERVER }}
+          app: ${{ secrets.CAPROVER_APP }}
+          token: ${{ secrets.CAPROVER_APP_TOKEN }}

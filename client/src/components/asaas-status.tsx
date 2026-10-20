@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { formatBrazilianCep, type ViaCepAddress } from "@/lib/property-address";
 import { ArrowRightLeft, Loader2, RefreshCw } from "lucide-react";
 import { asaasStatusSchema, asaasBiaStatusSchema, type AsaasStatus, type AsaasBiaStatus, type AsaasSubaccountCreate, type AsaasTransferInput } from "@shared/asaas";
 
@@ -61,6 +62,16 @@ const initialSubaccount: AsaasSubaccountCreate = {
   taxRegime: "UNKNOWN", environmentConfirmation: false,
 };
 
+export function applyViaCepToAsaasForm(current: AsaasSubaccountCreate, address: ViaCepAddress): AsaasSubaccountCreate {
+  if (!address || address.erro) return current;
+  return {
+    ...current,
+    address: address.logradouro || current.address,
+    province: address.bairro || current.province,
+    complement: current.complement || address.complemento || "",
+  };
+}
+
 async function writeJson(url: string, body?: unknown) {
   const response = await fetch(url, {
     method: "POST", credentials: "include", headers: body === undefined ? {} : { "content-type": "application/json" },
@@ -75,7 +86,38 @@ function SubaccountDialog({ biaId, statusUrl, environment }: { biaId: string; st
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<AsaasSubaccountCreate>(initialSubaccount);
+  const [postalLookup, setPostalLookup] = useState<{ status: "idle" | "loading" | "success" | "error"; message?: string }>({ status: "idle" });
+  const postalCodeDigits = formatBrazilianCep(form.postalCode).digits;
   const update = <K extends keyof AsaasSubaccountCreate>(key: K, value: AsaasSubaccountCreate[K]) => setForm(current => ({ ...current, [key]: value }));
+  useEffect(() => {
+    if (postalCodeDigits.length !== 8) {
+      setPostalLookup({ status: "idle" });
+      return;
+    }
+    const controller = new AbortController();
+    setPostalLookup({ status: "loading", message: "Consultando CEP…" });
+    void (async () => {
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${postalCodeDigits}/json/`, { signal: controller.signal });
+        if (!response.ok) throw new Error("CEP indisponível");
+        const address = await response.json() as ViaCepAddress;
+        if (address.erro) {
+          setPostalLookup({ status: "error", message: "CEP não encontrado. Preencha o endereço manualmente." });
+          return;
+        }
+        setForm(current => formatBrazilianCep(current.postalCode).digits === postalCodeDigits
+          ? applyViaCepToAsaasForm(current, address)
+          : current);
+        const location = [address.localidade, address.uf].filter(Boolean).join(" / ");
+        setPostalLookup({ status: "success", message: location ? `Endereço encontrado: ${location}.` : "Endereço preenchido pelo CEP." });
+      } catch (error) {
+        if ((error as Error)?.name !== "AbortError") {
+          setPostalLookup({ status: "error", message: "Não foi possível consultar o CEP. Você pode preencher o endereço manualmente." });
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [postalCodeDigits]);
   const mutation = useMutation({
     mutationFn: () => writeJson(`/api/bias/${encodeURIComponent(biaId)}/banco/asaas/accounts`, form),
     onSuccess: async () => {
@@ -94,7 +136,7 @@ function SubaccountDialog({ biaId, statusUrl, environment }: { biaId: string; st
         <DialogDescription>Cadastre a SPE ou holding no Asaas {environment === "sandbox" ? "Sandbox" : "Produção"}. Use somente dados autorizados do titular.</DialogDescription>
       </DialogHeader>
       <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain border-y px-4 py-4 sm:border-0 sm:p-0">
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950 dark:border-blue-400/40 dark:bg-blue-500/15 dark:text-blue-100">
           {environment === "sandbox" ? "Ambiente sem dinheiro real. " : "Ambiente com movimentação financeira real. "}Serviço bancário fornecido pelo <a className="font-medium underline" href="https://www.asaas.com" target="_blank" rel="noreferrer">Asaas</a>. Após a aprovação da conta, cobranças e transferências ficam disponíveis conforme a configuração deste ambiente.
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -105,7 +147,25 @@ function SubaccountDialog({ biaId, statusUrl, environment }: { biaId: string; st
           <label className="space-y-1 text-sm"><span className="font-medium">Tipo da empresa *</span><select className="h-10 w-full rounded-md border bg-background px-3" value={form.companyType} onChange={event => update("companyType", event.target.value as AsaasSubaccountCreate["companyType"])}><option value="LIMITED">Sociedade limitada</option><option value="MEI">MEI</option><option value="INDIVIDUAL">Empresário individual</option><option value="ASSOCIATION">Associação</option></select></label>
           <label className="space-y-1 text-sm"><span className="font-medium">Regime tributário</span><select className="h-10 w-full rounded-md border bg-background px-3" value={form.taxRegime || "UNKNOWN"} onChange={event => update("taxRegime", event.target.value as AsaasSubaccountCreate["taxRegime"])}><option value="UNKNOWN">Não informado</option><option value="NATIONAL_SIMPLE">Simples Nacional</option><option value="NORMAL_REGIME">Regime normal</option><option value="MEI">MEI</option></select></label>
           {field("incomeValue", "Faturamento mensal estimado (R$) *", { type: "number", min: 0.01, step: 0.01, inputMode: "decimal" })}
-          {field("postalCode", "CEP *", { inputMode: "numeric", autoComplete: "postal-code", placeholder: "00000000" })}
+          <label className="space-y-1 text-sm">
+            <span className="font-medium">CEP *</span>
+            <div className="relative">
+              <Input
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={9}
+                placeholder="00000-000"
+                value={String(form.postalCode || "")}
+                aria-describedby="asaas-postal-code-status"
+                aria-invalid={postalLookup.status === "error"}
+                onChange={event => update("postalCode", formatBrazilianCep(event.target.value).formatted)}
+              />
+              {postalLookup.status === "loading" && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />}
+            </div>
+            <span id="asaas-postal-code-status" role={postalLookup.status === "error" ? "alert" : "status"} className={postalLookup.status === "error" ? "block text-xs text-destructive" : postalLookup.status === "success" ? "block text-xs text-emerald-700 dark:text-emerald-300" : "block min-h-4 text-xs text-muted-foreground"}>
+              {postalLookup.message || "Ao completar o CEP, tentaremos preencher o endereço."}
+            </span>
+          </label>
           {field("address", "Logradouro *", { autoComplete: "street-address" })}
           {field("addressNumber", "Número *", {})}
           {field("complement", "Complemento", {})}
@@ -164,7 +224,7 @@ export function BiaAsaasStatus({ biaId, canEdit = false }: { biaId: string; canE
     ? <Button type="button" variant="outline" disabled={refresh.isPending} onClick={() => refresh.mutate()}>{refresh.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Atualizar situação</Button>
     : query.data.accountCreationAvailable
       ? <SubaccountDialog biaId={biaId} statusUrl={url} environment={query.data.environment} />
-      : <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-medium">A criação ainda não está disponível.</p><ul className="mt-1 list-disc pl-5">{query.data.accountCreationBlockers.map(item => <li key={item}>{item}</li>)}</ul></div>
+      : <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-100"><p className="font-medium">A criação ainda não está disponível.</p><ul className="mt-1 list-disc pl-5">{query.data.accountCreationBlockers.map(item => <li key={item}>{item}</li>)}</ul></div>
     : null;
   return <AsaasBiaSummary data={query.data} actions={actions}>{query.data.account?.state === "approved" && query.data.operationsEnabled ? <AccountOperations biaId={biaId} canEdit={canEdit} environment={query.data.environment} chargesEnabled={query.data.chargesEnabled} transfersEnabled={query.data.transfersEnabled} /> : null}</AsaasBiaSummary>;
 }

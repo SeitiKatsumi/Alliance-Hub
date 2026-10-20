@@ -48,7 +48,6 @@ import {
   ArrowRight,
   BarChart3,
   Receipt,
-  CalendarDays,
   Wrench,
   HandCoins,
   ChevronsUpDown,
@@ -1741,39 +1740,6 @@ export default function BiasCalculadoraPage({
               </CardContent>
             </Card>
           </div>}
-
-          {/* Aportes */}
-          {false && <Card data-testid="panel-aportes">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <HandCoins className="w-5 h-5 text-blue-500" />
-                Aportes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <CalendarDays className="w-3 h-3" /> Início dos Aportes
-                  </Label>
-                  <Input
-                    type="date"
-                    value={inicioAportes}
-                    onChange={(e) => setInicioAportes(e.target.value)}
-                    className="h-8 text-sm"
-                    data-testid="input-inicio-aportes"
-                  />
-                </div>
-                <NumInput
-                  label="Total de Aportes"
-                  value={totalAportes}
-                  onChange={setTotalAportes}
-                  testId="input-total-aportes"
-                  hint="Total aportado pelos membros"
-                />
-              </div>
-            </CardContent>
-          </Card>}
 
           {/* Resultado Final */}
           <Card className="border-brand-gold/30 bg-gradient-to-br from-brand-gold/5 to-transparent" data-testid="panel-resultado">

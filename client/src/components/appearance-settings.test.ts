@@ -15,6 +15,19 @@ test("avisos de conclusão do perfil têm superfícies escuras sem alterar o mod
   assert.ok(read("../pages/painel.tsx").includes('data-testid="dashboard-profile-completion"'));
   assert.ok(read("../pages/meu-perfil.tsx").includes('data-testid="profile-recommendation"'));
 });
+
+test("avisos de integração e tons 950 permanecem legíveis no modo escuro", () => {
+  const css = read("../index.css");
+  const asaas = read("./asaas-status.tsx");
+  for (const token of [
+    "text-slate-950", "text-blue-950", "text-cyan-950", "text-emerald-950",
+    "text-amber-950", "text-red-950", "text-purple-950", "text-violet-950",
+  ]) {
+    assert.ok(css.includes(`.${token}`), `${token} precisa de contraste no tema escuro`);
+  }
+  assert.match(asaas, /bg-blue-50[^"\n]*dark:bg-blue-500\/15[^"\n]*dark:text-blue-100/);
+  assert.match(asaas, /bg-amber-50[^"\n]*dark:bg-amber-500\/15[^"\n]*dark:text-amber-100/);
+});
 test("aparência: padrão escuro, seleção acessível, troca imediata sem escrever perfil",()=>{
   let theme:string|undefined, changes:string[]=[];
   const source=read("./appearance-settings.tsx");

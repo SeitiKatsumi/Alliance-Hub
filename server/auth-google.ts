@@ -63,7 +63,7 @@ export function setupGoogleAuth(app: Express) {
       session: false,
       scope: ["profile", "email"],
       callbackURL: getCallbackURL(req),
-    })(req, res, next);
+    } as any)(req, res, next);
   });
 
   app.get(
@@ -73,7 +73,7 @@ export function setupGoogleAuth(app: Express) {
         session: false,
         failureRedirect: "/login?error=google_failed",
         callbackURL: getCallbackURL(req),
-      })(req, res, next);
+      } as any)(req, res, next);
     },
     async (req: Request, res: Response) => {
       try {

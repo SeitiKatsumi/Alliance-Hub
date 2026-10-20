@@ -328,6 +328,16 @@ const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 const PRODUCTION_APP_API_URL = (process.env.PRODUCTION_APP_API_URL || "https://app.builtalliances.com").replace(/\/$/, "");
 const ASSET_CACHE_VERSION = "directus-db-20260616";
 const ROUTES_DIR = process.env.NODE_ENV === "production" ? path.join(process.cwd(), "dist") : process.cwd();
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
+  try {
+    return (await parser.getText()).text || "";
+  } finally {
+    await parser.destroy();
+  }
+}
 const nucleoTecnicoDocsFallback: any[] = [];
 const documentsFallbackFile = path.join(process.cwd(), "data", "documentos-aliancas-fallback.json");
 type DocumentsFallbackKind = "tecnico" | "alianca";
@@ -12236,7 +12246,7 @@ export async function registerRoutes(
 
   app.get("/api/bias/:id/aporte-solicitacoes", async (req, res) => {
     try {
-      const access = await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view");
+      const access = await requireBiaModuleAccess(req, res, String(req.params.id), "capital_financeiro", "view");
       if (!access) return;
       const canManage = hasBiaAccess(access.access.permissions, "capital_financeiro", "edit");
       const membroId = String((req.session as any).membroId || "");
@@ -12249,7 +12259,7 @@ export async function registerRoutes(
 
   app.post("/api/bias/:id/aporte-solicitacoes", upload.single("comprovante"), async (req, res) => {
     try {
-      const access = await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view");
+      const access = await requireBiaModuleAccess(req, res, String(req.params.id), "capital_financeiro", "view");
       if (!access) return;
       const membroId = String((req.session as any).membroId || "");
       const value = Number(req.body?.valor);
@@ -12318,7 +12328,7 @@ export async function registerRoutes(
     try {
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
-      let items;
+      let items: any[];
       if (sessionRole === "admin" || sessionRole === "manager" || sessionRole === "superadmin") {
         items = await storage.getBiaAprovacoesPendentes();
       } else if (sessionMembroId) {
@@ -21880,7 +21890,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       const temporaryAccesses = await Promise.all((temporaryResult.rows || []).map(async (row: any) => {
         if (row.nome || !row.membro_id) return row;
         const member = await directusFetchOne(
-          await getMembrosCol(),
+          "cadastro_geral",
           String(row.membro_id),
           "fields=id,nome,Nome_de_usuario,email",
         ).catch(() => null);
@@ -22595,10 +22605,10 @@ DADOS ATUAIS DO SISTEMA:
 - Total de Oportunidades: ${allOportunidades.length}
 
 MEMBROS CADASTRADOS:
-${allMembros.slice(0, 20).map((m) => `- ${m.nome} | Empresa: ${m.empresa || 'N/A'} | Cargo: ${m.cargo || 'N/A'}`).join('\n')}
+${allMembros.slice(0, 20).map((m: any) => `- ${m.nome} | Empresa: ${m.empresa || 'N/A'} | Cargo: ${m.cargo || 'N/A'}`).join('\n')}
 
 PROJETOS BIA ATIVOS:
-${allBias.slice(0, 15).map((b) => `- ${b.nome_bia} | Local: ${b.localizacao || 'N/A'}`).join('\n')}
+${allBias.slice(0, 15).map((b: any) => `- ${b.nome_bia} | Local: ${b.localizacao || 'N/A'}`).join('\n')}
 
 Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
@@ -23536,7 +23546,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       // Authenticate against Directus. A network failure must still allow local
       // platform accounts to use the existing fallback below.
-      let authRes: Response | null = null;
+      let authRes: globalThis.Response | null = null;
       let authData: any = null;
       let directusUnavailable = false;
       const authController = new AbortController();
@@ -27313,7 +27323,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  const validarAvaliacaoAuraPublica = async (avaliacaoToken: string) => {
+  const validarAvaliacaoAuraPublica = async (avaliacaoToken: string): Promise<
+    { error: string; status: 400 | 404 } | { convite: any }
+  > => {
     const convite = await storage.getConviteByAvaliacaoToken(avaliacaoToken);
     if (!convite) return { error: "Link de avaliaÃ§Ã£o invÃ¡lido", status: 404 as const };
     if (convite.status !== "aguardando_avaliacao_aura") {
@@ -27324,7 +27336,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/avaliacao-aura/:avaliacaoToken/analisar-texto", async (req, res) => {
     try {
-      const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
+      const validacao = await validarAvaliacaoAuraPublica(String(req.params.avaliacaoToken));
       if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
       const { texto, membro_nome } = req.body;
       if (!texto || typeof texto !== "string" || texto.trim().length < 10) {
@@ -27416,7 +27428,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/avaliacao-aura/:avaliacaoToken/extrair-arquivo", upload.single("arquivo"), async (req, res) => {
     try {
-      const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
+      const validacao = await validarAvaliacaoAuraPublica(String(req.params.avaliacaoToken));
       if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
       const file = req.file;
       if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -27424,9 +27436,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const name = (file.originalname || "").toLowerCase();
       let texto = "";
       if (mime === "application/pdf" || name.endsWith(".pdf")) {
-        const pdfParse = (await import("pdf-parse")).default;
-        const data = await pdfParse(file.buffer);
-        texto = data.text || "";
+        texto = await extractPdfText(file.buffer);
       } else if (mime.startsWith("text/") || name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) {
         texto = file.buffer.toString("utf-8");
       } else {
@@ -27444,7 +27454,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/avaliacao-aura/:avaliacaoToken/transcrever-audio", auraAudioUpload.single("audio"), async (req, res) => {
     try {
-      const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
+      const validacao = await validarAvaliacaoAuraPublica(String(req.params.avaliacaoToken));
       if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
       const file = req.file;
       if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
@@ -29089,9 +29099,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     try {
       let texto = "";
       if (mime === "application/pdf" || name.endsWith(".pdf")) {
-        const pdfParse = (await import("pdf-parse")).default;
-        const data = await pdfParse(file.buffer);
-        texto = data.text || "";
+        texto = await extractPdfText(file.buffer);
       } else if (
         mime.startsWith("text/") ||
         name.endsWith(".txt") ||

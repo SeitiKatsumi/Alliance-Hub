@@ -24,6 +24,13 @@ interface BiasProjeto {
   map_inicial?: InitialMapCalculation | null;
   id: string;
   nome_bia: string;
+  autor_bia?: string | null;
+  aliado_built?: string | null;
+  diretor_alianca?: string | null;
+  diretor_nucleo_tecnico?: string | null;
+  diretor_execucao?: string | null;
+  diretor_comercial?: string | null;
+  diretor_capital?: string | null;
   valor_origem?: string | number;
   divisor_multiplicador?: string | number;
   custo_origem_bia?: string | number;

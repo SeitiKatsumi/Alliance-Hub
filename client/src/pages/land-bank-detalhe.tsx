@@ -108,6 +108,7 @@ interface LandBankAsset {
   can_delete?: boolean;
   can_review?: boolean;
   can_request_bia?: boolean;
+  observacao_analise?: string | null;
   origem_tipo?: string;
   visibilidade?: string;
   estagio?: string;

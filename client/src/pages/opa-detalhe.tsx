@@ -353,7 +353,7 @@ export default function OpaDetalhePage() {
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">OBA não encontrada.</p>
-        <Button variant="link" onClick={() => navigate("/area-aliancas?tab=opas")}>Voltar para OBAs</Button>
+        <Button variant="ghost" className="text-primary" onClick={() => navigate("/area-aliancas?tab=opas")}>Voltar para OBAs</Button>
       </div>
     );
   }

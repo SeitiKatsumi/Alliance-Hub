@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AsaasAdminSummary, AsaasBiaSummary } from "./asaas-status";
+import { applyViaCepToAsaasForm, AsaasAdminSummary, AsaasBiaSummary } from "./asaas-status";
 import { asaasBiaStatusSchema } from "../../../shared/asaas";
 import { publicAsaasStatus, asaasConfig } from "../../../server/asaas/config";
 
@@ -34,4 +34,22 @@ test("fluxo de criação Sandbox é responsivo e só aparece para edição do Ba
   assert.match(source, /Serviço bancário fornecido pelo/);
   assert.match(source, /asaas-account-operations/); assert.match(source, /Confirmar transferência/);
   assert.match(capital, /BiaAsaasStatus[^>]+canEdit=\{!readOnly\}/);
+});
+
+test("CEP preenche logradouro e bairro sem apagar dados manuais", () => {
+  const base = {
+    name: "Empresa Teste", email: "empresa@example.com", cpfCnpj: "11222333000181",
+    companyType: "LIMITED" as const, mobilePhone: "11999999999", incomeValue: 1000,
+    address: "", addressNumber: "42", complement: "Sala 2", province: "", postalCode: "01310-930",
+    taxRegime: "UNKNOWN" as const, environmentConfirmation: false,
+  };
+  assert.deepEqual(applyViaCepToAsaasForm(base, {
+    logradouro: "Avenida Paulista", complemento: "lado ímpar", bairro: "Bela Vista",
+    localidade: "São Paulo", uf: "SP",
+  }), { ...base, address: "Avenida Paulista", province: "Bela Vista" });
+  assert.strictEqual(applyViaCepToAsaasForm(base, { erro: true }), base);
+
+  const source = readFileSync(new URL("./asaas-status.tsx", import.meta.url), "utf8");
+  assert.match(source, /viacep\.com\.br\/ws\/\$\{postalCodeDigits\}\/json/);
+  assert.match(source, /CEP não encontrado/);
 });

@@ -350,7 +350,7 @@ export default function GestaoOpasPage() {
   }, {} as Record<CrmStatus, number>);
 
   const biaId = selectedOpa ?String(selectedOpa.bia || selectedOpa.bia_id || "") : "";
-  const selectedBia = bia.find((item) => item.id === biaId) || null;
+  const selectedBia = bias.find((item) => item.id === biaId) || null;
   const canManageSelectedOpa =
     !!selectedOpa &&
     (user?.role === "admin" ||

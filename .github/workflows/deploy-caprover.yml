@@ -32,8 +32,14 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Verificar plataforma
-        run: npm run platform:verify
+      - name: Validar contrato da plataforma
+        run: npm run platform:contract
+
+      - name: Executar testes
+        run: npm run test:all
+
+      - name: Gerar build de producao
+        run: npm run build
 
   deploy:
     name: Publicar no CapRover

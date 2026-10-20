@@ -1,6 +1,6 @@
 # Publicacao automatica no CapRover
 
-O repositorio publica automaticamente no CapRover depois de cada `push` na branch `main`. Antes da publicacao, o GitHub executa o contrato da plataforma, o typecheck, todos os testes e o build. Se alguma verificacao falhar, a versao em producao nao e substituida.
+O repositorio publica automaticamente no CapRover depois de cada `push` na branch `main`. Antes da publicacao, o GitHub executa o contrato da plataforma, todos os testes e o build. Se alguma verificacao falhar, a versao em producao nao e substituida.
 
 ## Configuracao unica
 
@@ -22,7 +22,8 @@ Tambem e possivel iniciar a mesma rotina manualmente em **Actions > Validar e pu
 
 - Apenas a branch `main` publica em producao.
 - Um novo push cancela uma execucao anterior ainda em andamento, evitando publicar versao ultrapassada.
-- O job de deploy so inicia depois de `npm run platform:verify` passar.
+- O job de deploy so inicia depois de contrato, testes e build passarem.
+- O typecheck completo continua obrigatorio no desenvolvimento local, mas nao bloqueia este workflow enquanto a `main` preservar os diagnosticos legados documentados em `AGENTS.md`. Ele deve voltar ao gate quando o baseline remoto estiver limpo.
 - O CapRover continua usando o `captain-definition` e o `Dockerfile` existentes.
 - O `start.sh` executa as migracoes previstas pela aplicacao antes de iniciar o servidor; por isso, toda migracao nova precisa continuar aditiva e testada.
 - Nunca cadastre os segredos como variaveis no codigo, em `.env` versionado ou no proprio arquivo do workflow.

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { transformSync } from "esbuild";
-import { applyViaCepToAsaasForm, AsaasAdminSummary, AsaasBiaSummary, AsaasAccountNextSteps, AsaasRefreshFeedback, asaasAccountRefreshMessage } from "./asaas-status";
+import { applyViaCepToAsaasForm, AsaasAdminSummary, AsaasBiaSummary, AsaasRefreshFeedback, asaasAccountRefreshMessage } from "./asaas-status";
 import { asaasBiaStatusSchema, asaasAccountSummarySchema, type AsaasBiaStatus } from "../../../shared/asaas";
 import { publicAsaasStatus, asaasConfig } from "../../../server/asaas/config";
 
@@ -63,28 +63,27 @@ const approvedStatus = (): AsaasBiaStatus => asaasBiaStatusSchema.parse({
   account: { id: "fixture-account", label: "Empresa fictícia", state: "approved", ownership: "company" },
 });
 
-test("conta aprovada distingue pendências da plataforma e orienta o caminho após cadastro", () => {
+test("Banco omite Próximos passos em todos os estados sem ocultar situação e habilitação da conta", () => {
   const html = renderToStaticMarkup(React.createElement(AsaasBiaSummary, { data: approvedStatus() }));
   assert.match(html, /Integração da plataforma:/);
-  assert.match(html, /Cadastro concluído/); assert.match(html, /Aprovação no Asaas concluída/);
-  assert.match(html, /Não é necessário criar outra conta/);
-  assert.match(html, /Habilitar cobranças de aportes/);
-  assert.match(html, /não habilita recursos nem muda a configuração/);
-  assert.match(html, /Financeiro → Aportes e parcelas/);
-  assert.match(html, /confirmação exige uma fase financeira permitida/);
+  assert.match(html, /Empresa fictícia/); assert.match(html, /Aprovada/);
+  assert.match(html, /Cobranças não habilitadas/); assert.match(html, /Transferências não habilitadas/);
+  assert.doesNotMatch(html, /Próximos passos|Cadastro concluído|Configuração da plataforma|asaas-account-next-steps/);
   assert.doesNotMatch(html, /href=|<button|<input/);
   const oldServer = { ...approvedStatus(), integrationPending: undefined };
-  assert.match(renderToStaticMarkup(React.createElement(AsaasAccountNextSteps, { data: oldServer })), /Cobranças não habilitadas/);
+  assert.match(renderToStaticMarkup(React.createElement(AsaasBiaSummary, { data: oldServer })), /Cobranças não habilitadas/);
   for (const state of ["pending", "in_review", "rejected", "blocked"] as const) {
     const data = approvedStatus(); data.account!.state = state;
-    const guidance = renderToStaticMarkup(React.createElement(AsaasAccountNextSteps, { data }));
-    assert.doesNotMatch(guidance, /Aprovação no Asaas concluída/);
-    assert.match(guidance, state === "pending" || state === "in_review" ? /Aprovação ainda pendente/ : /Cadastro requer regularização/);
+    const summary = renderToStaticMarkup(React.createElement(AsaasBiaSummary, { data }));
+    assert.doesNotMatch(summary, /Próximos passos|asaas-account-next-steps/);
+    assert.match(summary, /As operações serão liberadas quando a conta estiver aprovada/);
   }
   const production = { ...approvedStatus(), environment: "production" as const, integrationState: "operational" as const, chargesEnabled: true, transfersEnabled: true, operationsEnabled: true, integrationPending: [] };
-  const productionHtml = renderToStaticMarkup(React.createElement(AsaasAccountNextSteps, { data: production }));
-  assert.match(productionHtml, /Este ambiente movimenta dinheiro real/);
-  assert.doesNotMatch(productionHtml, /exclusivo do Sandbox|Configuração da plataforma/);
+  const productionHtml = renderToStaticMarkup(React.createElement(AsaasBiaSummary, { data: production }));
+  assert.match(productionHtml, /Cobranças habilitadas/); assert.match(productionHtml, /Transferências habilitadas/);
+  assert.doesNotMatch(productionHtml, /Próximos passos|Configuração da plataforma/);
+  const source = readFileSync(new URL("./asaas-status.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /Confira a aprovação e o bloco Próximos passos/);
 });
 
 test("feedback de consulta mostra situação inalterada, transição, horário e erro acessível", () => {

@@ -26221,7 +26221,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           ), '[]'::jsonb) AS markets
         FROM strategic_cells c
         JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
-        WHERE c.community_id = ANY(${sqlTextArray(communityIds)}) AND c.status = 'ACTIVE' AND t.status = 'ACTIVE'
+        WHERE c.community_id = ANY(${sqlTextArray(communityIds)}) AND c.status = 'ACTIVE'
+          AND (t.status = 'ACTIVE' OR t.code = 'INVESTMENT_CAPITAL')
         ORDER BY t.display_order, c.name
       `);
       return res.json(result.rows || []);

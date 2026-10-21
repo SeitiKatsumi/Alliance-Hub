@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createBiaCommunitySync } from "./bia-community";
 import { createDirectusBiaCommunitySync } from "./bia-community-directus";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { sql } from "drizzle-orm";
+import { transformSync } from "esbuild";
+import { STRATEGIC_CELL_TYPES } from "../shared/strategic-cells";
 
 function harness() {
   const bias = new Map<string, any>([["bia-a", { id: "bia-a", autor_bia: { id: "author-a" } }], ["bia-b", { id: "bia-b", autor_bia: "author-b" }]]);
@@ -133,8 +138,48 @@ test("integração cobre todos os criadores, troca de autor/mãe, células e val
   const endpoint = routes.slice(routes.indexOf('app.get("/api/bias/:id/celulas-disponiveis"'), routes.indexOf('app.get("/api/comunidades/:id/celulas"'));
   assert.match(endpoint, /requireBiaModuleAccess\(req, res, req.params.id, "configuracao_bia", "view"\)/);
   assert.match(endpoint, /communityIdsForBia\(String\(authorization.bia.id\)\)/);
-  assert.match(endpoint, /AND t.status = 'ACTIVE'/);
+  assert.match(endpoint, /AND \(t.status = 'ACTIVE' OR t.code = 'INVESTMENT_CAPITAL'\)/);
   const component = readFileSync(new URL("../client/src/components/bia-demandas.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(component, /response\.ok \? response\.json\(\) : \[\]/);
   assert.match(component, /cellsQuery.isError/);
+});
+
+test("consulta real de Células inclui Investimento e Capital ativo, sem liberar outra comunidade ou tipos retirados", async () => {
+  const pg = new PGlite();
+  const db = drizzle(pg);
+  try {
+    await pg.exec(`CREATE TABLE strategic_cell_types(id text,code text,status text,public_name text,short_description text,display_order int);
+      CREATE TABLE strategic_cells(id text,community_id text,name text,description text,status text,strategic_cell_type_id text);
+      CREATE TABLE strategic_cell_markets(strategic_cell_type_id text,code text,status text,public_name text,display_order int);`);
+    for (const [order, type] of [...STRATEGIC_CELL_TYPES, {code:"INVESTMENT_CAPITAL",publicName:"Investimento e Capital"}].entries()) {
+      await db.execute(sql`INSERT INTO strategic_cell_types VALUES (${type.code},${type.code},${type.code === "INVESTMENT_CAPITAL" ? "ARCHIVED" : "ACTIVE"},${type.publicName},'',${order})`);
+      await db.execute(sql`INSERT INTO strategic_cells VALUES (${type.code},'5',${type.publicName},'','ACTIVE',${type.code})`);
+    }
+    await pg.exec(`INSERT INTO strategic_cell_types VALUES('retired','OTHER_RETIRED','ARCHIVED','Retirada','',7);
+      INSERT INTO strategic_cells VALUES('retired','5','Retirada','','ACTIVE','retired'),('foreign','99','Outra comunidade','','ACTIVE','INVESTMENT_CAPITAL'),('inactive','5','Inativa','','SUSPENDED','INVESTMENT_CAPITAL');`);
+    const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
+    const route = source.slice(source.indexOf('app.get("/api/bias/:id/celulas-disponiveis"'), source.indexOf('app.get("/api/comunidades/:id/celulas"'));
+    let handler: any, authorized = true, communityReads = 0;
+    const scope = {
+      app: { get: (_: string, fn: any) => { handler = fn; } }, db, sql,
+      requireBiaModuleAccess: async (_req: any, res: any) => {
+        if (!authorized) { res.status(403).json({error:"Sem acesso"}); return null; }
+        return {bia:{id:"canonical-bia"}};
+      },
+      ensureStrategicCellTables: async () => {}, ensureCommunityStrategicCells: async () => {},
+      communityIdsForBia: async (id: string) => { assert.equal(id,"canonical-bia"); communityReads++; return ["5"]; },
+      sqlTextArray: (ids: string[]) => sql`ARRAY[${sql.join(ids.map(id=>sql`${id}`),sql`, `)}]::text[]`,
+    };
+    new Function(...Object.keys(scope), transformSync(route,{loader:"ts"}).code)(...Object.values(scope));
+    const call = async () => {
+      let status = 200, body: any;
+      const res = {status:(value:number)=>{status=value;return res;},json:(value:any)=>{body=value;return res;}};
+      await handler({params:{id:"PUBLICCODE"}},res); return {status,body};
+    };
+    const result = await call();
+    assert.equal(result.status,200); assert.equal(result.body.length,6);
+    assert.ok(result.body.some((cell:any)=>cell.type_code === "INVESTMENT_CAPITAL"));
+    assert.ok(result.body.every((cell:any)=>cell.community_id === "5" && cell.id !== "retired" && cell.id !== "inactive"));
+    authorized = false; assert.equal((await call()).status,403); assert.equal(communityReads,1);
+  } finally { await pg.close(); }
 });

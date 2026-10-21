@@ -38,35 +38,6 @@ export function AsaasRefreshFeedback({ feedback }: { feedback: AccountRefreshFee
   </div>;
 }
 
-export function AsaasAccountNextSteps({ data }: { data: AsaasBiaStatus }) {
-  if (!data.account) return null;
-  const approved = data.account.state === "approved";
-  const needsReview = data.account.state === "blocked" || data.account.state === "rejected";
-  const pending = data.integrationPending || [];
-  return <section className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm text-foreground" aria-label="Próximos passos da conta" data-testid="asaas-account-next-steps">
-    <h3 className="font-semibold">Próximos passos</h3>
-    <p><strong>Cadastro concluído:</strong> a conta da empresa já está vinculada a esta BIA. Não é necessário criar outra conta.</p>
-    {approved ? <p><strong>Aprovação no Asaas concluída.</strong> A habilitação dos recursos na plataforma é uma etapa separada.</p>
-      : needsReview ? <p><strong>Cadastro requer regularização.</strong> Solicite ao responsável pela integração que verifique as pendências com o Asaas antes de tentar operar. Atualizar a situação não envia documentos nem regulariza o cadastro.</p>
-        : <p><strong>Aprovação ainda pendente.</strong> Use Atualizar situação para consultar o resultado da análise. Se a situação não avançar, solicite ao responsável pela integração a verificação das pendências cadastrais no Asaas.</p>}
-    {(pending.length > 0 || !data.chargesEnabled || !data.transfersEnabled || data.integrationState === "disabled" || data.integrationState === "configuration_pending") && <div className="space-y-2">
-      <p className="font-medium">Configuração da plataforma</p>
-      {pending.length > 0 ? <ul className="list-disc space-y-1 pl-5 break-words">{pending.map(item => <li key={item}>{item}</li>)}</ul> : <ul className="list-disc space-y-1 pl-5">
-        {!data.chargesEnabled && <li>Cobranças não habilitadas neste ambiente.</li>}
-        {!data.transfersEnabled && <li>Transferências não habilitadas neste ambiente.</li>}
-        {(data.integrationState === "disabled" || data.integrationState === "configuration_pending") && <li>A integração ainda precisa de configuração neste servidor.</li>}
-      </ul>}
-      <p className="text-muted-foreground">Solicite ao administrador da plataforma a revisão dessas pendências. Atualizar situação consulta a conta; não habilita recursos nem muda a configuração.</p>
-    </div>}
-    <ol className="list-decimal space-y-2 pl-5">
-      <li><strong>Aportes:</strong> prepare os cronogramas em Núcleo de Capital → Financeiro → Aportes e parcelas. A confirmação exige uma fase financeira permitida da BIA; na estruturação ou captação, salve apenas o planejamento. A aprovação da conta, sozinha, não libera a confirmação.</li>
-      <li><strong>Cobranças:</strong> {approved && data.chargesEnabled ? "o recurso está habilitado neste ambiente. A emissão depende das permissões financeiras, da fase da BIA e da confirmação dos cronogramas elegíveis." : "aguarde a aprovação da conta e a habilitação do recurso na plataforma antes de emitir."}</li>
-      <li><strong>Transferências:</strong> {approved && data.transfersEnabled ? "o botão Transferir fica disponível neste Banco para quem possui edição. Cada envio exige saldo, destino e confirmação explícita." : "o botão Transferir só ficará disponível após aprovação e habilitação do recurso, para quem possui edição do Banco."}</li>
-    </ol>
-    <p className="text-muted-foreground">{data.environment === "sandbox" ? "Este vínculo é exclusivo do Sandbox. Use este ambiente para simulações; a conta de Produção e sua habilitação são separadas." : "Este ambiente movimenta dinheiro real. Confira a conta, o destino e o valor antes de confirmar qualquer operação."}</p>
-  </section>;
-}
-
 export function AsaasAdminSummary({ data }: { data: AsaasStatus }) {
   return <div className="space-y-5" data-testid="asaas-admin-status">
     <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Asaas</CardTitle><Badge variant="outline">{data.environment === "sandbox" ? "Sandbox · testes" : "Produção"}</Badge></div></CardHeader><CardContent className="space-y-4">
@@ -100,7 +71,6 @@ export function AsaasBiaSummary({ data, actions, children }: { data: AsaasBiaSta
     {data.account ? <div className="rounded-lg border p-3"><p className="font-medium break-words">{data.account.label}</p><p className="text-sm text-muted-foreground">{owners[data.account.ownership]} · {accountStates[data.account.state]}</p><p className="mt-2 text-sm">{data.account.state === "approved" ? `${data.chargesEnabled ? "Cobranças habilitadas" : "Cobranças não habilitadas"} · ${data.transfersEnabled ? "Transferências habilitadas" : "Transferências não habilitadas"}.` : "As operações serão liberadas quando a conta estiver aprovada."}</p></div> : data.storageReady ? <p className="text-sm text-muted-foreground">Nenhuma conta Asaas vinculada a esta BIA. O vínculo será feito com a conta da SPE ou holding responsável.</p> : <p className="text-sm text-muted-foreground">O vínculo com a conta da empresa poderá ser consultado após a preparação do armazenamento.</p>}
     {!data.storageReady && <p className="text-sm text-muted-foreground">A estrutura dos vínculos de conta ainda está em preparação.</p>}
     {actions}
-    <AsaasAccountNextSteps data={data} />
     {children}
     <p className="text-sm text-muted-foreground">O Sandbox não movimenta dinheiro real. Em Produção, as operações usam a conta aprovada e as permissões financeiras da BIA.</p>
   </CardContent></Card>;
@@ -173,7 +143,7 @@ function SubaccountDialog({ biaId, statusUrl, environment }: { biaId: string; st
     onSuccess: async () => {
       setOpen(false); setForm(initialSubaccount);
       await queryClient.invalidateQueries({ queryKey: [statusUrl] });
-      toast({ title: "Conta Asaas vinculada", description: "Confira a aprovação e o bloco Próximos passos neste Banco. Cobranças e transferências dependem de habilitação separada." });
+      toast({ title: "Conta Asaas vinculada" });
     },
     onError: (error: Error) => toast({ title: "Não foi possível criar a subconta", description: error.message, variant: "destructive" }),
   });

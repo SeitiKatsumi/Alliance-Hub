@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
 export type BeneficiaryOption = {id: string; nome?: string | null; Nome_de_usuario?: string | null};
@@ -25,16 +26,22 @@ export function InitialBeneficiaryField({value, options, locked, disabled, allow
     } finally { setPending(false); }
   };
   return <div className="min-w-0 space-y-2">
-    <label className="block text-sm">Beneficiário<select className="block w-full min-w-0 rounded border p-2 bg-background" disabled={disabled || locked || pending} value={external ? "__externo__" : value} onChange={e => {
-      setError(""); setExternal(e.target.value === "__externo__");
-      onDraftChange(e.target.value === "__externo__");
-      if (e.target.value !== "__externo__") onChange(e.target.value);
+    <label className="block text-sm">Beneficiário<select className="block w-full min-w-0 rounded border p-2 bg-background" disabled={disabled || locked || pending || external} value={value} onChange={e => {
+      setError(""); onChange(e.target.value);
     }}>
       <option value="">Selecione</option>
       {value && !options.some(m => m.id === value) && <option value={value}>Beneficiário selecionado ({value})</option>}
       {options.map(m => <option key={m.id} value={m.id}>{m.nome || m.Nome_de_usuario || m.id}</option>)}
-      {!locked && allowExternal && <option value="__externo__">Não está na plataforma — informar nome</option>}
     </select></label>
+    {!locked && allowExternal && <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+      <Checkbox checked={external} disabled={disabled || pending} onCheckedChange={checked => {
+        const next = checked === true;
+        setError(""); setExternal(next);
+        if (!next) setName("");
+        onDraftChange(next);
+      }}/>
+      <span>Não está na plataforma</span>
+    </label>}
     {external && !locked && allowExternal && <div className="space-y-2 rounded border p-3">
       <label className="block text-sm">Nome do beneficiário externo<Input value={name} maxLength={200} disabled={disabled || pending} placeholder="Nome da pessoa ou razão social" onChange={e => setName(e.target.value)} /></label>
       <p className="text-xs text-muted-foreground">Cadastra somente um favorecido, sem login, convite ou participação na BIA.</p>

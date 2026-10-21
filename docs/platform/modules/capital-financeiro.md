@@ -119,7 +119,7 @@ A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Ban
 - Intents preservam IDs canonicos de categorias e CPPs. Na criacao/replay no Directus, a borda converte esses IDs para objetos de juncao (`categorias_id` e `tipos_cpp_id`), sem substituir IDs de parcelas ou movimentos ja persistidos.
 - Direitos geram par compensatorio entrada/saida, integralizado ou revertido conjuntamente. Propriedade e direitos sao patrimoniais sem caixa: excluidos de saldos, entradas/saidas efetivas, lembretes de pagamento e cobrancas bancarias. Metadata e obtida pelo ID da parcela, nunca pela descricao.
 - Parcelas pagas, com evidencia ou cobranca emitida sao protegidas. Correcao incompatível e recusada; nenhum estorno bancario automatico. Historico captura identidade, motivo, horario e campos financeiros, sem copiar documentos pessoais.
-- Interface: Estruturacao, MAP Zero, Aportes e parcelas, MAP Atual e Historico; layout em cartoes no celular. Valores/tipos capturados tambem alimentam MOU e PDFs; documentos anteriores permanecem intactos.
+- Interface: Estruturacao, MAP Zero, Aportes e parcelas, MAP Atual e Historico; layout em cartoes no celular. No pagamento do ativo, o checkbox `Não está na plataforma`, exibido abaixo do seletor de beneficiário, abre o cadastro nominal do favorecido externo; capital e direitos continuam vinculados ao participante do MAP. Valores/tipos capturados tambem alimentam MOU e PDFs; documentos anteriores permanecem intactos.
 
 - Lancamento: nao definido, pendente, agendado, pago ou vencido, com historico.
 - Documento bancario: ausente, enviado, em analise, aprovado, substituido/rejeitado.

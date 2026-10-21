@@ -1,3 +1,4 @@
+import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 ﻿import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
@@ -332,7 +333,7 @@ function canonicalChartLabel(value?: string | null): { key: string; label: strin
   return { key: key || "nao definido", label: aliases[key] || label };
 }
 
-function groupCurrencyBy(items: DashboardBia[], key: keyof DashboardBia) {
+function groupCurrencyBy<T extends DashboardBia>(items: T[], key: keyof T) {
   const grouped = new Map<string, { name: string; value: number }>();
   items.forEach((item) => {
     const { key: groupKey, label } = canonicalChartLabel(item[key] as string | null);
@@ -424,7 +425,7 @@ function DashboardBiaCard({ bia }: { bia: DashboardBia }) {
               {(bia.codigo_publico || bia.id) && <span className="font-mono text-[11px]">BIA-{getBiaPublicRef(bia).toUpperCase()}</span>}
             </div>
             <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-              {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
+              {bia.observacoes || biaBusinessTypeLabel(bia) || "Aliança patrimonial integrada BUILT."}
             </p>
           </div>
 
@@ -922,7 +923,7 @@ export default function PainelPage() {
     return bias.filter((b) => {
       const haystack = normalizeText([
         b.nome_bia,
-        b.objetivo_alianca,
+        biaBusinessTypeLabel(b),
         b.localizacao,
         b.papel_usuario,
         b.situacao,
@@ -953,7 +954,7 @@ export default function PainelPage() {
     [bias],
   );
   const alocacaoPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
-  const alocacaoPorObjetivo = useMemo(() => groupCurrencyBy(bias, "objetivo_alianca"), [bias]);
+  const alocacaoPorTipoNegocio = useMemo(() => groupCurrencyBy(bias.map(b=>({...b,tipo_negocio:biaBusinessTypeLabel(b)})), "tipo_negocio"), [bias]);
   const convergenciaMetricsData = useMemo(() => [
     { name: "Oportunidades", value: dashboardStats.convergencias_total },
     { name: "Interesses Manifestados", value: dashboardStats.interesses_manifestados },
@@ -1161,7 +1162,7 @@ export default function PainelPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {[
                 {
-                  title: "BUILT Vitrine",
+                  title: "Vitrine",
                   subtitle: "Conecte-se. Apresente-se.",
                   action: "Entrar na Vitrine",
                   path: "/vitrine",
@@ -1176,9 +1177,9 @@ export default function PainelPage() {
                   image: environmentImages[0],
                 },
                 {
-                  title: "BUILT Alliances",
+                  title: "Alianças",
                   subtitle: "Estruture. Execute.",
-                  action: "Entrar em Alliances",
+                  action: "Entrar em Alianças",
                   path: "/area-aliancas?tab=oportunidades&tipo=demandas",
                   target: "alliances" as const,
                   icon: Users,
@@ -1634,7 +1635,7 @@ export default function PainelPage() {
                 <PieDistributionCard title="Alocação por destinação" data={alocacaoPorDestinacao} />
               </div>
               <div className="xl:col-span-2">
-                <PieDistributionCard title="Alocação por objetivo de aliança" data={alocacaoPorObjetivo} />
+                <PieDistributionCard title="Alocação por tipo de negócio" data={alocacaoPorTipoNegocio} />
               </div>
             </div>
           )}

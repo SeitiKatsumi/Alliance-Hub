@@ -1,9 +1,10 @@
 import { Fragment } from "react";
 import type { InitialMapCalculation } from "@shared/member-portfolio";
 import { formatBiaNumber, formatBiaPercent } from "@shared/bia-numbers";
+import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 
 export function BiaReviewSummary({form,map,consultation=false}:{
-  form:{nome_bia:string;destinacao:string;objetivo_alianca:string;moeda:string;localizacao:string;observacoes:string};
+  form:{nome_bia:string;destinacao:string;objetivo_alianca?:string;business_type_code?:string;moeda:string;localizacao:string;observacoes:string};
   map:InitialMapCalculation;
   consultation?:boolean;
 }) {
@@ -11,7 +12,7 @@ export function BiaReviewSummary({form,map,consultation=false}:{
   const plan=map.estrutura?.integralizacao;
   const periodicity=plan?.forma==="a_vista" ? "Não se aplica (à vista)" : ({0:"Personalizada",1:"Mensal",2:"Bimestral",3:"Trimestral",6:"Semestral",12:"Anual"} as Record<number,string>)[plan?.meses ?? -1];
   const rows=[
-    ["Destinação",form.destinacao],["Objetivo",form.objetivo_alianca],["Moeda",form.moeda],
+    ["Destinação",form.destinacao],["Tipo de negócio",biaBusinessTypeLabel(form)],["Moeda",form.moeda],
     ["Localização",form.localizacao],["Descrição",form.observacoes],
     ["Valor de Origem",money(map.valorOrigem)],
     ["Direitos econômicos / DM",formatBiaPercent(map.divisorMultiplicador)],

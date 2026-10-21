@@ -1,3 +1,4 @@
+import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
@@ -269,7 +270,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
               )}
             </div>
             {opa.objetivo_alianca && (
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-blue-100/55">{opa.objetivo_alianca}</p>
+              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-blue-100/55">{biaBusinessTypeLabel(opa)}</p>
             )}
           </div>
         </div>

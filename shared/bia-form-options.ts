@@ -87,6 +87,7 @@ export const CURRENCIES: { code: string; name: string }[] = [
 ];
 
 export const BIA_DESTINACOES = ["Residencial", "Comercial", "Industrial", "Misto", "Hospedagem", "Rural"];
+// Read compatibility only; new forms select canonical business theses.
 export const BIA_OBJETIVOS = ["Renda", "Venda", "Operação"];
 export const BIA_INFO_COMERCIAL_FIELDS = [
   "razao_social",

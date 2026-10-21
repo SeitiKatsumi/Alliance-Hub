@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { BIA_DESTINACOES, BIA_OBJETIVOS, CURRENCIES } from "./bia-form-options";
 import { validateBiaDraft } from "../server/bia-workflow";
 
-test("criação e edição preservam opções anteriores de destinação, objetivo e moeda",()=>{
+test("criação e edição preservam destinação/moeda e substituem objetivo por tipo de negócio",()=>{
   assert.deepEqual(BIA_DESTINACOES,["Residencial","Comercial","Industrial","Misto","Hospedagem","Rural"]);
   assert.deepEqual(BIA_OBJETIVOS,["Renda","Venda","Operação"]);
   for(const currency of CURRENCIES) {
@@ -16,7 +16,8 @@ test("criação e edição preservam opções anteriores de destinação, objeti
   for(const file of ["bias","bia-nova"]) {
     const source=readFileSync(new URL("../client/src/pages/"+file+".tsx",import.meta.url),"utf8");
     assert.match(source,/BIA_DESTINACOES\.map/);
-    assert.match(source,/BIA_OBJETIVOS\.map/);
+    assert.doesNotMatch(source,/BIA_OBJETIVOS\.map|Objetivo da Aliança|toggle-objetivo/);
+    assert.match(source,/<BiaBusinessType/);
     assert.match(source,/<CurrencyCombobox/);
     assert.match(source,/<LocationPickerModal/);
   }

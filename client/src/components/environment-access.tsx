@@ -42,7 +42,7 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
     return {
       canAccess,
       target,
-      title: "Área de Vitrine",
+      title: "Vitrine",
       description: "Todos os usuários podem consultar profissionais, fornecedores, demandas e OBAs. Somente perfis profissionais podem optar por aparecer na Vitrine.",
       actionLabel: "Abrir Vitrine",
     };
@@ -61,7 +61,7 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
   return {
     canAccess,
     target,
-    title: "Área de Alianças",
+    title: "Alianças",
     description: "Este ambiente é exclusivo para quem desenvolve ou participa de uma aliança. Consulte seus convites e chamadas na Agenda.",
     actionLabel: "Ver Agenda",
   };

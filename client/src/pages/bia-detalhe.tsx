@@ -1,3 +1,4 @@
+import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 import { BiaGovernancePanel } from "@/components/bia-setup-panel";
 import { BiaDataDialog } from "@/components/bia-data-dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -462,7 +463,7 @@ function OpaCard({ opa, currency = "BRL" }: { opa: Oportunidade; currency?: stri
       </div>
 
       {opa.objetivo_alianca && (
-        <p className="text-xs text-muted-foreground line-clamp-2">{opa.objetivo_alianca}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{biaBusinessTypeLabel(opa)}</p>
       )}
 
       <div className="flex flex-wrap gap-1.5">
@@ -956,7 +957,7 @@ export default function BiaDetalhePage() {
           </div>
 
           {bia.objetivo_alianca && (
-            <p className="text-sm text-cyan-300/65 mt-3 leading-relaxed max-w-3xl">{bia.objetivo_alianca}</p>
+            <p className="text-sm text-cyan-300/65 mt-3 leading-relaxed max-w-3xl">{biaBusinessTypeLabel(bia)}</p>
           )}
         </div>
       </div>

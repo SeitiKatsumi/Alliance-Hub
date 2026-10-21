@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { formatBrazilianCep, type ViaCepAddress } from "@/lib/property-address";
 import { ArrowRightLeft, Loader2, RefreshCw } from "lucide-react";
-import { asaasStatusSchema, asaasBiaStatusSchema, type AsaasStatus, type AsaasBiaStatus, type AsaasSubaccountCreate, type AsaasTransferInput } from "@shared/asaas";
+import { asaasStatusSchema, asaasBiaStatusSchema, asaasAccountSummarySchema, type AsaasStatus, type AsaasBiaStatus, type AsaasSubaccountCreate, type AsaasTransferInput } from "@shared/asaas";
 
 const states = {
   disabled: "Integração ainda não habilitada", configuration_pending: "Configuração pendente",
@@ -17,6 +17,55 @@ const states = {
 };
 const accountStates = { draft: "Em preparação", pending: "Cadastro pendente", in_review: "Em análise", approved: "Aprovada", rejected: "Recusada", blocked: "Bloqueada" };
 const owners = { undetermined: "Titularidade a definir", company: "Empresa responsável", bia: "Titular da BIA", platform: "Plataforma BUILT" };
+
+type AccountState = NonNullable<AsaasBiaStatus["account"]>["state"];
+type AccountRefreshFeedback = { kind: "success" | "error"; message: string; checkedAt?: string };
+
+export function asaasAccountRefreshMessage(previous: AccountState | undefined, current: AccountState) {
+  return previous === current
+    ? `Consulta concluída. A situação da conta continua: ${accountStates[current]}.`
+    : previous
+      ? `Situação da conta alterada de ${accountStates[previous]} para ${accountStates[current]}.`
+      : `Situação da conta consultada: ${accountStates[current]}.`;
+}
+
+export function AsaasRefreshFeedback({ feedback }: { feedback: AccountRefreshFeedback | null }) {
+  if (!feedback) return null;
+  return <div role={feedback.kind === "error" ? "alert" : "status"} aria-atomic="true"
+    data-testid="asaas-refresh-feedback" className="rounded-lg border bg-muted/40 p-3 text-sm text-foreground">
+    <p>{feedback.message}</p>
+    {feedback.checkedAt && <p className="mt-1 text-xs text-muted-foreground">Última consulta ao Asaas: <time dateTime={feedback.checkedAt}>{new Date(feedback.checkedAt).toLocaleString("pt-BR")}</time></p>}
+  </div>;
+}
+
+export function AsaasAccountNextSteps({ data }: { data: AsaasBiaStatus }) {
+  if (!data.account) return null;
+  const approved = data.account.state === "approved";
+  const needsReview = data.account.state === "blocked" || data.account.state === "rejected";
+  const pending = data.integrationPending || [];
+  return <section className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm text-foreground" aria-label="Próximos passos da conta" data-testid="asaas-account-next-steps">
+    <h3 className="font-semibold">Próximos passos</h3>
+    <p><strong>Cadastro concluído:</strong> a conta da empresa já está vinculada a esta BIA. Não é necessário criar outra conta.</p>
+    {approved ? <p><strong>Aprovação no Asaas concluída.</strong> A habilitação dos recursos na plataforma é uma etapa separada.</p>
+      : needsReview ? <p><strong>Cadastro requer regularização.</strong> Solicite ao responsável pela integração que verifique as pendências com o Asaas antes de tentar operar. Atualizar a situação não envia documentos nem regulariza o cadastro.</p>
+        : <p><strong>Aprovação ainda pendente.</strong> Use Atualizar situação para consultar o resultado da análise. Se a situação não avançar, solicite ao responsável pela integração a verificação das pendências cadastrais no Asaas.</p>}
+    {(pending.length > 0 || !data.chargesEnabled || !data.transfersEnabled || data.integrationState === "disabled" || data.integrationState === "configuration_pending") && <div className="space-y-2">
+      <p className="font-medium">Configuração da plataforma</p>
+      {pending.length > 0 ? <ul className="list-disc space-y-1 pl-5 break-words">{pending.map(item => <li key={item}>{item}</li>)}</ul> : <ul className="list-disc space-y-1 pl-5">
+        {!data.chargesEnabled && <li>Cobranças não habilitadas neste ambiente.</li>}
+        {!data.transfersEnabled && <li>Transferências não habilitadas neste ambiente.</li>}
+        {(data.integrationState === "disabled" || data.integrationState === "configuration_pending") && <li>A integração ainda precisa de configuração neste servidor.</li>}
+      </ul>}
+      <p className="text-muted-foreground">Solicite ao administrador da plataforma a revisão dessas pendências. Atualizar situação consulta a conta; não habilita recursos nem muda a configuração.</p>
+    </div>}
+    <ol className="list-decimal space-y-2 pl-5">
+      <li><strong>Aportes:</strong> prepare os cronogramas em Núcleo de Capital → Financeiro → Aportes e parcelas. A confirmação exige uma fase financeira permitida da BIA; na estruturação ou captação, salve apenas o planejamento. A aprovação da conta, sozinha, não libera a confirmação.</li>
+      <li><strong>Cobranças:</strong> {approved && data.chargesEnabled ? "o recurso está habilitado neste ambiente. A emissão depende das permissões financeiras, da fase da BIA e da confirmação dos cronogramas elegíveis." : "aguarde a aprovação da conta e a habilitação do recurso na plataforma antes de emitir."}</li>
+      <li><strong>Transferências:</strong> {approved && data.transfersEnabled ? "o botão Transferir fica disponível neste Banco para quem possui edição. Cada envio exige saldo, destino e confirmação explícita." : "o botão Transferir só ficará disponível após aprovação e habilitação do recurso, para quem possui edição do Banco."}</li>
+    </ol>
+    <p className="text-muted-foreground">{data.environment === "sandbox" ? "Este vínculo é exclusivo do Sandbox. Use este ambiente para simulações; a conta de Produção e sua habilitação são separadas." : "Este ambiente movimenta dinheiro real. Confira a conta, o destino e o valor antes de confirmar qualquer operação."}</p>
+  </section>;
+}
 
 export function AsaasAdminSummary({ data }: { data: AsaasStatus }) {
   return <div className="space-y-5" data-testid="asaas-admin-status">
@@ -47,10 +96,11 @@ export function AdminAsaas() {
 
 export function AsaasBiaSummary({ data, actions, children }: { data: AsaasBiaStatus; actions?: React.ReactNode; children?: React.ReactNode }) {
   return <Card data-testid="asaas-bia-status"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Conta da empresa · Asaas</CardTitle><Badge variant="outline">{data.environment === "sandbox" ? "Ambiente de testes" : "Produção"}</Badge></div></CardHeader><CardContent className="space-y-3">
-    <p>{states[data.integrationState]}</p>
-    {data.account ? <div className="rounded-lg border p-3"><p className="font-medium break-words">{data.account.label}</p><p className="text-sm text-muted-foreground">{owners[data.account.ownership]} · {accountStates[data.account.state]}</p><p className="mt-2 text-sm">{data.account.state === "approved" ? `${data.chargesEnabled ? "Cobranças habilitadas" : "Cobranças pendentes"} · ${data.transfersEnabled ? "Transferências habilitadas" : "Transferências pendentes"}.` : "As operações serão liberadas quando a conta estiver aprovada."}</p></div> : data.storageReady ? <p className="text-sm text-muted-foreground">Nenhuma conta Asaas vinculada a esta BIA. O vínculo será feito com a conta da SPE ou holding responsável.</p> : <p className="text-sm text-muted-foreground">O vínculo com a conta da empresa poderá ser consultado após a preparação do armazenamento.</p>}
+    <p><span className="text-muted-foreground">Integração da plataforma: </span>{states[data.integrationState]}</p>
+    {data.account ? <div className="rounded-lg border p-3"><p className="font-medium break-words">{data.account.label}</p><p className="text-sm text-muted-foreground">{owners[data.account.ownership]} · {accountStates[data.account.state]}</p><p className="mt-2 text-sm">{data.account.state === "approved" ? `${data.chargesEnabled ? "Cobranças habilitadas" : "Cobranças não habilitadas"} · ${data.transfersEnabled ? "Transferências habilitadas" : "Transferências não habilitadas"}.` : "As operações serão liberadas quando a conta estiver aprovada."}</p></div> : data.storageReady ? <p className="text-sm text-muted-foreground">Nenhuma conta Asaas vinculada a esta BIA. O vínculo será feito com a conta da SPE ou holding responsável.</p> : <p className="text-sm text-muted-foreground">O vínculo com a conta da empresa poderá ser consultado após a preparação do armazenamento.</p>}
     {!data.storageReady && <p className="text-sm text-muted-foreground">A estrutura dos vínculos de conta ainda está em preparação.</p>}
     {actions}
+    <AsaasAccountNextSteps data={data} />
     {children}
     <p className="text-sm text-muted-foreground">O Sandbox não movimenta dinheiro real. Em Produção, as operações usam a conta aprovada e as permissões financeiras da BIA.</p>
   </CardContent></Card>;
@@ -72,9 +122,9 @@ export function applyViaCepToAsaasForm(current: AsaasSubaccountCreate, address: 
   };
 }
 
-async function writeJson(url: string, body?: unknown) {
+async function writeJson(url: string, body?: unknown, signal?: AbortSignal) {
   const response = await fetch(url, {
-    method: "POST", credentials: "include", headers: body === undefined ? {} : { "content-type": "application/json" },
+    method: "POST", credentials: "include", signal, headers: body === undefined ? {} : { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
@@ -123,7 +173,7 @@ function SubaccountDialog({ biaId, statusUrl, environment }: { biaId: string; st
     onSuccess: async () => {
       setOpen(false); setForm(initialSubaccount);
       await queryClient.invalidateQueries({ queryKey: [statusUrl] });
-      toast({ title: "Subconta Asaas criada", description: "A conta foi vinculada à BIA. A situação cadastral pode ser atualizada nesta tela." });
+      toast({ title: "Conta Asaas vinculada", description: "Confira a aprovação e o bloco Próximos passos neste Banco. Cobranças e transferências dependem de habilitação separada." });
     },
     onError: (error: Error) => toast({ title: "Não foi possível criar a subconta", description: error.message, variant: "destructive" }),
   });
@@ -211,20 +261,46 @@ function AccountOperations({ biaId, canEdit, environment, chargesEnabled, transf
 
 export function BiaAsaasStatus({ biaId, canEdit = false }: { biaId: string; canEdit?: boolean }) {
   const { toast } = useToast();
+  const [feedback, setFeedback] = useState<AccountRefreshFeedback | null>(null);
   const url = `/api/bias/${encodeURIComponent(biaId)}/banco/asaas/status`;
   const query = useQuery({ queryKey: [url], queryFn: async () => asaasBiaStatusSchema.parse(await readStatus(url)), retry: false, staleTime: 30_000, refetchOnWindowFocus: true });
   const refresh = useMutation({
-    mutationFn: () => writeJson(`/api/bias/${encodeURIComponent(biaId)}/banco/asaas/account/refresh`),
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: [url] }); toast({ title: "Situação atualizada" }); },
-    onError: (error: Error) => toast({ title: "Não foi possível atualizar", description: error.message, variant: "destructive" }),
+    retry: false,
+    mutationFn: async () => {
+      const result = await writeJson(`/api/bias/${encodeURIComponent(biaId)}/banco/asaas/account/refresh`, undefined, AbortSignal.timeout(25_000));
+      return asaasAccountSummarySchema.parse(result.account);
+    },
+    onMutate: () => { setFeedback(null); return { previousState: query.data?.account?.state }; },
+    onSuccess: async (account, _variables, context) => {
+      const checkedAt = new Date().toISOString();
+      queryClient.setQueryData<AsaasBiaStatus>([url], current => current ? { ...current, account } : current);
+      const result = await query.refetch();
+      const message = asaasAccountRefreshMessage(context?.previousState, account.state)
+        + (result.isError ? " A conta foi consultada, mas não foi possível revalidar a configuração da plataforma. Tente novamente." : "");
+      setFeedback({ kind: "success", message, checkedAt });
+      await queryClient.invalidateQueries({ queryKey: [`/api/bias/${encodeURIComponent(biaId)}/banco/asaas/finance`] });
+      toast({ title: "Consulta ao Asaas concluída", description: message });
+    },
+    onError: (error: Error) => {
+      const message = error.name === "TimeoutError" || error.name === "AbortError"
+        ? "A consulta demorou além do esperado. Não foi possível confirmar uma nova situação; tente novamente. O vínculo da conta foi preservado."
+        : "Não foi possível atualizar a situação da conta. Tente novamente; se persistir, solicite a revisão da integração ao administrador.";
+      setFeedback({ kind: "error", message });
+      toast({ title: "Não foi possível consultar o Asaas", description: message, variant: "destructive" });
+    },
   });
   if (query.isPending) return <p>Consultando a integração Asaas…</p>;
-  if (query.isError) return <div role="alert" className="rounded-lg border p-4"><p>Não foi possível consultar o vínculo Asaas desta BIA.</p><Button className="mt-3" variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>;
+  if (!query.data) return <div role="alert" className="rounded-lg border p-4"><p>Não foi possível consultar o vínculo Asaas desta BIA.</p><Button className="mt-3" variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>;
   const actions = canEdit ? query.data.account
-    ? <Button type="button" variant="outline" disabled={refresh.isPending} onClick={() => refresh.mutate()}>{refresh.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Atualizar situação</Button>
+    ? <Button type="button" variant="outline" aria-busy={refresh.isPending} disabled={refresh.isPending} onClick={() => refresh.mutate()}>{refresh.isPending ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />}{refresh.isPending ? "Consultando Asaas…" : "Atualizar situação"}</Button>
     : query.data.accountCreationAvailable
       ? <SubaccountDialog biaId={biaId} statusUrl={url} environment={query.data.environment} />
       : <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-100"><p className="font-medium">A criação ainda não está disponível.</p><ul className="mt-1 list-disc pl-5">{query.data.accountCreationBlockers.map(item => <li key={item}>{item}</li>)}</ul></div>
     : null;
-  return <AsaasBiaSummary data={query.data} actions={actions}>{query.data.account?.state === "approved" && query.data.operationsEnabled ? <AccountOperations biaId={biaId} canEdit={canEdit} environment={query.data.environment} chargesEnabled={query.data.chargesEnabled} transfersEnabled={query.data.transfersEnabled} /> : null}</AsaasBiaSummary>;
+  return <AsaasBiaSummary data={query.data} actions={<div className="space-y-3">{actions}
+    <p className="text-xs text-muted-foreground">Atualizar situação consulta a aprovação cadastral no Asaas. Não cria cobranças, transfere dinheiro ou habilita recursos.</p>
+    {refresh.isPending && <p role="status" className="text-sm text-muted-foreground">Consultando a situação da conta no Asaas…</p>}
+    <AsaasRefreshFeedback feedback={feedback} />
+    {query.isError && <p role="alert" className="text-sm text-muted-foreground">A configuração não pôde ser revalidada. Os dados anteriores foram mantidos; tente consultar novamente.</p>}
+  </div>}>{query.data.account?.state === "approved" && query.data.operationsEnabled && !query.isError ? <AccountOperations biaId={biaId} canEdit={canEdit} environment={query.data.environment} chargesEnabled={query.data.chargesEnabled} transfersEnabled={query.data.transfersEnabled} /> : null}</AsaasBiaSummary>;
 }

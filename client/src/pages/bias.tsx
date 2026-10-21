@@ -7,7 +7,9 @@ import { hasBiaAccess, EMPTY_BIA_ACCESS, type BiaAccessMatrix } from "@shared/bi
 import { SetupEditor, BiaBudgetReadPanel } from "@/components/bia-setup-panel";
 import { BiaMapHistory } from "@/components/bia-map-history";
 import { useUnsavedChanges, confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
-import { CURRENCIES, BIA_DESTINACOES, BIA_OBJETIVOS } from "@shared/bia-form-options";
+import { CURRENCIES, BIA_DESTINACOES } from "@shared/bia-form-options";
+import { biaBusinessTypeCode, biaBusinessTypeLabel } from "@shared/bia-business-type";
+import { BiaBusinessType } from "@/components/bia-business-type";
 import { BiaInformationFields, EMPTY_BIA_INFO as EMPTY_INFO } from "@/components/bia-information-fields";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -414,6 +416,7 @@ const EMPTY_FORM = {
   latitude: "",
   longitude: "",
   objetivo_alianca: "",
+  business_type_code: "",
   observacoes: "",
   autor_bia: "",
   aliado_built: "",
@@ -504,6 +507,7 @@ function biaToForm(b: BiasProjeto): FormState {
     latitude: b.latitude != null ?String(b.latitude) : "",
     longitude: b.longitude != null ?String(b.longitude) : "",
     objetivo_alianca: b.objetivo_alianca || "",
+    business_type_code: biaBusinessTypeCode(b),
     observacoes: b.observacoes || "",
     autor_bia: b.autor_bia || "",
     aliado_built: b.aliado_built || "",
@@ -1471,7 +1475,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
               {/* Left: objetivo + OBAs */}
               <div className="flex-1 min-w-0 space-y-2">
                 {selectedBia.objetivo_alianca && (
-                  <p className="text-[10px] text-brand-gold/45 leading-relaxed line-clamp-2">{selectedBia.objetivo_alianca}</p>
+                  <p className="text-[10px] text-brand-gold/45 leading-relaxed line-clamp-2">{biaBusinessTypeLabel(selectedBia)}</p>
                 )}
                 {(() => {
                   const biasOpas = opas.filter(o => o.bia_id === selectedBia.id);
@@ -1644,7 +1648,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
               {(bia.codigo_publico || bia.id) && <span className="font-mono text-[11px]">BIA-{getBiaPublicRef(bia).toUpperCase()}</span>}
             </div>
             <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-              {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
+              {bia.observacoes || biaBusinessTypeLabel(bia) || "Aliança patrimonial integrada BUILT."}
             </p>
             {(aliadoBuilt || dirAlianca) && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1723,7 +1727,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
 // ---- BIA Form Sheet ----
 const EDIT_TABS = ["geral", "equipe", "map", "juridico", "ativos", "orcamento", "revisao", "ativacao"];
 const EDIT_LABELS = [...BIA_CREATION_STEPS.slice(0,6), "Resumo", "Situação"];
-const IDENTITY_FIELDS = ["nome_bia", "bia_publica", "destinacao", "selo_certified_alliance", "localizacao", "latitude", "longitude", "objetivo_alianca", "observacoes", "imagem_directus_id", "moeda"] as const;
+const IDENTITY_FIELDS = ["business_type_code", "nome_bia", "bia_publica", "destinacao", "selo_certified_alliance", "localizacao", "latitude", "longitude", "objetivo_alianca", "observacoes", "imagem_directus_id", "moeda"] as const;
 function BiaFormSurface({page,open,onClose,children}:{page:boolean;open:boolean;onClose:()=>void;children:ReactNode}) {
   if(page)return <main className="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-[1500px] min-w-0 flex-col overflow-hidden px-4 pt-6 sm:px-8">{children}</main>;
   return <Sheet open={open} onOpenChange={o=>{if(!o)onClose();}}><SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">{children}</SheetContent></Sheet>;
@@ -2382,7 +2386,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         localizacao: form.localizacao.trim() || null,
         latitude: form.latitude ?parseFloat(form.latitude) : null,
         longitude: form.longitude ?parseFloat(form.longitude) : null,
-        objetivo_alianca: form.objetivo_alianca.trim() || null,
+        ...(form.business_type_code ? {business_type_code:form.business_type_code} : {objetivo_alianca:form.objetivo_alianca.trim() || null}),
         observacoes: form.observacoes.trim() || null,
         autor_bia: form.autor_bia || null,
         aliado_built: form.aliado_built || null,
@@ -2576,7 +2580,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     if (!isEdit) {
       if (!form.destinacao.trim()) missing.push("Destinação");
       if (!form.localizacao.trim()) missing.push("Localização");
-      if (!form.objetivo_alianca.trim()) missing.push("Objetivo da aliança");
+      if (!form.business_type_code) missing.push("Tipo de negócio");
       if (!form.observacoes.trim()) missing.push("Observações");
       if (parseBRLToNumber(form.valor_geral_venda_vgv) <= 0) missing.push("VGV");
     }
@@ -2815,27 +2819,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
 
               <LocationField form={form} setForm={setForm} onPickerOpen={() => setLocationPickerOpen(true)} />
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Objetivo da Aliança <span className="text-red-500">*</span></Label>
-                <ToggleGroup
-                  type="single"
-                  value={form.objetivo_alianca}
-                  onValueChange={(v) => setForm({ ...form, objetivo_alianca: v || "" })}
-                  className="justify-start gap-2"
-                  data-testid="toggle-objetivo"
-                >
-                  {BIA_OBJETIVOS.map((opt) => (
-                    <ToggleGroupItem
-                      key={opt}
-                      value={opt}
-                      className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold text-sm px-4"
-                      data-testid={`toggle-objetivo-${opt.toLowerCase()}`}
-                    >
-                      {opt}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
+              <div className="min-w-0 sm:col-span-2"><BiaBusinessType value={form.business_type_code} onChange={business_type_code=>setForm({...form,business_type_code})}/></div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Descrição <span className="text-red-500">*</span></Label>
                 <Textarea
@@ -3042,7 +3026,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <TabsContent value="equipe" forceMount className="min-w-0 space-y-5 data-[state=inactive]:hidden"><h2 className="text-xl font-semibold">{BIA_CREATION_STEPS[1]}</h2><p className="text-sm text-muted-foreground">Use Editar composição para atualizar a BEI, as pessoas e suas funções. A revisão econômica é salva aqui, separadamente dos dados cadastrais. Convites pendentes podem existir sem participação no MAP; gerencie-os na lista abaixo.</p><BiaPartnersStatus biaId={bia.id}/>{hasBiaAccess(access,"capital_calculadora","view")?(economicOpened && <BiaMapZero biaId={bia.id} readOnly={readOnly}/>):<p>Você não tem acesso à composição econômica desta BIA.</p>}</TabsContent>
               <TabsContent value="map" className="space-y-5"><h2 className="text-xl font-semibold">MAP Inicial</h2><p className="text-sm text-muted-foreground">Consulte as versões preservadas e seus documentos. A composição é editada na área {BIA_CREATION_STEPS[1]}.</p>{hasBiaAccess(access,"capital_calculadora","view")?<BiaMapHistory biaId={bia.id} initialOnly pdfCode={bia.codigo_publico}/>:<p>Você não tem acesso ao MAP desta BIA.</p>}</TabsContent>
               <div hidden={activeTab!=="juridico" && activeTab!=="ativos" && activeTab!=="orcamento"}>{setupOpened && <SetupEditor biaName={form.nome_bia} biaId={bia.id} moeda={bia.moeda || "BRL"} members={memberNames} readOnly={readOnly} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem} section={activeTab==="orcamento"?"orcamento":activeTab==="ativos"?"ativos":"juridico"}/>}</div>
-              <TabsContent value="revisao" className="space-y-6"><h2 className="text-xl font-semibold">Resumo dos dados</h2><p className="text-sm text-muted-foreground">Este salvamento atualiza somente os Dados da BIA. A BEI e a estrutura jurídica/ativos e o orçamento possuem confirmação e revisão próprias nas respectivas áreas.</p><dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{[["Nome da BIA",form.nome_bia],["Destinação",form.destinacao],["Moeda",form.moeda],["Objetivo",form.objetivo_alianca],["Localização",form.localizacao],["Descrição",form.observacoes],["Anexos",String(existingAnexos.length+pendingFiles.length)]].map(([label,value])=><div key={label} className="min-w-0 border-b pb-3"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value || "Não informado"}</dd></div>)}</dl><Button variant="outline" onClick={()=>changeSection("geral")}>Revisar dados</Button><p role="status" className="text-sm text-muted-foreground">{identityDirty?"Há alterações nos dados ainda não salvas.":"Nenhuma alteração pendente nos dados cadastrais."}</p><BiaBudgetReadPanel biaId={bia.id} moeda={bia.moeda || "BRL"} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem}/><Button type="button" variant="outline" onClick={()=>changeSection("orcamento")}>Revisar CAPEX e OPEX</Button></TabsContent>
+              <TabsContent value="revisao" className="space-y-6"><h2 className="text-xl font-semibold">Resumo dos dados</h2><p className="text-sm text-muted-foreground">Este salvamento atualiza somente os Dados da BIA. A BEI e a estrutura jurídica/ativos e o orçamento possuem confirmação e revisão próprias nas respectivas áreas.</p><dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{[["Nome da BIA",form.nome_bia],["Destinação",form.destinacao],["Moeda",form.moeda],["Tipo de negócio",biaBusinessTypeLabel(form)],["Localização",form.localizacao],["Descrição",form.observacoes],["Anexos",String(existingAnexos.length+pendingFiles.length)]].map(([label,value])=><div key={label} className="min-w-0 border-b pb-3"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value || "Não informado"}</dd></div>)}</dl><Button variant="outline" onClick={()=>changeSection("geral")}>Revisar dados</Button><p role="status" className="text-sm text-muted-foreground">{identityDirty?"Há alterações nos dados ainda não salvas.":"Nenhuma alteração pendente nos dados cadastrais."}</p><BiaBudgetReadPanel biaId={bia.id} moeda={bia.moeda || "BRL"} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem}/><Button type="button" variant="outline" onClick={()=>changeSection("orcamento")}>Revisar CAPEX e OPEX</Button></TabsContent>
               <TabsContent value="ativacao" className="space-y-5"><h2 className="text-xl font-semibold">Situação da BIA</h2><Badge variant="secondary">{biaPhaseLabel(form.situacao)}</Badge><p>Salvar uma edição não ativa a BIA, não muda sua fase e não repete aceites. Consulte os convites, documentos e controles de fase na página da aliança.</p><Button variant="outline" onClick={closeEditor}>Ver situação na página da BIA</Button></TabsContent>
             </>}
           </Tabs>
@@ -3480,7 +3464,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
   const bias = useMemo(() => {
     const q = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return (biasRaw as BiasProjeto[]).filter((b) => {
-      const haystack = `${b.nome_bia} ${b.localizacao || ""} ${b.objetivo_alianca || ""}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const haystack = `${b.nome_bia} ${b.localizacao || ""} ${biaBusinessTypeLabel(b)}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return haystack.includes(q);
     });
   }, [biasRaw, search]);

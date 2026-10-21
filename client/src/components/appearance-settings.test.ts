@@ -28,6 +28,17 @@ test("avisos de integração e tons 950 permanecem legíveis no modo escuro", ()
   assert.match(asaas, /bg-blue-50[^"\n]*dark:bg-blue-500\/15[^"\n]*dark:text-blue-100/);
   assert.match(asaas, /bg-amber-50[^"\n]*dark:bg-amber-500\/15[^"\n]*dark:text-amber-100/);
 });
+
+test("Meu Perfil mantém finalidades e resumo da Aura legíveis no modo escuro", () => {
+  const profile = read("../pages/meu-perfil.tsx");
+
+  assert.match(profile, /selected: "border-blue-500 bg-blue-50\/70 dark:border-blue-400 dark:bg-blue-950\/60"/);
+  assert.match(profile, /selected: "border-emerald-500 bg-emerald-50\/70 dark:border-emerald-400 dark:bg-emerald-950\/50"/);
+  assert.match(profile, /selected: "border-violet-500 bg-violet-50\/70 dark:border-violet-400 dark:bg-violet-950\/50"/);
+  assert.match(profile, /data-testid=\{`account-purpose-card-\$\{purpose\.id\}`\}/);
+  assert.match(profile, /dark:bg-slate-950\/60[^"]*"[\s\S]*?data-testid="link-resumo-aura"/);
+  assert.match(profile, /Aura Percebida<\/span>[\s\S]*?dark:text-slate-300/);
+});
 test("aparência: padrão escuro, seleção acessível, troca imediata sem escrever perfil",()=>{
   let theme:string|undefined, changes:string[]=[];
   const source=read("./appearance-settings.tsx");

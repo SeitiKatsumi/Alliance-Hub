@@ -168,7 +168,7 @@ function fotoUrlMap(m: MembroVitrine): string | null {
 
       {/* Top-left header */}
       <div className="absolute top-4 left-4 z-20 sm:top-5 sm:left-6">
-        <p className="text-[10px] text-yellow-400/60 tracking-[0.35em] uppercase font-mono">// Área de Vitrine</p>
+        <p className="text-[10px] text-yellow-400/60 tracking-[0.35em] uppercase font-mono">// Vitrine</p>
         <h2 className="mt-0.5 max-w-[260px] font-mono text-base font-bold leading-tight tracking-[0.08em] text-yellow-400 sm:max-w-[360px] sm:text-lg sm:tracking-[0.1em] xl:max-w-none xl:text-xl xl:tracking-[0.12em]">
           MAPA DE PARCEIROS DE MERCADO
         </h2>
@@ -1541,10 +1541,10 @@ export default function VitrinePage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-vitrine-title">
             <Gem className="w-7 h-7 text-yellow-400" />
-            {isParceirosPage ? "Parceiros de mercado" : "Área de Vitrine"}
+            {isParceirosPage ? "Parceiros de mercado" : "Vitrine"}
             {!isParceirosPage && (
               <ModuleInfo
-                title="Área de Vitrine"
+                title="Vitrine"
                 description="Área destinada a profissionais independentes, prestadores de serviços e fornecedores. Reúne perfis publicados, demandas e OBAs disponíveis para a rede."
               />
             )}

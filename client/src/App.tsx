@@ -1463,7 +1463,7 @@ function ProtectedApp() {
             ) : vitrineRouteDenied ? (
               <div className="flex min-h-[55vh] items-center justify-center px-5">
                 <div className="max-w-md text-center">
-                  <h1 className="text-xl font-bold text-[#001D34]">Área de Vitrine</h1>
+                  <h1 className="text-xl font-bold text-[#001D34]">Vitrine</h1>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
                     Área destinada a profissionais independentes, prestadores de serviços e fornecedores.
                   </p>

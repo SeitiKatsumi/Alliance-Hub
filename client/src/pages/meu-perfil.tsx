@@ -220,19 +220,19 @@ const ACCOUNT_PURPOSE_STYLES: Record<AccountPurpose, {
   action: string;
 }> = {
   imoveis: {
-    selected: "border-blue-500 bg-blue-50/70",
+    selected: "border-blue-500 bg-blue-50/70 dark:border-blue-400 dark:bg-blue-950/60",
     icon: "bg-blue-100 text-blue-700",
     option: "border-blue-500 bg-blue-50 text-blue-700",
     action: "bg-blue-600 text-white hover:bg-blue-700",
   },
   profissional: {
-    selected: "border-emerald-500 bg-emerald-50/70",
+    selected: "border-emerald-500 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/50",
     icon: "bg-emerald-100 text-emerald-700",
     option: "border-emerald-500 bg-emerald-50 text-emerald-700",
     action: "bg-emerald-600 text-white hover:bg-emerald-700",
   },
   capital: {
-    selected: "border-violet-500 bg-violet-50/70",
+    selected: "border-violet-500 bg-violet-50/70 dark:border-violet-400 dark:bg-violet-950/50",
     icon: "bg-violet-100 text-violet-700",
     option: "border-violet-500 bg-violet-50 text-violet-700",
     action: "bg-violet-600 text-white hover:bg-violet-700",
@@ -1684,22 +1684,22 @@ export default function MeuPerfilPage() {
         {membroId && (
           <a
             href={`/aura/${encodeURIComponent(membroId)}`}
-            className="flex w-full items-center gap-3 rounded-lg border bg-white p-3 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="flex w-full items-center gap-3 rounded-lg border bg-white p-3 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/60 dark:hover:bg-slate-900/80"
             style={{ borderColor: auraData?.score != null ? `${getFaixaColor(auraData.score)}30` : undefined }}
             aria-label="Abrir minha Aura"
             data-testid="link-resumo-aura"
           >
             <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-bold text-[#001D34]">Aura Percebida</span>
-              <span className="mt-1 block text-xs text-slate-500">
+              <span className="block text-sm font-bold text-[#001D34] dark:text-slate-50">Aura Percebida</span>
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-300">
                 {auraData?.score != null ? auraData.faixa : "Aguardando avaliações"}
               </span>
-              <span className="mt-0.5 block text-[11px] text-slate-500">
+              <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
                 {auraData?.score != null ? "resultado atual da rede" : "sem avaliações"}
               </span>
             </span>
-            <span className="shrink-0 text-sm font-semibold text-blue-700" aria-hidden="true">→</span>
+            <span className="shrink-0 text-sm font-semibold text-blue-700 dark:text-blue-300" aria-hidden="true">→</span>
           </a>
         )}
         {minhasCelulas.length > 0 && (
@@ -1896,17 +1896,18 @@ export default function MeuPerfilPage() {
                             }
                           }}
                           className={`flex min-h-40 cursor-pointer flex-col rounded-lg border p-3 text-left transition-colors ${
-                            selected ? ACCOUNT_PURPOSE_STYLES[purpose.id].selected : "border-slate-200 bg-white hover:border-blue-300"
+                            selected ? ACCOUNT_PURPOSE_STYLES[purpose.id].selected : "border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-950/40 dark:hover:border-blue-400"
                           }`}
+                          data-testid={`account-purpose-card-${purpose.id}`}
                         >
                           <span className="flex items-start justify-between gap-3">
                             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${ACCOUNT_PURPOSE_STYLES[purpose.id].icon}`}>
                               <PurposeIcon className="h-5 w-5" />
                             </span>
-                            {selected && <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-600" />}
+                            {selected && <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-300" />}
                           </span>
-                          <span className="mt-3 block break-words text-sm font-bold text-[#001D34]">{purpose.title}</span>
-                          <span className="mt-1 block text-xs leading-relaxed text-slate-600">{purpose.description}</span>
+                          <span className="mt-3 block break-words text-sm font-bold text-[#001D34] dark:text-slate-50">{purpose.title}</span>
+                          <span className="mt-1 block text-xs leading-relaxed text-slate-600 dark:text-slate-300">{purpose.description}</span>
                           {selected ? (
                             <Button
                               type="button"
@@ -1916,7 +1917,7 @@ export default function MeuPerfilPage() {
                                 event.stopPropagation();
                                 openPurposeConfiguration(purpose.id);
                               }}
-                              className="mt-auto h-8 gap-1 pt-0 text-xs text-blue-700"
+                              className="mt-auto h-8 gap-1 border-blue-200 bg-transparent pt-0 text-xs text-blue-700 dark:border-blue-400/60 dark:text-blue-200 dark:hover:bg-blue-950/50"
                             >
                               <Settings2 className="h-3.5 w-3.5" />
                               Configurar intenções

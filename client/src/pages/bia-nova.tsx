@@ -1,3 +1,4 @@
+import { biaBusinessTypeCode } from "@shared/bia-business-type";
 import { BIA_CREATION_STEPS, emptyBiaSetup, legacyBiaSetup, legalBlockers, setupWarnings } from "@shared/bia-setup";
 import { BiaBudgetFields } from "@/components/bia-budget-fields";
 import { BiaLegalFields, BiaAssetFields, BiaSetupSummary } from "@/components/bia-setup-fields";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CurrencyCombobox, LocationPickerModal } from "./bias";
-import { BIA_DESTINACOES, BIA_OBJETIVOS } from "@shared/bia-form-options";
+import { BIA_DESTINACOES } from "@shared/bia-form-options";
 import { EMPTY_BIA_INFO } from "@/components/bia-information-fields";
 import { uploadBiaFiles } from "@/lib/bia-upload";
 import { BiaNumberInput, BiaRoleComposition } from "@/components/bia-role-composition";
@@ -37,7 +38,7 @@ export default function BiaNovaPage(){
   const [form,setForm]=useState({...empty,business_type_code:""}),[saved,setSaved]=useState(JSON.stringify({...empty,business_type_code:""}));
   const [revision,setRevision]=useState(0),[step,setStep]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);
   const dirty=JSON.stringify(form)!==saved;
-  const generalPending=[!form.nome_bia?.trim() && "Nome",!form.destinacao && "Destinação",!form.objetivo_alianca && "Objetivo",!form.localizacao?.trim() && "Localização",!form.observacoes?.trim() && "Descrição"].filter(Boolean);
+  const generalPending=[!form.nome_bia?.trim() && "Nome",!form.destinacao && "Destinação",!form.business_type_code && "Tipo de negócio",!form.localizacao?.trim() && "Localização",!form.observacoes?.trim() && "Descrição"].filter(Boolean);
   useUnsavedChanges(dirty || busy);
   const members=useQuery<any[]>({queryKey:["/api/membros"]});
   const cppTypes=useQuery<Array<{id:string;Nome:string}>>({queryKey:["/api/tipos-cpp"]});
@@ -45,7 +46,7 @@ export default function BiaNovaPage(){
   const draft=useQuery<any>({queryKey:["/api/bias",params.id,"rascunho"],enabled:!!params.id});
   const brand=useBiaBrand(id,form.nome_bia,step===6);
   const loaded=useRef(false);
-  useEffect(()=>{if(draft.data && !loaded.current){loaded.current=true;const restored={...empty,...draft.data.dados,estrutura_bia:legacyBiaSetup(draft.data.dados)};setForm(restored);setSaved(JSON.stringify(restored));setRevision(draft.data.revisao);setDone(draft.data.concluido);setConcluding(!!draft.data.conclusao_iniciada);}},[draft.data]);
+  useEffect(()=>{if(draft.data && !loaded.current){loaded.current=true;const restored={...empty,...draft.data.dados,estrutura_bia:legacyBiaSetup(draft.data.dados),business_type_code:biaBusinessTypeCode(draft.data.dados)};setForm(restored);setSaved(JSON.stringify(restored));setRevision(draft.data.revisao);setDone(draft.data.concluido);setConcluding(!!draft.data.conclusao_iniciada);}},[draft.data]);
   useEffect(()=>{if(!params.id && defaults.data && !loaded.current){loaded.current=true;const participantes=defaults.data.participantes.map((p:InitialMapParticipantInput)=>({...p,modeloCalculo:5,cotasInvestimento:NaN}));setForm(current=>({...current,map_inicial:{...current.map_inicial,participantes:current.map_inicial.participantes.length?current.map_inicial.participantes:participantes}}));setSaved(JSON.stringify({...empty,business_type_code:"",map_inicial:{...empty.map_inicial,participantes}}));}},[params.id,defaults.data]);
   const preview=useMemo(()=>{try{
     const team=biaTeamFromMapParticipants(form.map_inicial.participantes);
@@ -60,7 +61,7 @@ export default function BiaNovaPage(){
       const data=await (await (concluding && id
         ? apiRequest("GET",`/api/bias/${id}/rascunho`)
         : apiRequest(id?"PUT":"POST",id?`/api/bias/${id}/rascunho`:"/api/bias",{...form,map_inicial:form.map_inicial.modeloCalculo===5 && cppTypes.data ? {...form.map_inicial,participantes:withAutomaticEconomicRights(form.map_inicial.participantes,cppTypes.data)} : form.map_inicial,_rascunho:true,chaveCriacao:creationKey.current,revisaoEsperada:revision}))).json();
-      const restored={...empty,...data.dados,estrutura_bia:legacyBiaSetup(data.dados)};setId(data.bia_id);setRevision(data.revisao);setForm(restored);setSaved(JSON.stringify(restored));setConcluding(!!data.conclusao_iniciada);
+      const restored={...empty,...data.dados,estrutura_bia:legacyBiaSetup(data.dados),business_type_code:biaBusinessTypeCode(data.dados)};setId(data.bia_id);setRevision(data.revisao);setForm(restored);setSaved(JSON.stringify(restored));setConcluding(!!data.conclusao_iniciada);
       queryClient.invalidateQueries({queryKey:["/api/bias"]});queryClient.invalidateQueries({queryKey:["/api/bias-rascunhos"]});
       if(data.apresentacao_pendente)throw new Error("Rascunho salvo, mas não foi possível atualizar o nome e a capa na lista de BIAs. Clique em Salvar rascunho novamente para tentar sincronizar.");
       if(conclude){try{await apiRequest("POST",`/api/bias/${data.bia_id}/concluir-estruturacao`,{revisaoEsperada:data.revisao});setDone(true);}catch(error){const fresh=await (await apiRequest("GET",`/api/bias/${data.bia_id}/rascunho`)).json();setConcluding(!!fresh.conclusao_iniciada);throw error;}}
@@ -91,7 +92,6 @@ export default function BiaNovaPage(){
           <div className="space-y-2 text-sm sm:col-span-2"><p id="destinacao-label">Destinação *</p><ToggleGroup type="single" aria-labelledby="destinacao-label" value={form.destinacao} onValueChange={v=>field("destinacao",v)} className="justify-start flex-wrap gap-2" data-testid="toggle-destinacao">{BIA_DESTINACOES.map(opt=><ToggleGroupItem key={opt} value={opt} className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold px-4">{opt}</ToggleGroupItem>)}</ToggleGroup></div>
           <div className="space-y-2 text-sm"><p>Moeda da BIA</p><CurrencyCombobox value={form.moeda} onChange={v=>field("moeda",v)}/></div>
           <div className="space-y-2 text-sm"><p>Localização *</p><Button type="button" variant="outline" className="h-auto min-h-10 w-full justify-start whitespace-normal text-left" onClick={()=>setLocationOpen(true)}>{form.localizacao || "Selecionar no Mapa"}</Button></div>
-          <div className="space-y-2 text-sm sm:col-span-2"><p id="objetivo-label">Objetivo da Aliança *</p><ToggleGroup type="single" aria-labelledby="objetivo-label" value={form.objetivo_alianca} onValueChange={v=>field("objetivo_alianca",v)} className="justify-start flex-wrap gap-2" data-testid="toggle-objetivo">{BIA_OBJETIVOS.map(opt=><ToggleGroupItem key={opt} value={opt} className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold px-4">{opt}</ToggleGroupItem>)}</ToggleGroup></div>
           <p className="text-sm text-muted-foreground sm:col-span-2">A BIA permanece privada durante a estruturação e captação.</p>
           <label className="text-sm sm:col-span-2">Descrição *<textarea className="mt-2 min-h-28 w-full rounded border bg-background p-3" value={form.observacoes} onChange={e=>field("observacoes",e.target.value)}/></label>
           <div className="space-y-2 sm:col-span-2"><p className="text-sm">Anexos</p><Input aria-label="Adicionar anexos" type="file" multiple onChange={e=>{if(e.target.files?.length)void upload(Array.from(e.target.files));e.target.value="";}}/>{form.anexos.map((id,n)=><div className="flex items-center justify-between" key={id}><a href={`/api/assets/${id}`} target="_blank" rel="noopener noreferrer">Anexo {n+1}</a><Button variant="ghost" onClick={()=>setForm(f=>({...f,anexos:f.anexos.filter(x=>x!==id)}))}>Remover anexo {n+1}</Button></div>)}</div>

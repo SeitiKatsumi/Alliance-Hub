@@ -11,8 +11,8 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 - `/` e `/painel`: painel principal em `client/src/pages/painel.tsx`.
 - A Carteira integra as abas do Inicio e nao aparece como modulo separado no menu lateral; `/carteira` preserva compatibilidade por redirecionamento.
 - Aura permanece acessivel pelos cards do Inicio e do resumo do Meu Perfil, sem modulo separado no menu lateral.
-- Area de Vitrine e Area de Aliancas aparecem diretamente no menu lateral, sem o agrupador Ambientes BUILT.
-- O painel inicial exibe somente os atalhos da Area de Vitrine e da Area de Aliancas; BUILT Capital nao aparece nessa navegacao.
+- `Vitrine` e `Aliancas` sao os nomes visiveis canonicos no menu lateral, sem os prefixos `BUILT` ou `Area de` e sem o agrupador Ambientes BUILT.
+- O painel inicial exibe somente os atalhos `Vitrine` e `Aliancas`; BUILT Capital nao aparece nessa navegacao.
 - No Inicio, Alertas e Proximas acoes ocupam a area operacional abaixo dos ambientes; os negocios permanecem concentrados na aba Negocios para voce.
 - O card de conclusao do perfil abre `/meu-perfil` diretamente no primeiro campo pendente informado pelo helper oficial de progresso.
 - `/agenda-alertas`: destino de Agenda, Alertas e Pendencias.
@@ -52,6 +52,7 @@ Alertas sao `acionavel`, `em andamento`, `resolvido` ou `ignorado`, conforme o m
 - `Suas Celulas` lista apenas interesse ou participacao do proprio usuario e nao transforma preferencia de onboarding em vinculo.
 - A Home identifica RO como `Reuniao de Oportunidades da sua Comunidade` e nao revela link ou dados de convidados externos.
 - Um contador nunca pode somar itens que a lista correspondente omite.
+- Cartoes, menu lateral, bloqueios de acesso e titulos dos ambientes preservam a mesma nomenclatura canonica `Vitrine` e `Aliancas`.
 - Acao concluida deixa de aparecer sem apagar historico.
 - Redirecionamentos legados preservam filtros e aba selecionada quando aplicavel.
 
@@ -63,6 +64,7 @@ Alertas sao `acionavel`, `em andamento`, `resolvido` ou `ignorado`, conforme o m
 ## Testes e impacto
 
 - `client/src/lib/dashboard-navigation.test.ts`
+- `client/src/lib/environment-nomenclature.test.ts`
 - `server/agenda-alerts.test.ts`
 - `client/src/lib/agenda-alerts.test.ts`
 - Ao alterar: comparar contador/lista, estados vazios, usuario sem BIA, usuario multicomunidade, funcionario limitado, mobile e links profundos.

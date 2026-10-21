@@ -1,4 +1,5 @@
 import test from "node:test";
+import { biaBusinessTypeLabel } from "../../../shared/bia-business-type";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import React from "react";
@@ -14,7 +15,7 @@ test("resumo usa valores do MAP, mantém condições personalizadas e escapa tex
   const source=readFileSync(new URL("./bia-review-summary.tsx",import.meta.url),"utf8");
   const ast=ts.createSourceFile("summary.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   const fn=ast.statements.find(ts.isFunctionDeclaration)!.getText(ast).replace(/^export /,"");
-  const Component=new Function("React","Fragment","formatBiaNumber","formatBiaPercent",transformSync(fn,{loader:"tsx"}).code+";return BiaReviewSummary;")(React,React.Fragment,formatBiaNumber,formatBiaPercent);
+  const Component=new Function("React","Fragment","formatBiaNumber","formatBiaPercent","biaBusinessTypeLabel",transformSync(fn,{loader:"tsx"}).code+";return BiaReviewSummary;")(React,React.Fragment,formatBiaNumber,formatBiaPercent,biaBusinessTypeLabel);
   const form={nome_bia:'BIA <script>alert(1)</script>',moeda:"BRL",objetivo_alianca:"Renda",destinacao:"Residencial",localizacao:"São Paulo",observacoes:""};
   const map={valorOrigem:1500000,divisorMultiplicador:2.35897,estrutura:{modalidade:"recursos_proprios",totalCotas:120,integralizacao:{forma:"personalizado",quantidade:12,meses:0,primeiroVencimento:"2026-10-20",correcao:"IPCA",observacoes:"Entradas em janeiro e julho"}}};
   const html=renderToStaticMarkup(React.createElement(Component,{form,map}));
@@ -23,6 +24,9 @@ test("resumo usa valores do MAP, mantém condições personalizadas e escapa tex
   const consultation=renderToStaticMarkup(React.createElement(Component,{form,map,consultation:true}));
   assert.match(consultation,/Resumo para consulta/);
   assert.doesNotMatch(consultation,/prévia em estruturação/);
+  const thesis=renderToStaticMarkup(React.createElement(Component,{form:{...form,business_type_code:"SHORT_STAY"},map}));
+  assert.match(thesis,/Tipo de negócio/);assert.match(thesis,/Explorar locação por temporada/);
+  assert.doesNotMatch(thesis,/>Objetivo<|SHORT_STAY/);
 });
 
 test("exportação filtra seções e aguarda selos; certificação segue a BIA, sem alterar dados",async()=>{

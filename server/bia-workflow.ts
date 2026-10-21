@@ -4,6 +4,7 @@ import { biaSetupSchema } from "../shared/bia-setup";
 import { CURRENCIES, BIA_DESTINACOES, BIA_OBJETIVOS, BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { BIA_PHASES, nextBiaPhase, biaAllowsFinance, type BiaPhase } from "../shared/bia-phase";
 import { STRATEGIC_CELL_BUSINESS_TYPES } from "../shared/strategic-cells";
+import { biaBusinessTypeStoragePayload, biaBusinessTypeCode } from "../shared/bia-business-type";
 
 export const BIA_WORKFLOW_SQL = `
 CREATE TABLE IF NOT EXISTS bia_estruturacao_rascunhos (
@@ -27,6 +28,7 @@ export function validateBiaDraft(body:any) {
   if (body.business_type_code !== undefined) {
     if (typeof body.business_type_code !== "string" || (body.business_type_code !== "" && !STRATEGIC_CELL_BUSINESS_TYPES.some(([, code]) => code === body.business_type_code))) throw failure("Escolha um tipo de negócio válido.",400);
     data.business_type_code = body.business_type_code;
+    data.objetivo_alianca = biaBusinessTypeStoragePayload(body).objetivo_alianca;
   }
   if(body.estrutura_bia !== undefined) {
     const parsed=biaSetupSchema.safeParse(body.estrutura_bia);
@@ -38,7 +40,7 @@ export function validateBiaDraft(body:any) {
   if (!String(data.nome_bia || "").trim() || String(data.nome_bia).length > 200) throw failure("Informe o nome da BIA (até 200 caracteres).",400);
   if (!CURRENCIES.some(c=>c.code===data.moeda)) throw failure("Escolha uma moeda válida.",400);
   if (data.destinacao && !BIA_DESTINACOES.includes(data.destinacao)) throw failure("Escolha uma destinação válida.",400);
-  if (data.objetivo_alianca && !BIA_OBJETIVOS.includes(data.objetivo_alianca)) throw failure("Escolha um objetivo válido.",400);
+  if (data.objetivo_alianca && !biaBusinessTypeCode(data) && !BIA_OBJETIVOS.includes(data.objetivo_alianca)) throw failure("Escolha um tipo de negócio válido.",400);
   for (const [field,limit] of [["latitude",90],["longitude",180]] as const) {
     if (data[field] != null && (!Number.isFinite(data[field]) || Math.abs(data[field])>limit)) throw failure("Localização inválida.",400);
   }

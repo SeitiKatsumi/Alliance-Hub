@@ -38,6 +38,8 @@ Sem migração no banco configurado, as telas informam armazenamento pendente. N
 - Administrativo → Asaas: configuração, BaaS, cofre, armazenamento e capacidades; não recebe segredos pelo navegador.
 - Capital → Banco: usuário com edição pode criar a subconta, atualizar a situação e transferir quando habilitado; leitura vê vínculo, saldo e histórico mínimo. Conta aprovada libera cobranças/transferências apenas quando os opt-ins do ambiente também estiverem ativos. Falha de consulta não é apresentada como saldo zero.
 
+Após criar/vincular, o Banco mostra Próximos passos por situação cadastral, pendências de configuração da plataforma e instruções para preparar os aportes. A conta pode estar aprovada no Asaas enquanto cobranças e transferências continuam desabilitadas. Atualizar situação somente consulta o provedor: exibe carregamento e resultado persistente na tela, incluindo estado inalterado e horário da consulta. Não altera flags, envia documentos, emite cobrança ou transfere. Falha/timeout não remove vínculo nem afirma que o estado mudou. O status da BIA inclui `integrationPending` opcional, com as mesmas mensagens públicas sanitizadas já usadas pelo administrativo; sem chaves ou referências de cofre.
+
 Os endpoints antigos de operação bancária permanecem desativados. O receptor existente `/api/webhooks/asaas` e as cobranças atuais permanecem inalterados; o novo receptor não encaminha eventos a eles.
 
 ## Próximos dados necessários

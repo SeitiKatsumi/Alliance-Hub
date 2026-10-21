@@ -22,9 +22,10 @@ test("API de aportes: autorização, falha parcial, repetição, pares, revisão
  const service=registerInitialContributions(app,{
    db,lock,access:async(req:any,res:any,id:string,level:string)=>{if(!["d","v"].includes(req.session.membroId) || (level==="edit" && req.session.membroId!=="d")){res.status(403).json({error:"Negado"});return null;}return{bia:{id},access:{permissions:{capital_financeiro:req.session.membroId==="d"?"edit":"view"}}};},
    fetchEntries:source,
-   fetchOne:async(col,id)=>{if(readFails)throw new Error("Directus indisponível");return col==="cadastro_geral"?{id}:entries.get(id)||null;},
+   fetchOne:async(col,id)=>{if(readFails)throw new Error("Directus indisponível");return col==="cadastro_geral"?(["seller","d"].includes(id)?{id,nome:id==="seller"?"Vendedor externo — sem login":"Diretor",email:"nao-expor@example.com"}:null):entries.get(id)||null;},
    category:async name=>name,
    create:async(_col,data)=>{
+     assert.equal(_col,"fluxo_caixa","Cronogramas não criam usuário, convite nem participação");
      assert.ok(data.Categoria.every((v:any)=>typeof v.categorias_id==="string"),"Directus exige objetos da junção de categorias");
      assert.ok(data.tipo_de_cpp.every((v:any)=>typeof v.tipos_cpp_id==="string"),"Directus exige objetos da junção de CPP");
      calls++;assert.ok(!entries.has(data.id),"Não duplicar ID");entries.set(data.id,{...data});if(lostResponse&&calls===3){lostResponse=false;throw new Error("Resposta perdida após criação");}return data;
@@ -40,11 +41,16 @@ test("API de aportes: autorização, falha parcial, repetição, pares, revisão
  assert.equal((await request("GET","",undefined,"v")).body.canEdit,false);
  const items=commitmentsFromMap(1000,base.participantes).map(c=>({...c,beneficiario:c.beneficiario||"seller",series:[{total:c.valor,quantidade:1,primeiroVencimento:"2026-09-30",meses:0}]}));
  const input={revisaoEsperada:0,revisaoMap:1,modalidade:"capital_proprio",compromissos:items};
+ assert.equal((await request("PUT","",{...input,compromissos:items.map(c=>c.componente==="ativo"?{...c,beneficiario:"inexistente"}:c)})).status,400);
+ assert.equal((await request("PUT","",{...input,compromissos:items.map(c=>c.componente==="capital"?{...c,beneficiario:"seller"}:c)})).status,400);
  const concurrent=await Promise.all([request("PUT","",input),request("PUT","",input)]);
  assert.deepEqual(concurrent.map(r=>r.status).sort(),[200,409]);assert.equal(entries.size,0);
  assert.equal((await request("POST","/confirmar",{revisaoEsperada:1})).status,503);
  assert.equal(entries.size,3);
  let view=(await request("GET")).body;assert.equal(view.estado,"pendente");
+ assert.equal(view.compromissos.find((c:any)=>c.componente==="ativo").beneficiario,"seller");
+ assert.deepEqual(view.beneficiarios.find((b:any)=>b.id==="seller"),{id:"seller",nome:"Vendedor externo — sem login"},"Nome externo persiste no retorno sem expor outros dados cadastrais");
+ assert.ok(Array.from(entries.values()).some(e=>e.tipo==="saida" && e.favorecido_id==="seller"),"Lançamento preserva o ID canônico do favorecido externo");
  assert.equal(view.resumo.reduce((s:number,c:any)=>s+c.integralizado,0),0);
  const incoming=Array.from(entries.values()).find(e=>e.tipo==="entrada");
  entries.set(incoming.id,{...incoming,status:"pago",data_pagamento:"2026-09-30"});

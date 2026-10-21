@@ -49,6 +49,7 @@ export function registerAsaasFoundation(app: Express, dependencies: {
         chargesEnabled: status.externalRequestsEnabled && config.chargesEnabled,
         transfersEnabled: status.externalRequestsEnabled && config.transfersEnabled,
         accountCreationAvailable: blockers.length === 0, accountCreationBlockers: blockers, account,
+        integrationPending: status.pending,
       }));
     } catch { return res.status(503).json({ error: "Não foi possível consultar a integração Asaas desta BIA." }); }
   });

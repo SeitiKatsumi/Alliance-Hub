@@ -113,6 +113,12 @@ export function registerInitialContributions(app: any, deps: {
       const saved = await plan(tx, id);
       const items = await parcels(tx, id);
       const expected = commitmentsFromMap(Number(base.valor_origem), base.participantes);
+      // Resolve saved external recipients even when they are not members of this BIA.
+      const recipientIds = [...new Set<string>((saved?.compromissos || expected).map((c:any)=>c.beneficiario).filter(Boolean))];
+      const beneficiaries = await Promise.all(recipientIds.map(async recipientId => {
+        const recipient = await deps.fetchOne("cadastro_geral",recipientId,"fields=id,nome,Nome_de_usuario");
+        return recipient ? {id:String(recipient.id),nome:recipient.nome,Nome_de_usuario:recipient.Nome_de_usuario} : {id:recipientId,nome:"Beneficiário indisponível"};
+      }));
       const financial = new Map((await deps.fetchEntries(id)).map(e=>[String(e.id),e]));
       const detail: any[] = [];
       for (const p of items) {
@@ -127,7 +133,7 @@ export function registerInitialContributions(app: any, deps: {
       });
       return { revisao: Number(saved?.revisao || 0), revisaoMap: Number(base.revisao), revisaoMapSalva: Number(saved?.revisao_map || 0),
         modalidade: saved?.modalidade || "capital_proprio", estado: saved?.estado || "rascunho", compromissos: saved?.compromissos || expected,
-        esperados: expected, parcelas: detail, resumo: summary, nominal: true, moeda: base.moeda || "BRL" };
+        esperados: expected, beneficiarios: beneficiaries, parcelas: detail, resumo: summary, nominal: true, moeda: base.moeda || "BRL" };
     });
     res.json({...result,canEdit: req.initialContributionAccess.access?.permissions?.capital_financeiro === "edit"});
   }));

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { buildNominalSchedule, copyParticipantSchedule, type InitialCommitment, type ScheduleSeries } from "@shared/initial-contributions";
+import { validateCommitments, copyParticipantSchedule, type InitialCommitment, type ScheduleSeries } from "@shared/initial-contributions";
+import { InitialBeneficiaryField, type BeneficiaryOption } from "./initial-beneficiary-field";
 
 const periods = [[0,"À vista / personalizada"],[1,"Mensal"],[2,"Bimestral"],[3,"Trimestral"],[6,"Semestral"],[12,"Anual"]] as const;
 
@@ -22,7 +23,17 @@ export function InitialContributions({biaId,membros,readOnly=false}: {biaId:stri
   const [reason,setReason]=useState("");
   const [date,setDate]=useState("");
   const [base,setBase]=useState<{revisao:number;revisaoMap:number}>();
-  useUnsavedChanges(dirty || !!settlement);
+  const [addedBeneficiaries,setAddedBeneficiaries]=useState<BeneficiaryOption[]>([]);
+  const [beneficiaryDraft,setBeneficiaryDraft]=useState(false);
+  const beneficiaries=Array.from(new Map([...membros,...(query.data?.beneficiarios || []),...addedBeneficiaries].map(m=>[m.id,m])).values());
+  const createBeneficiary=async(nome:string):Promise<BeneficiaryOption>=>{
+    const created=await (await apiRequest("POST","/api/membros/criar-favorecido",{nome})).json();
+    if(!created?.id || !created?.nome)throw new Error("Cadastro não confirmado");
+    setAddedBeneficiaries(rows=>[...rows,created]);
+    queryClient.invalidateQueries({queryKey:["/api/membros"]});
+    return created;
+  };
+  useUnsavedChanges(dirty || !!settlement || beneficiaryDraft);
   useEffect(()=>{if(query.data && !dirty){setItems(query.data.compromissos);setModalidade(query.data.modalidade);setBase({revisao:query.data.revisao,revisaoMap:query.data.revisaoMap});}},[query.data,dirty]);
   const update=(index:number,patch:Partial<InitialCommitment>)=>{setDirty(true);setPreview(false);setItems(rows=>rows.map((c,i)=>{
     if(i===index)return {...c,...patch};
@@ -31,7 +42,7 @@ export function InitialContributions({biaId,membros,readOnly=false}: {biaId:stri
     return c;
   }));};
   const series=(index:number,position:number,patch:Partial<ScheduleSeries>)=>update(index,{series:items[index].series.map((s,i)=>i===position?{...s,...patch}:s)});
-  const validation=useMemo(()=>{try{return {rows:items.map(c=>({c,parcelas:buildNominalSchedule(c.valor,c.series)})),error:""};}catch(e:any){return{rows:[],error:e.message};}},[items]);
+  const validation=useMemo(()=>{try{return {rows:validateCommitments(query.data?.esperados || [],items).map(c=>({c,parcelas:c.parcelas})),error:beneficiaryDraft?"Adicione ou cancele o beneficiário externo antes de continuar.":""};}catch(e:any){return{rows:[],error:e.message};}},[items,query.data?.esperados,beneficiaryDraft]);
   const refresh=()=>{setDirty(false);setPreview(false);queryClient.invalidateQueries({queryKey:[url]});queryClient.invalidateQueries({queryKey:["/api/fluxo-caixa"]});queryClient.invalidateQueries({queryKey:["/api/bias",biaId,"map"]});};
   const save=useMutation({mutationFn:async()=>apiRequest("PUT",url,{revisaoEsperada:base?.revisao,revisaoMap:base?.revisaoMap,modalidade,compromissos:items}),onSuccess:()=>{refresh();toast({title:"Cronograma salvo",description:"Nenhum lançamento foi criado. Revise a prévia antes de confirmar."});},onError:(e:any)=>toast({title:"Não foi possível salvar",description:e.message,variant:"destructive"})});
   const confirm=useMutation({mutationFn:async()=>apiRequest("POST",`${url}/confirmar`,{revisaoEsperada:query.data.revisao}),onSuccess:()=>{refresh();toast({title:"Cronogramas confirmados"});},onError:(e:any)=>{refresh();toast({title:"Confirmação pendente",description:e.message,variant:"destructive"});}});
@@ -46,14 +57,14 @@ export function InitialContributions({biaId,membros,readOnly=false}: {biaId:stri
     <fieldset disabled={!editable || save.isPending || confirm.isPending} className="space-y-4 min-w-0">
       <label className="block text-sm">Forma de capitalização<select className="block w-full rounded border bg-background p-2 sm:max-w-sm" value={modalidade} onChange={e=>{setModalidade(e.target.value);setDirty(true);}}><option value="capital_proprio">Capital próprio</option><option value="consorcio">Consórcio</option><option value="financiamento">Financiamento</option></select></label>
       {items.map((c,index)=><section key={c.chave} className="rounded-lg border p-3 space-y-3"><div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{c.nome} · {c.componente==="ativo"?"Ativo":c.componente==="capital"?"Capital comprometido":"Contribuição econômica"}</h3><strong>{money(c.valor)}</strong></div><p className="text-xs text-muted-foreground">{c.natureza==="caixa"?"Movimentação de dinheiro":"Sem movimentação de caixa"}{c.tipoCpp?` · ${c.tipoCpp.nome}`:""}</p>
-        <label className="block text-sm">Beneficiário<select className="block w-full rounded border p-2 bg-background" disabled={c.componente!=="ativo" && !!c.beneficiario} value={c.beneficiario} onChange={e=>update(index,{beneficiario:e.target.value})}><option value="">Selecione</option>{membros.map(m=><option key={m.id} value={m.id}>{m.nome || m.Nome_de_usuario || m.id}</option>)}</select></label>
+        <InitialBeneficiaryField value={c.beneficiario} options={beneficiaries} locked={c.componente!=="ativo" && !!c.beneficiario} allowExternal={c.componente==="ativo"} disabled={!editable || save.isPending || confirm.isPending} onChange={beneficiario=>update(index,{beneficiario})} onCreate={createBeneficiary} onDraftChange={draft=>{if(c.componente==="ativo")setBeneficiaryDraft(draft);}}/>
         {c.series.map((s,position)=><div key={position} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 items-end"><label className="text-xs">Total da série<Input type="number" min="0.01" step="0.01" value={s.total || ""} onChange={e=>series(index,position,{total:Number(e.target.value)})}/></label><label className="text-xs">Quantidade<Input type="number" min="1" max="360" value={s.quantidade} onChange={e=>series(index,position,{quantidade:Number(e.target.value)})}/></label><label className="text-xs">Periodicidade<select className="w-full rounded border bg-background p-2" value={s.meses} onChange={e=>series(index,position,{meses:Number(e.target.value),...(e.target.value==="0"?{quantidade:1}:{})})}>{periods.map(([n,label])=><option value={n} key={n}>{label}</option>)}</select></label><label className="text-xs">Primeiro vencimento<Input type="date" value={s.primeiroVencimento} onChange={e=>series(index,position,{primeiroVencimento:e.target.value})}/></label><Button variant="outline" onClick={()=>update(index,{series:c.series.filter((_,i)=>i!==position)})}>Remover série</Button></div>)}
         <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>update(index,{series:[...c.series,{total:Math.max(0,c.valor-c.series.reduce((sum,s)=>sum+s.total,0)),quantidade:1,meses:0,primeiroVencimento:""}]})}>Adicionar sinal / série</Button>{c.componente==="contribuicao" && <Button variant="outline" onClick={()=>{const source=items.find(i=>i.participanteId===c.participanteId&&i.componente==="capital");if(source?.series.length){const copied=copyParticipantSchedule(c.valor,source.valor,source.series);update(index,{series:copied});}}}>Usar cronograma do participante</Button>}</div>
       </section>)}
       {validation.error && <p className="text-sm text-amber-700">{validation.error}</p>}
       {editable && <Button disabled={!!validation.error || !items.length || !dirty || save.isPending} onClick={()=>save.mutate()}>Salvar cronogramas</Button>}
     </fieldset>
-    <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={!!validation.error} onClick={()=>setPreview(!preview)}>Ver prévia completa</Button>{!readOnly && query.data.canEdit && <Button disabled={dirty || !query.data.revisao || confirm.isPending || query.data.revisaoMapSalva!==query.data.revisaoMap || (query.data.estado!=="pendente" && !preview)} onClick={()=>confirm.mutate()}>{confirm.isPending?"Confirmando…":query.data.estado==="pendente"?"Retomar confirmação":"Confirmar cronogramas"}</Button>}</div>
+    <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={!!validation.error} onClick={()=>setPreview(!preview)}>Ver prévia completa</Button>{!readOnly && query.data.canEdit && <Button disabled={dirty || beneficiaryDraft || !query.data.revisao || confirm.isPending || query.data.revisaoMapSalva!==query.data.revisaoMap || (query.data.estado!=="pendente" && !preview)} onClick={()=>confirm.mutate()}>{confirm.isPending?"Confirmando…":query.data.estado==="pendente"?"Retomar confirmação":"Confirmar cronogramas"}</Button>}</div>
     {preview && validation.rows.map(({c,parcelas})=><details key={c.chave} className="rounded border p-3"><summary>{c.nome} · {c.componente} · {parcelas.length} parcelas · {money(c.valor)}</summary><div className="max-h-64 overflow-auto text-sm">{parcelas.map(p=><p key={p.numero} className="flex justify-between gap-2 py-1"><span>{p.numero} · {p.vencimento}</span><span>{money(p.valor)}</span></p>)}</div></details>)}
     <h3 className="font-semibold">Integralização por componente</h3><div className="grid gap-3 sm:grid-cols-2">{query.data.resumo.map((c:any)=><div key={c.chave} className="rounded border p-3 text-sm"><strong>{c.nome} · {c.tipoCpp?.nome || c.componente}</strong><p>Comprometido: {money(c.valor)}</p><p>Integralizado: {money(c.integralizado)}</p><p>Saldo: {money(c.saldo)}</p><p className="text-xs">{c.natureza==="caixa"?"Dinheiro":"Patrimonial, sem caixa"}</p></div>)}</div>
     <details className="rounded border p-3"><summary>Parcelas e integralizações ({query.data.parcelas.filter((p:any)=>p.vigente).length})</summary><div className="max-h-96 overflow-auto space-y-2 mt-3">{query.data.parcelas.filter((p:any)=>p.vigente).map((p:any)=><div key={p.id} className="rounded border p-3 text-sm flex flex-wrap justify-between gap-3"><div><strong>{items.find(c=>c.chave===p.chave)?.nome} · parcela {p.numero}</strong><p>{String(p.vencimento).slice(0,10)} · {money(p.valor)} · {p.status}</p></div>{editable && <Button variant="outline" disabled={p.pendente} onClick={()=>{setSettlement({id:p.id,status:p.liquidado?"agendado":"pago"});setReason("");setDate("");}}>{p.liquidado?"Reverter integralização":"Registrar integralização"}</Button>}</div>)}</div></details>

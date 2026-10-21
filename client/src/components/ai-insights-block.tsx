@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 import { 
   Sparkles, 
   Brain, 
@@ -52,7 +53,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
           })))}. Dê insights estratégicos em português sobre qual oportunidade é mais atrativa, qual tem melhor ROI potencial, e uma dica de mercado.`
         : `Analise estas ${data.length} BIAs (Built Intelligence Alliances): ${JSON.stringify(data.map(b => ({
             nome: b.nome_bia,
-            objetivo: b.objetivo_alianca,
+            tipo_de_negocio: biaBusinessTypeLabel(b),
             localizacao: b.localizacao
           })))}. Explique em português o potencial de cada aliança, riscos e oportunidades de participação.`;
       
@@ -119,8 +120,12 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
         }
       ];
     } else {
-      const vendasBias = data.filter(b => b.objetivo_alianca === "venda");
-      const rendaBias = data.filter(b => b.objetivo_alianca === "renda");
+      const counts = data.reduce((result:Record<string,number>,b)=>{
+        const label=biaBusinessTypeLabel(b);
+        if(label)result[label]=(result[label] || 0)+1;
+        return result;
+      },{});
+      const dominant = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
       
       return [
         {
@@ -132,16 +137,16 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
         },
         {
           icon: BarChart3,
-          title: "Modelo Venda",
-          description: `${vendasBias.length} projetos para comercialização`,
-          highlight: vendasBias.length > 0 ?"Ativo" : "Nenhum",
+          title: "Tipo de negócio predominante",
+          description: dominant?.[0] || "Não informado",
+          highlight: dominant ? `${dominant[1]} BIAs` : "Nenhum",
           type: "gold"
         },
         {
           icon: TrendingUp,
-          title: "Modelo Renda",
-          description: `${rendaBias.length} projetos para renda passiva`,
-          highlight: rendaBias.length > 0 ?"Ativo" : "Nenhum",
+          title: "Tipos de negócio",
+          description: `${Object.keys(counts).length} tipos nas alianças`,
+          highlight: `${Object.keys(counts).length}`,
           type: "info"
         },
         {

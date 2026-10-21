@@ -12,6 +12,7 @@ import { BiaBudgetSummary } from "./bia-budget-fields";
 import { BiaPartnersStatus } from "./bia-partners-status";
 import { biaBrandDataUrl, buildBiaBrandSvg, buildBiaHeaderSvg, buildBiaWhatsappSvg, downloadBiaBrandPng, loadBiaBrandArtwork, type BiaBrandExportKind } from "../lib/bia-brand";
 import { printBiaSummary } from "../lib/print-bia-summary";
+import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 
 type BiaData = {
   id: string; nome_bia: string; codigo_publico?: string | null; situacao?: string | null;
@@ -47,7 +48,7 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
   const canExport = !!code && !!bia.nome_bia.trim() && !!squareDark && !!squareLight && !!whatsapp && !!horizontal;
   const form = {nome_bia:bia.nome_bia,destinacao:bia.destinacao || "",objetivo_alianca:bia.objetivo_alianca || "",moeda:bia.moeda || "BRL",localizacao:bia.localizacao || "",observacoes:bia.observacoes || ""};
   const rows = [["Código público",code ? `BIA-${code}` : "Código oficial indisponível"],["Situação",biaPhaseLabel(bia.situacao as BiaPhase)]];
-  if (!bia.map_inicial) rows.push(["Nome",form.nome_bia],["Destinação",form.destinacao],["Objetivo",form.objetivo_alianca],["Moeda",form.moeda],["Localização",form.localizacao],["Descrição",form.observacoes]);
+  if (!bia.map_inicial) rows.push(["Nome",form.nome_bia],["Destinação",form.destinacao],["Tipo de negócio",biaBusinessTypeLabel(bia)],["Moeda",form.moeda],["Localização",form.localizacao],["Descrição",form.observacoes]);
   function pdf(element: HTMLDivElement | null) {
     setError("");
     if (!element || !canExport) return;

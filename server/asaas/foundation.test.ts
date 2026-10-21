@@ -189,7 +189,7 @@ test("rotas: admin restrito, escopo da BIA, consulta sem escrita e webhook Sandb
   await db.execute(sql`INSERT INTO asaas_sandbox.accounts (id,label,ownership,external_account_id,credential_reference) VALUES (${accountId},'SPE teste','company','external-private','vault-private')`);
   await db.execute(sql`INSERT INTO asaas_sandbox.bia_accounts (bia_id,account_id) VALUES ('canonical-bia',${accountId})`);
   let config = fixture(); let broken = false;
-  let routeCreations = 0;
+  let routeCreations = 0, statusQueries = 0;
   const app = express(); app.use(express.json({ limit: "100kb" }));
   const database = { execute: (query: any) => { if (broken) throw Error("database-password-private"); return db.execute(query); } };
   registerAsaasFoundation(app, {
@@ -205,7 +205,7 @@ test("rotas: admin restrito, escopo da BIA, consulta sem escrita e webhook Sandb
     accountTransport: childConfig => ({ request: async (path: string, options: any = {}) => {
       if (path.startsWith("/accounts?")) return { data: [], hasMore: false };
       if (path === "/accounts" && options.method === "POST") { routeCreations++; return { id: "route-external", walletId: "route-wallet", apiKey: "route-child-key" }; }
-      if (path === "/myAccount/status") { assert.equal(childConfig.apiKey, "route-child-key"); return { general: "APPROVED" }; }
+      if (path === "/myAccount/status") { statusQueries++; assert.equal(childConfig.apiKey, "route-child-key"); return { general: "APPROVED" }; }
       throw Error(`Unexpected ${path}`);
     } }),
   });
@@ -222,12 +222,34 @@ test("rotas: admin restrito, escopo da BIA, consulta sem escrita e webhook Sandb
   const bia = asaasBiaStatusSchema.parse(await (await get("/api/bias/own/banco/asaas/status", "user")).json());
   assert.equal(bia.account?.label, "SPE teste"); assert.equal(bia.operationsEnabled, true);
   assert.equal(bia.accountCreationAvailable, true);
+  assert.deepEqual(bia.integrationPending, []);
   assert.equal(JSON.stringify(bia).includes("private"), false);
   const createUrl = `http://127.0.0.1:${port}/api/bias/own-create/banco/asaas/accounts`;
   assert.equal((await fetch(createUrl, { method: "POST", headers: { "content-type": "application/json", "x-role": "user" }, body: JSON.stringify(accountInput()) })).status, 403);
   const createdResponse = await fetch(createUrl, { method: "POST", headers: { "content-type": "application/json", "x-role": "user", "x-edit": "true" }, body: JSON.stringify(accountInput()) });
   assert.equal(createdResponse.status, 201); assert.equal(routeCreations, 1);
   const createdBody = await createdResponse.json(); assert.equal(JSON.stringify(createdBody).includes("route-child-key"), false); assert.equal(createdBody.account.state, "approved");
+  const refreshUrl = `http://127.0.0.1:${port}/api/bias/own-create/banco/asaas/account/refresh`;
+  const previousQueries = statusQueries;
+  assert.equal((await fetch(refreshUrl, { method: "POST", headers: { "x-role": "user" } })).status, 403);
+  assert.equal(statusQueries, previousQueries);
+  for (let repetition = 0; repetition < 2; repetition++) {
+    const refreshed = await fetch(refreshUrl, { method: "POST", headers: { "x-role": "user", "x-edit": "true" } });
+    assert.equal(refreshed.status, 200);
+    const refreshedBody = await refreshed.json();
+    assert.equal(refreshedBody.account.state, "approved");
+    assert.equal(JSON.stringify(refreshedBody).includes("route-child-key"), false);
+  }
+  assert.equal(statusQueries, previousQueries + 2);
+  assert.equal(routeCreations, 1, "consultar novamente não cria subconta ou cobrança");
+  config = { ...config, chargesEnabled: false, transfersEnabled: false };
+  const pending = asaasBiaStatusSchema.parse(await (await get("/api/bias/own-create/banco/asaas/status", "user")).json());
+  assert.equal(pending.account?.state, "approved");
+  assert.equal(pending.chargesEnabled, false);
+  assert.deepEqual(pending.integrationPending, ["Habilitar cobranças de aportes neste ambiente.", "Habilitar transferências neste ambiente."]);
+  assert.equal(statusQueries, previousQueries + 2, "consultar configuração não chama o provedor");
+  assert.equal(JSON.stringify(pending).includes("route-child-key"), false);
+  config = fixture();
   assert.deepEqual((await db.execute(sql`SELECT kind,state FROM asaas_sandbox.operations`)).rows, [{ kind: "create_subaccount", state: "completed" }]);
   const post = (body: unknown, token = "sandbox-fixture-webhook") => fetch(`http://127.0.0.1:${port}/api/webhooks/asaas/sandbox`, { method: "POST", headers: { "content-type": "application/json", "asaas-access-token": token }, body: JSON.stringify(body) });
   const event = { id: "evt_test&1", event: "PAYMENT_RECEIVED", account: { id: "acc-test" }, payment: { id: "pay-test", customer: { cpfCnpj: "document-private" }, access_token: "key-private" } };

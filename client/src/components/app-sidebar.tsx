@@ -115,14 +115,14 @@ export function AppSidebar() {
               {!isLimitedCoOwner && canVitrine && <SidebarMenuItem>
                 <SidebarMenuButton isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
                   <Gem className="w-3.5 h-3.5" />
-                  <span>{t(MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Vitrine" : "BUILT Vitrine")}</span>
+                  <span>{t("Vitrine")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
 
               {canAlliances && <SidebarMenuItem>
                 <SidebarMenuButton isActive={isLimitedCoOwner ? location.includes("view=aliancas") : location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas" onClick={() => isLimitedCoOwner ? navigate("/?tab=carteira&view=aliancas") : handleEnvironmentClick("alliances", MEMBER_PORTFOLIO_V2_ENABLED ? "/area-aliancas?tab=bias" : "/area-aliancas?tab=opas")}>
                   <Users className="w-3.5 h-3.5" />
-                  <span>{t(isLimitedCoOwner ? "Alianças compartilhadas" : MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances")}</span>
+                  <span>{t(isLimitedCoOwner ? "Alianças compartilhadas" : "Alianças")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
 

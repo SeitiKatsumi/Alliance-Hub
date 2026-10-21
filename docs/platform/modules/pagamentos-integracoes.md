@@ -51,6 +51,8 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## Invariantes
 
+- Banco da BIA distingue aprovação cadastral da conta e habilitação dos recursos na plataforma. Após vínculo, Próximos passos informa pendências sanitizadas de configuração, caminho dos aportes, permissões e restrições de fase sem criar cobranças ou liberar operações. `integrationPending` é campo aditivo opcional no status da BIA; clientes/servidores anteriores continuam compatíveis. Atualizar situação tem loading, timeout de consulta, resultado inline acessível com hora da consulta ao provedor e mensagem explícita quando o estado não mudou. Resposta inválida/falha preserva os dados anteriores e não afirma nova aprovação; erro na revalidação de configuração é informado separadamente.
+
 - SMTP aplica preferências somente a categorias opcionais, mantendo recuperação de senha e mensagens essenciais de pagamento/termos/acesso. Lembrete de vencimento é opcional em Agenda e registra supressão sem afirmar entrega nem repetir a fila. Nenhum ajuste de webhook, cobrança, pagamento ou provedor financeiro nesta mudança.
 
 - A cobranca bancaria vinculada a lancamento valida a BIA, natureza de caixa e conciliacao antes de chamar o provedor, serializada por BIA. Propriedade e direitos do MAP Zero nao geram cobranca; esta entrega nao modifica precos, repasses ou monetizacao existentes.

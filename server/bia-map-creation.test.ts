@@ -1,4 +1,5 @@
 import test from "node:test";
+import { biaBusinessTypeStoragePayload } from "../shared/bia-business-type";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
@@ -175,6 +176,7 @@ test("edição geral preserva MAP Zero; DM legado e acesso continuam protegidos"
     directusUpdate:async(_col:string,_id:string,data:any)=>{writes.push(data);return {...current,...data};},
   };
   const constants = source.slice(source.indexOf("  const BIA_DM_FIELD_MAP ="), source.indexOf("  function withUpdatedBiaDm"));
+  Object.assign(scope,{biaBusinessTypeStoragePayload});
   const helpers = ["prepareBiaPayload","biaFinancialNumber","withUpdatedBiaDm","hasBiaFinancialField","withUpdatedBiaFinancials"].map(n=>functions.get(n)).join("\n");
   new Function(...Object.keys(scope),transformSync(constants+helpers+source.slice(start,end),{loader:"ts",format:"cjs"}).code)(...Object.values(scope));
   const request = async(body:any)=>{
@@ -195,6 +197,14 @@ test("edição geral preserva MAP Zero; DM legado e acesso continuam protegidos"
   assert.equal(writes.length,1,"Recusa antes de qualquer escrita");
   allowed=false;
   assert.equal((await request({nome_bia:"Sem acesso"})).status,403);
+  allowed=true;
+  const changedType=await request({business_type_code:"SHORT_STAY",objetivo_alianca:"Venda"});
+  assert.equal(changedType.status,200,JSON.stringify(changedType.result));
+  assert.equal(writes.at(-1).objetivo_alianca,"SHORT_STAY");
+  assert.ok(!("business_type_code" in writes.at(-1)),"somente campo físico compatível é gravado");
+  const beforeInvalid=writes.length;
+  assert.equal((await request({business_type_code:"INVALID"})).status,400);
+  assert.equal(writes.length,beforeInvalid);
   allowed=true;
   base=null;
   const legacy=await request({perc_autor_opa:12.5});

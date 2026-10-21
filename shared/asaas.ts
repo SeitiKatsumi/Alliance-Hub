@@ -70,6 +70,7 @@ export const asaasBiaStatusSchema = z.object({
   environment: asaasEnvironmentSchema, integrationState: asaasStatusSchema.shape.state,
   storageReady: z.boolean(), operationsEnabled: z.boolean(), chargesEnabled: z.boolean(), transfersEnabled: z.boolean(),
   accountCreationAvailable: z.boolean(), accountCreationBlockers: z.array(z.string()),
+  integrationPending: z.array(z.string()).optional(),
   account: asaasAccountSummarySchema.nullable(),
 });
 export type AsaasBiaStatus = z.infer<typeof asaasBiaStatusSchema>;

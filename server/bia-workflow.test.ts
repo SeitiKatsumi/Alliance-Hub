@@ -55,15 +55,19 @@ test("rascunho preserva ausência e campos antigos, rejeita números formatados 
   assert.equal(validateBiaDraft({...input,map_inicial:{participantes:[{cargos:[],contribuicoes:[{cargo:"Contribuição individual",indice:null}]}]}}).map_inicial.participantes[0].contribuicoes[0].indice,null);
 });
 
-test("guarda financeira bloqueia estruturação, captação, encerramento e intenção pendente",async()=>{
+test("guarda financeira libera apenas cronogramas iniciais antes da execução e bloqueia os demais casos",async()=>{
   const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL);const db=drizzle(pg);
-  let phase:any="em_estruturacao",missing=false;
+  let phase:any="em_estruturacao",missing=false,initialContributionWrite=false;
   const source=readFileSync(new URL("./routes.ts",import.meta.url),"utf8");
   const fn=source.slice(source.indexOf("async function assertBiaFinancialPhase("),source.indexOf("async function directusCreate("));
-  const scope={sql,db,biaAllowsFinance,mapOperationContext:{getStore:()=>null},directusFetchOne:async()=>missing?null:{situacao:phase}};
+  const scope={sql,db,biaAllowsFinance,mapOperationContext:{getStore:()=>initialContributionWrite?{initialContributionWrite:true}:null},directusFetchOne:async()=>missing?null:{situacao:phase}};
   const guard=new Function(...Object.keys(scope),transformSync(fn,{loader:"ts",target:"es2022"}).code+";return assertBiaFinancialPhase;")(...Object.values(scope));
   try {
     for(phase of ["em_estruturacao","em_captacao","encerrada"])await assert.rejects(guard("teste"),{statusCode:409});
+    initialContributionWrite=true;
+    for(phase of ["em_estruturacao","em_captacao"])await guard("teste");
+    phase="encerrada";await assert.rejects(guard("teste"),{statusCode:409});
+    initialContributionWrite=false;
     for(phase of ["ativa","em_execucao","em_operacao","em_distribuicao"])await guard("teste");
     await pg.exec("INSERT INTO bia_fase_eventos (bia_id,evento_id,fase_anterior,fase,motivo,autor) VALUES ('teste','fechar','em_distribuicao','encerrada','Encerramento','{}')");
     await assert.rejects(guard("teste"),{statusCode:409});

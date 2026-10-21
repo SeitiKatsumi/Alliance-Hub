@@ -1824,9 +1824,9 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-area-aliancas-title">
           <Users className="h-7 w-7 text-cyan-500" />
-          {forcedArea === "landbank" ? "Banco de Ativos" : MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances"}
+          {forcedArea === "landbank" ? "Banco de Ativos" : "Alianças"}
           <ModuleInfo
-            title={forcedArea === "landbank" ? "Banco de Ativos" : "Área de Alianças"}
+            title={forcedArea === "landbank" ? "Banco de Ativos" : "Alianças"}
             description={forcedArea === "landbank" ? "Consulte ativos compartilhados com Membros BUILT e acompanhe oportunidades patrimoniais autorizadas." : "Área exclusiva para acompanhar as BIAs que você desenvolve ou das quais participa, com documentos, atividades e responsabilidades conforme seu papel."}
           />
         </h1>

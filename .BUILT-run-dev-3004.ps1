@@ -8,6 +8,8 @@
 }
 $env:NODE_ENV = 'development'
 $env:PORT = '3004'
+$env:ASAAS_CONTRIBUTIONS_ENABLED = 'true'
+$env:ASAAS_TRANSFERS_ENABLED = 'true'
 . "$PSScriptRoot\scripts\ensure-local-db-tunnel.ps1"
 . "$PSScriptRoot\scripts\ensure-local-directus-tunnel.ps1"
 npx.cmd tsx server/index.ts

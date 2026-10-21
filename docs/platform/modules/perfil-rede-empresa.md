@@ -56,6 +56,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 ## Invariantes
 
+- O componente compartilhado `phone-input.tsx` usa `background`/`foreground` tanto no seletor de DDI quanto nas opções nativas. Cadastro Geral não sobrepõe esse par com branco/azul fixos; telefone, WhatsApp e telefone secundário permanecem legíveis nos dois temas. Sem mudança no catálogo, normalização ou dados salvos. Regressão: `client/src/components/phone-input.test.ts`.
+
 - Rótulos das teses no Perfil e onboarding não exibem pontos de fim de frase, inclusive na explicação entre parênteses. Formatação compartilhada, sem modificar códigos, preferências ou vínculos persistidos.
 
 - Catálogo atualizado em 15/10/2026: cinco Células e 13 teses em `shared/strategic-cells.ts` (Valorização e Revenda 3, Renda Imobiliária 2, Desenvolvimento Imobiliário 3, Destravamento de Ativos 3 e Operação Imobiliária 2). Substitui as contagens/listas históricas de seis Células/22 negócios abaixo. Desenvolvimento para manter e alugar pertence a Desenvolvimento, não Renda. Investimento e Capital e opções retiradas são arquivados no catálogo sem excluir preferências, instâncias, relações ou histórico. Códigos anteriores continuam interpretáveis; não se infere uma nova tese para escolhas ambíguas. Meu Perfil mostra escolhas retiradas separadamente, permitindo remoção explícita. A API sincroniza nomes e agrupamentos canônicos; onboarding usa o mesmo catálogo. Sem alteração de papéis ou acesso a BIAs.

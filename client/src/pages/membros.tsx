@@ -1446,15 +1446,15 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                 </div>
                 <div>
                   <label className={labelCls}>WhatsApp</label>
-                  <PhoneInput value={form.whatsapp || ""} onChange={value => setField("whatsapp", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-whatsapp" />
+                  <PhoneInput value={form.whatsapp || ""} onChange={value => setField("whatsapp", value)} inputClassName="h-9 text-sm text-foreground placeholder:text-muted-foreground" data-testid="input-edit-whatsapp" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefone</label>
-                  <PhoneInput value={form.telefone || ""} onChange={value => setField("telefone", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-telefone" />
+                  <PhoneInput value={form.telefone || ""} onChange={value => setField("telefone", value)} inputClassName="h-9 text-sm text-foreground placeholder:text-muted-foreground" data-testid="input-edit-telefone" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefone Secundário</label>
-                  <PhoneInput value={form.telefone_secundario || ""} onChange={value => setField("telefone_secundario", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-telefone2" />
+                  <PhoneInput value={form.telefone_secundario || ""} onChange={value => setField("telefone_secundario", value)} inputClassName="h-9 text-sm text-foreground placeholder:text-muted-foreground" data-testid="input-edit-telefone2" />
                 </div>
                 <div>
                   <label className={labelCls}>Site / Portfólio</label>

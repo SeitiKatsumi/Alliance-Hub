@@ -138,7 +138,13 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
   const members = useMemo(() => membersQuery.data || [], [membersQuery.data]);
   const cellsQuery = useQuery<AvailableCell[]>({
     queryKey: ["/api/bias", biaId, "celulas-disponiveis"],
-    queryFn: () => fetch(`/api/bias/${biaId}/celulas-disponiveis`, { credentials: "include" }).then((response) => response.ok ? response.json() : []),
+    queryFn: async () => {
+      const response = await fetch(`/api/bias/${biaId}/celulas-disponiveis`, { credentials: "include" });
+      if (!response.ok) throw new Error("Não foi possível carregar as células.");
+      const cells = await response.json();
+      if (!Array.isArray(cells)) throw new Error("Não foi possível carregar as células.");
+      return cells;
+    },
   });
   const selectedCell = (cellsQuery.data || []).find((cell) => cell.id === form.strategic_cell_id);
 
@@ -292,7 +298,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
               <div className="space-y-2"><Label>Validade</Label><Input type="date" value={form.expira_em} onChange={(event) => setForm({ ...form, expira_em: event.target.value })} /></div>
               <div className="space-y-2"><Label>Responsável</Label><Select value={form.responsavel_membro_id || "automatico"} onValueChange={(value) => setForm({ ...form, responsavel_membro_id: value === "automatico" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="automatico">Pessoa criadora</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{memberName(member)}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2"><Label>Distribuição</Label><Select value={form.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setForm({ ...form, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Célula, Comunidade e rede a cada 4h</SelectItem></SelectContent></Select></div>
-              <div className="space-y-2"><Label>Célula da Comunidade</Label><Select value={form.strategic_cell_id || "_none"} onValueChange={(value) => setForm({ ...form, strategic_cell_id: value === "_none" ? "" : value, market_code: "" })}><SelectTrigger><SelectValue placeholder="Contexto opcional" /></SelectTrigger><SelectContent><SelectItem value="_none">Sem Célula específica</SelectItem>{(cellsQuery.data || []).map((cell) => <SelectItem key={cell.id} value={cell.id}>{cell.name || cell.type_public_name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Célula da Comunidade</Label><Select disabled={cellsQuery.isPending || cellsQuery.isError} value={form.strategic_cell_id || "_none"} onValueChange={(value) => setForm({ ...form, strategic_cell_id: value === "_none" ? "" : value, market_code: "" })}><SelectTrigger><SelectValue placeholder="Contexto opcional" /></SelectTrigger><SelectContent><SelectItem value="_none">Sem Célula específica</SelectItem>{(cellsQuery.data || []).map((cell) => <SelectItem key={cell.id} value={cell.id}>{cell.name || cell.type_public_name}</SelectItem>)}</SelectContent></Select>{cellsQuery.isError && <div role="alert" className="text-sm text-destructive">Não foi possível carregar as células. <Button type="button" variant="ghost" className="h-auto p-0 text-inherit hover:bg-transparent hover:underline" onClick={() => cellsQuery.refetch()}>Tentar novamente</Button></div>}</div>
               {selectedCell && <div className="space-y-2"><Label>Tipo de negócio</Label><Select value={form.market_code || "_none"} onValueChange={(value) => setForm({ ...form, market_code: value === "_none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="_none">Todos os tipos da Célula</SelectItem>{selectedCell.markets.map((market) => <SelectItem key={market.code} value={market.code}>{market.public_name}</SelectItem>)}</SelectContent></Select></div>}
             </div>
             <div className="space-y-2"><Label>Especialidades</Label><Input value={form.especialidades} onChange={(event) => setForm({ ...form, especialidades: event.target.value })} placeholder="Jurídico, Engenharia, Avaliação..." /><p className="text-xs text-muted-foreground">Separe por vírgulas.</p></div>

@@ -132,13 +132,13 @@ export function PhoneInput({
         value={selected.dialCode}
         onChange={(event) => onChange(formatPhoneValue(event.target.value, parsed.number))}
         className={cn(
-          "w-[104px] shrink-0 border-0 border-r border-input bg-white px-2 text-sm font-medium text-foreground outline-none [&>option]:bg-white [&>option]:text-foreground",
+          "w-[104px] shrink-0 border-0 border-r border-input bg-background px-2 text-sm font-medium text-foreground outline-none [&>option]:bg-background [&>option]:text-foreground",
           selectClassName,
         )}
         aria-label="Código internacional"
       >
         {COUNTRY_CODES.map((item) => (
-          <option key={`${item.country}-${item.dialCode}`} value={item.dialCode} className="bg-white text-foreground">
+          <option key={`${item.country}-${item.dialCode}`} value={item.dialCode} className="bg-background text-foreground">
             {item.country} {item.dialCode}
           </option>
         ))}

@@ -14,6 +14,7 @@ import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
 import { formatBiaPercent } from "@shared/bia-numbers";
 import { biaBusinessTypeCode, biaBusinessTypeLabel, biaBusinessTypeStoragePayload } from "../shared/bia-business-type";
+import { createDirectusBiaCommunitySync } from "./bia-community-directus";
 import { buildBiaMouFooterText } from "../shared/bia-document-footer";
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
@@ -1268,6 +1269,16 @@ async function protectInitialEntry(id: string, data: any) {
 }
 let mapFinancialWrite: null | ((collection: string, id: string | null, data: any, operation: () => Promise<any>) => Promise<any>) = null;
 let mapBiaActivation: null | ((id: string, data: any, operation: () => Promise<any>) => Promise<any>) = null;
+let biaCommunitySync: ReturnType<typeof createDirectusBiaCommunitySync> | null = null;
+async function syncBiaMotherAfterWrite(id: string) {
+  // The BIA itself is the durable reconciliation source. Do not report creation as
+  // failed after it was committed (which could make an older client create it twice).
+  try {
+    const result = await biaCommunitySync?.sync(id);
+    return result?.status === "missing_mother";
+  }
+  catch { console.warn("[bia-community] Vínculo pendente; será conciliado novamente."); return true; }
+}
 async function assertBiaFinancialPhase(value:any) {
   const id=typeof value === "object" ? value?.id : value;
   if(!id)return;
@@ -1300,6 +1311,9 @@ async function directusCreate(collection: string, data: Record<string, any>): Pr
     throw new Error(`Directus create error ${res.status}: ${text}`);
   }
   const json = await res.json();
+  if (collection === "bias_projetos" && json.data?.id) {
+    if (await syncBiaMotherAfterWrite(String(json.data.id))) json.data.community_link_pending = true;
+  }
   return json.data;
 }
 
@@ -1338,10 +1352,13 @@ async function directusUpdate(collection: string, id: string, data: Record<strin
   }
   // Directus may return 204 No Content or an empty body in some edge cases
   const text = await res.text();
-  if (!text) return {};
+  const communityLinkPending = collection === "bias_projetos" && Object.hasOwn(data, "autor_bia")
+    ? await syncBiaMotherAfterWrite(id) : false;
+  if (!text) return communityLinkPending ? { community_link_pending: true } : {};
   try {
     const json = JSON.parse(text);
-    return json.data ?? json;
+    const item = json.data ?? json;
+    return communityLinkPending ? { ...item, community_link_pending: true } : item;
   } catch {
     return {};
   }
@@ -1461,6 +1478,7 @@ async function normalizeDirectusPatchPayload(collection: string, payload: Record
 }
 
 async function directusDelete(collection: string, id: string): Promise<any> {
+  if (collection === "bias_projetos" && biaCommunitySync) return biaCommunitySync.remove(id);
   if(collection === "fluxo_caixa") {
     const existing=await directusFetchOne(collection,id,"fields=bia");
     await assertBiaFinancialPhase(existing?.bia);
@@ -4185,7 +4203,26 @@ export async function registerRoutes(
   ensureOpaMediaFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
   ensureBiasFinancialFieldPrecision().catch(console.error);
-  ensureComunidadeFields().catch(console.error);
+  biaCommunitySync = createDirectusBiaCommunitySync(db, {
+    url: DIRECTUS_URL, token: DIRECTUS_TOKEN, communityCollection: getComunidadeCol,
+  });
+  const reconcileBiaCommunities = async () => {
+    try {
+      const result = await biaCommunitySync!.reconcile();
+      console.log(`[bia-community] Conciliadas ${result.total} BIAs: ${result.linked} vínculos adicionados, ${result.failed.length} falhas, ${result.missing_author} sem autor, ${result.missing_mother} sem mãe.`);
+    } catch { console.warn("[bia-community] Conciliação indisponível; nova tentativa automática."); }
+  };
+  let reconcilingBiaCommunities = false;
+  const runBiaCommunityReconciliation = async () => {
+    if (reconcilingBiaCommunities) return;
+    reconcilingBiaCommunities = true;
+    try { await reconcileBiaCommunities(); } finally { reconcilingBiaCommunities = false; }
+  };
+  Promise.all([ensureComunidadeFields().finally(() => comunidadeColResolve?.()), ensureMembroComunidadeMaeTable()])
+    .then(runBiaCommunityReconciliation).catch(() => console.warn("[bia-community] Preparação pendente."));
+  const biaCommunityTimer = setInterval(() => { void runBiaCommunityReconciliation(); }, 5 * 60_000);
+  biaCommunityTimer.unref();
+  httpServer.once("close", () => clearInterval(biaCommunityTimer));
   ensureNomeBiaLength().catch(console.error);
   ensureCadastroGeralFields().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);
@@ -6414,7 +6451,10 @@ export async function registerRoutes(
         .onConflictDoNothing({ target: membroComunidadeMae.membro_id })
         .returning();
 
-      if (result[0]) return result[0] as ComunidadeMaeRecord;
+      if (result[0]) {
+        void biaCommunitySync?.reconcile(memberId).catch(() => console.warn("[bia-community] Nova âncora aguarda conciliação."));
+        return result[0] as ComunidadeMaeRecord;
+      }
 
       const existing = await db
         .select()
@@ -6621,7 +6661,8 @@ export async function registerRoutes(
         })
         .returning();
 
-      res.json({ success: true, comunidade_mae: result[0] || null });
+      const communitySync = await biaCommunitySync?.reconcile(membroId);
+      res.json({ success: true, comunidade_mae: result[0] || null, bia_community_sync_pending: !!communitySync?.failed.length });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -25900,8 +25941,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   }
 
   async function communityIdsForBia(biaId: string): Promise<string[]> {
+    // Uses the persisted author's anchor, never the requester or a first membership.
+    await biaCommunitySync?.sync(biaId);
     const collection = await getComunidadeCol();
-    const communities = await directusFetch(collection, COMUNIDADE_FIELDS).catch(() => []);
+    const response = await fetch(`${DIRECTUS_URL}/items/${collection}?fields=id,bias.bias_projetos_id.id&limit=-1`, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }, signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) throw Object.assign(new Error("Não foi possível consultar as comunidades da BIA."), { status: 503 });
+    const communities = (await response.json()).data;
+    if (!Array.isArray(communities)) throw Object.assign(new Error("Consulta de comunidades inválida."), { status: 503 });
     return (communities as any[]).filter((community) => (Array.isArray(community.bias) ? community.bias : []).some((relation: any) => {
       const id = directusRelationId(relation?.bias_projetos_id) || directusRelationId(relation);
       return String(id || "") === String(biaId);
@@ -26163,6 +26211,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       await ensureStrategicCellTables();
       const communityIds = await communityIdsForBia(String(authorization.bia.id));
       if (!communityIds.length) return res.json([]);
+      for (const communityId of communityIds) await ensureCommunityStrategicCells(communityId);
       const result = await db.execute(sql`
         SELECT c.id::text, c.community_id, c.name, c.description, t.code AS type_code,
           t.public_name AS type_public_name, t.short_description AS type_short_description,
@@ -26172,7 +26221,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           ), '[]'::jsonb) AS markets
         FROM strategic_cells c
         JOIN strategic_cell_types t ON t.id = c.strategic_cell_type_id
-        WHERE c.community_id = ANY(${sqlTextArray(communityIds)}) AND c.status = 'ACTIVE'
+        WHERE c.community_id = ANY(${sqlTextArray(communityIds)}) AND c.status = 'ACTIVE' AND t.status = 'ACTIVE'
         ORDER BY t.display_order, c.name
       `);
       return res.json(result.rows || []);

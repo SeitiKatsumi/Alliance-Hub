@@ -13,6 +13,9 @@ import { legalBlockers, legacyBiaSetup, parseBiaSetup, biaAssetFromPortfolio, ty
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
 import { loadBiaPatrimony } from "./bia-patrimony";
+import { portfolioDashboard } from "../shared/portfolio-dashboard";
+import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
+import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD } from "./property-market-evidence";
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
 import { formatBiaPercent } from "@shared/bia-numbers";
@@ -25,6 +28,7 @@ import type { Response } from "express";
 import { hashInviteToken, storage } from "./storage";
 import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaAprovacoes, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
 import OpenAI from "openai";
+import pLimit from "p-limit";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -4336,7 +4340,7 @@ export async function registerRoutes(
       return res.status(403).json({ error: "A conta de coproprietário possui acesso somente para consulta.", code: "COPROPRIETARIO_READ_ONLY" });
     }
     const allowed = [
-      "/me", "/logout", "/login", "/carteira/resumo", "/carteira/imoveis",
+      "/me", "/logout", "/login", "/carteira/resumo", "/carteira/imoveis", "/carteira/evolucao",
       "/carteira/convites/", "/bias", "/bia-socio-solicitacoes", "/bia-mou",
       "/nucleo-tecnico-docs", "/alianca-docs",
     ];
@@ -15593,8 +15597,9 @@ ${textContent}`;
     entrada: Record<string, unknown>,
     resultado: Record<string, unknown>,
     version = "carteira-v1",
+    executor: Pick<typeof db, "execute"> = db,
   ) {
-    const insert = await db.execute(sql`
+    const insert = await executor.execute(sql`
       INSERT INTO carteira_analises (
         imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id
       )
@@ -16154,17 +16159,19 @@ ${inputText.slice(0, 18000)}`,
   const PTAX_SOURCE = "BCB PTAX";
   const PTAX_SOURCE_URL = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata";
 
-  async function loadPortfolioMarketAnalyses() {
+  async function loadPortfolioMarketAnalyses(ids: string[]) {
     const result = await db.execute(sql`
       SELECT * FROM carteira_analises
-      WHERE tipo = 'avaliacao_mercado_sugerida'
-        AND versao_regra = 'comparaveis-robustos-v2'
+      WHERE ((tipo = 'avaliacao_mercado_sugerida' AND versao_regra IN (${PROPERTY_MARKET_VERSION}, 'comparaveis-10km-v3'))
+        OR (tipo = 'avaliacao_confirmada' AND versao_regra = 'comparaveis-robustos-v2'))
+        AND imovel_id IN (SELECT jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))
       ORDER BY imovel_id, criado_em DESC
     `);
-    const states = new Map<string, { latestAttempt?: any; latestSuccess?: any }>();
+    const states = new Map<string, { latestAttempt?: any; latestSuccess?: any; rows?: any[] }>();
     for (const row of result.rows || []) {
       const id = String(row.imovel_id);
       const state = states.get(id) || {};
+      (state.rows ||= []).push(row);
       if (!state.latestAttempt) state.latestAttempt = row;
       const outcome = (row.resultado || {}) as any;
       if (!state.latestSuccess && outcome.status === "atualizada" && Number(outcome.valor_estimado || 0) > 0) state.latestSuccess = row;
@@ -16173,7 +16180,15 @@ ${inputText.slice(0, 18000)}`,
     return states;
   }
 
-  function portfolioMarketEstimate(imovel: any, state?: { latestAttempt?: any; latestSuccess?: any }) {
+  function portfolioMarketEstimate(imovel: any, state?: { latestAttempt?: any; latestSuccess?: any; rows?: any[] }) {
+    const fingerprint = propertyMarketFingerprint(imovel);
+    if (state?.rows) {
+      const eligible = state.rows.map(row => row.tipo === 'avaliacao_confirmada' ? confirmedMarketEvidence(imovel, row) : row)
+        .filter(row => row?.entrada?.fingerprint === fingerprint);
+      state = { latestAttempt: eligible[0], latestSuccess: eligible.find(row => row.resultado?.status === 'atualizada' && Number(row.resultado?.valor_estimado) > 0) };
+    }
+    if (state?.latestAttempt?.entrada?.fingerprint !== fingerprint) state = undefined;
+    else if (state?.latestSuccess?.entrada?.fingerprint !== fingerprint) state = { latestAttempt: state.latestAttempt };
     const attempt = state?.latestAttempt;
     const success = state?.latestSuccess;
     const attemptAge = attempt?.criado_em ? Date.now() - new Date(attempt.criado_em).getTime() : Number.POSITIVE_INFINITY;
@@ -16182,24 +16197,25 @@ ${inputText.slice(0, 18000)}`,
     const attemptResult = (attempt?.resultado || {}) as any;
     const suggestedValue = Number(successResult.valor_estimado || 0);
     const fallbackValue = parseMarketValueServer(imovel.valor_atual);
-    const status = attemptAge < MARKET_ESTIMATE_MAX_AGE_MS && attemptResult.status !== "atualizada"
-      ? String(attemptResult.status || "sem_amostra")
-      : suggestedValue > 0
-        ? (successAge < MARKET_ESTIMATE_MAX_AGE_MS ? "atualizada" : "desatualizada")
-        : "sem_dados";
+    const status = suggestedValue > 0 && successAge < MARKET_ESTIMATE_MAX_AGE_MS ? "atualizada"
+      : suggestedValue > 0 ? "desatualizada" : String(attemptResult.status || "sem_dados");
     return {
       valor: fallbackValue,
       valor_sugerido: suggestedValue > 0 ? suggestedValue : null,
+      valor_minimo: status === "atualizada" ? successResult.valor_minimo ?? null : null,
+      valor_maximo: status === "atualizada" ? successResult.valor_maximo ?? null : null,
+      fontes: successResult.fontes || [],
       moeda: String(imovel.moeda || "BRL").toUpperCase(),
       data_base: imovel.valor_data_base || null,
       sugestao_data_base: successResult.data_base || null,
       status,
-      raio_km: MARKET_RADIUS_KM,
+      raio_km: successResult.metodo === INDICATIVE_MARKET_METHOD ? null : MARKET_RADIUS_KM,
       quantidade_comparaveis: Number(successResult.quantidade_comparaveis || 0),
       confianca: successResult.confianca || null,
       fonte: String(imovel.valor_origem || "declarada"),
-      sugestao_fonte: suggestedValue > 0 ? "comparaveis_mercado" : null,
-      precisa_atualizar: attemptAge >= MARKET_ESTIMATE_MAX_AGE_MS,
+      sugestao_fonte: suggestedValue > 0 ? (successResult.metodo === INDICATIVE_MARKET_METHOD ? INDICATIVE_MARKET_METHOD : "comparaveis_mercado") : null,
+      pesquisa_chave: fingerprint,
+      precisa_atualizar: !(suggestedValue > 0 && successAge < MARKET_ESTIMATE_MAX_AGE_MS) && (attemptResult.indicativa_avaliada !== true || attemptAge >= marketRetryDelay(attemptResult)),
       valor_fallback: fallbackValue,
     };
   }
@@ -16487,12 +16503,16 @@ ${inputText.slice(0, 18000)}`,
 
   let nextNominatimRequestAt = 0;
   async function geocodeMarketLocation(query: unknown) {
-    for (const location of marketLocationCandidates(query)) {
+    const locations = marketLocationCandidates(query);
+    // A city/neighbourhood centroid cannot prove that an individual listing lies within 10 km.
+    const detailed = query && typeof query === "object" && (query as any).endereco;
+    if (!detailed) return null;
+    for (const location of locations.slice(0, 1)) {
       const now = Date.now();
       const scheduledAt = Math.max(now, nextNominatimRequestAt);
       nextNominatimRequestAt = scheduledAt + 1_000;
       if (scheduledAt > now) await new Promise((resolve) => setTimeout(resolve, scheduledAt - now));
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1`;
       const response = await fetch(url, {
         headers: { "User-Agent": "BuiltAlliances/1.0 contact@builtalliances.com" },
         signal: AbortSignal.timeout(10_000),
@@ -16501,7 +16521,8 @@ ${inputText.slice(0, 18000)}`,
       const payload = await response.json() as any[];
       const latitude = Number(payload?.[0]?.lat);
       const longitude = Number(payload?.[0]?.lon);
-      if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
+      const address = payload?.[0]?.address || {};
+      if ((address.road || address.pedestrian || address.house_number) && Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
     }
     return null;
   }
@@ -16520,16 +16541,16 @@ ${inputText.slice(0, 18000)}`,
     return verified;
   }
 
-  async function researchPropertyMarketValue(imovel: any) {
+  async function researchComparablePropertyMarketValue(imovel: any) {
     const areaM2 = parseAreaM2Server(imovel.area_m2);
     const referenceValue = parseMarketValueServer(imovel.valor_atual) || parseMarketValueServer(imovel.valor_pago);
-    if (!(areaM2 > 0) || !(referenceValue > 0)) throw Object.assign(new Error("Informe área e valor do imóvel antes da pesquisa de mercado."), { status: 422 });
+    if (!(areaM2 > 0)) throw Object.assign(new Error("Informe a área do imóvel antes da pesquisa de mercado."), { status: 422 });
     const location = [imovel.endereco, imovel.numero, imovel.bairro, imovel.cidade, imovel.estado, imovel.pais, imovel.cep ? `CEP ${imovel.cep}` : ""]
       .filter(Boolean).join(", ");
     if (!location) throw Object.assign(new Error(`Informe o endereço do imóvel para validar o raio de ${MARKET_RADIUS_KM} km.`), { status: 422 });
     const parsed = await analyzeM2WithWebSearch({
       origem: "carteira",
-      nome: String(imovel.nome || "Imóvel"),
+      nome: "Imóvel de referência",
       tipo: String(imovel.tipo || "Não informado"),
       location,
       bairro: String(imovel.bairro || ""),
@@ -16571,14 +16592,29 @@ ${inputText.slice(0, 18000)}`,
       ...analysis,
       status: value ? "atualizada" : "sem_amostra",
       valor_estimado: value,
+      valor_minimo: value && analysis.referencia_m2_min ? Number((analysis.referencia_m2_min * areaM2).toFixed(2)) : null,
+      valor_maximo: value && analysis.referencia_m2_max ? Number((analysis.referencia_m2_max * areaM2).toFixed(2)) : null,
       data_base: new Date().toISOString().slice(0, 10),
       moeda: String(imovel.moeda || "BRL").toUpperCase(),
       raio_km: MARKET_RADIUS_KM,
     };
   }
 
-  app.get("/api/carteira/resumo", async (req, res) => {
-    try {
+  async function researchPropertyMarketValue(imovel: any, previousAttempt?: any) {
+    let comparable = previousAttempt;
+    if (!comparable) {
+      try { comparable = await researchComparablePropertyMarketValue(imovel); }
+      catch (error: any) {
+        if (error.status !== 422) throw error;
+        comparable = { status: "sem_amostra", quantidade_comparaveis: 0, amostra_suficiente: false };
+      }
+    }
+    if (comparable.status === "atualizada") return comparable;
+    const indicative = await researchIndicativePropertyValue(getOpenAI(), { ...imovel, area_m2: parseAreaM2Server(imovel.area_m2) });
+    return indicative || { ...comparable, indicativa_avaliada: true };
+  }
+
+  async function buildCarteiraResumo(req: Request) {
       const actor = requireCarteiraActor(req);
       const period = req.query.period === "all" ? "all" : "12m";
       const since = period === "all" ? null : new Date(Date.UTC(new Date().getUTCFullYear() - 1, new Date().getUTCMonth(), new Date().getUTCDate())).toISOString().slice(0, 10);
@@ -16590,7 +16626,7 @@ ${inputText.slice(0, 18000)}`,
       `);
       const [cards, marketStates, exchangeRates] = await Promise.all([
         Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor, since))),
-        loadPortfolioMarketAnalyses(),
+        loadPortfolioMarketAnalyses((result.rows || []).map(row => String(row.id))),
         loadPortfolioExchangeRates(),
       ]);
       const imoveis = cards.map((item) => {
@@ -16632,10 +16668,18 @@ ${inputText.slice(0, 18000)}`,
       };
       for (const item of imoveis) {
         (item as any).valor_utilizado_no_total_brl = toBrl(parseMarketValueServer(item.valor_utilizado_no_total), item.moeda);
-        (item as any).valor_aquisicao_brl = toBrl(parseMarketValueServer(item.valor_pago), item.moeda);
+        (item as any).valor_aquisicao_brl = item.valor_pago == null || item.valor_pago === "" ? null : convertPortfolioAmountToBrl(parseMarketValueServer(item.valor_pago), item.moeda, exchangeRates);
+        const estimate = item.estimativa_mercado;
+        (item as any).estimativa_dashboard = {
+          indicative: estimate.sugestao_fonte === INDICATIVE_MARKET_METHOD,
+          value: estimate.status === "atualizada" && estimate.valor_minimo != null && estimate.valor_maximo != null && estimate.valor_sugerido != null ? convertPortfolioAmountToBrl(estimate.valor_sugerido, item.moeda, exchangeRates) : null,
+          min: estimate.valor_minimo == null ? null : convertPortfolioAmountToBrl(estimate.valor_minimo, item.moeda, exchangeRates),
+          max: estimate.valor_maximo == null ? null : convertPortfolioAmountToBrl(estimate.valor_maximo, item.moeda, exchangeRates),
+        };
       }
       for (const item of aliancas) {
-        (item as any).valor_participacao_brl = item.valor_participacao == null ? null : toBrl(Number(item.valor_participacao), item.moeda);
+        (item as any).valor_participacao_brl = item.valor_participacao == null ? null : convertPortfolioAmountToBrl(Number(item.valor_participacao), item.moeda, exchangeRates);
+        (item as any).cpp_base_brl = convertPortfolioAmountToBrl(Number(item.aportes_oficiais), item.moeda, exchangeRates);
       }
       const consolidatedBrl = calculatePortfolioTotals(
         imoveis.map((item) => ({
@@ -16654,10 +16698,11 @@ ${inputText.slice(0, 18000)}`,
         const rate = exchangeRates.get(currency);
         return !rate || now - new Date(rate.fetchedAt).getTime() >= 24 * 60 * 60 * 1000;
       });
-      res.json({
+      return {
         period,
         imoveis,
         aliancas,
+        dashboard: portfolioDashboard(imoveis, aliancas),
         totais: {
           patrimonio_total: Number(consolidated.netWorth.toFixed(2)),
           patrimonio_pago: Number(consolidated.acquisitionValue.toFixed(2)),
@@ -16689,11 +16734,29 @@ ${inputText.slice(0, 18000)}`,
           moedas_excluidas: Array.from(excludedCurrencies),
           precisa_atualizar: missingOrStaleRates.length > 0,
         },
-      });
+      };
+  }
+
+  app.get("/api/carteira/resumo", async (req, res) => {
+    try { res.json(await buildCarteiraResumo(req));
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
   });
+
+  async function carteiraEvolution(req: Request, res: Response, record: boolean) {
+    try {
+      const actor = requireCarteiraActor(req);
+      const summary = await buildCarteiraResumo(req);
+      const scope = portfolioHistoryScope(summary.imoveis, summary.aliancas);
+      const since = req.query.period === "all" ? null : new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+      const history = await portfolioHistory(db, actor, scope, since, record ? summary.dashboard : undefined);
+      if (record && !history.available) return res.status(503).json({ error: "Histórico patrimonial aguardando migração." });
+      res.json(history);
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  }
+  app.get("/api/carteira/evolucao", (req, res) => carteiraEvolution(req, res, false));
+  app.post("/api/carteira/evolucao/registrar", (req, res) => carteiraEvolution(req, res, true));
 
   app.get("/api/carteira/imoveis", async (req, res) => {
     try {
@@ -17084,24 +17147,38 @@ ${inputText.slice(0, 18000)}`,
     } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
   });
 
+  const marketResearchLimit = pLimit(2);
   app.post("/api/carteira/imoveis/:id/avaliacao/pesquisar", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const result = await marketResearchLimit(() => db.transaction(async tx => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`market:${req.params.id}`}))`);
       const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
-      const cached = await db.execute(sql`
+      const fingerprint = propertyMarketFingerprint(access.imovel);
+      const cached = await tx.execute(sql`
         SELECT * FROM carteira_analises
         WHERE imovel_id = ${req.params.id} AND tipo = 'avaliacao_mercado_sugerida'
-          AND versao_regra = 'comparaveis-robustos-v2'
+          AND versao_regra IN (${PROPERTY_MARKET_VERSION}, 'comparaveis-10km-v3')
+          AND entrada->>'fingerprint' = ${fingerprint}
           AND criado_em >= now() - interval '30 days'
+          AND (resultado->>'status' = 'atualizada' OR criado_em >= now() - interval '1 hour')
         ORDER BY criado_em DESC LIMIT 1
       `);
-      if (cached.rows?.[0]) return res.json({ cached: true, analise: cached.rows[0], ...(cached.rows[0].resultado as any) });
-      const result = await researchPropertyMarketValue(access.imovel);
+      if ((cached.rows?.[0]?.resultado as any)?.status === "atualizada") return { cached: true, analise: cached.rows[0], ...(cached.rows[0].resultado as any) };
+      const previous = await loadPortfolioMarketAnalyses([req.params.id]);
+      const reusable = portfolioMarketEstimate(access.imovel, previous.get(req.params.id));
+      if (reusable.status === "atualizada") return { cached: true, status: "atualizada", valor_estimado: reusable.valor_sugerido, valor_minimo: reusable.valor_minimo, valor_maximo: reusable.valor_maximo };
+      if ((cached.rows?.[0]?.resultado as any)?.indicativa_avaliada === true) return { cached: true, analise: cached.rows[0], ...(cached.rows[0].resultado as any) };
+      const result = await researchPropertyMarketValue(access.imovel, cached.rows?.[0]?.resultado);
+      const current = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (propertyMarketFingerprint(current.imovel) !== fingerprint) throw Object.assign(new Error("O imóvel mudou durante a pesquisa. Pesquise novamente."), { status: 409 });
       const analysis = await persistCarteiraAnalysis(
         req.params.id,
         actor,
         "avaliacao_mercado_sugerida",
         {
+          fingerprint,
           valor_referencia: access.imovel.valor_atual || access.imovel.valor_pago || null,
           area_m2: access.imovel.area_m2 || null,
           moeda: access.imovel.moeda || "BRL",
@@ -17114,9 +17191,12 @@ ${inputText.slice(0, 18000)}`,
           vagas: access.imovel.vagas ?? null,
         },
         result,
-        "comparaveis-robustos-v2",
+        PROPERTY_MARKET_VERSION,
+        tx,
       );
-      res.json({ cached: false, analise: analysis, ...result });
+      return { cached: false, analise: analysis, ...result };
+      }));
+      res.json(result);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -22411,13 +22491,16 @@ Instruções:
         },
         { role: "user", content: prompt },
       ],
-      tools: [{ type: "web_search_preview" }],
-      include: ["web_search_call.results"],
+      tools: [{ type: "web_search" }],
+      tool_choice: "required",
+      include: ["web_search_call.action.sources"],
+      store: false,
       temperature: 0.1,
       max_output_tokens: 2600,
-    });
+    }, { timeout: 90_000, maxRetries: 0 });
 
-    return extractJsonObject(response.output_text || "");
+    const parsed = extractJsonObject(response.output_text || "");
+    return { ...parsed, comparaveis: groundedMarketComparables(response, parsed.comparaveis || parsed.imoveis) };
   }
 
   app.post("/api/ai/preco-m2", async (req, res) => {

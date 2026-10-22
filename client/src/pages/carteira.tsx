@@ -61,6 +61,8 @@ import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
 import { ModuleInfo } from "@/components/module-info";
 import { DemandResolutionSelect, type DemandResolutionMode } from "@/components/demand-resolution-select";
+import { PortfolioPatrimonyDashboard } from "@/components/portfolio-patrimony-dashboard";
+import type { PortfolioDashboard, PortfolioObservation } from "@shared/portfolio-dashboard";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
@@ -155,8 +157,10 @@ interface CarteiraImovel {
   estimativa_mercado?: {
     valor: number; valor_sugerido?: number | null; moeda: string; data_base?: string | null; sugestao_data_base?: string | null;
     status: "atualizada" | "desatualizada" | "sem_amostra" | "sem_dados";
-    raio_km: number; quantidade_comparaveis: number; confianca?: string | null;
-    fonte: string; precisa_atualizar: boolean; valor_fallback?: number | null;
+    raio_km: number | null; quantidade_comparaveis: number; confianca?: string | null;
+    fonte: string; precisa_atualizar: boolean; pesquisa_chave?: string; valor_fallback?: number | null;
+    valor_minimo?: number | null; valor_maximo?: number | null;
+    fontes?: Array<{ titulo: string; url: string }>;
   };
   valor_utilizado_no_total?: number;
   valor_utilizado_no_total_brl?: number;
@@ -165,6 +169,7 @@ interface CarteiraImovel {
 }
 
 interface CarteiraResumo {
+  dashboard: PortfolioDashboard;
   period: "12m" | "all";
   imoveis: CarteiraImovel[];
   aliancas: Array<{
@@ -1042,6 +1047,8 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   const [aporteFile, setAporteFile] = useState<File | null>(null);
   const [gestaoTarget, setGestaoTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
   const automaticRefreshKey = useRef("");
+  const observationKey = useRef("");
+  const researchAttempts = useRef(new Map<string, number>());
   const { data, isLoading, isError, refetch } = useQuery<CarteiraResumo>({
     queryKey: ["/api/carteira/resumo", period],
     queryFn: async () => {
@@ -1087,10 +1094,8 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   });
   useEffect(() => {
     if (!data) return;
-    const pendingProperties = data.imoveis.filter((item) => item.estimativa_mercado?.precisa_atualizar
-      && ["proprietario", "administracao"].includes(String(item.access_level || "")));
     const pendingCurrencies = data.cambio?.precisa_atualizar ? data.cambio.moedas_necessarias : [];
-    const key = `${pendingCurrencies.slice().sort().join(",")}|${pendingProperties.map((item) => item.id).sort().join(",")}`;
+    const key = pendingCurrencies.slice().sort().join(",");
     if (!key.replace("|", "") || automaticRefreshKey.current === key) return;
     automaticRefreshKey.current = key;
     void (async () => {
@@ -1102,15 +1107,41 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
         }).catch(() => null);
         changed = Boolean(response?.ok) || changed;
       }
-      for (const item of pendingProperties) {
-        const response = await fetch(`/api/carteira/imoveis/${encodeURIComponent(item.id)}/avaliacao/pesquisar`, {
-          method: "POST", credentials: "include",
-        }).catch(() => null);
-        changed = Boolean(response?.ok) || changed;
-      }
       if (changed) queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     })();
   }, [data]);
+  const historyQuery = useQuery<{ available: boolean; observations: PortfolioObservation[] }>({
+    queryKey: ["/api/carteira/evolucao", period, data?.imoveis.map(p => `${p.id}:${p.participacao_percentual}`).join(","), data?.aliancas.map(b => `${b.id}:${b.map_percent}`).join(",")],
+    enabled: !!data, staleTime: 60000, refetchOnWindowFocus: true,
+    queryFn: async () => (await apiRequest("GET", `/api/carteira/evolucao?period=${period}`)).json(),
+  });
+  const recordObservation = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/carteira/evolucao/registrar?period=${period}`)).json(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/carteira/evolucao"] }),
+  });
+  useEffect(() => {
+    if (!data?.dashboard || isError) return;
+    const key = JSON.stringify([new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), data.dashboard, data.imoveis.map(p => [p.id, p.participacao_percentual]), data.aliancas.map(b => [b.id, b.map_percent])]);
+    if (observationKey.current === key) return;
+    observationKey.current = key;
+    recordObservation.mutate();
+  }, [data, isError]);
+  useEffect(() => {
+    if (isError || !data || document.visibilityState === "hidden") return;
+    for (const property of data.imoveis) {
+      if (property.consolidado_via_bia || Number(property.participacao_percentual ?? 100) <= 0 ||
+        !["proprietario", "administracao"].includes(String(property.access_level)) || !property.estimativa_mercado?.precisa_atualizar) continue;
+      const key = `${property.id}:${property.estimativa_mercado.pesquisa_chave}`;
+      if ((researchAttempts.current.get(key) || 0) > Date.now()) continue;
+      researchAttempts.current.set(key, Number.POSITIVE_INFINITY);
+      void apiRequest("POST", `/api/carteira/imoveis/${encodeURIComponent(property.id)}/avaliacao/pesquisar`)
+        .catch(() => { /* Keep the existing estimate; retry transient failures after five minutes. */ })
+        .finally(() => {
+          researchAttempts.current.set(key, Date.now() + 5 * 60 * 1000);
+          invalidateDashboard();
+        });
+    }
+  }, [data, isError]);
   const deleteAllianceMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/bias/${id}`),
     onSuccess: () => {
@@ -1166,13 +1197,6 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   }, [data?.imoveis, group, search]);
   const totals = data?.totais;
   const excludedCurrencies = data?.cambio?.moedas_excluidas || [];
-  const currencyNotice = excludedCurrencies.length
-    ? ` Valores em ${excludedCurrencies.join(", ")} estão temporariamente fora do consolidado por falta de cotação oficial.`
-    : " Valores em outras moedas são convertidos para BRL pela cotação de venda PTAX mais recente disponível.";
-  const valuationCoverage = totals?.valorizacao_cobertura;
-  const valuationCoverageText = valuationCoverage
-    ? ` O cálculo inclui ${valuationCoverage.propertiesIncluded} de ${valuationCoverage.propertiesTotal} imóveis e ${valuationCoverage.alliancesIncluded} de ${valuationCoverage.alliancesTotal} alianças com as duas bases disponíveis.`
-    : "";
   const portfolioRegions = useMemo(() => {
     const groups = new Map<string, { assets: number; value: number }>();
     for (const item of data?.imoveis || []) {
@@ -1194,6 +1218,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   return (
     <div className="space-y-5">
       {!!data?.aliancas.some(item=>item.estimativa_patrimonial?.partial) && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Patrimônio parcial · há dados pendentes nas alianças.</p>}
+      {!!excludedCurrencies.length && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Valores em {excludedCurrencies.join(", ")} fora dos totais por falta de cotação.</p>}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>Carteira Patrimonial</h2>
@@ -1216,17 +1241,13 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor atual declarado ou confirmado dos imóveis próprios, respeitando sua fração de propriedade, à estimativa automática das participações nas BIAs pelo MAP. Sugestões da IA só entram depois de aceitas. Dívidas dos imóveis próprios ficam separadas; as dívidas conhecidas das BIAs já reduzem suas participações. Estimativas parciais podem omitir obrigações ainda não conciliadas.${currencyNotice}`} />
-        <Metric label="Valor de aquisição" value={money(totals?.valor_aquisicao_total_brl ?? totals?.patrimonio_pago ?? 0)} icon={CircleDollarSign} description={`Soma o valor pago pelos imóveis, proporcional à sua propriedade, aos aportes oficiais realizados nas BIAs.${currencyNotice}`} />
-        <Metric label="Valor atual dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma apenas os valores declarados ou confirmados dos imóveis em carteira. A sugestão de mercado fica separada até você aceitá-la.${currencyNotice}`} />
-        <Metric label="Investido em alianças" value={money(totals?.investido_aliancas_brl ?? totals?.total_investido_aliancas ?? 0)} icon={Users} helper={`Participação estimada: ${money(totals?.valor_participacoes_aliancas_brl ?? totals?.valor_participacoes_aliancas ?? 0)}`} description={`Soma os aportes oficiais que você realizou nas BIAs. A participação atual é estimada automaticamente pelos ativos e lançamentos registrados; não é uma avaliação de mercado. Consulte os dados pendentes em cada BIA.${currencyNotice}`} />
-        <Metric label="Valorização registrada" value={money(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} description={`Diferença entre o valor estimado e o valor de aquisição dos imóveis, somada à diferença entre as participações confirmadas nas BIAs e os aportes oficiais. Ativos sem as duas bases ficam fora deste cálculo.${valuationCoverageText}${currencyNotice}`} />
-        <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" description={`Soma das receitas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
-        <Metric label="Despesas" value={money(totals?.despesas || 0)} icon={TrendingDown} tone="text-red-700" description={`Soma das despesas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
-        <Metric label="Resultado líquido" value={money(totals?.resultado_liquido || 0)} icon={Wallet} tone={metricTone(totals?.resultado_liquido || 0)} helper={`${totals?.alertas_abertos || 0} alertas abertos`} description="Resultado das receitas menos as despesas registradas para os imóveis no período selecionado." />
-        <Metric label="Parcelas e contas a pagar" value={money(totals?.contas_a_pagar || 0)} icon={CalendarClock} description="Soma das parcelas e despesas pendentes, agendadas ou vencidas dos imóveis. Este valor aparece separadamente e não é descontado do Patrimônio Total Estimado." />
+      <div className="flex flex-wrap items-center gap-3">
+        {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
       </div>
+      {data?.dashboard && <PortfolioPatrimonyDashboard metrics={data.dashboard}
+        observations={historyQuery.data?.observations || []}
+        historyLoading={historyQuery.isLoading || recordObservation.isPending}
+        historyError={historyQuery.isError || recordObservation.isError ? "Não foi possível atualizar o histórico patrimonial." : historyQuery.data?.available === false ? "Histórico aguardando configuração." : undefined} />}
 
       <div id="meus-imoveis" className="flex flex-col gap-2 scroll-mt-20 sm:flex-row">
         <div className="relative flex-1">
@@ -2274,7 +2295,7 @@ function DetailPage({ id }: { id: string }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="max-w-3xl">
               <h2 className="text-lg font-semibold">Pulso Patrimonial</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Atualize os dados para recalcular o diagnóstico e comparar o valor com imóveis em um raio de 20 km.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Atualize os dados para recalcular o diagnóstico e comparar o valor com imóveis em um raio de 10 km.</p>
             </div>
             <Button variant={pulseOpen ? "outline" : "default"} onClick={() => setPulseOpen((current) => !current)}>
               <RefreshCw className="mr-2 h-4 w-4" />{pulseOpen ? "Fechar Pulso" : pulseDue(imovel) ? "Atualizar agora" : "Executar Pulso"}
@@ -2416,7 +2437,7 @@ function DetailPage({ id }: { id: string }) {
               <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">IA de preço por m²</h3></div>{marketQuery.data?.confianca && <Badge variant="outline">Confiança da estimativa: {marketQuery.data.confianca === "media" ? "média" : marketQuery.data.confianca}</Badge>}</div>
               {marketQuery.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Pesquisando imóveis comparáveis...</p> : marketQuery.data?.amostra_suficiente ? (
                 <div className="mt-3 space-y-4">
-                  <p className="text-sm text-blue-800">{marketQuery.data.resumo} Faixa de área: {marketQuery.data.area_min} a {marketQuery.data.area_max} m²; raio aplicado: até {marketQuery.data.raio_km || 20} km.</p>
+                  <p className="text-sm text-blue-800">{marketQuery.data.resumo} Faixa de área: {marketQuery.data.area_min} a {marketQuery.data.area_max} m²; raio aplicado: até {marketQuery.data.raio_km || 10} km.</p>
                   <div className="grid gap-3 sm:grid-cols-3"><div className="border-y py-3"><p className="text-xs text-muted-foreground">Valor atual informado</p><p className="font-bold">{money(marketQuery.data.preco_m2_informado, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Referência mediana</p><p className="font-bold">{money(marketQuery.data.referencia_m2_media, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Faixa dos comparáveis usados</p><p className="font-bold">{money(marketQuery.data.referencia_m2_min, imovel.moeda)} – {money(marketQuery.data.referencia_m2_max, imovel.moeda)}</p></div></div>
                   {!!marketQuery.data.comparaveis?.length && <div className="grid gap-2 sm:grid-cols-2">{marketQuery.data.comparaveis.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="rounded-md border bg-white p-3 text-sm hover:border-blue-300"><p className="truncate font-medium text-blue-700">Comparável {index + 1}: {item.titulo}</p><p className="mt-1 text-xs text-muted-foreground">{item.area_m2.toLocaleString("pt-BR")} m² · {money(item.preco_m2, imovel.moeda)}/m²{item.distancia_km != null ? ` · ${item.distancia_km.toLocaleString("pt-BR")} km` : ""}</p><p className="mt-1 text-xs text-muted-foreground">{[item.padrao, item.ano_construcao, item.estado_conservacao, item.quartos != null ? `${item.quartos} quarto(s)` : null, item.vagas != null ? `${item.vagas} vaga(s)` : null].filter(Boolean).join(" · ") || "Características não publicadas no anúncio"}</p></a>)}</div>}
                   {!!marketQuery.data.fatores?.length && <div><p className="text-xs font-medium">Critérios aplicados</p><div className="mt-2 flex flex-wrap gap-1">{marketQuery.data.fatores.map((factor) => <Badge key={factor} variant="outline" className="font-normal">{factor}</Badge>)}</div></div>}

@@ -1,5 +1,5 @@
 export const MARKET_MIN_COMPARABLES = 3;
-export const MARKET_RADIUS_KM = 20;
+export const MARKET_RADIUS_KM = 10;
 
 export function marketAreaRange(areaM2: number) {
   const tolerance = Math.min(50, Math.max(15, areaM2 * 0.2));
@@ -339,7 +339,7 @@ export function buildComparableMarketAnalysis(
   let appliedRadius = target.exigirDistancia ? maxRadius : undefined;
   let comparaveis = candidates;
   if (target.exigirDistancia) {
-    for (const radius of Array.from(new Set([5, 10, maxRadius])).sort((left, right) => left - right)) {
+    for (const radius of Array.from(new Set([5, 10, maxRadius])).filter(radius => radius <= maxRadius).sort((left, right) => left - right)) {
       const nearby = candidates.filter((item) => Number(item.distancia_km) <= radius);
       if (nearby.length >= MARKET_MIN_COMPARABLES || radius === maxRadius) {
         comparaveis = nearby;

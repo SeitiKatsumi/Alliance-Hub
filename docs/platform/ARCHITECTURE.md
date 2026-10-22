@@ -26,6 +26,8 @@ flowchart LR
 
 ## Backend
 
+- Produção usa Node20 e bundle CommonJS. Dependências ESM usadas no bootstrap, como `p-limit`, devem entrar na allowlist de `script/build.ts` para serem incorporadas ao bundle; deixá-las externas pode transformar o default import em objeto e derrubar a inicialização. `server/production-bundle.test.ts` verifica a configuração real, a ausência de require externo e a execução do limitador. Build concluído sozinho não comprova boot de produção: a publicação deve conferir também o runtime Node20 e a saúde HTTP.
+
 - A base Asaas está isolada em `server/asaas/`, com contratos públicos em `shared/asaas.ts`. Status locais não escrevem; saldo/histórico consultam a credencial cifrada da conta aprovada. Webhooks registram referências idempotentes e acionam conciliação. Sandbox e Produção usam esquemas, credenciais, URLs e opt-ins separados; Produção exige autorização adicional. A integração Asaas antiga continua separada até sua consolidação.
 
 - Express 5 com sessão persistida.

@@ -343,7 +343,7 @@ export function calculatePortfolioTotals(
   const allianceAppreciation = alliances.reduce((sum, item) => {
     const invested = Number(item.invested || 0);
     const current = item.participationValue == null ? 0 : Number(item.participationValue);
-    return invested > 0 && current > 0 ? sum + current - invested : sum;
+    return invested > 0 && item.participationValue != null && Number.isFinite(current) ? sum + current - invested : sum;
   }, 0);
   const lowLiquidityValue = properties.reduce((sum, item) => sum + (item.liquidity === "baixa" ? Number(item.currentValue || 0) * share(item) : 0), 0)
     + alliances.reduce((sum, item) => sum + (item.liquidity === "baixa" ? Number(item.participationValue || 0) : 0), 0);
@@ -360,7 +360,7 @@ export function calculatePortfolioTotals(
     valuationCoverage: {
       propertiesIncluded: properties.filter((item) => Number(item.acquisitionValue || 0) > 0 && Number(item.currentValue || 0) > 0).length,
       propertiesTotal: properties.length,
-      alliancesIncluded: alliances.filter((item) => Number(item.invested || 0) > 0 && item.participationValue != null && Number(item.participationValue) > 0).length,
+      alliancesIncluded: alliances.filter((item) => Number(item.invested || 0) > 0 && item.participationValue != null && Number.isFinite(Number(item.participationValue))).length,
       alliancesTotal: alliances.length,
     },
     lowLiquidityPercent: netWorth > 0 ? (lowLiquidityValue / netWorth) * 100 : 0,

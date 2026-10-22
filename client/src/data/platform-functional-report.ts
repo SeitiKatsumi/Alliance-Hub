@@ -40,7 +40,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
       { id: "painel-inicial", title: "Painel inicial personalizado", description: "Resumo de perfil, ambientes BUILT, Aura, BIAs, convergências e ações rápidas.", status: "disponivel" },
       { id: "frase-dia", title: "Frase do dia", description: "Conteúdo institucional rotativo apresentado no painel do usuário.", status: "disponivel" },
       { id: "atalhos-ambientes", title: "Acesso aos ambientes BUILT", description: "Atalhos para Vitrine e Alliances, respeitando o nível de acesso do usuário.", status: "disponivel" },
-      { id: "alertas-pendencias", title: "Alertas e pendências", description: "Centraliza convites, chamadas, aprovações e alertas patrimoniais da Carteira.", status: "disponivel" },
+      { id: "alertas-pendencias", title: "Alertas e pendências", description: "Centraliza convites, chamadas, aprovações, avisos existentes de aceite da revisão vigente do MOU/MAP Inicial destinados ao próprio signatário e alertas patrimoniais da Carteira. Revisões superadas ou já aceitas não geram pendência de MOU; funcionários não herdam esse aceite pessoal.", status: "disponivel" },
       { id: "acoes-alertas", title: "Tratamento de alertas", description: "Permite registrar uma ação em andamento ou ignorar um alerta da Carteira com histórico.", status: "disponivel" },
       { id: "proximas-acoes", title: "Próximas ações", description: "Resumo de compromissos e prioridades conectado à Agenda.", status: "disponivel" },
       { id: "gestao-comunidade", title: "Gestão de comunidade", description: "Acesso rápido às comunidades administradas, membros, BIAs e pendências.", status: "disponivel" },
@@ -122,7 +122,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     title: "Carteira Patrimonial Inteligente BUILT",
     summary: "Gestão privada dos imóveis próprios, independente do fluxo financeiro das BIAs.",
     features: [
-      { id: "carteira-dashboard", title: "Painel patrimonial", description: "Patrimônio, valor pago, valor estimado, valorização, receitas, despesas e resultado líquido.", status: "disponivel" },
+      { id: "carteira-dashboard", title: "Painel patrimonial", description: "Patrimônio, aquisição, valorização, receitas e despesas. Participações nas BIAs estimadas automaticamente por ativos adquiridos registrados, caixa pago e dívidas informadas, aplicando MAP vigente; sem exigência de valor manual, VO ou CPP como dinheiro. Dados ausentes e obrigações não conciliadas geram estimativa parcial explícita; indisponibilidade não vira zero. Não substitui avaliação de mercado nem saldo bancário. Histórico manual preservado.", status: "disponivel" },
       { id: "carteira-imoveis", title: "Cadastro de imóveis", description: "Criação, edição e exclusão com foto, localização, área, ocupação, objetivo e titularidade.", status: "disponivel" },
       { id: "carteira-oportunidades", title: "Oportunidades imobiliárias", description: "Cadastro separado de imóveis externos ou ativos de terceiros autorizados, sem incorporá-los ao patrimônio próprio.", status: "disponivel" },
       { id: "carteira-historico", title: "Histórico patrimonial", description: "Eventos imutáveis registram alterações relevantes e a origem de cada informação.", status: "disponivel" },

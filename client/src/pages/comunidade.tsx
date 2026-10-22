@@ -2164,14 +2164,14 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 dark:divide-border">
                 {!mostrarHistoricoAprovacoes && diretorSolicitacoesPendentes.map((solicitacao) => {
                   const percentual = solicitacao.percentual !== null && solicitacao.percentual !== undefined && String(solicitacao.percentual) !== ""
                     ? `${solicitacao.percentual}%`
                     : "percentual não informado";
                   const canResponder = String(user?.membro_directus_id || "") === String(solicitacao.diretor_membro_id || "");
                   return (
-                    <div key={`diretoria-${solicitacao.id}`} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-blue-50/35">
+                    <div key={`diretoria-${solicitacao.id}`} data-testid={`convite-diretoria-${solicitacao.id}`} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-blue-50/35 dark:bg-card">
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-mono font-bold text-brand-navy">
@@ -2237,7 +2237,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                 {!mostrarHistoricoAprovacoes && socioSolicitacoesPendentes.map((solicitacao) => {
                   const canResponder = String(user?.membro_directus_id || "") === String(solicitacao.socio_membro_id || "");
                   return (
-                    <div key={`socio-${solicitacao.id}`} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50/35">
+                    <div key={`socio-${solicitacao.id}`} data-testid={`convite-socio-${solicitacao.id}`} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50/35 dark:bg-card">
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-mono font-bold text-brand-navy">

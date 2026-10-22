@@ -1,5 +1,7 @@
 # Inicio e Gestao
 
+- 22/10/2026: Alertas/contador também projetam o aviso de revisão vigente do MOU/MAP Inicial já destinado à própria conta na Agenda. Só signatário atual da BIA em captação, sem aceite daquela revisão; sem herança pelo funcionário, exposição de documentos ou alteração de fase. Revisões superadas/aceitas não aparecem como pendência; abrir encaminha para Convites da Aliança. Fonte central/testes: `server/agenda-alerts.ts` e seu teste SQL.
+
 ## Objetivo e usuarios
 
 Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponiveis, compromissos, pendencias, negocios, BIAs, Aura e atalhos operacionais.

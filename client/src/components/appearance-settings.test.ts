@@ -122,6 +122,26 @@ test("indicadores administrativos mantêm superfície do tema independentemente 
   assert.doesNotMatch(source,/\.membros-light-page \.inline-flex\.items-center\.rounded-lg/);
 });
 
+test("convites de diretoria e sócios usam superfície escura opaca sem mudar ações ou cores claras",()=>{
+  const source=read("../pages/comunidade.tsx");
+  const ast=ts.createSourceFile("comunidade.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+  const rows:ts.JsxElement[]=[];
+  function find(node:ts.Node){
+    if(ts.isJsxElement(node)&&/data-testid=\{`convite-(diretoria|socio)-/.test(node.openingElement.getText(ast)))rows.push(node);
+    ts.forEachChild(node,find);
+  }
+  find(ast);assert.equal(rows.length,2);
+  const scope={React,solicitacao:{id:"test",papel:"Diretor",bia_nome:"BIA teste",solicitante_nome:"Autor"},percentual:"1%",canResponder:true,responderDiretoriaMutation:{isPending:false,mutate:()=>{}},responderSocioMutation:{isPending:false,mutate:()=>{}},CheckCircle:()=>null,XCircle:()=>null,Trash2:()=>null};
+  for(const row of rows){
+    const render=new Function(...Object.keys(scope),transformSync(`return (${row.getText(ast)});`,{loader:"tsx"}).code);
+    const html=renderToStaticMarkup(render(...Object.values(scope)));
+    assert.match(html,/dark:bg-card/);assert.match(html,/bg-(blue|amber)-50\/35/);
+    assert.match(html,/>Aceitar<|Aceitar/);assert.match(html,/Recusar/);assert.match(html,/Remover/);
+    assert.match(html,/Você foi convidado/);
+  }
+  assert.match(source,/divide-slate-100 dark:divide-border/);
+});
+
 test("Vitrine: hero e espaços vazios usam superfícies e texto do tema, preservando anúncios com imagem",()=>{
   const page=read("../pages/vitrine.tsx");
   const code=page.slice(page.indexOf("function AnuncioHeroCard("),page.indexOf("export default function VitrinePage("));

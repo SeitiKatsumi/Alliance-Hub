@@ -1,5 +1,7 @@
 # Capital e Financeiro da BIA
 
+- 22/10/2026: Estimativa patrimonial da Carteira calculada pelos dados registrados e MAP vigente, sem exigir snapshot manual. Não altera financeiro/MAP/CPP, não presume saldo Asaas, não usa VO nem direitos sem caixa como patrimônio. Fontes, pendências e deduplicação no contrato Carteira; POST manual antigo /patrimonio aposentado com410 após autorização e histórico preservado. Aprovação de aportes permanece independente. Testes server/bia-patrimony.test.ts e shared/bia-patrimony.test.ts.
+
 ## Aportes: cobranças internas (dashboard removido em 2026-10-20)
 
 - Beneficiário do pagamento do ativo pode ser selecionado ou adicionado pelo nome como favorecido externo, reutilizando `POST /api/membros/criar-favorecido` e `cadastro_geral.tipo_de_cadastro=favorecido_externo`. Não cria login, convite, vínculo de sócio ou terceiro na equipe. A inclusão é explícita, sem retry automático; o cronograma continua salvando o ID canônico e a API valida sua existência. GET de aportes resolve somente ID/nome dos beneficiários salvos, inclusive fora da lista de membros, preservando o nome após recarregar. Capital/direitos mantêm o participante do MAP; não há troca livre nem transferência bancária. Rascunho do nome bloqueia salvar/confirmar até adicionar ou cancelar. Testes: `initial-beneficiary-field.test.ts` e `server/initial-contributions.test.ts`.

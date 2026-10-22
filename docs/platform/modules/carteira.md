@@ -1,5 +1,14 @@
 # Carteira Patrimonial
 
+## Estimativa automática das BIAs (22/10/2026)
+
+- Substitui a exigência de snapshot manual: `shared/bia-patrimony.ts` e adaptador somente leitura `server/bia-patrimony.ts`. Estimativa = ativos adquiridos registrados + entradas pagas − saídas pagas − dívidas informadas dos ativos. Caixa significa saldo dos lançamentos, não saldo bancário/Asaas. VO, CPP, capital prometido, VGV e limite de consórcio não viram dinheiro/valor atual.
+- Ativos: origens formalmente ativas (`bia_imovel_origens`/inventario_imoveis: valor_atual e divida_saldo) e valores de referência declarados na estrutura versionada, sem referência à Carteira, com situação Adquirido/Em operação. carteiraImovelId apenas informativo não prova propriedade nem autoriza ler valores privados. Negociação, alienados e cartas de consórcio não são somados. IDs de ativos/lançamentos deduplicados. Imóvel direto formalmente já representado numa BIA com MAP positivo e moeda convertível não entra duas vezes no valor consolidado.
+- Só movimentos pagos e conciliados de caixa entram; direitos sem caixa, versões substituídas e entradas virtuais de origem não entram. Obrigações pendentes não são subtraídas indiscriminadamente, pois podem estar nas dívidas dos ativos; marcam estimativa parcial. Dívida/valor ausente, moeda diferente ou caixa negativo também sinalizam pendência. Sem dados efetivos, valor null/Dados insuficientes; perdas e valores negativos preservados. Não há nova movimentação, migração, aceite, revisão de MAP/CPP ou escrita em GET.
+- Carteira exige vínculo e capital_financeiro:view antes das fontes. Falha de consulta não equivale a zero/ausência. Participação = estimativa × MAP. patrimonio_liquido_estimado/estimativa_patrimonial substituem a fonte manual; patrimonio_liquido_oficial fica null por compatibilidade. UI revalida foco/conexão/30s visível e mostra componentes/pendências, sem formulário manual. Estimativas parciais entram como subtotal conhecido explicitamente parcial. Dívidas pessoais seguem separadas; as conhecidas da BIA já reduzem a participação. Aquisição/aportes não são reescritos.
+- POST legado /api/bias/:id/patrimonio retorna410 após autorização; GET histórico por ID canônico preservado. Aprovação de aportes permanece independente. Histórico manual e documentos antigos não são alterados. Testes: shared/bia-patrimony.test.ts, server/bia-patrimony.test.ts e client/src/components/bia-patrimony-breakdown.test.ts.
+- Receitas/despesas da participação consideram movimentos pagos no período (integralização inicial não é receita); contas a pagar só saídas pendentes/agendadas/vencidas, nunca aportes futuros a receber. Patrimônio usa todo o histórico disponível, não apenas o filtro de receitas/despesas. Valorização de participação com estimativa zero/negativa registra perda, distinguindo ausência de avaliação.
+
 ## Objetivo e usuarios
 
 Nas BIAs modelo 3, a composicao patrimonial inclui o MAP Zero uma unica vez: pagamentos iniciais apenas integralizam compromissos. Propriedade e direitos sem caixa nao compoem entradas/saidas financeiras da Carteira; falha de consulta ao financeiro nao e tratada como saldo zero.
@@ -23,7 +32,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `/api/ai/preco-m2` aceita o cadastro assistido sem valor inicial e retorna minimo, sugerido e maximo a partir de comparaveis; demais origens continuam exigindo valor e area.
 - `/api/carteira/imoveis/:id/financiamento/preview|confirmar` separa extracao, revisao e gravacao idempotente.
 - `/api/carteira/imoveis/:id/socios*` mantem a composicao de coproprietarios; `/api/carteira/convites/:token` resolve o convite; `/api/carteira/imoveis/:id/origem-bia*` revisa, envia e cancela a origem.
-- `/api/bias/:id/patrimonio` e `/aporte-solicitacoes*` registram valor oficial e aportes sujeitos a decisao do diretor.
+- `/api/bias/:id/patrimonio` preserva consulta do histórico manual; seu POST foi aposentado pelo cálculo automático. `/aporte-solicitacoes*` mantém aportes sujeitos à decisão autorizada.
 - Na aba Analise, o botao de Pulso usa `/api/carteira/imoveis/:id/pulso/preview|pulsos`; a confirmacao recalcula o diagnostico.
 - Alertas, diagnostico, alternativas, demandas, acessos e transferencia de proprietario.
 - `/api/demandas` e o contrato canonico de criacao e gestao; rotas da Carteira continuam como adaptadores com autorizacao do imovel.
@@ -56,8 +65,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 ## Invariantes
 
 - A Carteira le o financeiro oficial da BIA, mas nunca o altera sem solicitacao e aprovacao autorizada.
-- Somente MAP maior que zero e snapshot patrimonial confirmado entram no patrimonio consolidado.
-- `Patrimonio Total Estimado` e bruto: soma somente o valor atual declarado ou confirmado dos imoveis proprios, proporcional a propriedade, ao valor confirmado das participacoes em BIAs pelo MAP; dividas ficam separadas.
+- MAP maior que zero aplica-se à estimativa automática; falta de dados não equivale a valor zero e subtotais parciais são identificados.
+- `Patrimonio Total Estimado` soma imóveis diretos proporcionais e participações estimadas nas BIAs sem duplicar origens formais; dívidas pessoais ficam separadas, mas dívidas conhecidas da BIA já reduzem sua participação.
 - `Valor de aquisicao` soma o valor pago proporcional dos imoveis aos aportes oficiais nas BIAs.
 - `Valorizacao registrada` considera somente ativos que possuam valor atual/estimado e base de aquisicao/aporte.
 - A estimativa automatica da aba Analise usa no minimo tres anuncios do mesmo tipo, a menor distancia geocodificada viavel de ate 20 km e faixa proporcional de area; quando informados, padrao, idade, conservacao, quartos, banheiros e vagas eliminam comparaveis incompatíveis.
@@ -68,7 +77,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - Consolidacoes multimoeda usam a ultima cotacao de venda PTAX persistida; sem cotacao, a moeda e identificada e excluida do total, nunca tratada silenciosamente como BRL.
 - Cada imovel registra a participacao percentual do usuario; aquisicao, valor atual, divida e concentracao usam essa fracao.
 - Parcelas importadas de XLS, XLSX, CSV ou PDF so viram documento e lancamentos depois da confirmacao da previa editavel.
-- Diretores autorizados registram snapshots e aprovam ou rejeitam aportes; participantes apenas enviam solicitacoes e comprovantes.
+- Gestores autorizados aprovam ou rejeitam aportes; o patrimônio é estimado em leitura, sem registro manual obrigatório. Participantes apenas enviam solicitações e comprovantes.
 - `valor_pago` permanece a coluna compativel e e apresentado como “Valor de aquisicao”.
 - Edicao relevante gera evento com autor, origem e horario.
 - IA propoe dados; confirmacao humana grava o snapshot oficial.
@@ -92,6 +101,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - Upload e extracao dependem de Arquivos/OpenAI; lembretes dependem de cron/notificacoes.
 
 ## Testes e impacto
+
+- A escolha de responsável por Demanda usa lista pesquisável, ordenada alfabeticamente em pt-BR e sem duplicar a mesma identidade quando proprietário e acesso se sobrepõem. A opção “Definir depois” permanece fixa e a mudança não altera as permissões do imóvel.
 
 - `server/carteira-domain.test.ts`
 - `server/carteira-alertas.test.ts`

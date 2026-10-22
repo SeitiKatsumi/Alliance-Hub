@@ -95,6 +95,7 @@ interface CarteiraDiagnostico {
 }
 
 interface CarteiraImovel {
+  consolidado_via_bia?: boolean;
   id: string;
   nome: string;
   tipo: string;
@@ -171,6 +172,7 @@ interface CarteiraResumo {
     map_percent: number; aportes_oficiais: number; patrimonio_liquido_oficial?: number | null;
     valor_participacao?: number | null; valor_participacao_brl?: number | null; data_base?: string | null; metodologia?: string | null;
     liquidez?: string | null; confirmado: boolean; can_manage_patrimonio?: boolean; can_delete?: boolean;
+    estimativa_patrimonial?: import("@shared/bia-patrimony").BiaPatrimonyEstimate;
     receitas_participacao?: number; despesas_participacao?: number; contas_a_pagar_participacao?: number; evolucao_patrimonial_percentual?: number | null;
   }>;
   totais: {
@@ -937,7 +939,7 @@ function PropertyCard({
   const photoUrl = carteiraPhotoUrl(item.foto);
   const ownership = Math.min(100, Math.max(0, Number(item.map_percentual_usuario ?? item.participacao_percentual ?? 100)));
   const ownedValue = parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * ownership / 100;
-  const portfolioShare = portfolioTotal > 0 ? Math.max(0, ownedValue) / portfolioTotal * 100 : 0;
+  const portfolioShare = !item.consolidado_via_bia && portfolioTotal > 0 ? Math.max(0, ownedValue) / portfolioTotal * 100 : 0;
   const acquisition = parseNumber(item.valor_aquisicao_brl ?? item.valor_pago) * ownership / 100;
   const evolution = acquisition > 0 ? (ownedValue - acquisition) / acquisition * 100 : null;
   return (
@@ -1011,7 +1013,7 @@ function PropertyCard({
               </p>
             </div>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">{portfolioShare.toFixed(1)}% do patrimônio total · {money(item.contas_a_pagar || 0, item.moeda)} a pagar{evolution == null ? "" : ` · evolução ${evolution.toFixed(1)}%`}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{item.consolidado_via_bia?"Contabilizado pela participação na BIA":`${portfolioShare.toFixed(1)}% do patrimônio total`} · {money(item.contas_a_pagar || 0, item.moeda)} a pagar{evolution == null ? "" : ` · evolução ${evolution.toFixed(1)}%`}</p>
           <div className="mt-3 space-y-1 text-xs">
             <p><span className="font-medium text-foreground">Oportunidade:</span> <span className="text-muted-foreground">{diagnostic?.oportunidade || "Complete os dados do imóvel."}</span></p>
             <p><span className="font-medium text-foreground">Próxima ação:</span> <span className="text-blue-700">{diagnostic?.proxima_acao || "Realizar Pulso Patrimonial"}</span></p>
@@ -1039,15 +1041,15 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   const [aporteObservacao, setAporteObservacao] = useState("");
   const [aporteFile, setAporteFile] = useState<File | null>(null);
   const [gestaoTarget, setGestaoTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
-  const [snapshotForm, setSnapshotForm] = useState({ patrimonio_liquido: "", data_base: new Date().toISOString().slice(0, 10), metodologia: "Avaliação dos diretores", liquidez: "media" });
   const automaticRefreshKey = useRef("");
-  const { data, isLoading } = useQuery<CarteiraResumo>({
+  const { data, isLoading, isError, refetch } = useQuery<CarteiraResumo>({
     queryKey: ["/api/carteira/resumo", period],
     queryFn: async () => {
       const response = await fetch(`/api/carteira/resumo?period=${period}`, { credentials: "include" });
       if (!response.ok) throw new Error("Não foi possível carregar a Carteira.");
       return response.json();
     },
+    staleTime:0,refetchOnMount:"always",refetchOnWindowFocus:"always",refetchOnReconnect:"always",refetchInterval:30000,refetchIntervalInBackground:false,
   });
   function invalidateDashboard() {
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
@@ -1145,11 +1147,6 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     enabled: Boolean(gestaoTarget),
     queryFn: async () => (await apiRequest("GET", `/api/bias/${gestaoTarget!.id}/aporte-solicitacoes`)).json(),
   });
-  const snapshotMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/bias/${gestaoTarget!.id}/patrimonio`, { ...snapshotForm, patrimonio_liquido: parseNumber(snapshotForm.patrimonio_liquido), moeda: gestaoTarget?.moeda || "BRL" }),
-    onSuccess: () => { invalidateDashboard(); toast({ title: "Valor patrimonial oficial registrado" }); },
-    onError: (error: any) => toast({ title: "Não foi possível registrar o patrimônio", description: error?.message, variant: "destructive" }),
-  });
   const aporteDecisionMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) => apiRequest("PATCH", `/api/bias/${gestaoTarget!.id}/aporte-solicitacoes/${id}`, { action }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/bias", gestaoTarget?.id, "aporte-solicitacoes"] }); invalidateDashboard(); },
@@ -1179,6 +1176,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   const portfolioRegions = useMemo(() => {
     const groups = new Map<string, { assets: number; value: number }>();
     for (const item of data?.imoveis || []) {
+      if(item.consolidado_via_bia)continue;
       const key = [item.bairro, item.cidade].filter(Boolean).join(", ") || "Localização não informada";
       const current = groups.get(key) || { assets: 0, value: 0 };
       const share = Math.min(100, Math.max(0, Number(item.map_percentual_usuario ?? item.participacao_percentual ?? 100))) / 100;
@@ -1190,8 +1188,12 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   }, [data?.imoveis]);
   const maxRegionValue = Math.max(1, ...portfolioRegions.map(([, summary]) => Math.max(0, summary.value)));
 
+  if(isLoading)return <div role="status" className="rounded-md border p-4 text-sm text-muted-foreground">Calculando patrimônio…</div>;
+  if(isError)return <div role="alert" className="rounded-md border p-4">Não foi possível atualizar o patrimônio. <Button variant="outline" onClick={()=>refetch()}>Tentar novamente</Button></div>;
+
   return (
     <div className="space-y-5">
+      {!!data?.aliancas.some(item=>item.estimativa_patrimonial?.partial) && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Patrimônio parcial · há dados pendentes nas alianças.</p>}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>Carteira Patrimonial</h2>
@@ -1215,10 +1217,10 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor atual declarado ou confirmado dos imóveis próprios, respeitando sua fração de propriedade, ao valor confirmado das participações nas BIAs pelo MAP. Sugestões da IA só entram depois de aceitas. Dívidas e contas a pagar não são descontadas deste total.${currencyNotice}`} />
+        <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor atual declarado ou confirmado dos imóveis próprios, respeitando sua fração de propriedade, à estimativa automática das participações nas BIAs pelo MAP. Sugestões da IA só entram depois de aceitas. Dívidas dos imóveis próprios ficam separadas; as dívidas conhecidas das BIAs já reduzem suas participações. Estimativas parciais podem omitir obrigações ainda não conciliadas.${currencyNotice}`} />
         <Metric label="Valor de aquisição" value={money(totals?.valor_aquisicao_total_brl ?? totals?.patrimonio_pago ?? 0)} icon={CircleDollarSign} description={`Soma o valor pago pelos imóveis, proporcional à sua propriedade, aos aportes oficiais realizados nas BIAs.${currencyNotice}`} />
         <Metric label="Valor atual dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma apenas os valores declarados ou confirmados dos imóveis em carteira. A sugestão de mercado fica separada até você aceitá-la.${currencyNotice}`} />
-        <Metric label="Investido em alianças" value={money(totals?.investido_aliancas_brl ?? totals?.total_investido_aliancas ?? 0)} icon={Users} helper={`Valor oficial atual: ${money(totals?.valor_participacoes_aliancas_brl ?? totals?.valor_participacoes_aliancas ?? 0)}`} description={`Soma os aportes oficiais que você realizou nas BIAs. Uma BIA sem snapshot patrimonial confirmado permanece neste indicador, mas ainda não entra no Patrimônio Total Estimado.${currencyNotice}`} />
+        <Metric label="Investido em alianças" value={money(totals?.investido_aliancas_brl ?? totals?.total_investido_aliancas ?? 0)} icon={Users} helper={`Participação estimada: ${money(totals?.valor_participacoes_aliancas_brl ?? totals?.valor_participacoes_aliancas ?? 0)}`} description={`Soma os aportes oficiais que você realizou nas BIAs. A participação atual é estimada automaticamente pelos ativos e lançamentos registrados; não é uma avaliação de mercado. Consulte os dados pendentes em cada BIA.${currencyNotice}`} />
         <Metric label="Valorização registrada" value={money(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} description={`Diferença entre o valor estimado e o valor de aquisição dos imóveis, somada à diferença entre as participações confirmadas nas BIAs e os aportes oficiais. Ativos sem as duas bases ficam fora deste cálculo.${valuationCoverageText}${currencyNotice}`} />
         <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" description={`Soma das receitas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
         <Metric label="Despesas" value={money(totals?.despesas || 0)} icon={TrendingDown} tone="text-red-700" description={`Soma das despesas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
@@ -1281,7 +1283,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
       <section id="minhas-aliancas" className="scroll-mt-20 space-y-3 border-t pt-5">
         <div>
           <h3 className="text-lg font-semibold">Minhas Alianças</h3>
-          <p className="text-sm text-muted-foreground">Todas as alianças formais aparecem aqui. Apenas MAP com valor patrimonial oficial confirmado entra no total.</p>
+          <p className="text-sm text-muted-foreground">Participações com acesso financeiro, estimadas pelos dados registrados.</p>
         </div>
         {(data?.aliancas || []).length === 0 ? (
           <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">Você ainda não participa formalmente de uma aliança.</p>
@@ -1301,12 +1303,13 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? "Aguardando valor oficial" : money(item.valor_participacao, item.moeda)}</p></div></div>
+                  <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? "Dados insuficientes" : money(item.valor_participacao, item.moeda)}</p></div></div>
+                  <BiaPatrimonyBreakdown estimate={item.estimativa_patrimonial} format={value=>money(value,item.moeda)}/>
                   <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs"><div><p className="text-muted-foreground">Receitas</p><p className="font-semibold text-emerald-700">{money(item.receitas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">Despesas</p><p className="font-semibold text-red-700">{money(item.despesas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">A pagar</p><p className="font-semibold">{money(item.contas_a_pagar_participacao || 0, item.moeda)}</p></div></div>
                   {item.evolucao_patrimonial_percentual != null && <p className={`text-xs font-medium ${metricTone(item.evolucao_patrimonial_percentual)}`}>Evolução patrimonial: {item.evolucao_patrimonial_percentual.toFixed(1)}%</p>}
                   <p className="text-xs text-muted-foreground">{item.valor_participacao_brl == null || !(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total) ? "Ainda não entra no patrimônio consolidado." : `${(item.valor_participacao_brl / (totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 1) * 100).toFixed(1)}% do patrimônio total estimado.`}</p>
                   <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => navigate(`/bias/${item.id}`)}>Abrir aliança</Button><Button variant="outline" onClick={() => setAporteTarget(item)}><HandCoins className="mr-2 h-4 w-4" />Enviar aporte</Button></div>
-                  {item.can_manage_patrimonio && <Button className="w-full" variant="outline" onClick={() => { setGestaoTarget(item); setSnapshotForm((current) => ({ ...current, patrimonio_liquido: item.patrimonio_liquido_oficial == null ? "" : String(item.patrimonio_liquido_oficial), data_base: item.data_base || current.data_base, metodologia: item.metodologia || current.metodologia, liquidez: item.liquidez || current.liquidez })); }}><ShieldCheck className="mr-2 h-4 w-4" />Gestão patrimonial</Button>}
+                  {item.can_manage_patrimonio && <Button className="w-full" variant="outline" onClick={() => setGestaoTarget(item)}><ShieldCheck className="mr-2 h-4 w-4" />Gestão patrimonial</Button>}
                 </CardContent>
               </Card>
             ))}
@@ -1332,15 +1335,9 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Gestão patrimonial · {gestaoTarget?.nome}</DialogTitle>
-            <DialogDescription>Somente diretores autorizados registram o valor oficial e decidem solicitações de aporte.</DialogDescription>
+            <DialogDescription>Estimativa automática da BIA e solicitações de aporte.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2"><Label>Patrimônio líquido oficial</Label><Input inputMode="decimal" value={snapshotForm.patrimonio_liquido} onChange={(event) => setSnapshotForm({ ...snapshotForm, patrimonio_liquido: event.target.value })} /></div>
-            <div className="space-y-2"><Label>Data-base</Label><Input type="date" value={snapshotForm.data_base} onChange={(event) => setSnapshotForm({ ...snapshotForm, data_base: event.target.value })} /></div>
-            <div className="space-y-2"><Label>Metodologia</Label><Input value={snapshotForm.metodologia} onChange={(event) => setSnapshotForm({ ...snapshotForm, metodologia: event.target.value })} /></div>
-            <div className="space-y-2"><Label>Liquidez</Label><Select value={snapshotForm.liquidez} onValueChange={(value) => setSnapshotForm({ ...snapshotForm, liquidez: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="media">Média</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div>
-            <Button className="sm:col-span-2" disabled={snapshotMutation.isPending || parseNumber(snapshotForm.patrimonio_liquido) < 0 || !snapshotForm.metodologia} onClick={() => snapshotMutation.mutate()}>{snapshotMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Registrar novo snapshot oficial</Button>
-          </div>
+          <BiaPatrimonyBreakdown estimate={(data?.aliancas.find(item=>item.id===gestaoTarget?.id)||gestaoTarget)?.estimativa_patrimonial} format={value=>money(value,gestaoTarget?.moeda)}/>
           <div className="space-y-2 border-t pt-4">
             <p className="font-semibold">Solicitações de aporte</p>
             {aporteRequestsQuery.isLoading ? <p className="text-sm text-muted-foreground">Carregando...</p> : !(aporteRequestsQuery.data || []).some((item) => item.status === "pending") ? <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p> : (aporteRequestsQuery.data || []).filter((item) => item.status === "pending").map((item) => (
@@ -2911,3 +2908,4 @@ export default function CarteiraPage() {
   if (params.id) return <DetailPage id={params.id} />;
   return <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8"><CarteiraDashboardPanel /></div>;
 }
+import { BiaPatrimonyBreakdown } from "@/components/bia-patrimony-breakdown";

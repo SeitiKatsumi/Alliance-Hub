@@ -1,5 +1,11 @@
 # Agenda, Alertas e Notificacoes
 
+- 22/10/2026: A Agenda abre no Calendario antes da Lista. O calendario preserva a visao mensal e acrescenta a semanal de domingo a sabado com as 24 horas, navegacao anterior/hoje/proximo e rolagem responsiva. Clique em um dia, no bloco de dia inteiro ou em uma hora abre o formulario existente com data/hora preenchidas; nenhuma acao e gravada antes da confirmacao do usuario. Compromissos continuam abrindo a edicao. Mes, semana e calendario vazio permitem iniciar uma acao. Tema escuro usa tokens/variantes proprios. Fonte e regressao: `client/src/pages/agenda.tsx`, `client/src/lib/agenda-calendar.ts` e `client/src/lib/agenda-calendar.test.ts`.
+
+- 22/10/2026: Avisos já existentes de revisão do MAP em agenda_tarefas também aparecem nas pendências/contador de Alertas, com link para `/convites-alianca`. Projeção central `listMouRevisionAlerts`: mesma conta e membro, origem map:BIA:revisão vigente, não ativada/aceita, signatário atual de BIA em captação; exclui sessão de funcionário, revisões superadas, duplicatas e tarefas canceladas/concluídas. GET não cria/reenvia tarefa, convite, e-mail, aceite ou direito. Falha de consulta não vira ausência silenciosa. Regressão SQL em `server/agenda-alerts.test.ts`. Reaviso pontual só mediante pedido explícito e revalidação da pendência; histórico de convites/aceites permanece intacto.
+
+- 22/10/2026: Linhas de convites de diretoria/sócios em `/convites-alianca` usam superfície opaca `dark:bg-card` no modo escuro e divisórias do tema. Preservadas cores translúcidas no claro, textos, estados, destinatários, ações/confirmacões e APIs; sem reenvio ou aceite automático. Regressão renderiza ambas as linhas em `client/src/components/appearance-settings.test.ts`.
+
 - Aportes (2026-10-19): fila persistente em bia_contribution_notices, somente pagador, padrão -5/0/+3 às 9h São Paulo, canais/dias por BIA. Categoria e-mail bia respeita preferências; Agenda independente, deduplicada por ID e concluída após recebimento. Meios consultados no Asaas imediatamente antes do envio; sem conta/cobrança homologada não envia. D-2 legado preservado fora dos movimentos gerenciados. SMTP incerto não é repetido às cegas. Contrato: [CONTRIBUTION_BILLING.md](../../CONTRIBUTION_BILLING.md).
 
 ## Objetivo e usuarios

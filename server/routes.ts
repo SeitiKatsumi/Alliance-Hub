@@ -12,6 +12,9 @@ import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupSto
 import { legalBlockers, legacyBiaSetup, parseBiaSetup, biaAssetFromPortfolio, type BiaSetup } from "../shared/bia-setup";
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
+import { loadBiaPatrimony } from "./bia-patrimony";
+import { listMouRevisionAlerts } from "./agenda-alerts";
+import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
 import { formatBiaPercent } from "@shared/bia-numbers";
 import { biaBusinessTypeCode, biaBusinessTypeLabel, biaBusinessTypeStoragePayload } from "../shared/bia-business-type";
 import { createDirectusBiaCommunitySync } from "./bia-community-directus";
@@ -7785,6 +7788,39 @@ export async function registerRoutes(
   mapRecoveryTimer.unref();
 
   const phaseDeps={db,fetch:(id:string)=>directusFetchOne("bias_projetos",id,"fields=*"),update:(id:string,data:any)=>directusUpdate("bias_projetos",id,data)};
+  registerBiaPhaseReadRoutes(app, {
+    authorize: (req,res,ref) => requireBiaModuleAccess(req,res,ref,"configuracao_bia","view"),
+    history: async biaId => (await db.execute(sql`SELECT evento_id,fase_anterior,fase,motivo,aplicado,criado_em FROM bia_fase_eventos WHERE bia_id=${biaId} ORDER BY criado_em DESC,id DESC`)).rows,
+    progress: async bia => db.transaction(async tx => {
+      await tx.execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`);
+      const biaId=String(bia.id);
+      const base=(await tx.execute(sql`SELECT valor_origem::float8 AS valor_origem,participantes,estrutura_economica,modelo_calculo,revisao,ativado_em FROM bia_map_inicial_snapshots WHERE bia_id=${biaId}`)).rows[0];
+      const draft=(await tx.execute(sql`SELECT concluido FROM bia_estruturacao_rascunhos WHERE bia_id=${biaId}`)).rows[0] as {concluido:boolean}|undefined;
+      const events=(await tx.execute(sql`SELECT fase,aplicado FROM bia_fase_eventos WHERE bia_id=${biaId}`)).rows;
+      let execution;
+      if(bia.situacao==="em_captacao") {
+        const directors=(await tx.execute(sql`SELECT diretor_nome AS nome FROM bia_diretor_solicitacoes WHERE bia_id=${biaId} AND status='pendente'`)).rows;
+        const partners=(await tx.execute(sql`SELECT socio_nome AS nome FROM bia_socio_solicitacoes WHERE bia_id=${biaId} AND status='pendente'`)).rows;
+        const accepted=(await tx.execute(sql`SELECT membro_id FROM bia_mou_aceites WHERE bia_id=${biaId} AND mou_versao=${BIA_MOU_VERSAO} AND (${!!base?.ativado_em} OR map_revisao=${Number(base?.revisao || 0)})`)).rows;
+        execution=biaExecutionReadiness({bia,base,draft,pendingDirectorInvites:directors.length,pendingPartnerInvites:partners.length,acceptedMouMemberIds:accepted.map(row=>String(row.membro_id))});
+        if(execution.missingMou.length) {
+          const labels=new Map<string,string>();
+          for(const memberId of execution.missingMou) {
+            const participant=(base?.participantes as any[]|undefined)?.find(p=>String(p.memberId)===memberId);
+            const member=participant?.nome ? null : await directusFetchOne("cadastro_geral",memberId,"fields=id,nome,Nome_de_usuario");
+            const name=participant?.nome || member?.nome || member?.Nome_de_usuario;
+            labels.set(memberId,String(name || "Participante sem nome"));
+          }
+          execution.checks.find(check=>check.id==="mou")!.detail=`Falta o aceite de: ${execution.missingMou.map(id=>labels.get(id) || "Participante sem nome").join(", ")}`;
+        }
+        for(const [checkId,rows] of [["director-invites",directors],["partner-invites",partners]] as const) {
+          if(rows.length) execution.checks.find(check=>check.id===checkId)!.detail=`Pendentes: ${rows.map(row=>String(row.nome || "Convidado sem nome")).join(", ")}`;
+        }
+      }
+      const property=bia.situacao==="em_execucao" ? (await tx.execute(sql`SELECT id FROM bia_imovel_origens WHERE bia_id=${biaId} AND status='ativa' LIMIT 1`)).rows[0] : null;
+      return biaPhaseProgress({bia,execution,structureCompleted:draft?.concluido===true,propertyLinked:!!property,resultApproved:events.some(row=>row.fase==="em_distribuicao" && row.aplicado===true),pendingTransition:events.some(row=>row.aplicado===false)});
+    }),
+  });
   async function reconcileBiaPhases(onlyId?:string) {
     const candidates=onlyId ? [await phaseDeps.fetch(onlyId)] : await directusFetchScoped("bias_projetos","filter[situacao][_in]=em_captacao,em_execucao&fields=*");
     for(const candidate of candidates) {
@@ -7793,16 +7829,12 @@ export async function registerRoutes(
         let bia=await phaseDeps.fetch(String(candidate.id));
         if(bia.situacao === "em_captacao" && base) {
           const draft=(await tx.execute(sql`SELECT concluido FROM bia_estruturacao_rascunhos WHERE bia_id=${String(bia.id)}`)).rows[0];
-          if(draft && !draft.concluido)return;
-          const pending=(await tx.execute(sql`SELECT (SELECT count(*) FROM bia_diretor_solicitacoes WHERE bia_id=${String(bia.id)} AND status='pendente') + (SELECT count(*) FROM bia_socio_solicitacoes WHERE bia_id=${String(bia.id)} AND status='pendente') AS count`)).rows[0];
-          if(Number(pending.count))return;
+          const pending=(await tx.execute(sql`SELECT (SELECT count(*) FROM bia_diretor_solicitacoes WHERE bia_id=${String(bia.id)} AND status='pendente') AS directors, (SELECT count(*) FROM bia_socio_solicitacoes WHERE bia_id=${String(bia.id)} AND status='pendente') AS partners`)).rows[0];
           const signers=Array.from(new Set([...biaFormalParticipantIds(bia),...base.participantes.map((p:any)=>p.memberId).filter(Boolean)])) as string[];
-          if(!signers.length)return;
-          for(const signer of signers)if(!await hasBiaMouAceito(String(bia.id),signer))return;
-          const requirements=biaActivationRequirements({bia,acceptedMouMemberIds:signers});
-          if(!requirements.canActivate)return;
-          calculateInitialMap(Number(base.valor_origem),base.participantes,base.estrutura_economica);
-          if(Number(base.modelo_calculo)>=3)validateInitialClassifications(base.participantes);
+          const acceptedSigners:string[]=[];
+          for(const signer of signers)if(await hasBiaMouAceito(String(bia.id),signer))acceptedSigners.push(signer);
+          const requirements=biaExecutionReadiness({bia,base,draft:draft as {concluido:boolean}|undefined,pendingDirectorInvites:Number(pending.directors),pendingPartnerInvites:Number(pending.partners),acceptedMouMemberIds:acceptedSigners});
+          if(!requirements.ready)return;
           const submitted=await readBiaSetup(tx,String(bia.id));
           const acceptances=submitted?(await tx.execute(sql`SELECT id,membro_id,mou_versao,map_revisao,aceito_em FROM bia_mou_aceites WHERE bia_id=${String(bia.id)} AND mou_versao=${BIA_MOU_VERSAO} AND map_revisao=${base.revisao}`)).rows:[];
           await transitionBiaPhase(phaseDeps,{biaId:String(bia.id),eventId:`aceites:${base.revisao}`,event:"aceites_concluidos",ready:true,reason:`Aceites concluídos da revisão ${base.revisao}`,actor:{...mapActor(),estruturaRevisao:submitted?.revisao || null,mouVersao:BIA_MOU_VERSAO,aceites:acceptances}});
@@ -12264,8 +12296,8 @@ export async function registerRoutes(
 
   app.get("/api/bias/:id/patrimonio", async (req, res) => {
     try {
-      if (!await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view")) return;
-      const result = await db.execute(sql`SELECT * FROM bia_patrimonial_snapshots WHERE bia_id = ${req.params.id} ORDER BY data_base DESC, created_at DESC`);
+      const auth=await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view");if(!auth)return;
+      const result = await db.execute(sql`SELECT * FROM bia_patrimonial_snapshots WHERE bia_id = ${String(auth.bia.id)} ORDER BY data_base DESC, created_at DESC`);
       res.json(result.rows || []);
     } catch (error: any) { res.status(500).json({ error: error.message }); }
   });
@@ -12273,18 +12305,7 @@ export async function registerRoutes(
   app.post("/api/bias/:id/patrimonio", async (req, res) => {
     try {
       if (!await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "edit")) return;
-      const value = Number(req.body?.patrimonio_liquido);
-      const baseDate = String(req.body?.data_base || "");
-      const methodology = String(req.body?.metodologia || "").trim();
-      const liquidity = req.body?.liquidez ? String(req.body.liquidez) : null;
-      if (!Number.isFinite(value) || value < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(baseDate) || !methodology) return res.status(400).json({ error: "Informe valor, data-base e metodologia válidos." });
-      if (liquidity && !["baixa", "media", "alta"].includes(liquidity)) return res.status(400).json({ error: "Liquidez inválida." });
-      const result = await db.execute(sql`
-        INSERT INTO bia_patrimonial_snapshots (bia_id, patrimonio_liquido, data_base, moeda, metodologia, liquidez, confirmado, criado_por_user_id, criado_por_membro_id)
-        VALUES (${req.params.id}, ${value}, ${baseDate}, ${String(req.body?.moeda || "BRL")}, ${methodology}, ${liquidity}, true, ${String((req.session as any).directusUserId || "")}, ${String((req.session as any).membroId || "")})
-        RETURNING *
-      `);
-      res.status(201).json(result.rows?.[0]);
+      res.status(410).json({ error: "O patrimônio é calculado automaticamente a partir dos ativos e lançamentos da BIA. O histórico manual permanece preservado." });
     } catch (error: any) { res.status(500).json({ error: error.message }); }
   });
 
@@ -16078,46 +16099,45 @@ ${inputText.slice(0, 18000)}`,
     const allBias = await directusFetchScoped(
       "bias_projetos",
       "fields=id,codigo_publico,nome_bia,situacao,moeda,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
-    ).catch(() => []);
+    );
     const related = (allBias as any[]).filter((bia) => isUserLinkedToBia(bia, membroId));
-    return Promise.all(related.map(async (bia) => {
-      const [allocation, snapshotResult, access, financialEntries, canDelete] = await Promise.all([
+    return (await Promise.all(related.map(async (bia) => {
+      const access=await resolveBiaAccessForRequest(bia, req);
+      if(!hasBiaAccess(access.permissions,"capital_financeiro","view"))return null;
+      const [allocation, financialEntries, canDelete] = await Promise.all([
         getBiaAllocationMap(bia, String(bia.id)),
-        db.execute(sql`
-          SELECT * FROM bia_patrimonial_snapshots
-          WHERE bia_id = ${String(bia.id)} AND confirmado = true
-          ORDER BY data_base DESC, created_at DESC LIMIT 1
-        `),
-        resolveBiaAccessForRequest(bia, req),
-        directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=valor,tipo,status,descricao,data,data_vencimento&limit=-1`),
+        directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=id,bia,valor,tipo,status,descricao,data,data_vencimento&limit=-1`),
         canDeleteBia(req, bia),
       ]);
       const own = allocation.find((row) => row.memberId === membroId);
-      const snapshot = snapshotResult.rows?.[0] as any;
+      const estimate=await loadBiaPatrimony(db,{id:String(bia.id),moeda:bia.moeda},financialEntries);
       const mapPercent = Number(own?.percent || 0);
-      const officialValue = snapshot ? Number(snapshot.patrimonio_liquido || 0) : null;
+      const officialValue = estimate.value;
       const inPeriod = (financialEntries as any[]).filter(isCashEntry).filter((entry) => {
         const date = String(entry.data || entry.data_vencimento || "");
         return !since || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= since;
       }).filter((entry) => !String(entry.descricao || "").toLowerCase().startsWith("aporte do fator"));
       const share = mapPercent / 100;
-      const revenues = inPeriod.filter((entry) => ["entrada", "receita"].includes(String(entry.tipo || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
-      const expenses = inPeriod.filter((entry) => ["saida", "saída", "despesa"].includes(String(entry.tipo || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
-      const payables = inPeriod.filter((entry) => ["pendente", "agendado", "vencido"].includes(String(entry.status || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
+      const paid=inPeriod.filter(entry=>entry.status==="pago");
+      const revenues = paid.filter((entry) => entry.finalidade!=="integralizacao_inicial" && ["entrada", "receita"].includes(String(entry.tipo || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
+      const expenses = paid.filter((entry) => ["saida", "saída", "despesa"].includes(String(entry.tipo || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
+      const payables = inPeriod.filter((entry) => ["saida","saída","despesa"].includes(String(entry.tipo || "").toLowerCase()) && ["pendente", "agendado", "vencido"].includes(String(entry.status || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
       return {
         id: String(bia.id),
         codigo: bia.codigo_publico || null,
         nome: bia.nome_bia || "Aliança",
         situacao: bia.situacao || null,
-        moeda: snapshot?.moeda || bia.moeda || "BRL",
+        moeda: bia.moeda || "BRL",
         map_percent: mapPercent,
         aportes_oficiais: Number(own?.value || 0),
-        patrimonio_liquido_oficial: officialValue,
+        patrimonio_liquido_oficial: null,
+        patrimonio_liquido_estimado: officialValue,
         valor_participacao: officialValue !== null && mapPercent > 0 ? Number((officialValue * mapPercent / 100).toFixed(2)) : null,
-        data_base: snapshot?.data_base || null,
-        metodologia: snapshot?.metodologia || null,
-        liquidez: snapshot?.liquidez || null,
-        confirmado: Boolean(snapshot),
+        data_base: estimate.calculatedAt,
+        metodologia: "Ativos registrados + caixa dos lançamentos pagos − dívidas informadas",
+        liquidez: null,
+        confirmado: !estimate.partial && estimate.value!==null,
+        estimativa_patrimonial:estimate,
         can_manage_patrimonio: hasBiaAccess(access.permissions, "capital_financeiro", "edit"),
         can_delete: canDelete,
         receitas_participacao: Number(revenues.toFixed(2)),
@@ -16127,7 +16147,7 @@ ${inputText.slice(0, 18000)}`,
           ? Number((((officialValue * share - Number(own?.value || 0)) / Number(own?.value || 0)) * 100).toFixed(2))
           : null,
       };
-    }));
+    }))).filter(item=>item!==null);
   }
 
   const MARKET_ESTIMATE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -16586,15 +16606,17 @@ ${inputText.slice(0, 18000)}`,
       const despesas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.despesas || 0), 0);
       const contasAPagar = imoveis.reduce((sum, item) => sum + Number(item.contas_a_pagar || 0), 0);
       const aliancas = await carteiraAlliancesForMember(actor.membroId, req, since);
+      const propertiesInBias=new Set(aliancas.filter(item=>item.valor_participacao!==null && item.map_percent>0 && convertPortfolioAmountToBrl(item.valor_participacao,item.moeda,exchangeRates)!==null).flatMap(item=>item.estimativa_patrimonial.propertyIds));
+      for(const item of imoveis)(item as any).consolidado_via_bia=propertiesInBias.has(String(item.id));
       const consolidated = calculatePortfolioTotals(
         imoveis.map((item) => ({
           acquisitionValue: parseMarketValueServer(item.valor_pago),
-          currentValue: parseMarketValueServer(item.valor_atual),
-          debt: parseMarketValueServer(item.divida_saldo),
+          currentValue: propertiesInBias.has(String(item.id))?0:parseMarketValueServer(item.valor_atual),
+          debt: propertiesInBias.has(String(item.id))?0:parseMarketValueServer(item.divida_saldo),
           liquidity: item.liquidez_confirmada || item.liquidez_sugerida,
           ownershipPercent: Number(item.participacao_percentual ?? 100),
         })),
-        aliancas.map((item) => ({ invested: item.aportes_oficiais, participationValue: item.valor_participacao, liquidity: item.liquidez })),
+        aliancas.map((item) => ({ invested: item.aportes_oficiais, participationValue: item.valor_participacao, liquidity: item.liquidez || undefined })),
       );
       const requiredCurrencies = new Set<string>();
       for (const item of [...imoveis, ...aliancas]) {
@@ -16618,8 +16640,8 @@ ${inputText.slice(0, 18000)}`,
       const consolidatedBrl = calculatePortfolioTotals(
         imoveis.map((item) => ({
           acquisitionValue: Number((item as any).valor_aquisicao_brl || 0),
-          currentValue: Number((item as any).valor_utilizado_no_total_brl || 0),
-          debt: toBrl(parseMarketValueServer(item.divida_saldo), item.moeda),
+          currentValue: propertiesInBias.has(String(item.id))?0:Number((item as any).valor_utilizado_no_total_brl || 0),
+          debt: propertiesInBias.has(String(item.id))?0:toBrl(parseMarketValueServer(item.divida_saldo), item.moeda),
           ownershipPercent: Number(item.participacao_percentual ?? 100),
         })),
         aliancas.map((item) => ({
@@ -24124,6 +24146,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const role = await getEffectiveRole(req);
     const isAdmin = ["admin", "manager", "superadmin", "master"].includes(String(role || "").toLowerCase());
     const allItems: AgendaAlertItem[] = [];
+
+    allItems.push(...await listMouRevisionAlerts(db,String(userId),session.companyEmployeeId ? null : membroId ? String(membroId) : null,BIA_MOU_VERSAO,async biaId=>{
+      const bia=await phaseDeps.fetch(biaId);
+      if(!bia || bia.situacao!=="em_captacao")return false;
+      const base=(await db.execute(sql`SELECT participantes FROM bia_map_inicial_snapshots WHERE bia_id=${biaId}`)).rows[0];
+      return new Set([...biaFormalParticipantIds(bia),...(Array.isArray(base?.participantes)?base.participantes:[]).map((p:any)=>String(p.memberId))]).has(String(membroId));
+    }));
 
     const [directorRequests, partnerRequests, approvals, allInvites, communities, portfolioAlerts, deliveries] = await Promise.all([
       membroId

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { SearchableNameSelect, type SearchableNameOption } from "@/components/searchable-name-select";
 
 export type BeneficiaryOption = {id: string; nome?: string | null; Nome_de_usuario?: string | null};
 
@@ -15,6 +16,16 @@ export function InitialBeneficiaryField({value, options, locked, disabled, allow
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const beneficiaryOptions: SearchableNameOption[] = [
+    { value: "", label: "Selecione", pinned: true },
+    ...(value && !options.some((member) => member.id === value)
+      ? [{ value, label: `Beneficiário selecionado (${value})`, pinned: true }]
+      : []),
+    ...options.map((member) => ({
+      value: member.id,
+      label: member.nome || member.Nome_de_usuario || member.id,
+    })),
+  ];
   const create = async () => {
     if (!name.trim() || pending || disabled || locked || !allowExternal) return;
     setPending(true); setError("");
@@ -26,13 +37,14 @@ export function InitialBeneficiaryField({value, options, locked, disabled, allow
     } finally { setPending(false); }
   };
   return <div className="min-w-0 space-y-2">
-    <label className="block text-sm">Beneficiário<select className="block w-full min-w-0 rounded border p-2 bg-background" disabled={disabled || locked || pending || external} value={value} onChange={e => {
-      setError(""); onChange(e.target.value);
-    }}>
-      <option value="">Selecione</option>
-      {value && !options.some(m => m.id === value) && <option value={value}>Beneficiário selecionado ({value})</option>}
-      {options.map(m => <option key={m.id} value={m.id}>{m.nome || m.Nome_de_usuario || m.id}</option>)}
-    </select></label>
+    <label className="block text-sm">Beneficiário<SearchableNameSelect
+      value={value}
+      options={beneficiaryOptions}
+      disabled={disabled || locked || pending || external}
+      ariaLabel="Beneficiário"
+      searchPlaceholder="Buscar beneficiário por nome…"
+      onValueChange={(nextValue) => { setError(""); onChange(nextValue); }}
+    /></label>
     {!locked && allowExternal && <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
       <Checkbox checked={external} disabled={disabled || pending} onCheckedChange={checked => {
         const next = checked === true;

@@ -940,7 +940,7 @@ export default function CarteiraAssistentePage() {
         </section>
       )}
 
-      <footer className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur">
+      <footer className="sticky bottom-0 z-20 flex flex-wrap justify-between gap-3 border-t border-border/60 bg-background/95 px-1 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <Button variant="outline" disabled={currentIndex === 0 || updateMutation.isPending || recording} onClick={() => setJourneyUrl({ step: STEPS[Math.max(0, currentIndex - 1)].id })}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
         {step !== "conexao" ? (
           <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={recording || (step === "cadastro" && (!String(draft.nome || "").trim() || !ownershipValid)) || (step === "intencao" && !draft.intencao) || (step === "analise" && (marketEstimateMutation.isPending || !draft.analise_revisada || parseDraftNumber(estimateCandidate) <= 0)) || updateMutation.isPending} onClick={() => updateMutation.mutate({

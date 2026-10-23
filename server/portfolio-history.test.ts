@@ -23,7 +23,17 @@ test("histórico SQL isola conta, membro e escopo, atualiza só o dia observado 
     assert.equal(filtered.observations[0].metrics.propertyEstimate.value, null);
     assert.deepEqual(filtered.observations[0].metrics.acquisition, metrics.acquisition);
     assert.deepEqual(filtered.observations[0].metrics.cppEstimate, metrics.cppEstimate);
+    assert.deepEqual(filtered.observations[0].metrics.cppContributed, metrics.cppContributed);
     assert.equal((await pg.query<any>("SELECT metrics FROM carteira_patrimonio_observacoes")).rows[0].metrics.propertyEstimate.value, 15000000); // read-only, original audit evidence retained.
+    const partialCpp={...metrics,cppEstimate:{value:157736.64,included:2,total:5,partial:true}};
+    await pg.query("UPDATE carteira_patrimonio_observacoes SET metrics=$1::jsonb", [JSON.stringify(partialCpp)]);
+    const cppHistory=await portfolioHistory(db,actor,'scope',null);
+    assert.equal(cppHistory.observations[0].metrics.cppEstimate.value,null);
+    assert.equal((await pg.query<any>("SELECT metrics FROM carteira_patrimonio_observacoes")).rows[0].metrics.cppEstimate.value,157736.64);
+    const beforeSplit:any={...metrics};delete beforeSplit.cppContributed;delete beforeSplit.cppRemaining;
+    await pg.query("UPDATE carteira_patrimonio_observacoes SET metrics=$1::jsonb",[JSON.stringify(beforeSplit)]);
+    const normalized=await portfolioHistory(db,actor,"scope",null);
+    assert.equal(normalized.observations[0].metrics.cppContributed.value,null);assert.equal(normalized.observations[0].metrics.cppRemaining.partial,true);
     await portfolioHistory(db, actor, "scope", null, metrics);
     assert.deepEqual((await portfolioHistory(db, actor, "scope", null)).observations[0].metrics.propertyEstimate, metrics.propertyEstimate);
     for (const candidate of [{ userId: "other", membroId: "member" }, { userId: "owner", membroId: "other" }]) assert.equal((await portfolioHistory(db, candidate, "scope", null)).observations.length, 0);

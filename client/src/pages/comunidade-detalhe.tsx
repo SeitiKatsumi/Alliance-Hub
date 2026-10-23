@@ -21,6 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeSearchableName, SearchableNameSelect } from "@/components/searchable-name-select";
 import NetworkOpportunitiesHub from "@/pages/network-opportunities";
 import {
   Bar,
@@ -223,6 +224,7 @@ export default function ComunidadeDetalhePage() {
   const search = useSearch();
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
+  const [membrosEditSearch, setMembrosEditSearch] = useState("");
   const [editForm, setEditForm] = useState<ComunidadeEditForm>({
     pais: "",
     territorio: "",
@@ -271,6 +273,12 @@ export default function ComunidadeDetalhePage() {
   const membrosOrdenados = useMemo(() => [...membrosDisponiveis].sort((a, b) =>
     (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" })
   ), [membrosDisponiveis]);
+
+  const membrosEditFiltrados = useMemo(() => {
+    const term = normalizeSearchableName(membrosEditSearch);
+    if (!term) return membrosOrdenados;
+    return membrosOrdenados.filter((membro) => normalizeSearchableName([membro.nome, membro.empresa, membro.cargo].filter(Boolean).join(" ")).includes(term));
+  }, [membrosEditSearch, membrosOrdenados]);
 
   const biasOrdenadas = useMemo(() => [...biasDisponiveis].sort((a, b) =>
     (a.nome_bia || a.id || "").localeCompare(b.nome_bia || b.id || "", "pt-BR", { sensitivity: "base" })
@@ -953,25 +961,16 @@ export default function ComunidadeDetalhePage() {
 
             <div>
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">Aliado BUILT</Label>
-              <Select value={editForm.aliado_id || "_none"} onValueChange={(value) => setEditForm(f => ({ ...f, aliado_id: value === "_none" ? "" : value }))}>
-                <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-detail-comunidade-aliado">
-                  <SelectValue placeholder="Selecione o Aliado BUILT" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#001428] border-white/10 text-white">
-                  <SelectItem value="_none">— Nenhum —</SelectItem>
-                  {membrosOrdenados.map(membro => (
-                    <SelectItem key={membro.id} value={membro.id}>{membro.nome || membro.id}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableNameSelect ariaLabel="Aliado BUILT da comunidade" value={editForm.aliado_id || "_none"} className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40" testId="select-detail-comunidade-aliado" options={[{value:"_none",label:"— Nenhum —",pinned:true},...membrosOrdenados.map(membro=>({value:membro.id,label:membro.nome || membro.id,searchText:[membro.empresa,membro.cargo].filter(Boolean).join(" ")}))]} onValueChange={(value) => setEditForm(f => ({ ...f, aliado_id: value === "_none" ? "" : value }))} />
             </div>
 
             <div>
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">
                 Membros Associados ({editForm.membros_ids.length} selecionados)
               </Label>
+              <Input aria-label="Buscar membros associados" value={membrosEditSearch} onChange={(event)=>setMembrosEditSearch(event.target.value)} placeholder="Buscar por nome, empresa ou cargo…" className="mb-2 bg-white/5 border-white/10 text-white placeholder:text-white/30" />
               <div className="max-h-44 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
-                {membrosOrdenados.map(membro => {
+                {membrosEditFiltrados.map(membro => {
                   const selected = editForm.membros_ids.includes(membro.id);
                   return (
                     <button
@@ -989,6 +988,7 @@ export default function ComunidadeDetalhePage() {
                     </button>
                   );
                 })}
+                {!membrosEditFiltrados.length && <p className="p-3 text-xs text-white/40">Nenhum membro encontrado.</p>}
               </div>
             </div>
 

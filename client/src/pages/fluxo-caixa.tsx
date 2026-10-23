@@ -22,6 +22,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { deleteFluxoBatch, fluxoDeleteError, fluxoDeleteNeedsConfirmation } from "@/lib/fluxo-delete";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
+import { SearchableNameSelect } from "@/components/searchable-name-select";
 import { MAP_DYNAMIC_FOOTER, allocateQuotaTransferAmounts, calculateMap, type MapContribution } from "@shared/member-portfolio";
 import {
   Wallet,
@@ -3788,34 +3789,14 @@ export default function FluxoCaixaPage({
                   <Label className="text-xs text-muted-foreground flex items-center gap-1">
                     <User className="w-3 h-3" /> Responsável
                   </Label>
-                  <Select value={filterMembro} onValueChange={setFilterMembro}>
-                    <SelectTrigger className="h-8 text-xs" data-testid="filter-membro">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {favorecidosDaBia.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableNameSelect ariaLabel="Filtrar por responsável" value={filterMembro} className="h-8 text-xs" testId="filter-membro" options={[{value:"todos",label:"Todos",pinned:true},...favorecidosDaBia.map((m)=>({value:m.id,label:getMembroNome(m)}))]} onValueChange={setFilterMembro} />
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1">
                     <UserCheck className="w-3 h-3" /> Favorecido
                   </Label>
-                  <Select value={filterFavorecido} onValueChange={setFilterFavorecido}>
-                    <SelectTrigger className="h-8 text-xs" data-testid="filter-favorecido">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {membros.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableNameSelect ariaLabel="Filtrar por favorecido" value={filterFavorecido} className="h-8 text-xs" testId="filter-favorecido" options={[{value:"todos",label:"Todos",pinned:true},...membros.map((m)=>({value:m.id,label:getMembroNome(m)}))]} onValueChange={setFilterFavorecido} />
                 </div>
 
                 <div className="space-y-1">

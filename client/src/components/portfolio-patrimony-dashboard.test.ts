@@ -4,23 +4,29 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { transformSync } from "esbuild";
-import { portfolioDashboard } from "../../../shared/portfolio-dashboard";
+import { dashboardAcquisitionValue, portfolioDashboard } from "../../../shared/portfolio-dashboard";
 
-test("quatro indicadores e dois gráficos reais preservam faixa, perdas e observação única", () => {
+test("dois blocos patrimoniais separam CPP aportada do saldo e mantêm dois gráficos reais", () => {
   const source = readFileSync(new URL("./portfolio-patrimony-dashboard.tsx", import.meta.url), "utf8");
   const code = source.replace(/^import .*;\r?\n/gm, "").replace(/export function/g, "function");
-  const Component = new Function("React", transformSync(code, { loader: "tsx" }).code + "; return PortfolioPatrimonyDashboard;")(React);
-  const metrics = portfolioDashboard([{ id: "p", valor_aquisicao_brl: 100, estimativa_dashboard: { min: 200, max: 300, value: 250 } }], [{ id: "b", cpp_base_brl: 50, valor_participacao_brl: -10 }]);
+  const passthrough = ({children}:any) => React.createElement(React.Fragment,null,children);
+  const Component = new Function("React","Info","Popover","PopoverTrigger","PopoverContent", transformSync(code, { loader: "tsx" }).code + "; return PortfolioPatrimonyDashboard;")(React,()=>React.createElement("svg"),passthrough,passthrough,passthrough);
+  const metrics = portfolioDashboard([{ id: "p", valor_aquisicao_brl: 100, estimativa_dashboard: { min: 200, max: 300, value: 250 } }], [{ id: "b", cpp_base_brl: 50, cpp_contributed_brl: 20, cpp_remaining_brl: 30, valor_participacao_brl: -10 }]);
   const render = (props = {}) => renderToStaticMarkup(React.createElement(Component, { metrics, observations: [{ day: "2026-10-22", observedAt: "2026-10-22T00:00:00Z", metrics }], ...props }));
   const html = render();
-  assert.match(html, /aquisição dos imóveis próprios/); assert.match(html, /atualizado estimado das CPPs/); assert.match(html, /10 km/);
-  assert.equal((html.match(/role="img"/g) || []).length, 2); assert.match(html, /Primeira observação/); assert.match(html, /-R\$/);
+  assert.match(html, /Imóveis próprios/); assert.match(html, /Valor total de CPPs em alianças/); assert.match(html, /Aportado/); assert.match(html, /A aportar/); assert.match(html, /10 km/);
+  assert.match(html,/R\$\s*20,00/);assert.match(html,/R\$\s*30,00/);assert.doesNotMatch(html,/R\$\s*200,00 a R\$\s*300,00/);
+  assert.equal((html.match(/role="img"/g) || []).length, 2); assert.match(html, /Primeira observação/);
   assert.doesNotMatch(html, /<line x1="310"/); assert.match(render({ historyError: "Consulta indisponível" }), /role="alert"/);
   assert.match(render({ observations: [] }), /Sem observações/);
   const partial = render({ metrics: { ...metrics, propertyEstimate: { ...metrics.propertyEstimate, partial: true, included: 1, total: 2 } } });
   assert.match(partial, /class="sr-only">Parcial · 1 de 2 com dados/);
   assert.doesNotMatch(partial, /text-amber/);
-  const indicative = render({ metrics: { ...metrics, propertyEstimate: { ...metrics.propertyEstimate, indicative: true } } });
-  assert.match(indicative, /Faixa indicativa por IA/);
-  assert.doesNotMatch(indicative, /Faixa por anúncios comparáveis em até 10 km/);
+  const incompleteCpp=render({metrics:{...metrics,cppContributed:{value:null,included:1,total:5,partial:true}}});
+  assert.match(incompleteCpp,/Dados insuficientes/);assert.doesNotMatch(incompleteCpp,/text-amber/);
+  const legacyMetrics={...metrics} as any;delete legacyMetrics.cppContributed;delete legacyMetrics.cppRemaining;
+  const legacy=render({metrics:legacyMetrics});assert.match(legacy,/Valor total de CPPs em alianças/);assert.equal((legacy.match(/Dados insuficientes/g)||[]).length,2);
+  const acquisitionWithBlank=portfolioDashboard([{id:"known",valor_aquisicao_brl:1},{id:"blank",valor_aquisicao_brl:dashboardAcquisitionValue("",null)}],[]);
+  const acquisitionHtml=render({metrics:acquisitionWithBlank,observations:[]});assert.match(acquisitionHtml,/R\$\s*1,00/);assert.doesNotMatch(acquisitionHtml,/Dados insuficientes/);
+  assert.match(html,/Somatório dos valores de aquisição/);assert.match(html,/percentual efetivamente aportado/);
 });

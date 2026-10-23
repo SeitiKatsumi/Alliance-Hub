@@ -9,6 +9,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 ## Telas e URLs
 
 - `/admin` e abas por query string, incluindo dashboard, membros, configuracoes, pagamentos, estruturacao de BIAs e `?tab=politicas`.
+- `/documentacao/relatorio-funcionalidades` consolida o inventario funcional, as fases da BIA e seus requisitos, perfis globais, papeis por BIA, efeitos de tese/convite/vinculo e controles de isolamento para a decisao de lancamento. O relatorio distingue capacidade de produto de permissao efetiva e registra bloqueadores conhecidos; sua audiencia em producao deve ser decidida antes do release.
 - O painel do provedor bancário anterior foi removido. Indicadores de cobranças das BIAs mantêm valores históricos, separados da receita da plataforma. `/admin?tab=asaas` oferece consulta de configuração e pendências da base, exclusiva de admin/superadmin ativo, excluindo funcionário empresarial. Nunca expõe segredos nem oferece ações financeiras; backend revalida usuário ativo, papel e vínculo empresarial.
 - Implementacao principal: `client/src/pages/admin.tsx` e `client/src/components/bia-structuring-queue.tsx`.
 
@@ -42,6 +43,10 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 - Dashboard e fila sao projecoes; mudar status exige endpoint do dominio.
 
 ## Invariantes
+
+- Qualquer mudanca em funcionalidades, fases/requisitos/transicoes da BIA, perfis, papeis, permissoes, teses/Tipos de negocio, finalidades, anuidade, empresa, Comunidades/Celulas, convites, publicacao ou isolamento de dados atualiza no mesmo trabalho `client/src/data/platform-functional-report.ts`, sua apresentacao quando aplicavel e este contrato. O status publicado sempre corresponde ao comportamento autorizado e testado no backend; uma interface sem endpoint, integracao sem homologacao ou regra sem regressao nao e marcada como disponivel. Executar `npm run test:functional-report` e `npm run platform:contract` nesse escopo.
+- O relatorio funcional precisa documentar as seis fases novas da BIA, a compatibilidade `ativa` legada, os perfis globais e todos os papeis internos suportados por `shared/bia-access.ts`. Escolha de Tipo de negocio, finalidade, anuidade, Comunidade, convite e publicacao nunca pode ser descrita como permissao implicita. Bloqueadores de lancamento devem permanecer visiveis ate que o codigo e os testes correspondentes provem a correcao.
+- A auditoria de lancamento registra como bloqueadores atuais: a ausencia do POST autorizado/idempotente de fases consumido pela interface e o uso de uma projecao ampla nas rotas publicas de BIA/MAP. Nao declarar essas capacidades prontas nem ocultar os itens do relatorio antes da correcao e da regressao entre BIAs.
 
 - Indicadores do Cadastro Geral usam classe dedicada `members-stats` e superfície `--members-card`, independente de grid mobile/flex desktop. O modo claro não herda o fundo escuro institucional antigo; números/rótulos continuam com os tokens específicos de cada tema.
 

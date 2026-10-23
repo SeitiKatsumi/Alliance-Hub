@@ -4,18 +4,39 @@ export interface PortfolioDashboard {
   acquisition: PortfolioMetric;
   propertyEstimate: PortfolioMetric & { min: number | null; max: number | null; indicative?: boolean; validationVersion?: number };
   cppBase: PortfolioMetric;
+  cppContributed: PortfolioMetric;
+  cppRemaining: PortfolioMetric;
   cppEstimate: PortfolioMetric;
 }
 export interface PortfolioObservation { day: string; observedAt: string; metrics: PortfolioDashboard }
 
 type Property = {
-  id: string; consolidado_via_bia?: boolean; participacao_percentual?: number;
+  id: string; consolidado_via_bia?: boolean; participacao_percentual?: number; valor_pago?: unknown;
   valor_aquisicao_brl?: number | null;
   estimativa_dashboard?: { min: number | null; max: number | null; value: number | null; indicative?: boolean };
 };
-type Alliance = { id: string; map_percent?: number; cpp_base_brl?: number | null; valor_participacao_brl?: number | null; estimativa_patrimonial?: { partial: boolean } };
+type Alliance = { id: string; map_percent?: number; cpp_base_brl?: number | null; cpp_contributed_brl?: number | null; cpp_remaining_brl?: number | null; valor_participacao_brl?: number | null; estimativa_patrimonial?: { partial: boolean } };
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+/**
+ * An acquisition value that was never declared contributes zero to the
+ * declared-acquisition total. A declared amount that could not be converted to
+ * BRL remains unknown so a currency/integration failure is not hidden as zero.
+ */
+export function dashboardAcquisitionValue(declaredValue: unknown, convertedBrl: number | null | undefined): number | null {
+  if (declaredValue == null || (typeof declaredValue === "string" && !declaredValue.trim())) return 0;
+  return finite(convertedBrl) ? convertedBrl : null;
+}
+
+/** Normalizes an API payload so older servers apply the current acquisition rule too. */
+export function portfolioDashboardFromApi(properties: Property[], alliances: Alliance[]): PortfolioDashboard {
+  return portfolioDashboard(properties.map(property => ({
+    ...property,
+    valor_aquisicao_brl: dashboardAcquisitionValue(property.valor_pago, property.valor_aquisicao_brl),
+  })), alliances);
+}
+
 function metric(values: Array<number | null | undefined>, hasPartial = false): PortfolioMetric {
   const known = values.filter(finite);
   return { value: !values.length ? 0 : known.length ? round(known.reduce((a, b) => a + b, 0)) : null,
@@ -33,6 +54,13 @@ export function portfolioDashboard(properties: Property[], alliances: Alliance[]
     return !!e && finite(e.min) && finite(e.max) && finite(e.value) && e.min > 0 && e.min <= e.value && e.value <= e.max;
   };
   const estimates = own.map(p => validRange(p) ? proportional(p, p.estimativa_dashboard!.value) : null);
+  const cppEstimate = metric(bias.map(b => b.estimativa_patrimonial?.partial ? null : b.valor_participacao_brl));
+  const cppContributed = metric(bias.map(b => b.cpp_contributed_brl));
+  const cppRemaining = metric(bias.map(b => b.cpp_remaining_brl));
+  // A subtotal of only some alliances must not be presented as the total value of all CPPs.
+  if(cppEstimate.partial)cppEstimate.value=null;
+  if(cppContributed.partial)cppContributed.value=null;
+  if(cppRemaining.partial)cppRemaining.value=null;
   return {
     acquisition: metric(own.map(p => proportional(p, p.valor_aquisicao_brl))),
     propertyEstimate: { ...metric(estimates), validationVersion: PROPERTY_ESTIMATE_VALIDATION_VERSION,
@@ -40,6 +68,8 @@ export function portfolioDashboard(properties: Property[], alliances: Alliance[]
       min: metric(own.map(p => validRange(p) ? proportional(p, p.estimativa_dashboard!.min) : null)).value,
       max: metric(own.map(p => validRange(p) ? proportional(p, p.estimativa_dashboard!.max) : null)).value },
     cppBase: metric(bias.map(b => b.cpp_base_brl)),
-    cppEstimate: metric(bias.map(b => b.valor_participacao_brl), bias.some(b => b.estimativa_patrimonial?.partial === true)),
+    cppContributed,
+    cppRemaining,
+    cppEstimate,
   };
 }

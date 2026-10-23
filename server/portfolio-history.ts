@@ -29,10 +29,16 @@ export async function portfolioHistory(db: any, actor: { userId: string | null; 
   // Preserve stored observations for audit. Old unvalidated indicative aggregates cannot be decomposed/repaired honestly.
   const observations = (result.rows as PortfolioObservation[]).map(observation => {
     const estimate = observation.metrics.propertyEstimate;
-    if (!estimate?.indicative || estimate.validationVersion === PROPERTY_ESTIMATE_VALIDATION_VERSION) return observation;
-    return { ...observation, metrics: { ...observation.metrics, propertyEstimate: {
+    const metrics:any={...observation.metrics};
+    const unavailable={value:null,included:0,total:Number(metrics.cppBase?.total || 0),partial:true};
+    if(!metrics.cppContributed)metrics.cppContributed={...unavailable};
+    if(!metrics.cppRemaining)metrics.cppRemaining={...unavailable};
+    if (estimate?.indicative && estimate.validationVersion !== PROPERTY_ESTIMATE_VALIDATION_VERSION) metrics.propertyEstimate={
       ...estimate, value: null, min: null, max: null, included: 0, partial: true,
-    } } };
+    };
+    // Cash-only/partial CPP subtotals are not historical valuations. Preserve the stored evidence, break the plotted series.
+    if(metrics.cppEstimate?.partial)metrics.cppEstimate={...metrics.cppEstimate,value:null};
+    return {...observation,metrics};
   });
   return { available: true, observations };
 }

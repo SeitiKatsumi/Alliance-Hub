@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "2026-10-23-property-launch-edit",
+  "title": "Editar receitas e despesas salvas do imóvel",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": ["server/routes.ts", "shared/carteira.ts"],
+  "searchTerms": ["NewLaunchDialog", "propertyLaunchRequest", "inventario_lancamentos"],
+  "consumers": [
+    {"path":"client/src/pages/carteira.tsx","decision":"updated","reason":"Botão Editar, formulário preenchido, PATCH e invalidação dos dados derivados; preservar alterações paralelas."},
+    {"path":"client/src/lib/carteira-launch-form.ts","decision":"updated","reason":"Estado de criação/edição e payload restrito de PATCH sem origem ou propriedade."},
+    {"path":"client/src/lib/carteira-launch-form.test.ts","decision":"updated","reason":"Centavos, prefill, descarte, criação separada e validação."},
+    {"path":"client/src/pages/carteira-mobile-launch.test.ts","decision":"updated","reason":"Integração, permissão visual, modal rolável e cache."},
+    {"path":"server/carteira-launch-edit.test.ts","decision":"updated","reason":"Rota PATCH real com PostgreSQL isolado: atualização, autorização, trilha e total."},
+    {"path":"server/routes.ts","decision":"reviewed","reason":"PATCH existente exige colaboração no imóvel persistido, preserva campos omitidos, mantém ID e registra antes/depois. Nenhum hunk novo nesta tarefa."},
+    {"path":"shared/carteira.ts","decision":"preserved","reason":"Diagnóstico lê lançamento atualizado; fórmula e hierarquia de acesso existentes mantidas."},
+    {"path":"shared/schema.ts","decision":"preserved","reason":"Tabela existente sem mudança de schema ou migração."},
+    {"path":"client/src/pages/agenda.tsx","decision":"preserved","reason":"Cache /api/agenda invalidado; sem nova notificação ou envio."},
+    {"path":"docs/platform/modules/carteira.md","decision":"updated","reason":"Contrato da edição e dependências, preservando trechos de tarefas anteriores."},
+    {"path":"client/src/pages/painel.tsx","decision":"preserved","reason":"Consome dashboard da Carteira; resumo invalidado, sem novo cálculo."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Rota /carteira/:id existente utiliza o detalhe atualizado; nenhuma rota nova."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Bootstrap não muda; consumidor transitivo da página."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"Modal compartilhado conferido no localhost em desktop e 390x844, rolagem até Cancelar/Salvar, sem gravar. Conta disponível não tem lançamentos: prefill/Editar/PATCH/cancelar/falhar/retentar verificados no componente real em teste isolado, não visualmente no Lote 09."},
+    {"area":"api","status":"verified","evidence":"PATCH real executado no teste isolado; mesmo ID, sem novo POST."},
+    {"area":"dados","status":"verified","evidence":"PGlite mantém uma linha e campos anteriores; sem alteração em cadastro real ou migração."},
+    {"area":"calculos-graficos","status":"verified","evidence":"Diagnóstico recalculado para -500 no teste; cache de detalhe/resumo/lista invalidado. Gráficos patrimoniais não derivam destes lançamentos pessoais."},
+    {"area":"notificacoes-emails","status":"verified","evidence":"Agenda e alertas revalidados, evento append-only já existente. PATCH não envia mensagens."},
+    {"area":"documentos-relatorios","status":"verified","evidence":"Anexos preservados pelo PATCH e teste; nenhum PDF, exportação ou documento assinado é reescrito."},
+    {"area":"integracoes-tarefas","status":"not-applicable","evidence":"Edição local de inventario_lancamentos, sem Directus financeiro, Asaas, IA ou cobrança externa."},
+    {"area":"permissoes","status":"verified","evidence":"Colaboração existente, UI condicional; teste 403 antes de escrita e tentativa de troca de imóvel/owner ignorada."},
+    {"area":"legado","status":"verified","evidence":"Registros importados preservam origem/anexos/createdAt; criação/importação mantidas separadas de edição."},
+    {"area":"testes","status":"verified","evidence":"10 testes focados passam, incluindo componente real e PATCH em PostgreSQL isolado. platform:verify final exit0,525 testes/0falhas, tipos/contrato/consistência/build aprovados (property-launch-edit-verify-recheck.log). platform:review permanece bloqueado por29 pendências de trabalhos paralelos, sem pendência deste registro. Sem commit/push."}
+  ],
+  "regressionTests": ["client/src/lib/carteira-launch-form.test.ts", "server/carteira-launch-edit.test.ts", "client/src/pages/carteira-mobile-launch.test.ts"],
+  "deprecationRuleIds": []
+}

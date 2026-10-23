@@ -135,6 +135,8 @@ A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Ban
 
 ## Testes e impacto
 
+- Seletores de pessoas do Capital — beneficiário dos cronogramas, composição legada, filtros de responsável/favorecido e quadro societário — são pesquisáveis e ordenados alfabeticamente em pt-BR. A busca ignora acentos e maiúsculas; ações como “Todos”, “Selecione” e preenchimento manual permanecem fixas no início. IDs, bloqueios, confirmações e permissões existentes são preservados.
+
 - `server/migration-runner.test.ts` executa o `migrate.cjs` de produção em PostgreSQL isolado: arquivos SQL inteiros (incluindo `DO $$` e funções), ordem base MAP antes de aportes, idempotência e rollback sem registrar migração incompleta. O executor não divide SQL por ponto-e-vírgula.
 
 - `client/src/pages/dm-map-navigation.test.ts`: separacao, links antigos, zero/CPP ausente, revisao do rascunho, falha segura e protecao de navegacao. Reorganizacao de interface nao modifica formulas, criacao de BIA, persistencia, aceites ou gera lancamentos.

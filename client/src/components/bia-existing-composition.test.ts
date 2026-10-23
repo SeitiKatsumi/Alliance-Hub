@@ -14,6 +14,7 @@ const source=readFileSync(new URL('./bia-role-composition.tsx',import.meta.url),
 const ast=ts.createSourceFile('fields.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='BiaExistingCompositionFields')!.getText(ast).replace('export function','function');
 const numberInput=({label,value,onChange,disabled}:any)=>React.createElement('input',{'aria-label':label,value:Number.isFinite(value)?value:'',disabled,onChange});
+const searchableNameSelect=({value,options,onValueChange,disabled,ariaLabel}:any)=>React.createElement('select',{value,disabled,'aria-label':ariaLabel,onChange:(event:any)=>onValueChange(event.target.value)},options.map((option:any)=>React.createElement('option',{key:option.value,value:option.value,disabled:option.disabled},option.label)));
 const types=[{id:'capital',Nome:'Capital'},{id:'origem',Nome:'Origem'}];
 function fixture(byValue=true,byRole=false,overrides:any={}) {
   const participant:InitialMapParticipantInput={participantId:'member:a',memberId:'a',nome:'Sócio Exemplo',tipo:'guardiao',cargos:['Autor da Oportunidade','Aliado BUILT'],indiceContribuicao:0,pesoCapital:100,
@@ -22,7 +23,7 @@ function fixture(byValue=true,byRole=false,overrides:any={}) {
   let participants=structuredClone(overrides.participants || [participant]);
   let writes=0;
   const query={data:types,isPending:false,isError:false,refetch:()=>{},...overrides.query};
-  const scope={React,useQuery:()=>query,Input:'input',Button:'button',BiaNumberInput:numberInput,formatBiaPercent,roles:Object.values(BIA_PARTICIPANT_ROLE_LABELS),window:{confirm:()=>true}};
+  const scope={React,useQuery:()=>query,Input:'input',Button:'button',SearchableNameSelect:searchableNameSelect,BiaNumberInput:numberInput,formatBiaPercent,roles:Object.values(BIA_PARTICIPANT_ROLE_LABELS),window:{confirm:()=>true}};
   const Field=new Function(...Object.keys(scope),transformSync(fn,{loader:'tsx'}).code+';return BiaExistingCompositionFields;')(...Object.values(scope));
   function render() {
     let preview:any;
@@ -71,7 +72,7 @@ test('modelo por função altera somente o índice escolhido e mantém o zero ex
 test('substituição confirmada preserva o comportamento próprio de cada modelo',()=>{
   for(const byRole of [false,true]){
     const f=fixture(true,byRole),before=structuredClone(f.participants[0]);
-    elements(f.render()).find(n=>n.type==='select'&&n.props.value==='a').props.onChange({target:{value:'b'}});
+    elements(f.render()).find(n=>n.type===searchableNameSelect&&n.props.value==='a').props.onValueChange('b');
     assert.equal(f.participants[0].memberId,'b');
     assert.deepEqual(f.participants[0].cargos,before.cargos);
     if(byRole){assert.ok(Number.isNaN(f.participants[0].capitalComprometido));assert.equal(f.participants[0].tipoCppCapital,undefined);assert.ok(f.participants[0].contribuicoes!.every(c=>Number.isNaN(c.indice)&&!c.tipoCpp));}

@@ -11,6 +11,7 @@ test("patrimônio automático mostra componentes, perda, ausência e pendências
  const estimate:any={value:-200,assets:100,cash:0,debt:300,partial:true,issues:['Dívida de ativo não informada'],calculatedAt:'2026-10-22T00:00:00Z'};
  const html=()=>renderToStaticMarkup(React.createElement(Component,{estimate,format:(value:number)=>String(value)}));
  assert.match(html(),/-200/);assert.match(html(),/Estimativa parcial/);assert.match(html(),/Caixa registrado/);assert.match(html(),/Dívida de ativo/);
+ assert.match(html(),/Subtotal patrimonial conhecido/);estimate.partial=false;assert.match(html(),/Patrimônio líquido estimado/);
  estimate.value=null;assert.match(html(),/Dados insuficientes/);estimate.value=0;assert.doesNotMatch(html(),/Dados insuficientes/);
  const dashboard=readFileSync(new URL('../pages/carteira.tsx',import.meta.url),'utf8');
  assert.doesNotMatch(dashboard,/snapshotForm|snapshotMutation|Aguardando valor oficial|Registrar novo snapshot/);

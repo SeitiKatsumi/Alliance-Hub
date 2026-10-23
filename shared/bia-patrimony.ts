@@ -1,6 +1,6 @@
 import { isCashEntry } from "./initial-contributions";
 
-export type BiaPatrimonyAsset = { id:string; value:number|null; debt:number|null; currency:string; acquired:boolean; ownershipConfirmed:boolean };
+export type BiaPatrimonyAsset = { id:string; value:number|null; debt:number|null; currency:string; acquired:boolean; ownershipConfirmed:boolean; ownershipPercent:number|null };
 export type BiaPatrimonyEstimate = { value:number|null; assets:number; cash:number; debt:number; partial:boolean; issues:string[]; propertyIds:string[]; calculatedAt:string };
 const cents=(value:number)=>Math.round(value*100);
 /** Recorded-asset/book-cash estimate, not a market appraisal or a bank balance. Never uses CPP or promised capital. */
@@ -12,12 +12,16 @@ export function estimateBiaPatrimony(input:{assets:BiaPatrimonyAsset[];entries:a
     if(seen.has(asset.id))continue;seen.add(asset.id);
     if(!asset.acquired)continue;
     if(!asset.ownershipConfirmed){issues.add("Vínculo de referência não confirma propriedade da BIA");continue;}
+    // Formal ownership is independent of price/FX coverage. Do not put the property back in the personal total when its valuation is missing.
+    if(asset.id.startsWith("property:"))propertyIds.push(asset.id.slice(9));
+    const percent=asset.ownershipPercent;
+    if(percent===null||!Number.isFinite(percent)||percent<=0||percent>100){issues.add("Participação da BIA no ativo não informada ou inválida");continue;}
+    const share=percent/100;
     if(asset.currency!==input.currency){issues.add("Ativo em moeda diferente da BIA");continue;}
     if(asset.value===null||!Number.isFinite(asset.value)||asset.value<0){issues.add("Ativo sem valor atual registrado");continue;}
-    observations++;assets+=cents(asset.value);
-    if(asset.id.startsWith("property:"))propertyIds.push(asset.id.slice(9));
+    observations++;assets+=cents(asset.value*share);
     if(asset.debt===null||!Number.isFinite(asset.debt)||asset.debt<0)issues.add("Dívida de ativo não informada");
-    else debt+=cents(asset.debt);
+    else debt+=cents(asset.debt*share);
   }
   const entriesSeen=new Set<string>();
   for(const entry of input.entries){

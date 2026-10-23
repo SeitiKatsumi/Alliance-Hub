@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { PhoneInput } from "@/components/phone-input";
+import { SearchableNameSelect } from "@/components/searchable-name-select";
 import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 import { getOpaUrl } from "@/lib/public-refs";
 import {
@@ -1912,10 +1913,18 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
         solicitacao.solicitante_nome,
       ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
     });
+  const mouRevisoesFiltradas = mouRevisoes.filter((revisao) => {
+    if (!aprovacoesQuery) return true;
+    return normalize([
+      revisao.bia_nome,
+      `MOU MAP Inicial revisão ${revisao.map_revisao}`,
+      "pendente",
+    ].join(" ")).includes(aprovacoesQuery);
+  });
   const aprovacoesImportantes = aprovacoesFiltradas.filter((c: any) => isCommunityApprovalPending(c.status));
   const aprovacoesHistorico = aprovacoesFiltradas.filter((c: any) => !isCommunityApprovalPending(c.status));
   const aprovacoesExibidas = mostrarHistoricoAprovacoes ?aprovacoesHistorico : aprovacoesImportantes;
-  const totalAprovacoesPendentes = aprovacoesImportantes.length + diretorSolicitacoesPendentes.length + socioSolicitacoesPendentes.length;
+  const totalAprovacoesPendentes = mouRevisoesFiltradas.length + aprovacoesImportantes.length + diretorSolicitacoesPendentes.length + socioSolicitacoesPendentes.length;
   const opasPublicasFiltradas = (opasNotificacoes || [])
     .filter((opa: any) => {
       const status = String(opa.status || "").toLowerCase();
@@ -1946,14 +1955,6 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
 
   return (
     <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"} ${convitesOnly ?"notifications-page" : ""}`}>
-      {/* Header */}
-      {(convitesOnly || activeTab === "convites") && <div className="space-y-3">
-        {mouRevisoesError && <p role="alert" className="text-sm text-red-600">Não foi possível carregar as revisões pendentes do MOU.</p>}
-        {mouRevisoes.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="font-semibold">Revise o MOU · {item.bia_nome}</p><p className="text-sm text-muted-foreground">MAP Inicial — revisão {item.map_revisao}. É necessário aceitar esta revisão antes da ativação.</p></div>
-          <Button onClick={() => revisarMouMutation.mutate(item.id)} disabled={revisarMouMutation.isPending}>Ler e aceitar</Button>
-        </div>)}
-      </div>}
       {!embedded && <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div
@@ -2154,7 +2155,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                 </span>
               )}
             </div>
-            {aprovacoesExibidas.length === 0 && (mostrarHistoricoAprovacoes || (diretorSolicitacoesPendentes.length === 0 && socioSolicitacoesPendentes.length === 0)) ?(
+            {!mouRevisoesError && aprovacoesExibidas.length === 0 && (mostrarHistoricoAprovacoes || (mouRevisoesFiltradas.length === 0 && diretorSolicitacoesPendentes.length === 0 && socioSolicitacoesPendentes.length === 0)) ?(
               <div className="p-8 flex flex-col items-center text-center gap-2">
                 <Ticket className="w-8 h-8 text-brand-gold/30" />
                 <p className="text-slate-500 text-xs font-mono">
@@ -2165,6 +2166,38 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-border">
+                {!mostrarHistoricoAprovacoes && mouRevisoesError && (
+                  <p role="alert" className="p-4 text-sm text-red-600 dark:text-red-400">
+                    Não foi possível carregar as revisões pendentes do MOU.
+                  </p>
+                )}
+                {!mostrarHistoricoAprovacoes && mouRevisoesFiltradas.map((item) => (
+                  <div key={`mou-${item.id}`} data-testid={`aprovacao-mou-${item.id}`} className="flex flex-col gap-3 bg-violet-50/35 p-4 dark:bg-card sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-mono font-bold text-brand-navy">Revisão do MOU</p>
+                        <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-mono font-bold text-violet-700">
+                          Pendente
+                        </span>
+                      </div>
+                      <p className="text-xs font-mono text-slate-600">
+                        Revise o MOU da BIA {item.bia_nome}.
+                      </p>
+                      <p className="text-[10px] font-mono text-slate-400">
+                        MAP Inicial — revisão {item.map_revisao}. É necessário aceitar esta revisão antes da ativação.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => revisarMouMutation.mutate(item.id)}
+                      disabled={revisarMouMutation.isPending}
+                      className="w-full sm:w-auto"
+                      data-testid={`btn-revisar-mou-${item.id}`}
+                    >
+                      Ler e aceitar
+                    </Button>
+                  </div>
+                ))}
                 {!mostrarHistoricoAprovacoes && diretorSolicitacoesPendentes.map((solicitacao) => {
                   const percentual = solicitacao.percentual !== null && solicitacao.percentual !== undefined && String(solicitacao.percentual) !== ""
                     ? `${solicitacao.percentual}%`
@@ -2648,17 +2681,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
             {/* Aliado BUILT */}
             <div>
               <Label className="mb-1.5 block text-xs text-slate-600">Aliado BUILT</Label>
-              <Select value={form.aliado_id || ""} onValueChange={v => setForm(f => ({ ...f, aliado_id: v === "_none" ?"" : v }))}>
-                <SelectTrigger className="border-slate-200 bg-white text-brand-navy focus:border-blue-400" data-testid="select-comunidade-aliado">
-                  <SelectValue placeholder="Selecione o Aliado BUILT" />
-                </SelectTrigger>
-                <SelectContent className="border-slate-200 bg-white text-brand-navy">
-                  <SelectItem value="_none">— Nenhum —</SelectItem>
-                  {membrosOrdenados.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableNameSelect ariaLabel="Aliado BUILT da comunidade" value={form.aliado_id || "_none"} className="border-slate-200 bg-white text-brand-navy focus:border-blue-400" testId="select-comunidade-aliado" options={[{value:"_none",label:"— Nenhum —",pinned:true},...membrosOrdenados.map(m=>({value:m.id,label:m.nome || m.id,searchText:[m.empresa,m.cargo].filter(Boolean).join(" ")}))]} onValueChange={v => setForm(f => ({ ...f, aliado_id: v === "_none" ?"" : v }))} />
             </div>
 
             {/* Membros Associados */}

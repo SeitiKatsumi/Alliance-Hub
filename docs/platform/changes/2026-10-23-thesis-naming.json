@@ -1,0 +1,375 @@
+{
+  "version": 1,
+  "id": "2026-10-23-thesis-naming",
+  "title": "Fechamento dos rótulos de tese de interesse; revisão limitada aos deltas deste pedido",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "shared/public-labels.ts",
+    "shared/strategic-cells.ts",
+    "shared/bia-business-type.ts"
+  ],
+  "searchTerms": [
+    "Objetivo, localização",
+    "Tipo de negócio",
+    "Tipos de negócio",
+    "Tese de interesse",
+    "publicLabel"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Rotas e ContributionArea permanecem iguais; apenas composição transitiva dos módulos que recebem os rótulos."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/components/admin-commercial-policies.tsx",
+      "decision": "updated",
+      "reason": "Título das células/teses alinhado; edição usa API existente autorizada."
+    },
+    {
+      "path": "client/src/components/ai-insights-block.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "updated",
+      "reason": "Nome do seletor e opção todas as teses; market_code, opções e publicação intactos. Não atesta deltas paralelos do componente."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/components/bia-pdf-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "Consome biaPdfSections; recebe descrição nova sem mudar seções escolhidas ou geração."
+    },
+    {
+      "path": "client/src/components/bia-review-summary.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "client/src/components/bia-review-summary.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "updated",
+      "reason": "Regressão exige tese na BIA/perfis e preserva objetivo patrimonial independente dos imóveis."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Corrige a descrição da visão geral da BIA e duas descrições de perfis; não atesta as demais alterações paralelas do relatório."
+    },
+    {
+      "path": "client/src/hooks/use-public-labels.ts",
+      "decision": "updated",
+      "reason": "Aplica o helper também ao override em cache, sem alterar consulta nem preferências."
+    },
+    {
+      "path": "client/src/lib/bia-thesis-consumers.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "client/src/lib/print-bia-summary.ts",
+      "decision": "updated",
+      "reason": "Descrição da seção dados usa tese; conteúdo econômico, impressão e rodapé intactos."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "reviewed",
+      "reason": "Hospeda administração da taxonomia; alteração restrita ao título do componente e projeção de rótulos."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/comunidade-celulas.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "reviewed",
+      "reason": "Já usa teses; hook para ContributionArea mantém texto e comportamento, códigos de preferência preservados."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "reviewed",
+      "reason": "Consome ContributionArea; adaptador de aliases aplica-se apenas a Market, sem alterar cadastro ou autenticação."
+    },
+    {
+      "path": "client/src/pages/meu-perfil-layout.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "updated",
+      "reason": "Somente mensagem de falha do carregamento das teses; campos, salvamento e preferências intactos."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "updated",
+      "reason": "Nome do seletor da mesma taxonomia alterado; payload, autorização e publicação intactos."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "reviewed",
+      "reason": "Alocação já usa tese canônica. Nenhum valor, denominador ou distribuição modificado nesta correção textual."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "reviewed",
+      "reason": "Renderiza descrições corrigidas da fonte compartilhada também na impressão; conferido no localhost desktop/mobile390."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "reviewed",
+      "reason": "ContributionArea e perfil público não são reclassificados; adaptador restrito a Market."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Guarda ampliada a todos os fontes para nomes descontinuados e descrição abreviada do relatório; exceções exatas justificadas."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Contrato registra nomenclatura, adapter, testes e limites desta correção."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra os consumidores corrigidos e as compatibilidades preservadas."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Nota atual distingue rótulo público de identificadores/descrições históricas."
+    },
+    {
+      "path": "scripts/platform-change-safety.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo identificado na busca/imports; já usa tese ou apenas compõe os módulos alterados. Nenhum delta deste arquivo foi alterado ou aprovado para publicação por este pedido."
+    },
+    {
+      "path": "server/agenda-alerts.ts",
+      "decision": "reviewed",
+      "reason": "Notificações não dependem do rótulo antigo; sem mudança de destinatários/estado."
+    },
+    {
+      "path": "server/assets/bia-mou-padrao.txt",
+      "decision": "preserved",
+      "reason": "Novo template já usa tese; placeholders históricos seguem compatíveis e documentos emitidos não são alterados."
+    },
+    {
+      "path": "server/assets/mou-padrao/mou-padrao-built.txt",
+      "decision": "preserved",
+      "reason": "Novo template já usa tese; conteúdo/versões assinadas preservados."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "server/bia-workflow.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "reviewed",
+      "reason": "Compatibilidade de rascunhos mantida; esta mudança não toca fases/validação econômica/convites."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo das rotas; sem mudança de inicialização, agendamentos ou infraestrutura."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "reviewed",
+      "reason": "Auditoria de templates e parâmetros não encontrou uso do objetivo da BIA; sem envio real ou alteração."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Somente projeção/escrita de rótulo Market pelo helper e duas mensagens de validação de Célula. Revisão restrita a estes deltas, não aos demais trabalhos no arquivo."
+    },
+    {
+      "path": "shared/bia-business-type.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "shared/bia-business-type.ts",
+      "decision": "reviewed",
+      "reason": "Helper de classificação canônica preservado; não infere tese a partir de Renda/Venda/Operação."
+    },
+    {
+      "path": "shared/bia-form-options.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "shared/contribution-areas.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão existente preservada e executada na suíte completa de 512 testes; termos antigos em testes negativos não são rótulos ativos."
+    },
+    {
+      "path": "shared/public-labels.test.ts",
+      "decision": "updated",
+      "reason": "Executa helper, handlers reais de nomes públicos com banco falso e hook com cache antigo; testa autorização e consumidores."
+    },
+    {
+      "path": "shared/public-labels.ts",
+      "decision": "updated",
+      "reason": "Fonte do nome público Market; normaliza somente aliases conhecidos e preserva customizações e outras chaves."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Nomes físicos e campos da BIA/OBA preservados; renomeação visual não demanda migração."
+    },
+    {
+      "path": "shared/strategic-cells.ts",
+      "decision": "reviewed",
+      "reason": "Taxonomia e códigos canônicos preservados; não há reclassificação de escolhas ou células."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Relatório, demandas BIA/rede, administração, perfil e opções PDF corrigidos; relatório real autenticado desktop/mobile390 sem nomes antigos nem overflow. Outras telas cobertas pela busca e regressões; não se afirma QA visual integral de todos os formulários."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET/PUT de nomes públicos usam o helper, mantendo códigos; handlers reais testados isoladamente com banco falso. Duas mensagens de Célula atualizadas. Servidor local em execução não foi reiniciado neste pedido."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Nenhum SQL/migração/backfill executado. Override antigo é normalizado na projeção/cache e em futura gravação autorizada; nomes personalizados não relacionados preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Classificação e distribuição por tese já usam biaBusinessTypeCode/buildBiaThesisAllocation; testes da suíte preservam totais/percentuais. Nenhum cálculo alterado."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Busca e revisão dos templates/parâmetros em server/mailer.ts e alertas não encontraram uso do rótulo objetivo. Sem envio de e-mail ou notificação real."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional e descrição da seção PDF corrigidos; renderização real do relatório conferida. Novos MOUs já usam tese e testes passam; assinados/históricos não regravados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Mudança de nomenclatura e adapter de rótulo não altera serviços externos, cron, webhooks ou transporte de mensagens; sem deploy/reinício."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "PUT mantém isAdminRequest antes de qualquer consulta/escrita; teste prova 403 sem escrita. Nenhuma seleção ou preferência concede acesso novo."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Market/business_type_code/objetivo_alianca físicos preservados; aliases de template e formatador histórico mantidos em exceções exatas. Objetivo dos imóveis e escopo de OBA continuam independentes."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify exit0: 512 testes/0 falhas, tipos, contrato, guarda e build; avisos antigos PostCSS/chunk. Log .BUILT-tmp/thesis-naming-verify.log. Este registro não atesta deltas anteriores da árvore suja nem autoriza publicação."
+    }
+  ],
+  "regressionTests": [
+    "shared/public-labels.test.ts",
+    "client/src/data/platform-functional-report.test.ts",
+    "client/src/lib/bia-thesis-consumers.test.ts",
+    "shared/bia-business-type.test.ts",
+    "server/mailer.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "bia-objective-labels",
+    "bia-thesis-selector",
+    "bia-report-objective-description"
+  ]
+}

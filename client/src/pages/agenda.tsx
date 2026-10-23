@@ -25,6 +25,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AGENDA_HOURS,
+  AGENDA_VIEW_ORDER,
+  DEFAULT_AGENDA_VIEW_MODE,
+  agendaHourFromTime,
+  buildAgendaWeek,
+  formatAgendaWeekTitle,
+  toAgendaDateKey,
+  type AgendaCalendarDisplay,
+  type AgendaViewMode,
+} from "@/lib/agenda-calendar";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
 
@@ -81,19 +92,19 @@ const PRIORIDADE_LABEL: Record<AgendaPrioridade, string> = {
 };
 
 const STATUS_CLASS: Record<AgendaStatus, string> = {
-  pendente: "border-blue-200 bg-blue-50 text-blue-700",
-  em_andamento: "border-amber-200 bg-amber-50 text-amber-700",
-  concluida: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  cancelada: "border-slate-200 bg-slate-50 text-slate-600",
+  pendente: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200",
+  em_andamento: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200",
+  concluida: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200",
+  cancelada: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300",
 };
 
 const PRIORIDADE_CLASS: Record<AgendaPrioridade, string> = {
-  baixa: "border-slate-200 bg-slate-50 text-slate-600",
-  media: "border-blue-200 bg-blue-50 text-blue-700",
-  alta: "border-red-200 bg-red-50 text-red-700",
+  baixa: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300",
+  media: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200",
+  alta: "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200",
 };
 
-const hoje = new Date().toISOString().slice(0, 10);
+const hoje = toAgendaDateKey(new Date());
 
 const emptyForm = {
   titulo: "",
@@ -111,13 +122,6 @@ function formatDate(value: string) {
     day: "2-digit",
     month: "short",
   });
-}
-
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function groupKey(tarefa: AgendaTarefa) {
@@ -166,10 +170,11 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaTarefa | null>(null);
   const [statusFilter, setStatusFilter] = useState<AgendaStatus | "todas">("todas");
-  const [viewMode, setViewMode] = useState<"lista" | "calendario">("lista");
-  const [calendarMonth, setCalendarMonth] = useState(() => {
+  const [viewMode, setViewMode] = useState<AgendaViewMode>(DEFAULT_AGENDA_VIEW_MODE);
+  const [calendarDisplay, setCalendarDisplay] = useState<AgendaCalendarDisplay>("mes");
+  const [calendarCursor, setCalendarCursor] = useState(() => {
     const date = new Date();
-    return new Date(date.getFullYear(), date.getMonth(), 1);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   });
   const [form, setForm] = useState(emptyForm);
   const [selectedMembroIds, setSelectedMembroIds] = useState<string[]>([]);
@@ -209,15 +214,15 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   }, [tarefas]);
 
   const calendarDays = useMemo(() => {
-    const year = calendarMonth.getFullYear();
-    const month = calendarMonth.getMonth();
+    const year = calendarCursor.getFullYear();
+    const month = calendarCursor.getMonth();
     const firstDay = new Date(year, month, 1);
     const start = new Date(firstDay);
     start.setDate(firstDay.getDate() - firstDay.getDay());
     const days = Array.from({ length: 42 }, (_, index) => {
       const date = new Date(start);
       date.setDate(start.getDate() + index);
-      const key = toDateKey(date);
+      const key = toAgendaDateKey(date);
       return {
         key,
         date,
@@ -227,15 +232,27 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
       };
     });
     return days;
-  }, [calendarMonth, filtered]);
+  }, [calendarCursor, filtered]);
 
-  const calendarTitle = calendarMonth.toLocaleDateString("pt-BR", {
-    month: "long",
-    year: "numeric",
-  });
+  const weekDays = useMemo(() => buildAgendaWeek(calendarCursor).map((day) => ({
+    ...day,
+    today: day.key === hoje,
+    tarefas: filtered.filter((tarefa) => tarefa.data === day.key),
+  })), [calendarCursor, filtered]);
 
-  function changeCalendarMonth(offset: number) {
-    setCalendarMonth(current => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  const calendarTitle = calendarDisplay === "mes"
+    ? calendarCursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+    : formatAgendaWeekTitle(calendarCursor);
+
+  function changeCalendarPeriod(offset: number) {
+    setCalendarCursor((current) => calendarDisplay === "mes"
+      ? new Date(current.getFullYear(), current.getMonth() + offset, 1)
+      : new Date(current.getFullYear(), current.getMonth(), current.getDate() + offset * 7));
+  }
+
+  function goToToday() {
+    const current = new Date();
+    setCalendarCursor(new Date(current.getFullYear(), current.getMonth(), current.getDate()));
   }
 
   const selectedMembros = useMemo(() => {
@@ -351,13 +368,17 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
     onError: (error: any) => toast({ title: "Erro ao remover ação", description: error.message, variant: "destructive" }),
   });
 
-  function openCreate() {
+  function openCreateAt(data = hoje, hora = "") {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, data, hora });
     setSelectedMembroIds([]);
     setMembroSearch("");
     setSelectedBiaId("");
     setDialogOpen(true);
+  }
+
+  function openCreate() {
+    openCreateAt();
   }
 
   function openEdit(tarefa: AgendaTarefa) {
@@ -437,40 +458,30 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
           </Select>
         </div>
         <div className="grid grid-cols-2 rounded-md border border-border/60 bg-muted/20 p-1 sm:w-fit" data-testid="agenda-view-mode">
-          <button
-            type="button"
-            onClick={() => setViewMode("lista")}
-            className={`inline-flex items-center justify-center gap-2 rounded px-3 py-2 text-xs font-semibold transition-colors ${
-              viewMode === "lista" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="btn-agenda-lista"
-          >
-            <List className="h-3.5 w-3.5" />
-            Lista
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendario")}
-            className={`inline-flex items-center justify-center gap-2 rounded px-3 py-2 text-xs font-semibold transition-colors ${
-              viewMode === "calendario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="btn-agenda-calendario"
-          >
-            <CalendarDays className="h-3.5 w-3.5" />
-            Calendário
-          </button>
+          {AGENDA_VIEW_ORDER.map((mode) => {
+            const Icon = mode === "calendario" ? CalendarDays : List;
+            const label = mode === "calendario" ? "Calendário" : "Lista";
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={`inline-flex items-center justify-center gap-2 rounded px-3 py-2 text-xs font-semibold transition-colors ${
+                  viewMode === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                data-testid={`btn-agenda-${mode}`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {isLoading ? (
         <div className="rounded-lg border border-border/60 bg-card p-6 text-sm text-muted-foreground">
           Carregando agenda...
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center">
-          <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <p className="mt-3 text-sm font-semibold text-foreground">Nenhuma ação encontrada</p>
-          <p className="mt-1 text-xs text-muted-foreground">Crie sua primeira tarefa para começar a organizar a agenda.</p>
         </div>
       ) : viewMode === "calendario" ? (
         <Card className="overflow-hidden border border-border/60">
@@ -479,67 +490,187 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
               <div>
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Calendário</p>
                 <h2 className="mt-1 text-lg font-bold capitalize text-foreground">{calendarTitle}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Clique em um dia ou horário para criar uma nova ação.</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => changeCalendarMonth(-1)} className="gap-1">
-                  <ChevronLeft className="h-4 w-4" />
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCalendarMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>
-                  Hoje
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => changeCalendarMonth(1)} className="gap-1">
-                  Próximo
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+              <div className="flex flex-col gap-2 sm:items-end">
+                <div className="grid grid-cols-2 rounded-md border border-border/60 bg-muted/20 p-1" data-testid="agenda-calendar-display">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDisplay("mes")}
+                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${calendarDisplay === "mes" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    data-testid="btn-agenda-mes"
+                  >
+                    Mês
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDisplay("semana")}
+                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${calendarDisplay === "semana" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    data-testid="btn-agenda-semana"
+                  >
+                    Semana
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => changeCalendarPeriod(-1)} className="gap-1">
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={goToToday}>Hoje</Button>
+                  <Button variant="outline" size="sm" onClick={() => changeCalendarPeriod(1)} className="gap-1">
+                    Próximo
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30 text-center text-[11px] font-semibold uppercase text-muted-foreground">
-              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(day => (
-                <div key={day} className="px-1 py-2">{day}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-7">
-              {calendarDays.map(day => (
-                <div
-                  key={day.key}
-                  className={`min-h-32 border-b border-border/60 p-2 sm:border-r ${
-                    day.currentMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"
-                  }`}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${
-                      day.today ? "bg-blue-600 text-white" : day.currentMonth ? "text-foreground" : "text-muted-foreground"
-                    }`}>
-                      {day.date.getDate()}
-                    </span>
-                    {day.tarefas.length > 0 && (
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                        {day.tarefas.length}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    {day.tarefas.slice(0, 3).map(tarefa => (
-                      <button
-                        key={tarefa.id}
-                        type="button"
-                        onClick={() => openEdit(tarefa)}
-                        className={`w-full rounded border px-2 py-1 text-left text-[11px] leading-tight transition-colors hover:border-blue-300 ${STATUS_CLASS[tarefa.status]}`}
-                        title={tarefa.titulo}
-                      >
-                        <span className="block truncate font-semibold">{tarefa.hora ? `${tarefa.hora} · ` : ""}{tarefa.titulo}</span>
-                      </button>
+            {calendarDisplay === "mes" ? (
+              <div className="overflow-x-auto" data-testid="agenda-month-calendar">
+                <div className="min-w-[720px]">
+                  <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30 text-center text-[11px] font-semibold uppercase text-muted-foreground">
+                    {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(day => (
+                      <div key={day} className="px-1 py-2">{day}</div>
                     ))}
-                    {day.tarefas.length > 3 && (
-                      <p className="px-1 text-[10px] font-semibold text-muted-foreground">+{day.tarefas.length - 3} ações</p>
-                    )}
+                  </div>
+                  <div className="grid grid-cols-7">
+                    {calendarDays.map(day => (
+                      <div
+                        key={day.key}
+                        onClick={() => openCreateAt(day.key)}
+                        className={`group min-h-32 cursor-pointer border-b border-r border-border/60 p-2 transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20 ${
+                          day.currentMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"
+                        }`}
+                        data-testid={`agenda-month-day-${day.key}`}
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${
+                            day.today ? "bg-blue-600 text-white" : day.currentMonth ? "text-foreground" : "text-muted-foreground"
+                          }`}>
+                            {day.date.getDate()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            {day.tarefas.length > 0 && (
+                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+                                {day.tarefas.length}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(event) => { event.stopPropagation(); openCreateAt(day.key); }}
+                              className="grid h-6 w-6 place-items-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-blue-100 hover:text-blue-700 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-blue-950 dark:hover:text-blue-200"
+                              aria-label={`Criar ação em ${formatDate(day.key)}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {day.tarefas.slice(0, 3).map(tarefa => (
+                            <button
+                              key={tarefa.id}
+                              type="button"
+                              onClick={(event) => { event.stopPropagation(); openEdit(tarefa); }}
+                              className={`w-full rounded border px-2 py-1 text-left text-[11px] leading-tight transition-colors hover:border-blue-300 ${STATUS_CLASS[tarefa.status]}`}
+                              title={tarefa.titulo}
+                            >
+                              <span className="block truncate font-semibold">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}{tarefa.titulo}</span>
+                            </button>
+                          ))}
+                          {day.tarefas.length > 3 && (
+                            <p className="px-1 text-[10px] font-semibold text-muted-foreground">+{day.tarefas.length - 3} ações</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="max-h-[70vh] overflow-auto" data-testid="agenda-week-calendar">
+                <div className="min-w-[920px]">
+                  <div className="sticky top-0 z-30 grid grid-cols-[4.5rem_repeat(7,minmax(7.5rem,1fr))] border-b border-border/60 bg-card">
+                    <div className="sticky left-0 z-40 border-r border-border/60 bg-card" />
+                    {weekDays.map((day) => (
+                      <button
+                        key={day.key}
+                        type="button"
+                        onClick={() => openCreateAt(day.key)}
+                        className="border-r border-border/60 px-2 py-3 text-center hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
+                      >
+                        <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
+                          {day.date.toLocaleDateString("pt-BR", { weekday: "short" })}
+                        </span>
+                        <span className={`mx-auto mt-1 grid h-8 w-8 place-items-center rounded-full text-sm font-bold ${day.today ? "bg-blue-600 text-white" : "text-foreground"}`}>
+                          {day.date.getDate()}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-[4.5rem_repeat(7,minmax(7.5rem,1fr))] border-b border-border/60 bg-muted/10">
+                    <div className="sticky left-0 z-20 border-r border-border/60 bg-card px-2 py-2 text-right text-[10px] font-semibold uppercase text-muted-foreground">Dia todo</div>
+                    {weekDays.map((day) => {
+                      const allDayTasks = day.tarefas.filter((tarefa) => agendaHourFromTime(tarefa.hora) === null);
+                      return (
+                        <div key={day.key} className="min-h-12 space-y-1 border-r border-border/60 p-1">
+                          <button type="button" onClick={() => openCreateAt(day.key)} className="w-full rounded py-1 text-[10px] text-muted-foreground hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/50 dark:hover:text-blue-200">
+                            + Nova ação
+                          </button>
+                          {allDayTasks.map((tarefa) => (
+                            <button key={tarefa.id} type="button" onClick={() => openEdit(tarefa)} className={`w-full rounded border px-1.5 py-1 text-left text-[10px] font-semibold ${STATUS_CLASS[tarefa.status]}`} title={tarefa.titulo}>
+                              <span className="block truncate">{tarefa.titulo}</span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {AGENDA_HOURS.map((hourLabel, hour) => (
+                    <div key={hourLabel} className="grid grid-cols-[4.5rem_repeat(7,minmax(7.5rem,1fr))] border-b border-border/60">
+                      <div className="sticky left-0 z-20 min-h-16 border-r border-border/60 bg-card px-2 pt-1 text-right text-[10px] font-medium text-muted-foreground">
+                        {hourLabel}
+                      </div>
+                      {weekDays.map((day) => {
+                        const slotTasks = day.tarefas.filter((tarefa) => agendaHourFromTime(tarefa.hora) === hour);
+                        return (
+                          <div key={`${day.key}-${hourLabel}`} className="group relative min-h-16 border-r border-border/60">
+                            <button
+                              type="button"
+                              onClick={() => openCreateAt(day.key, hourLabel)}
+                              className="absolute inset-0 z-0 flex items-start justify-end p-1 text-muted-foreground/0 hover:bg-blue-50/50 hover:text-blue-600 focus:text-blue-600 dark:hover:bg-blue-950/20 dark:hover:text-blue-300"
+                              aria-label={`Criar ação em ${formatDate(day.key)} às ${hourLabel}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                            <div className="pointer-events-none relative z-10 space-y-1 p-1">
+                              {slotTasks.map((tarefa) => (
+                                <button
+                                  key={tarefa.id}
+                                  type="button"
+                                  onClick={() => openEdit(tarefa)}
+                                  className={`pointer-events-auto w-full rounded border px-1.5 py-1 text-left text-[10px] leading-tight shadow-sm ${STATUS_CLASS[tarefa.status]}`}
+                                  title={`${String(tarefa.hora || "").slice(0, 5)} · ${tarefa.titulo}`}
+                                >
+                                  <span className="block truncate font-bold">{String(tarefa.hora || "").slice(0, 5)}</span>
+                                  <span className="block truncate font-semibold">{tarefa.titulo}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-10 text-center">
+          <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground/40" />
+          <p className="mt-3 text-sm font-semibold text-foreground">Nenhuma ação encontrada</p>
+          <p className="mt-1 text-xs text-muted-foreground">Crie sua primeira tarefa para começar a organizar a agenda.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {Object.entries(grouped).map(([dateLabel, items]) => (

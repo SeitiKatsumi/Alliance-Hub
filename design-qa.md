@@ -1,3 +1,29 @@
+# Design QA — Carteira: imóveis e integralização das CPPs (2026-10-23)
+
+## Referência e evidências
+
+- Fonte visual: `C:/Users/ESPC/AppData/Local/Temp/codex-clipboard-8329e36a-61df-40c7-bba9-83c580401c85.png`, 1385 × 311 px, estado escuro da carteira antes da reorganização.
+- Implementação isolada com o componente real: `http://127.0.0.1:4173/`; estado com métricas preenchidas e primeira observação histórica.
+- Desktop: `output/portfolio-cpp-qa-20261023/desktop.png`, viewport e captura 1440 × 1000 px, densidade 1:1.
+- Mobile: `output/portfolio-cpp-qa-20261023/mobile.png`, viewport 390 × 844 px, captura completa 390 × 1339 px, densidade 1:1. Estado com explicação aberta: `output/portfolio-cpp-qa-20261023/mobile-popover.png`.
+- Comparação integral aberta e inspecionada: `output/portfolio-cpp-qa-20261023/comparison.png`; a fonte original ocupa a faixa superior e a implementação final a inferior. A região focal são os dois agrupamentos de métricas no topo.
+
+## Verificação e iteração
+
+- Hierarquia: quatro cartões soltos foram substituídos por dois blocos coerentes — `Imóveis próprios` e `Valor total de CPPs em alianças` — preservando os tokens, tipografia, bordas e contraste da BUILT.
+- Conteúdo: imóveis mostram estimativa central e aquisição; CPPs mostram `Aportado` e `A aportar`. A faixa estimada deixou de aparecer no resumo, conforme solicitado.
+- Fórmula exposta no ícone de informação: soma, por aliança, de `CPPs × percentual efetivamente aportado e conciliado`; o restante é apresentado como `A aportar`.
+- Gráficos: séries alinhadas aos novos conceitos (`Aquisição`/`Estimativa central` e `Aportado`/`A aportar`), sem reconstruir observações antigas incompletas.
+- Responsividade: desktop mantém dois blocos lado a lado; mobile empilha cards e gráficos, sem overflow horizontal (`scrollWidth = clientWidth = 390`).
+- Acessibilidade: informações detalhadas usam botão rotulado e popover acionável por clique/toque; alvo móvel medido em aproximadamente 48 × 48 px.
+- Iteração 1: [P2 corrigido] o primeiro teste mobile mantinha ícone com alvo de cerca de 26 px e explicação dependente de hover. O controle passou a usar `Popover` e alvo mínimo móvel de 44 px; a captura final confirma abertura por toque.
+- Capturas automatizadas finais não registraram erros de console, erros de página ou overflow. Nenhuma gravação de dados reais foi realizada durante a QA visual.
+- Imagens/ativos: não há mídia editorial neste componente; ícones e tokens já existentes foram reutilizados.
+
+final result: passed
+
+---
+
 # Design QA — Editar BIA em página completa (2026-09-25)
 
 ## CAPEX e OPEX — 2026-09-28

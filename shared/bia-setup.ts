@@ -30,7 +30,7 @@ export const biaSetupSchema = z.object({
   orcamento:biaBudgetSchema.optional(),
   juridico:z.object({modalidade:z.enum(["","societaria","contratual"]),tipo:z.enum(["",...LEGAL_TYPES]),situacao:z.enum(["",...LEGAL_STATES]),instrumento:text,situacaoInstrumento:text,responsavel:text,oabResponsavel:z.string().trim().max(100).default(""),documentoResponsavel:document,objeto:text,capitalSocial:money,administrador:text,info:legalInfoSchema,socios:z.array(party).max(200)}),
   ativosIndefinidos:z.boolean(),
-  ativos:z.array(z.object({id:z.string().min(1).max(100),tipo:z.enum(['imovel','consorcio']).optional(),consorcio:biaConsortiumSchema.optional(),carteiraImovelId:z.string().min(1).max(100).optional(),nome:text,situacao:z.enum(["",...ASSET_STATES]),titular:text,dataVinculo:date,valorReferencia:money,info:assetInfoSchema,indicadores:metricsSchema})).max(100),
+  ativos:z.array(z.object({id:z.string().min(1).max(100),tipo:z.enum(['imovel','consorcio']).optional(),consorcio:biaConsortiumSchema.optional(),carteiraImovelId:z.string().min(1).max(100).optional(),nome:text,situacao:z.enum(["",...ASSET_STATES]),titular:text,dataVinculo:date,valorReferencia:money,participacaoBiaPercentual:z.number().finite().positive().max(100).nullable().optional(),dividaSaldo:money.optional(),info:assetInfoSchema,indicadores:metricsSchema})).max(100),
   indicadoresLegados:metricsSchema,
   governanca:z.array(z.object({cargo:z.string().max(200),memberId:z.string().min(1).max(100),inicio:date,responsabilidades:text})).max(200),
 }).superRefine((v,ctx)=>{
@@ -78,7 +78,7 @@ export function legalBlockers(setup:BiaSetup):string[] {
 export function parseBiaSetup(value:any,previous?:BiaSetup):BiaSetup {
   if(previous && Array.isArray(value?.ativos))value={...value,ativos:value.ativos.map((a:any)=>{
     const prior=previous.ativos.find(p=>p.id===a?.id);
-    return prior?{...a,...(a.tipo===undefined && prior.tipo!==undefined?{tipo:prior.tipo}:{}),...(a.consorcio===undefined && prior.consorcio!==undefined?{consorcio:prior.consorcio}:{})}:a;
+    return prior?{...a,...Object.fromEntries((['tipo','consorcio','participacaoBiaPercentual','dividaSaldo'] as const).filter(key=>a[key]===undefined && prior[key]!==undefined).map(key=>[key,prior[key]]))}:a;
   })};
   const parsed=biaSetupSchema.parse(value);
   if(value.orcamento===undefined && previous?.orcamento!==undefined)parsed.orcamento=previous.orcamento;
@@ -97,6 +97,8 @@ export function biaSetupValidationMessage(error:any):string {
     'juridico.socios.[].cotas':'quantidade de quotas societárias',
     'ativos.[].dataVinculo':'data de vínculo do ativo',
     'ativos.[].valorReferencia':'valor de referência do ativo',
+    'ativos.[].participacaoBiaPercentual':'participação da BIA no imóvel (%)',
+    'ativos.[].dividaSaldo':'dívida total do imóvel',
     'ativos.[].consorcio.cota':'cota do consórcio',
     'ativos.[].consorcio.administradora':'administradora do consórcio',
     'ativos.[].consorcio.valorCarta':'valor da carta',

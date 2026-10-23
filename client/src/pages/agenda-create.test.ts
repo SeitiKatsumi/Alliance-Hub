@@ -26,5 +26,7 @@ test("Nova ação aparece uma vez na Agenda integrada e mantém o formulário ex
     assert.equal(button.props.onClick,openCreate);button.props.onClick();
   }
   assert.equal(opened,2);
-  assert.match(source,/function openCreate\(\)\s*\{[^}]*setDialogOpen\(true\)/);
+  assert.match(source,/function openCreate\(\)\s*\{\s*openCreateAt\(\);/);
+  const createAt=source.slice(source.indexOf("  function openCreateAt("),source.indexOf("  function openCreate()"));
+  assert.match(createAt,/setDialogOpen\(true\)/);
 });

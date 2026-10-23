@@ -101,6 +101,66 @@ export function commitmentsFromMap(valorOrigem: number, participants: InitialMap
   return rows;
 }
 
+export type MemberContributionProgress = {
+  committed: number;
+  paid: number;
+  percentage: number | null;
+  partial: boolean;
+};
+
+type ContributionProgressParcel = {
+  chave?: unknown;
+  valor?: unknown;
+  movimentos?: unknown;
+  vigente?: unknown;
+  pendente?: unknown;
+};
+
+/**
+ * Calculates the paid percentage of one member's initial CPP commitments.
+ * The MAP grants the full CPP position up front; only reconciled installments
+ * whose financial movements are all paid count as integralized.
+ */
+export function memberContributionProgress(
+  base: { modelo_calculo?: unknown; valor_origem?: unknown; participantes?: unknown } | null | undefined,
+  memberId: string,
+  parcels: ContributionProgressParcel[],
+  entries: Array<{ id?: unknown; status?: unknown }>,
+): MemberContributionProgress {
+  if (!base || Number(base.modelo_calculo || 0) < 3 || !Array.isArray(base.participantes)) {
+    return { committed: 0, paid: 0, percentage: null, partial: true };
+  }
+  const participants = (base.participantes as InitialMapParticipant[]).filter(item => String(item.memberId || "") === String(memberId));
+  const participantIds = new Set(participants.map(item => String(item.participantId || "")).filter(Boolean));
+  const expected = commitmentsFromMap(Number(base.valor_origem || 0), base.participantes as InitialMapParticipant[])
+    .filter(item => item.componente !== "ativo" && item.participanteId && participantIds.has(String(item.participanteId)));
+  const committed = cents(expected.reduce((sum, item) => sum + Number(item.valor || 0), 0)) / 100;
+  if (!participants.length || committed <= 0) return { committed, paid: 0, percentage: null, partial: true };
+
+  const expectedKeys = new Set(expected.map(item => item.chave));
+  const financial = new Map(entries.map(entry => [String(entry.id || ""), String(entry.status || "").toLowerCase()]));
+  let paidCents = 0;
+  let partial = false;
+  for (const parcel of parcels) {
+    if (parcel.vigente !== true || !expectedKeys.has(String(parcel.chave || ""))) continue;
+    const movements = Array.isArray(parcel.movimentos) ? parcel.movimentos as Array<{ id?: unknown }> : [];
+    if (parcel.pendente === true || !movements.length || movements.some(movement => !financial.has(String(movement.id || "")))) {
+      partial = true;
+      continue;
+    }
+    if (movements.every(movement => financial.get(String(movement.id || "")) === "pago")) paidCents += cents(Number(parcel.valor || 0));
+  }
+  const committedCents = cents(committed);
+  if (paidCents > committedCents) partial = true;
+  const paid = Math.min(committedCents, Math.max(0, paidCents)) / 100;
+  return {
+    committed,
+    paid,
+    percentage: partial ? null : Math.round((paid / committed) * 10_000_000) / 100_000,
+    partial,
+  };
+}
+
 export function validateCommitments(expected: InitialCommitment[], input: InitialCommitment[]) {
   if (!Array.isArray(input) || input.length !== expected.length || new Set(input.map(p => p.chave)).size !== expected.length) throw new Error("Os compromissos devem corresponder à revisão vigente do MAP Inicial.");
   return expected.map(e => {

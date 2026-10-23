@@ -48,6 +48,24 @@ test("aceite do MOU mantém conteúdo rolável e ações visíveis no celular", 
   assert.equal((dialogs.match(/className="w-full[^"\n]*sm:w-auto"/g) || []).length, 4);
 });
 
+test("revisões pendentes do MOU aparecem dentro das aprovações com busca e contagem", () => {
+  const page = readFileSync(new URL("./comunidade.tsx", import.meta.url), "utf8");
+  const renderStart = page.indexOf("  return (", page.indexOf("export default function ComunidadePage"));
+  const topLevel = page.slice(renderStart, page.indexOf("{/* Convites Tab */}", renderStart));
+  const approvalsStart = page.indexOf("{/* Aprovações e candidaturas */}", renderStart);
+  const approvalsEnd = page.indexOf('{notificacoesTab === "chamadas"', approvalsStart);
+  const approvals = page.slice(approvalsStart, approvalsEnd);
+
+  assert.doesNotMatch(topLevel, /Revise o MOU/);
+  assert.match(page, /const mouRevisoesFiltradas = mouRevisoes\.filter/);
+  assert.match(page, /totalAprovacoesPendentes = mouRevisoesFiltradas\.length \+/);
+  assert.match(approvals, /mouRevisoesFiltradas\.map/);
+  assert.match(approvals, /data-testid=\{`aprovacao-mou-/);
+  assert.match(approvals, /Ler e aceitar/);
+  assert.match(approvals, /mouRevisoesFiltradas\.length === 0/);
+  assert.match(approvals, /!mouRevisoesError && aprovacoesExibidas\.length === 0/);
+});
+
 test("Comunidade mantém as seis Células oficiais em uma aba própria", () => {
   const page = readFileSync(new URL("./comunidade-detalhe.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");

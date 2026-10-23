@@ -9,7 +9,7 @@ import * as domain from '../../../shared/bia-setup';
 
 const source=readFileSync(new URL('./bia-setup-fields.tsx',import.meta.url),'utf8');
 const ast=ts.createSourceFile('assets.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
-const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&['BiaAssetFields','AssetTotals','BiaSetupSummary'].includes(n.name?.text || '')).map(n=>n.getText(ast).replace(/^export /,'')).join('\n');
+const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&['BiaAssetFields','AssetTotals','BiaSetupSummary'].includes(n.name?.text || '')).map(n=>n.getText(ast).replace(/^export /,'')).join('\n')+'\n'+readFileSync(new URL('./bia-asset-patrimony-fields.tsx',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export function/g,'function');
 const wrap=({children}:any)=>React.createElement(React.Fragment,null,children);
 let id=0;
 const scope={React,Fragment:React.Fragment,...domain,useRef:(value:any)=>({current:value}),useState:(value:any)=>[value,()=>{}],useQuery:()=>({data:[]}),css:'',Input:'input',Button:'button',EMPTY_BIA_INFO:{},crypto:{randomUUID:()=>String(++id)},Dialog:wrap,DialogTrigger:wrap,DialogContent:wrap,DialogHeader:wrap,DialogTitle:wrap,DialogDescription:wrap,DialogClose:wrap,BiaBudgetSummary:()=>null,BiaInformationFields:()=>React.createElement('p',null,'Formulário de imóvel'),BiaNumberInput:({label,value,onChange}:any)=>React.createElement('input',{'aria-label':label,value:Number.isFinite(value)?value:'',onChange})};

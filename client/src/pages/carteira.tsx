@@ -44,6 +44,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { propertyLaunchForm, propertyLaunchRequest } from "@/lib/carteira-launch-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,8 +62,9 @@ import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
 import { ModuleInfo } from "@/components/module-info";
 import { DemandResolutionSelect, type DemandResolutionMode } from "@/components/demand-resolution-select";
+import { SearchableNameSelect } from "@/components/searchable-name-select";
 import { PortfolioPatrimonyDashboard } from "@/components/portfolio-patrimony-dashboard";
-import type { PortfolioDashboard, PortfolioObservation } from "@shared/portfolio-dashboard";
+import { portfolioDashboardFromApi, type PortfolioDashboard, type PortfolioObservation } from "@shared/portfolio-dashboard";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
@@ -224,6 +226,7 @@ interface CarteiraLancamento {
   status?: string;
   descricao: string;
   origem?: string;
+  observacao?: string;
 }
 
 type CarteiraLancamentoSuggestion = Omit<CarteiraLancamento, "id" | "imovel_id">;
@@ -1054,7 +1057,9 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     queryFn: async () => {
       const response = await fetch(`/api/carteira/resumo?period=${period}`, { credentials: "include" });
       if (!response.ok) throw new Error("Não foi possível carregar a Carteira.");
-      return response.json();
+      const body = await response.json() as CarteiraResumo;
+      body.dashboard = portfolioDashboardFromApi(body.imoveis, body.aliancas);
+      return body;
     },
     staleTime:0,refetchOnMount:"always",refetchOnWindowFocus:"always",refetchOnReconnect:"always",refetchInterval:30000,refetchIntervalInBackground:false,
   });
@@ -1324,7 +1329,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? "Dados insuficientes" : money(item.valor_participacao, item.moeda)}</p></div></div>
+                  <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? item.estimativa_patrimonial?.partial ? "Estimativa incompleta" : "Dados insuficientes" : money(item.valor_participacao, item.moeda)}</p></div></div>
                   <BiaPatrimonyBreakdown estimate={item.estimativa_patrimonial} format={value=>money(value,item.moeda)}/>
                   <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs"><div><p className="text-muted-foreground">Receitas</p><p className="font-semibold text-emerald-700">{money(item.receitas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">Despesas</p><p className="font-semibold text-red-700">{money(item.despesas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">A pagar</p><p className="font-semibold">{money(item.contas_a_pagar_participacao || 0, item.moeda)}</p></div></div>
                   {item.evolucao_patrimonial_percentual != null && <p className={`text-xs font-medium ${metricTone(item.evolucao_patrimonial_percentual)}`}>Evolução patrimonial: {item.evolucao_patrimonial_percentual.toFixed(1)}%</p>}
@@ -1434,19 +1439,26 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   );
 }
 
-function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: boolean; onOpenChange: (open: boolean) => void; imovelId: string; onSaved: () => void }) {
+function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved, launch }: { open: boolean; onOpenChange: (open: boolean) => void; imovelId: string; onSaved: () => void; launch?: CarteiraLancamento | null }) {
   const { toast } = useToast();
-  const [form, setForm] = useState({ tipo: "despesa", categoria: "Manutenção", valor: "", data: new Date().toISOString().slice(0, 10), status: "pago", descricao: "" });
+  const [form, setForm] = useState(() => propertyLaunchForm(launch));
   const [suggestions, setSuggestions] = useState<CarteiraLancamentoSuggestion[]>([]);
+  useEffect(() => {
+    if (open) { setForm(propertyLaunchForm(launch)); setSuggestions([]); }
+  }, [open, launch]);
   const close = () => {
+    if (mutation.isPending || suggestionsMutation.isPending || importMutation.isPending) return;
     setSuggestions([]);
     onOpenChange(false);
   };
   const mutation = useMutation({
-    mutationFn: async () => (await apiRequest("POST", "/api/carteira/lancamentos", { ...form, valor: parseNumber(form.valor), imovel_id: imovelId, origem: "declarada" })).json(),
+    mutationFn: async () => {
+      const request = propertyLaunchRequest(form, imovelId, launch?.id);
+      return (await apiRequest(request.method, request.url, request.body)).json();
+    },
     onSuccess: () => {
-      close();
-      setForm({ tipo: "despesa", categoria: "Manutenção", valor: "", data: new Date().toISOString().slice(0, 10), status: "pago", descricao: "" });
+      onOpenChange(false);
+      setForm(propertyLaunchForm());
       onSaved();
     },
     onError: (error: any) => toast({ title: "Erro ao salvar lançamento", description: error?.message, variant: "destructive" }),
@@ -1465,7 +1477,8 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
   const suggestionsMutation = useMutation({
     mutationFn: () => Promise.all(suggestions.map((item) => apiRequest("POST", "/api/carteira/lancamentos", { ...item, imovel_id: imovelId }))),
     onSuccess: () => {
-      close();
+      onOpenChange(false);
+      setSuggestions([]);
       onSaved();
       toast({ title: "Lançamentos registrados" });
     },
@@ -1477,8 +1490,8 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => nextOpen ? onOpenChange(true) : close()}>
       <DialogContent className="sm:max-w-2xl">
-        <DialogHeader><DialogTitle>Novo lançamento</DialogTitle></DialogHeader>
-        <section className="space-y-3 rounded-md border border-blue-100 bg-blue-50/50 p-3">
+        <DialogHeader><DialogTitle>{launch ? "Editar lançamento" : "Novo lançamento"}</DialogTitle></DialogHeader>
+        {!launch && <section className="space-y-3 rounded-md border border-blue-100 bg-blue-50/50 p-3">
           <div>
             <p className="flex items-center gap-2 font-medium"><Sparkles className="h-4 w-4 text-blue-600" />Leitura com IA</p>
             <p className="mt-1 text-sm text-muted-foreground">Envie comprovante, planilha, PDF, imagem, texto ou áudio. Revise antes de salvar.</p>
@@ -1492,8 +1505,8 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
             </Button>
             {importMutation.isPending && <span className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analisando...</span>}
           </div>
-        </section>
-        {suggestions.length > 0 && (
+        </section>}
+        {!launch && suggestions.length > 0 && (
           <section className="space-y-3">
             <p className="text-sm font-medium">Prévia editável · {suggestions.length} lançamento(s)</p>
             {suggestions.map((item, index) => (
@@ -1515,30 +1528,33 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
             <div className="flex justify-end"><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={suggestionsMutation.isPending || suggestions.some((item) => !item.valor || !item.descricao)} onClick={() => suggestionsMutation.mutate()}>{suggestionsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar sugestões</Button></div>
           </section>
         )}
-        <div className="flex items-center gap-3 text-xs uppercase text-muted-foreground"><span className="h-px flex-1 bg-border" />ou preencha manualmente<span className="h-px flex-1 bg-border" /></div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {!launch && <div className="flex items-center gap-3 text-xs uppercase text-muted-foreground"><span className="h-px flex-1 bg-border" />ou preencha manualmente<span className="h-px flex-1 bg-border" /></div>}
+        <fieldset disabled={mutation.isPending || suggestionsMutation.isPending || importMutation.isPending} className="grid min-w-0 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Tipo</Label>
+            <Label htmlFor="launch-type">Tipo</Label>
             <Select value={form.tipo} onValueChange={(value) => setForm({ ...form, tipo: value })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="launch-type"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="receita">Receita</SelectItem><SelectItem value="despesa">Despesa</SelectItem></SelectContent>
             </Select>
           </div>
-          <div className="space-y-2"><Label>Categoria</Label><Input value={form.categoria} onChange={(event) => setForm({ ...form, categoria: event.target.value })} /></div>
-          <div className="space-y-2"><Label>Valor</Label><Input inputMode="decimal" value={form.valor} onChange={(event) => setForm({ ...form, valor: event.target.value })} /></div>
-          <div className="space-y-2"><Label>Data</Label><Input type="date" value={form.data} onChange={(event) => setForm({ ...form, data: event.target.value })} /></div>
-          <div className="space-y-2"><Label>Status</Label>
+          <div className="space-y-2"><Label htmlFor="launch-category">Categoria</Label><Input id="launch-category" value={form.categoria} onChange={(event) => setForm({ ...form, categoria: event.target.value })} /></div>
+          <div className="space-y-2"><Label htmlFor="launch-value">Valor</Label><Input id="launch-value" inputMode="decimal" value={form.valor} onChange={(event) => setForm({ ...form, valor: event.target.value })} /></div>
+          <div className="space-y-2"><Label htmlFor="launch-date">Data</Label><Input id="launch-date" type="date" value={form.data} onChange={(event) => setForm({ ...form, data: event.target.value })} /></div>
+          <div className="space-y-2"><Label htmlFor="launch-status">Status</Label>
             <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="launch-status"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="pago">Pago</SelectItem><SelectItem value="agendado">Agendado</SelectItem><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="vencido">Vencido</SelectItem></SelectContent>
             </Select>
           </div>
-          <div className="space-y-2 sm:col-span-2"><Label>Descrição</Label><Input value={form.descricao} onChange={(event) => setForm({ ...form, descricao: event.target.value })} /></div>
-        </div>
+          <div className="space-y-2 sm:col-span-2"><Label htmlFor="launch-description">Descrição</Label><Input id="launch-description" value={form.descricao} onChange={(event) => setForm({ ...form, descricao: event.target.value })} /></div>
+          <div className="space-y-2"><Label htmlFor="launch-due">Vencimento</Label><Input id="launch-due" type="date" value={form.data_vencimento} onChange={(event) => setForm({ ...form, data_vencimento: event.target.value })} /></div>
+          <div className="space-y-2"><Label htmlFor="launch-paid">Pagamento</Label><Input id="launch-paid" type="date" value={form.data_pagamento} onChange={(event) => setForm({ ...form, data_pagamento: event.target.value })} /></div>
+          <div className="space-y-2 sm:col-span-2"><Label htmlFor="launch-note">Observação</Label><Textarea id="launch-note" value={form.observacao} onChange={(event) => setForm({ ...form, observacao: event.target.value })} /></div>
+        </fieldset>
         <DialogFooter>
           <Button variant="outline" onClick={close}>Cancelar</Button>
-          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={mutation.isPending || !form.valor || !form.descricao} onClick={() => mutation.mutate()}>
-            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
+          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={mutation.isPending || suggestionsMutation.isPending || importMutation.isPending || !form.valor || !form.descricao.trim() || !form.data} onClick={() => mutation.mutate()}>
+            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{launch ? "Salvar alterações" : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1626,6 +1642,7 @@ function DetailPage({ id }: { id: string }) {
   );
   const [editOpen, setEditOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
+  const [editingLaunch, setEditingLaunch] = useState<CarteiraLancamento | null>(null);
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -1791,11 +1808,12 @@ function DetailPage({ id }: { id: string }) {
   });
 
   function invalidateAll() {
-    queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id] });
+    queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/lancamentos", id] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "eventos"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "alertas"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/agenda"] });
   }
 
   const editMutation = useMutation({
@@ -2258,18 +2276,21 @@ function DetailPage({ id }: { id: string }) {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <div><h2 className="font-semibold">Receitas e despesas</h2><p className="text-sm text-muted-foreground">Histórico financeiro exclusivo deste imóvel.</p></div>
-              {canCollaborate && <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => setLaunchOpen(true)}><Plus className="mr-2 h-4 w-4" />Lançamento</Button>}
+              {canCollaborate && <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setEditingLaunch(null); setLaunchOpen(true); }}><Plus className="mr-2 h-4 w-4" />Lançamento</Button>}
             </div>
             {(launchesQuery.data || []).length === 0 ? (
               <div className="border-y py-10 text-center text-sm text-muted-foreground">Nenhum lançamento registrado.</div>
             ) : (
               <div className="divide-y border-y">
                 {(launchesQuery.data || []).map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 py-3">
+                  <div key={item.id} className="flex flex-wrap items-center gap-3 py-3">
                     <Badge className={item.tipo === "receita" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-red-100 text-red-700 hover:bg-red-100"}>{item.tipo}</Badge>
-                    <div className="min-w-0 flex-1"><p className="truncate font-medium">{item.descricao}</p><p className="text-xs text-muted-foreground">{item.categoria} · {shortDate(item.data)} · {item.status || "pendente"}</p></div>
+                    <div className="min-w-0 flex-1 basis-40"><p className="truncate font-medium">{item.descricao}</p><p className="text-xs text-muted-foreground">{item.categoria} · {shortDate(item.data)} · {item.status || "pendente"}</p></div>
                     <p className={`font-bold tabular-nums ${item.tipo === "receita" ? "text-emerald-700" : "text-red-700"}`}>{item.tipo === "receita" ? "+" : "-"}{money(item.valor, imovel.moeda)}</p>
-                    {canCollaborate && <Button size="icon" variant="ghost" onClick={() => deleteLaunchMutation.mutate(item.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>}
+                    {canCollaborate && <div className="ml-auto flex shrink-0 items-center">
+                      <Button size="sm" variant="ghost" aria-label={`Editar lançamento ${item.descricao}`} onClick={() => { setEditingLaunch(item); setLaunchOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
+                      <Button size="icon" variant="ghost" aria-label={`Excluir lançamento ${item.descricao}`} disabled={deleteLaunchMutation.isPending} onClick={() => deleteLaunchMutation.mutate(item.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                    </div>}
                   </div>
                 ))}
               </div>
@@ -2712,7 +2733,7 @@ function DetailPage({ id }: { id: string }) {
           <DialogFooter><Button variant="outline" onClick={() => setOriginOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!originPreviewQuery.data?.pronto || !originForm.nome_bia.trim() || !(parseNumber(originForm.valor_origem) > 0) || (Number(originPreviewQuery.data?.divida || 0) > 0 && !originForm.ciente_divida) || !originMapValid || originMutation.isPending} onClick={() => originMutation.mutate()}>{originMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar e solicitar MOUs</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      <NewLaunchDialog open={launchOpen} onOpenChange={setLaunchOpen} imovelId={id} onSaved={invalidateAll} />
+      <NewLaunchDialog open={launchOpen} onOpenChange={setLaunchOpen} imovelId={id} onSaved={invalidateAll} launch={editingLaunch} />
       <Dialog open={demandOpen} onOpenChange={setDemandOpen}>
         <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] sm:max-w-xl">
           <DialogHeader><DialogTitle>Nova demanda</DialogTitle><DialogDescription>Descreva o que precisa ser resolvido neste imóvel. A BUILT ajuda a encontrar os membros adequados.</DialogDescription></DialogHeader>
@@ -2752,14 +2773,11 @@ function DetailPage({ id }: { id: string }) {
             {!!(accessQuery.data?.owner?.id || accessQuery.data?.acessos?.some((access) => access.user_id)) && (
               <div className="space-y-2">
                 <Label>Responsável</Label>
-                <Select value={demandForm.responsavel_user_id || "sem_responsavel"} onValueChange={(value) => setDemandForm({ ...demandForm, responsavel_user_id: value === "sem_responsavel" ? "" : value })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sem_responsavel">Definir depois</SelectItem>
-                    {accessQuery.data?.owner?.id && <SelectItem value={accessQuery.data.owner.id}>{accessQuery.data.owner.nome || accessQuery.data.owner.email || "Proprietário"}</SelectItem>}
-                    {(accessQuery.data?.acessos || []).filter((access) => access.user_id).map((access) => <SelectItem key={access.id} value={access.user_id!}>{access.nome || access.email || access.username || "Colaborador"}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableNameSelect ariaLabel="Responsável pela demanda do imóvel" value={demandForm.responsavel_user_id || "sem_responsavel"} options={[
+                  {value:"sem_responsavel",label:"Definir depois",pinned:true},
+                  ...(accessQuery.data?.owner?.id?[{value:accessQuery.data.owner.id,label:accessQuery.data.owner.nome || accessQuery.data.owner.email || "Proprietário",searchText:accessQuery.data.owner.email || ""}]:[]),
+                  ...(accessQuery.data?.acessos || []).filter((access)=>access.user_id).map((access)=>({value:access.user_id!,label:access.nome || access.email || access.username || "Colaborador",searchText:[access.email,access.username].filter(Boolean).join(" ")})),
+                ]} onValueChange={(value) => setDemandForm({ ...demandForm, responsavel_user_id: value === "sem_responsavel" ? "" : value })} />
               </div>
             )}
             <div className="space-y-2"><Label>Outras especialidades (opcional)</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Separe por vírgulas" /></div>
@@ -2833,7 +2851,11 @@ function DetailPage({ id }: { id: string }) {
               <div className="space-y-2"><Label>Distribuição</Label><Select value={demandEditForm.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setDemandEditForm({ ...demandEditForm, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Fluxo territorial a cada 12h</SelectItem></SelectContent></Select></div>
             </div>
             <div className="space-y-2"><Label>Especialidades</Label><Input value={demandEditForm.especialidades} onChange={(event) => setDemandEditForm({ ...demandEditForm, especialidades: event.target.value })} placeholder="Separe por vírgulas" /></div>
-            {!!(accessQuery.data?.owner?.id || accessQuery.data?.acessos?.some((access) => access.user_id)) && <div className="space-y-2"><Label>Responsável</Label><Select value={demandEditForm.responsavel_user_id || "sem_responsavel"} onValueChange={(value) => setDemandEditForm({ ...demandEditForm, responsavel_user_id: value === "sem_responsavel" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sem_responsavel">Definir depois</SelectItem>{accessQuery.data?.owner?.id && <SelectItem value={accessQuery.data.owner.id}>{accessQuery.data.owner.nome || accessQuery.data.owner.email || "Proprietário"}</SelectItem>}{(accessQuery.data?.acessos || []).filter((access) => access.user_id).map((access) => <SelectItem key={access.id} value={access.user_id!}>{access.nome || access.email || access.username || "Colaborador"}</SelectItem>)}</SelectContent></Select></div>}
+            {!!(accessQuery.data?.owner?.id || accessQuery.data?.acessos?.some((access) => access.user_id)) && <div className="space-y-2"><Label>Responsável</Label><SearchableNameSelect ariaLabel="Responsável pela demanda do imóvel" value={demandEditForm.responsavel_user_id || "sem_responsavel"} options={[
+              {value:"sem_responsavel",label:"Definir depois",pinned:true},
+              ...(accessQuery.data?.owner?.id?[{value:accessQuery.data.owner.id,label:accessQuery.data.owner.nome || accessQuery.data.owner.email || "Proprietário",searchText:accessQuery.data.owner.email || ""}]:[]),
+              ...(accessQuery.data?.acessos || []).filter((access)=>access.user_id).map((access)=>({value:access.user_id!,label:access.nome || access.email || access.username || "Colaborador",searchText:[access.email,access.username].filter(Boolean).join(" ")})),
+            ]} onValueChange={(value) => setDemandEditForm({ ...demandEditForm, responsavel_user_id: value === "sem_responsavel" ? "" : value })} /></div>}
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setEditingDemand(null)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandEditForm.titulo.trim() || updateDemandMutation.isPending} onClick={() => editingDemand && updateDemandMutation.mutate({ demandId: editingDemand.id, patch: { ...demandEditForm, especialidades: demandEditForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean), expira_em: demandEditForm.expira_em ? new Date(`${demandEditForm.expira_em}T23:59:59`).toISOString() : null } })}>{updateDemandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button></DialogFooter>
         </DialogContent>

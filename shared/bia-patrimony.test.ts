@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {estimateBiaPatrimony,type BiaPatrimonyAsset} from "./bia-patrimony";
 import {calculatePortfolioTotals} from "./member-portfolio";
-const asset=(overrides:Partial<BiaPatrimonyAsset>={})=>({id:"property:one",value:1000,debt:200,currency:"BRL",acquired:true,ownershipConfirmed:true,...overrides});
+const asset=(overrides:Partial<BiaPatrimonyAsset>={})=>({id:"property:one",value:1000,debt:200,currency:"BRL",acquired:true,ownershipConfirmed:true,ownershipPercent:100,...overrides});
 const calc=(assets:BiaPatrimonyAsset[],entries:any[]=[])=>estimateBiaPatrimony({assets,entries,currency:"BRL",assetsUndefined:false,calculatedAt:"2026-10-22T00:00:00Z"});
 const entry=(id:string,tipo:string,valor:number,extra:any={})=>({id,tipo,valor,status:"pago",...extra});
 test("aporte utilizado para comprar ativo não conta duas vezes; CPP e promessas não entram",()=>{
@@ -29,6 +29,15 @@ test("ativo formal repetido é único; zero informado é diferente de ausência"
   assert.equal(calc([asset(),asset()]).value,800);
   assert.equal(calc([asset({value:0,debt:0})]).value,0);
   assert.equal(calc([], [entry("broken","entrada",Number.NaN)]).value,null);
+});
+
+test("fração da BIA aplica-se ao imóvel e à dívida uma vez; origem sem valor ainda evita duplicação",()=>{
+  const result=calc([asset({value:1000000,debt:200000,ownershipPercent:50})],[entry('cash','entrada',10000)]);
+  assert.equal(result.assets,500000);assert.equal(result.debt,100000);assert.equal(result.value,410000);assert.equal(result.partial,false);
+  for(const ownershipPercent of [null,0,-1,101,NaN])assert.equal(calc([asset({ownershipPercent})]).partial,true);
+  for(const patch of [{value:null},{currency:'USD'},{debt:null}])assert.deepEqual(calc([asset(patch)]).propertyIds,['one']);
+  assert.deepEqual(calc([asset({ownershipConfirmed:false})]).propertyIds,[]);
+  assert.deepEqual(calc([asset({acquired:false})]).propertyIds,[]);
 });
 test("valorização consolidada reconhece perda total/valor negativo, não confunde com avaliação ausente",()=>{
   const result=calculatePortfolioTotals([],[{invested:100,participationValue:0},{invested:100,participationValue:-20},{invested:100,participationValue:null}]);

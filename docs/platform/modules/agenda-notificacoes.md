@@ -1,5 +1,7 @@
 # Agenda, Alertas e Notificacoes
 
+- 22/10/2026: A revisão vigente do MOU/MAP Inicial deixa de aparecer como cartão isolado acima dos convites e passa a compor a lista `Aprovações pendentes`, com o mesmo contador, busca, estado vazio e atualização após o aceite. O item continua destinado somente ao próprio signatário e abre o fluxo de leitura/aceite já existente; não muda documento, revisão, permissão, endpoint ou evidência do aceite. Regressão: `client/src/pages/comunidade-celulas.test.ts`.
+
 - 22/10/2026: A Agenda abre no Calendario antes da Lista. O calendario preserva a visao mensal e acrescenta a semanal de domingo a sabado com as 24 horas, navegacao anterior/hoje/proximo e rolagem responsiva. Clique em um dia, no bloco de dia inteiro ou em uma hora abre o formulario existente com data/hora preenchidas; nenhuma acao e gravada antes da confirmacao do usuario. Compromissos continuam abrindo a edicao. Mes, semana e calendario vazio permitem iniciar uma acao. Tema escuro usa tokens/variantes proprios. Fonte e regressao: `client/src/pages/agenda.tsx`, `client/src/lib/agenda-calendar.ts` e `client/src/lib/agenda-calendar.test.ts`.
 
 - 22/10/2026: Avisos já existentes de revisão do MAP em agenda_tarefas também aparecem nas pendências/contador de Alertas, com link para `/convites-alianca`. Projeção central `listMouRevisionAlerts`: mesma conta e membro, origem map:BIA:revisão vigente, não ativada/aceita, signatário atual de BIA em captação; exclui sessão de funcionário, revisões superadas, duplicatas e tarefas canceladas/concluídas. GET não cria/reenvia tarefa, convite, e-mail, aceite ou direito. Falha de consulta não vira ausência silenciosa. Regressão SQL em `server/agenda-alerts.test.ts`. Reaviso pontual só mediante pedido explícito e revalidação da pendência; histórico de convites/aceites permanece intacto.
@@ -17,7 +19,7 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 - `/agenda-alertas` com visoes de agenda e alertas.
 - `/agenda`, `/notificacoes` e `/convites` sao redirecionamentos legados.
 - Chamadas de Capital em `/built-capital/chamadas*`.
-- Implementacao principal: `client/src/pages/agenda-alertas.tsx`, `client/src/lib/agenda-alerts.ts` e `client/src/components/app-sidebar.tsx`.
+- Implementacao principal: `client/src/pages/agenda-alertas.tsx`, `client/src/pages/agenda.tsx`, `client/src/lib/agenda-alerts.ts`, `client/src/lib/agenda-calendar.ts` e `client/src/components/app-sidebar.tsx`.
 
 ## APIs e tarefas
 
@@ -50,6 +52,9 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 
 ## Invariantes
 
+- Calendario e a primeira visualizacao dentro da Agenda; Lista permanece como alternativa. Mes e semana usam o mesmo filtro de status e a mesma colecao autorizada do usuario.
+- Clique no calendario apenas prepara o formulario com data/hora. Criacao, edicao, compartilhamento e validacoes continuam nos endpoints existentes e exigem confirmacao explicita no botao Criar acao ou Salvar alteracoes.
+
 - E-mails opcionais respeitam cinco preferências da conta: convites, agenda/lembretes, atualizações de BIA, oportunidades/demandas e comunidade/rede. Todos os31 envios em `mailer.ts` são classificados explicitamente antes do SMTP. Recuperação de senha, comunicações de acesso/decisão cadastral, termos e pagamentos continuam essenciais e não podem ser desativadas. Sem conta/preferência, comportamento legado; endereço compartilhado é suprimido se qualquer conta ativa vinculada desativou a categoria. Erro de consulta de preferência impede envio opcional, não libera silenciosamente.
 - Supressão é resultado explícito `skipped`, não falha SMTP nem envio aceito. Reenvio manual de BIA informa a preferência do destinatário sem contorná-la; lembrete suprimido conserva reserva com status próprio para não reenfileirar; distribuição por onda registra canal e-mail ignorado sem mexer no aviso interno. Supressão não cancela convite, vínculo, aceites, cobrança, tarefa ou notificações internas. Regressões em `server/user-preferences.test.ts`, `server/payment-reminders.test.ts` e `client/src/components/platform-preferences.test.ts`.
 
@@ -76,5 +81,6 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 
 - `server/agenda-alerts.test.ts`
 - `client/src/lib/agenda-alerts.test.ts`
+- `client/src/lib/agenda-calendar.test.ts`
 - `client/src/lib/dashboard-navigation.test.ts`
 - Ao alterar: testar destinatarios por papel, deduplicacao, item resolvido, links profundos, refresh, badge lateral e mobile.

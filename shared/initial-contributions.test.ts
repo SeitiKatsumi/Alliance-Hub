@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { calculateInitialMap, calculateMap } from "./member-portfolio";
-import { buildNominalSchedule, commitmentsFromMap, copyParticipantSchedule, isCashEntry, validateCommitments, economicRightName, withAutomaticEconomicRights, validateInitialClassifications } from "./initial-contributions";
+import { buildNominalSchedule, commitmentsFromMap, copyParticipantSchedule, isCashEntry, validateCommitments, economicRightName, withAutomaticEconomicRights, validateInitialClassifications, memberContributionProgress } from "./initial-contributions";
 import { BIA_PARTICIPANT_ROLE_LABELS as roles } from "./bia-access";
 import type { InitialMapParticipantInput } from "./member-portfolio";
 
@@ -96,4 +96,20 @@ test("integralizar não duplica CPP, não caixa não soma dinheiro e adicionais 
   assert.equal(calculateMap([{memberId:"ju",value:1000,status:"pendente"}],[],base)[0].value,305000);
   assert.equal(isCashEntry({natureza:"nao_caixa"}),false);assert.equal(isCashEntry({conciliacao_pendente:true}),false);
   assert.throws(()=>validateCommitments([{chave:"ativo"} as any],[]),/revisão vigente/);
+});
+
+test("percentual aportado usa apenas parcelas iniciais conciliadas e totalmente pagas",()=>{
+  const participant:any={modeloCalculo:5,participantId:"member:one",memberId:"one",nome:"Pessoa",tipo:"guardiao",cargos:[],indiceContribuicao:0,pesoCapital:100,capitalComprometido:1000,naturezaCapital:"caixa",cppOrigem:0,cppCapital:1000,cppTotal:1000,mapPercentual:100};
+  const base={modelo_calculo:5,valor_origem:1000,participantes:[participant]};
+  const parcels=[
+    {chave:"member:one:capital",valor:250,vigente:true,pendente:false,movimentos:[{id:"paid"}]},
+    {chave:"member:one:capital",valor:250,vigente:true,pendente:false,movimentos:[{id:"scheduled"}]},
+    {chave:"member:one:capital",valor:500,vigente:false,pendente:false,movimentos:[{id:"old"}]},
+  ];
+  assert.deepEqual(memberContributionProgress(base,"one",parcels,[{id:"paid",status:"pago"},{id:"scheduled",status:"agendado"},{id:"old",status:"pago"}]),{
+    committed:1000,paid:250,percentage:25,partial:false,
+  });
+  assert.equal(memberContributionProgress(base,"one",[{...parcels[0],pendente:true}],[]).percentage,null);
+  assert.equal(memberContributionProgress({...base,modelo_calculo:2},"one",parcels,[]).partial,true);
+  assert.equal(memberContributionProgress(base,"other",parcels,[]).percentage,null);
 });

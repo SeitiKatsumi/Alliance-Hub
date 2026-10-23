@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "id": "2026-10-23-cpp-owned-property-value",
+  "title": "Incluir imóveis pertencentes à BIA na estimativa proporcional das CPPs sem subtotal incompleto como avaliação",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-patrimony.ts",
+    "shared/bia-setup.ts",
+    "shared/portfolio-dashboard.ts"
+  ],
+  "searchTerms": [
+    "participacaoBiaPercentual",
+    "dividaSaldo",
+    "estimativa_patrimonial",
+    "patrimonio_liquido_estimado",
+    "valor_participacao_brl",
+    "consolidado_via_bia",
+    "BiaSetupSummary",
+    "BiaAssetFields"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "shared/bia-setup.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "shared/portfolio-dashboard.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "server/portfolio-history.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.tsx",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "shared/bia-patrimony.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "shared/bia-setup.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "shared/portfolio-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "server/bia-patrimony.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "server/portfolio-history.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-assets.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Escopo desta tarefa: fração/dívida dos imóveis declarados, leitura vigente, completude de CPPs, deduplicação e regressões. Hunks paralelos preexistentes não atestados."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "shared/member-portfolio.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "shared/bia-budget.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "server/property-journey.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "shared/property-ownership.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "reviewed",
+      "reason": "Dependência da estrutura/patrimônio revisada: reutiliza schema/resumo/helper, mantém autorização, fontes e operação financeira existentes. Sem alteração de MAP, dinheiro, mensagens ou documentos assinados."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/pages/bia-editar.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "server/bia-phase-readiness.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "shared/bia-budget.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/components/bia-phase-controls.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo: estrutura ou leitura de patrimônio não substitui fases, integralização, documento nem alertas. Sem regra alternativa de estimativa; contratos existentes preservados e suite global cobre dependências."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "SSR dos quatro cards, campos, resumo e editor cobertos. Carteira conferida após login na conta empresarial disponível, desktop e viewport390x844: cards legíveis, CPPs zero com MAP0 e detalhes incompletos identificados. Não houve acesso à sessão do Rodrigo nem alteração de cadastros; cenário de CPP positiva validado por testes SQL/API e diagnóstico somente leitura já realizado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "server/bia-patrimony.test.ts executa trecho real de carteiraAlliancesForMember: autorização antes das fontes, null/sem evolução quando incompleto, MAP25% em patrimônio completo. Estrutura PUT conserva schema, revisão otimista e validação de vínculo."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente novos campos JSONB opcionais na estrutura versionada; sem migração/backfill. SQL de patrimônio READ ONLY usa origem ativa ou ativo próprio adquirido declarado e edição vigente readBiaSetup."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Testes de fração50%, dívida, caixa e MAP, origem formal única, zero e perdas completas. CPP total incompleto é null; histórico parcial omitido na projeção, sem regravar passado."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Busca de consumidores não encontrou cálculo de estimativa em templates/alertas; nenhum envio, convite ou aceite novo."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "BiaSetupSummary inclui seção dos novos dados explícitos em prévia/exportação corrente; teste SSR de PDF/escape aprovado. Documento assinado e snapshots não regravados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Directus permanece fonte dos lançamentos pagos; sem chamadas IA/câmbio novas. Carteira revalida normalmente; observações usam métricas do servidor."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Acesso financeiro antes das fontes; carteiraImovelId informativo não autoriza leitura de valor privado/propriedade. Campos de propriedade/dívida só para ativo manual, com edição de configuração existente."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Ausência de fração/dívida não inventa100% ou zero; clientes antigos preservam campos omitidos. Formalização via origem ativa representa imóvel integral conforme contrato. Valores de origem/VGV/carta não substituem ativo."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify passou (518 testes, contrato, consistência, ferramentas, typecheck e build). Após tornar ownershipPercent obrigatório no helper, 19 testes focados, typecheck e build passaram novamente. git diff --check sem erros. Conferência visual concluída na conta disponível, sem sessão do Rodrigo. Gate integral continua separado de alterações paralelas não atestadas; não há autorização/publicação neste trabalho."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-patrimony.test.ts",
+    "shared/bia-setup.test.ts",
+    "shared/portfolio-dashboard.test.ts",
+    "server/bia-patrimony.test.ts",
+    "server/portfolio-history.test.ts",
+    "client/src/components/bia-asset-patrimony-fields.test.ts",
+    "client/src/components/bia-assets.test.ts",
+    "client/src/components/bia-legal-person-field.test.ts",
+    "client/src/components/bia-patrimony-breakdown.test.ts",
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

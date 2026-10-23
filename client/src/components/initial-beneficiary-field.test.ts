@@ -8,7 +8,7 @@ function harness(overrides: Record<string,unknown> = {}) {
   const state:any[]=[];let cursor=0;
   const module={exports:{} as any};
   const code=transformSync(readFileSync(new URL("./initial-beneficiary-field.tsx",import.meta.url),"utf8"),{loader:"tsx",format:"cjs",jsx:"automatic"}).code;
-  const require=(id:string)=>id==="react"?{...React,useState:(value:any)=>{const index=cursor++;if(!(index in state))state[index]=value;return[state[index],(next:any)=>state[index]=typeof next==="function"?next(state[index]):next];}}:id==="react/jsx-runtime"?ReactJsx:id.includes("button")?{Button:"button"}:id.includes("checkbox")?{Checkbox:"checkbox"}:{Input:"input"};
+  const require=(id:string)=>id==="react"?{...React,useState:(value:any)=>{const index=cursor++;if(!(index in state))state[index]=value;return[state[index],(next:any)=>state[index]=typeof next==="function"?next(state[index]):next];}}:id==="react/jsx-runtime"?ReactJsx:id.includes("searchable-name-select")?{SearchableNameSelect:"select"}:id.includes("button")?{Button:"button"}:id.includes("checkbox")?{Checkbox:"checkbox"}:{Input:"input"};
   new Function("require","module","exports",code)(require,module,module.exports);
   const changed:string[]=[];const drafts:boolean[]=[];const names:string[]=[];
   const props={value:"member",options:[{id:"member",nome:"Participante"}],locked:false,disabled:false,onChange:(id:string)=>changed.push(id),onDraftChange:(v:boolean)=>drafts.push(v),onCreate:async(name:string)=>{names.push(name);return{id:"external",nome:name};},...overrides};
@@ -38,7 +38,7 @@ test("beneficiário externo: escolha, nome, adição explícita, seleção e can
   h.find("checkbox").props.onCheckedChange(true);
   h.find("button","Cancelar").props.onClick();
   assert.equal(h.find("input"),undefined);assert.deepEqual(h.changed,["external"]);
-  h.find("select").props.onChange({target:{value:"member"}});assert.equal(h.changed.at(-1),"member");
+  h.find("select").props.onValueChange("member");assert.equal(h.changed.at(-1),"member");
 });
 
 test("erro não seleciona beneficiário, não repete cadastro e mantém nome para revisão",async()=>{

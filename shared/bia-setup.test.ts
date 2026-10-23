@@ -47,6 +47,18 @@ test('governance includes zero rights and multiple functions, excluding author a
   assert.deepEqual(governanceRoles({cargos:['Autor da Oportunidade','Aliado BUILT'],contribuicoes:[{cargo:'Contribuição individual'},{cargo:'Aliado BUILT'},{cargo:'Diretor de Aliança'}]}),['Aliado BUILT','Diretor de Aliança']);
 });
 
+test('fração e dívida do imóvel são explícitas, validadas e preservadas por clientes antigos',()=>{
+  const value=legacyBiaSetup({info_comercial:{ativo_endereco:'Ativo'}});
+  Object.assign(value.ativos[0],{situacao:'Adquirido',valorReferencia:1000000,participacaoBiaPercentual:50,dividaSaldo:0});
+  const parsed=biaSetupSchema.parse(value),old=structuredClone(parsed);
+  delete old.ativos[0].participacaoBiaPercentual;delete old.ativos[0].dividaSaldo;
+  assert.deepEqual(parseBiaSetup(old,parsed),parsed);
+  assert.equal(parseBiaSetup({...parsed,ativos:[{...parsed.ativos[0],dividaSaldo:null}]},parsed).ativos[0].dividaSaldo,null);
+  for(const patch of [{participacaoBiaPercentual:0},{participacaoBiaPercentual:101},{participacaoBiaPercentual:NaN},{dividaSaldo:-1},{dividaSaldo:Infinity}])assert.throws(()=>biaSetupSchema.parse({...parsed,ativos:[{...parsed.ativos[0],...patch}]}));
+  assert.equal(biaSetupSchema.parse(old).ativos[0].participacaoBiaPercentual,undefined);
+  assert.equal(biaSetupSchema.parse(old).ativos[0].dividaSaldo,undefined);
+});
+
 test('portfolio assets retain source, allow multiple properties and never import money or ownership',()=>{
   const asset=biaAssetFromPortfolio({id:'inv-1',nome:'Sítio São José',cidade:'São Paulo',area_m2:240,matricula:'123',valor_atual:900000,moeda:'USD',titularidade:[{nome:'Pessoa'}],conta:'PRIVATE'});
   assert.equal(asset.carteiraImovelId,'inv-1');assert.equal(asset.info.ativo_area_m2,'240');assert.equal(asset.info.ativo_numero_matricula,'123');

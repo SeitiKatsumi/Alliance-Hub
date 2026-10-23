@@ -6,14 +6,14 @@ import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } f
 import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
-import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights } from "@shared/initial-contributions";
+import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
 import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from "./bia-setup";
 import { legalBlockers, legacyBiaSetup, parseBiaSetup, biaAssetFromPortfolio, type BiaSetup } from "../shared/bia-setup";
 import { BIA_INFO_COMERCIAL_FIELDS } from "../shared/bia-form-options";
 import { biaAllowsFinance } from "@shared/bia-phase";
 import { loadBiaPatrimony } from "./bia-patrimony";
-import { portfolioDashboard } from "../shared/portfolio-dashboard";
+import { dashboardAcquisitionValue, portfolioDashboard } from "../shared/portfolio-dashboard";
 import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
 import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis } from "./property-market-evidence";
 import { listMouRevisionAlerts } from "./agenda-alerts";
@@ -16111,15 +16111,28 @@ ${inputText.slice(0, 18000)}`,
     return (await Promise.all(related.map(async (bia) => {
       const access=await resolveBiaAccessForRequest(bia, req);
       if(!hasBiaAccess(access.permissions,"capital_financeiro","view"))return null;
-      const [allocation, financialEntries, canDelete] = await Promise.all([
-        getBiaAllocationMap(bia, String(bia.id)),
+      const biaId=String(bia.id);
+      const initialSnapshot=await loadInitialMapSnapshot(biaId);
+      const [allocation, financialEntries, canDelete, contributionParcels] = await Promise.all([
+        getBiaAllocationMap(bia, biaId, {base:initialSnapshot}),
         directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=id,bia,valor,tipo,status,descricao,data,data_vencimento&limit=-1`),
         canDeleteBia(req, bia),
+        initialSnapshot && Number(initialSnapshot.modelo_calculo)>=3
+          ? db.execute(sql`SELECT chave, valor::float8 AS valor, movimentos, vigente, pendente FROM bia_aportes_parcelas WHERE bia_id=${biaId} AND vigente=true`)
+          : Promise.resolve({rows:[]}),
       ]);
       const own = allocation.find((row) => row.memberId === membroId);
+      const cppTotal=Number(own?.value || 0);
+      // Without an initial snapshot, the legacy MAP is built only from paid contributions
+      // and accepted origin allocations, so its current CPP position is already integralized.
+      const contributionProgress=initialSnapshot
+        ? memberContributionProgress(initialSnapshot,membroId,contributionParcels.rows as any[],financialEntries as any[])
+        : {committed:cppTotal,paid:cppTotal,percentage:100,partial:false};
       const estimate=await loadBiaPatrimony(db,{id:String(bia.id),moeda:bia.moeda},financialEntries);
       const mapPercent = Number(own?.percent || 0);
-      const officialValue = estimate.value;
+      const cppContributed=contributionProgress.percentage == null ? null : Number((cppTotal*contributionProgress.percentage/100).toFixed(2));
+      const cppRemaining=cppContributed == null ? null : Number(Math.max(0,cppTotal-cppContributed).toFixed(2));
+      const officialValue = estimate.partial ? null : estimate.value;
       const inPeriod = (financialEntries as any[]).filter(isCashEntry).filter((entry) => {
         const date = String(entry.data || entry.data_vencimento || "");
         return !since || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= since;
@@ -16136,7 +16149,10 @@ ${inputText.slice(0, 18000)}`,
         situacao: bia.situacao || null,
         moeda: bia.moeda || "BRL",
         map_percent: mapPercent,
-        aportes_oficiais: Number(own?.value || 0),
+        aportes_oficiais: cppTotal,
+        cpp_integralizacao: contributionProgress,
+        cpp_aportado: cppContributed,
+        cpp_a_aportar: cppRemaining,
         patrimonio_liquido_oficial: null,
         patrimonio_liquido_estimado: officialValue,
         valor_participacao: officialValue !== null && mapPercent > 0 ? Number((officialValue * mapPercent / 100).toFixed(2)) : null,
@@ -16644,10 +16660,10 @@ ${inputText.slice(0, 18000)}`,
       const despesas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.despesas || 0), 0);
       const contasAPagar = imoveis.reduce((sum, item) => sum + Number(item.contas_a_pagar || 0), 0);
       const aliancas = await carteiraAlliancesForMember(actor.membroId, req, since);
-      const propertiesInBias=new Set(aliancas.filter(item=>item.valor_participacao!==null && item.map_percent>0 && convertPortfolioAmountToBrl(item.valor_participacao,item.moeda,exchangeRates)!==null).flatMap(item=>item.estimativa_patrimonial.propertyIds));
+      const propertiesInBias=new Set(aliancas.filter(item=>item.map_percent>0).flatMap(item=>item.estimativa_patrimonial.propertyIds));
       for(const item of imoveis)(item as any).consolidado_via_bia=propertiesInBias.has(String(item.id));
       const consolidated = calculatePortfolioTotals(
-        imoveis.map((item) => ({
+        imoveis.filter(item=>!propertiesInBias.has(String(item.id))).map((item) => ({
           acquisitionValue: parseMarketValueServer(item.valor_pago),
           currentValue: propertiesInBias.has(String(item.id))?0:parseMarketValueServer(item.valor_atual),
           debt: propertiesInBias.has(String(item.id))?0:parseMarketValueServer(item.divida_saldo),
@@ -16670,7 +16686,10 @@ ${inputText.slice(0, 18000)}`,
       };
       for (const item of imoveis) {
         (item as any).valor_utilizado_no_total_brl = toBrl(parseMarketValueServer(item.valor_utilizado_no_total), item.moeda);
-        (item as any).valor_aquisicao_brl = item.valor_pago == null || item.valor_pago === "" ? null : convertPortfolioAmountToBrl(parseMarketValueServer(item.valor_pago), item.moeda, exchangeRates);
+        (item as any).valor_aquisicao_brl = dashboardAcquisitionValue(
+          item.valor_pago,
+          convertPortfolioAmountToBrl(parseMarketValueServer(item.valor_pago), item.moeda, exchangeRates),
+        );
         const estimate = item.estimativa_mercado;
         (item as any).estimativa_dashboard = {
           indicative: estimate.sugestao_fonte === INDICATIVE_MARKET_METHOD,
@@ -16682,9 +16701,11 @@ ${inputText.slice(0, 18000)}`,
       for (const item of aliancas) {
         (item as any).valor_participacao_brl = item.valor_participacao == null ? null : convertPortfolioAmountToBrl(Number(item.valor_participacao), item.moeda, exchangeRates);
         (item as any).cpp_base_brl = convertPortfolioAmountToBrl(Number(item.aportes_oficiais), item.moeda, exchangeRates);
+        (item as any).cpp_contributed_brl = item.cpp_aportado == null ? null : convertPortfolioAmountToBrl(Number(item.cpp_aportado), item.moeda, exchangeRates);
+        (item as any).cpp_remaining_brl = item.cpp_a_aportar == null ? null : convertPortfolioAmountToBrl(Number(item.cpp_a_aportar), item.moeda, exchangeRates);
       }
       const consolidatedBrl = calculatePortfolioTotals(
-        imoveis.map((item) => ({
+        imoveis.filter(item=>!propertiesInBias.has(String(item.id))).map((item) => ({
           acquisitionValue: Number((item as any).valor_aquisicao_brl || 0),
           currentValue: propertiesInBias.has(String(item.id))?0:Number((item as any).valor_utilizado_no_total_brl || 0),
           debt: propertiesInBias.has(String(item.id))?0:toBrl(parseMarketValueServer(item.divida_saldo), item.moeda),

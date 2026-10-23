@@ -30,7 +30,7 @@ test('legal name search keeps editable names, alphabetical suggestions and expli
   assert.doesNotMatch(source,/useEffect|\/api\/bias\/.*(?:convite|participante)/);
 });
 test('legal summary and PDF distinguish OAB from legacy CPF and escape names',()=>{
-  const Summary=component('./bia-setup-fields.tsx','BiaSetupSummary',{React,Fragment:React.Fragment,ASSET_METRICS:[],AssetTotals:()=>null,BiaBudgetSummary:()=>null});
+  const Summary=component('./bia-setup-fields.tsx','BiaSetupSummary',{React,Fragment:React.Fragment,ASSET_METRICS:[],AssetTotals:()=>null,BiaBudgetSummary:()=>null,BiaAssetPatrimonySummary:component('./bia-asset-patrimony-fields.tsx','BiaAssetPatrimonySummary',{React})});
   const value=emptyBiaSetup();Object.assign(value.juridico,{oabResponsavel:'SP 123456',documentoResponsavel:'12345678901',responsavel:'João <script>'});
   const html=renderToStaticMarkup(React.createElement(Summary,{value,moeda:'BRL'}));
   assert.match(html,/OAB do responsável jurídico<\/dt><dd[^>]*>SP 123456/);
@@ -39,7 +39,7 @@ test('legal summary and PDF distinguish OAB from legacy CPF and escape names',()
 });
 
 test('legal examples never fill values and partner count follows added/removed forms',()=>{
-  const Field=component('./bia-setup-fields.tsx','BiaLegalFields',{React,useRef:()=>({current:false}),useEffect:()=>{},css:'',LEGAL_TYPES,LEGAL_STATES,EMPTY_BIA_INFO:{},Input:'input',Textarea:'textarea',Button:'button',BiaNumberInput:({placeholder}:any)=>React.createElement('input',{placeholder}),BiaLegalPersonField:()=>null,BiaInformationFields:()=>null,window:{confirm:()=>true},crypto:{randomUUID:()=> 'new-person'}});
+  const Field=component('./bia-setup-fields.tsx','BiaLegalFields',{React,useRef:()=>({current:false}),useEffect:()=>{},css:'',LEGAL_TYPES,LEGAL_STATES,EMPTY_BIA_INFO:{},Input:'input',Textarea:'textarea',Button:'button',BiaNumberInput:({placeholder}:any)=>React.createElement('input',{placeholder}),BiaLegalPersonField:()=>null,SearchableNameSelect:()=>null,BiaInformationFields:()=>null,window:{confirm:()=>true},crypto:{randomUUID:()=> 'new-person'}});
   let value=emptyBiaSetup();value.juridico.modalidade='societaria';
   const render=()=>Field({value,onChange:(v:any)=>{value=v;}});
   const nodes=(node:any):any[]=>!node || typeof node!=='object'?[]:Array.isArray(node)?node.flatMap(nodes):[node,...nodes(node.props?.children)];
@@ -52,7 +52,7 @@ test('legal examples never fill values and partner count follows added/removed f
 
 test('trade name defaults to BIA name once, preserves existing/manual values and read-only state',()=>{
   let initialized={current:{tradeName:false,object:false}},effect=()=>{},value=emptyBiaSetup(),writes=0;
-  const Field=component('./bia-setup-fields.tsx','BiaLegalFields',{React,useRef:()=>initialized,useEffect:(fn:()=>void)=>{effect=fn;},css:'',LEGAL_TYPES,LEGAL_STATES,EMPTY_BIA_INFO:{},Input:'input',Textarea:'textarea',Button:'button',BiaNumberInput:()=>null,BiaLegalPersonField:()=>null,BiaInformationFields:()=>null});
+  const Field=component('./bia-setup-fields.tsx','BiaLegalFields',{React,useRef:()=>initialized,useEffect:(fn:()=>void)=>{effect=fn;},css:'',LEGAL_TYPES,LEGAL_STATES,EMPTY_BIA_INFO:{},Input:'input',Textarea:'textarea',Button:'button',BiaNumberInput:()=>null,BiaLegalPersonField:()=>null,SearchableNameSelect:()=>null,BiaInformationFields:()=>null});
   const render=(biaName='BIA São José & Filhos',disabled=false)=>{Field({value,biaName,disabled,onChange:(next:any)=>{value=next;writes++;}});effect();};
   value.juridico.info.razao_social='Empresa já cadastrada';
   render(' ');assert.equal(writes,0);render();assert.equal(value.juridico.info.nome_fantasia,'BIA São José & Filhos');assert.equal(value.juridico.info.razao_social,'Empresa já cadastrada');
@@ -68,7 +68,7 @@ test('trade name defaults to BIA name once, preserves existing/manual values and
 test('corporate object defaults exactly as requested, independently of name, and stays editable',()=>{
   const expected='Administração de bens próprios, incluindo imóveis, veículos, participações societárias e outros ativos patrimoniais, gestão de ativos e investimentos.';
   let initialized={current:{tradeName:false,object:false}},effect=()=>{},value=emptyBiaSetup();
-  const Field=component('./bia-setup-fields.tsx','BiaLegalFields',{React,useRef:()=>initialized,useEffect:(fn:()=>void)=>{effect=fn;},css:'',LEGAL_TYPES,LEGAL_STATES,EMPTY_BIA_INFO:{},Input:'input',Textarea:'textarea',Button:'button',BiaNumberInput:()=>null,BiaLegalPersonField:()=>null,BiaInformationFields:()=>null});
+  const Field=component('./bia-setup-fields.tsx','BiaLegalFields',{React,useRef:()=>initialized,useEffect:(fn:()=>void)=>{effect=fn;},css:'',LEGAL_TYPES,LEGAL_STATES,EMPTY_BIA_INFO:{},Input:'input',Textarea:'textarea',Button:'button',BiaNumberInput:()=>null,BiaLegalPersonField:()=>null,SearchableNameSelect:()=>null,BiaInformationFields:()=>null});
   const render=(biaName='',disabled=false)=>{const tree=Field({value,biaName,disabled,onChange:(next:any)=>{value=next;}});effect();return tree;};
   value.juridico.modalidade='contratual';render();assert.equal(value.juridico.objeto,'');
   value.juridico.modalidade='societaria';render('',true);assert.equal(value.juridico.objeto,'');

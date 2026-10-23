@@ -17,6 +17,15 @@ test("histórico SQL isola conta, membro e escopo, atualiza só o dia observado 
     assert.equal((await portfolioHistory(db, actor, "scope", null, metrics)).observations.length, 1);
     await portfolioHistory(db, actor, "scope", null, metrics);
     assert.equal((await pg.query<any>("SELECT count(*)::int AS n FROM carteira_patrimonio_observacoes")).rows[0].n, 1);
+    const legacy = { ...metrics, propertyEstimate: { value: 15000000, min: 10000000, max: 20000000, included: 1, total: 1, partial: false, indicative: true } };
+    await pg.query("UPDATE carteira_patrimonio_observacoes SET metrics=$1::jsonb", [JSON.stringify(legacy)]);
+    const filtered = await portfolioHistory(db, actor, "scope", null);
+    assert.equal(filtered.observations[0].metrics.propertyEstimate.value, null);
+    assert.deepEqual(filtered.observations[0].metrics.acquisition, metrics.acquisition);
+    assert.deepEqual(filtered.observations[0].metrics.cppEstimate, metrics.cppEstimate);
+    assert.equal((await pg.query<any>("SELECT metrics FROM carteira_patrimonio_observacoes")).rows[0].metrics.propertyEstimate.value, 15000000); // read-only, original audit evidence retained.
+    await portfolioHistory(db, actor, "scope", null, metrics);
+    assert.deepEqual((await portfolioHistory(db, actor, "scope", null)).observations[0].metrics.propertyEstimate, metrics.propertyEstimate);
     for (const candidate of [{ userId: "other", membroId: "member" }, { userId: "owner", membroId: "other" }]) assert.equal((await portfolioHistory(db, candidate, "scope", null)).observations.length, 0);
     assert.equal((await portfolioHistory(db, actor, "revoked", null)).observations.length, 0);
     assert.equal((await portfolioHistory(db, actor, "scope", "2099-01-01")).observations.length, 0);

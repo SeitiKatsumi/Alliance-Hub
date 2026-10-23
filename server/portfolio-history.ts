@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { PortfolioDashboard, PortfolioObservation } from "../shared/portfolio-dashboard";
+import { PROPERTY_ESTIMATE_VALIDATION_VERSION } from "../shared/portfolio-dashboard";
 
 /** Revocation/share changes start a new scope, so previous shared financial values cannot leak. */
 export function portfolioHistoryScope(properties: any[], alliances: any[]) {
@@ -25,5 +26,13 @@ export async function portfolioHistory(db: any, actor: { userId: string | null; 
       AND (${since}::date IS NULL OR day >= ${since}::date)
     ORDER BY day
   `);
-  return { available: true, observations: result.rows as PortfolioObservation[] };
+  // Preserve stored observations for audit. Old unvalidated indicative aggregates cannot be decomposed/repaired honestly.
+  const observations = (result.rows as PortfolioObservation[]).map(observation => {
+    const estimate = observation.metrics.propertyEstimate;
+    if (!estimate?.indicative || estimate.validationVersion === PROPERTY_ESTIMATE_VALIDATION_VERSION) return observation;
+    return { ...observation, metrics: { ...observation.metrics, propertyEstimate: {
+      ...estimate, value: null, min: null, max: null, included: 0, partial: true,
+    } } };
+  });
+  return { available: true, observations };
 }

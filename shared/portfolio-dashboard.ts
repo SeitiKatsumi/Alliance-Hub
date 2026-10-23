@@ -1,7 +1,8 @@
+export const PROPERTY_ESTIMATE_VALIDATION_VERSION = 2;
 export interface PortfolioMetric { value: number | null; included: number; total: number; partial: boolean }
 export interface PortfolioDashboard {
   acquisition: PortfolioMetric;
-  propertyEstimate: PortfolioMetric & { min: number | null; max: number | null; indicative?: boolean };
+  propertyEstimate: PortfolioMetric & { min: number | null; max: number | null; indicative?: boolean; validationVersion?: number };
   cppBase: PortfolioMetric;
   cppEstimate: PortfolioMetric;
 }
@@ -34,7 +35,7 @@ export function portfolioDashboard(properties: Property[], alliances: Alliance[]
   const estimates = own.map(p => validRange(p) ? proportional(p, p.estimativa_dashboard!.value) : null);
   return {
     acquisition: metric(own.map(p => proportional(p, p.valor_aquisicao_brl))),
-    propertyEstimate: { ...metric(estimates),
+    propertyEstimate: { ...metric(estimates), validationVersion: PROPERTY_ESTIMATE_VALIDATION_VERSION,
       indicative: own.some(p => validRange(p) && p.estimativa_dashboard?.indicative === true),
       min: metric(own.map(p => validRange(p) ? proportional(p, p.estimativa_dashboard!.min) : null)).value,
       max: metric(own.map(p => validRange(p) ? proportional(p, p.estimativa_dashboard!.max) : null)).value },

@@ -15,7 +15,7 @@ import { biaAllowsFinance } from "@shared/bia-phase";
 import { loadBiaPatrimony } from "./bia-patrimony";
 import { portfolioDashboard } from "../shared/portfolio-dashboard";
 import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
-import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD } from "./property-market-evidence";
+import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis } from "./property-market-evidence";
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
 import { formatBiaPercent } from "@shared/bia-numbers";
@@ -16164,7 +16164,7 @@ ${inputText.slice(0, 18000)}`,
   async function loadPortfolioMarketAnalyses(ids: string[]) {
     const result = await db.execute(sql`
       SELECT * FROM carteira_analises
-      WHERE ((tipo = 'avaliacao_mercado_sugerida' AND versao_regra IN (${PROPERTY_MARKET_VERSION}, 'comparaveis-10km-v3'))
+      WHERE ((tipo = 'avaliacao_mercado_sugerida' AND versao_regra IN (${PROPERTY_MARKET_VERSION}, 'estimativas-imoveis-v4', 'comparaveis-10km-v3'))
         OR (tipo = 'avaliacao_confirmada' AND versao_regra = 'comparaveis-robustos-v2'))
         AND imovel_id IN (SELECT jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))
       ORDER BY imovel_id, criado_em DESC
@@ -16186,11 +16186,11 @@ ${inputText.slice(0, 18000)}`,
     const fingerprint = propertyMarketFingerprint(imovel);
     if (state?.rows) {
       const eligible = state.rows.map(row => row.tipo === 'avaliacao_confirmada' ? confirmedMarketEvidence(imovel, row) : row)
-        .filter(row => row?.entrada?.fingerprint === fingerprint);
+        .filter(row => row?.entrada?.fingerprint === fingerprint && reusableMarketAnalysis(imovel, row));
       state = { latestAttempt: eligible[0], latestSuccess: eligible.find(row => row.resultado?.status === 'atualizada' && Number(row.resultado?.valor_estimado) > 0) };
     }
-    if (state?.latestAttempt?.entrada?.fingerprint !== fingerprint) state = undefined;
-    else if (state?.latestSuccess?.entrada?.fingerprint !== fingerprint) state = { latestAttempt: state.latestAttempt };
+    if (state?.latestAttempt?.entrada?.fingerprint !== fingerprint || !reusableMarketAnalysis(imovel, state?.latestAttempt)) state = undefined;
+    else if (state?.latestSuccess?.entrada?.fingerprint !== fingerprint || !reusableMarketAnalysis(imovel, state?.latestSuccess)) state = { latestAttempt: state.latestAttempt };
     const attempt = state?.latestAttempt;
     const success = state?.latestSuccess;
     const attemptAge = attempt?.criado_em ? Date.now() - new Date(attempt.criado_em).getTime() : Number.POSITIVE_INFINITY;
@@ -17161,18 +17161,19 @@ ${inputText.slice(0, 18000)}`,
       const cached = await tx.execute(sql`
         SELECT * FROM carteira_analises
         WHERE imovel_id = ${req.params.id} AND tipo = 'avaliacao_mercado_sugerida'
-          AND versao_regra IN (${PROPERTY_MARKET_VERSION}, 'comparaveis-10km-v3')
+          AND versao_regra IN (${PROPERTY_MARKET_VERSION}, 'estimativas-imoveis-v4', 'comparaveis-10km-v3')
           AND entrada->>'fingerprint' = ${fingerprint}
           AND criado_em >= now() - interval '30 days'
           AND (resultado->>'status' = 'atualizada' OR criado_em >= now() - interval '1 hour')
         ORDER BY criado_em DESC LIMIT 1
       `);
-      if ((cached.rows?.[0]?.resultado as any)?.status === "atualizada") return { cached: true, analise: cached.rows[0], ...(cached.rows[0].resultado as any) };
+      const cachedAnalysis = reusableMarketAnalysis(access.imovel, cached.rows?.[0]) ? cached.rows[0] : undefined;
+      if (cachedAnalysis && (cachedAnalysis.resultado as any)?.status === "atualizada") return { cached: true, analise: cachedAnalysis, ...(cachedAnalysis.resultado as any) };
       const previous = await loadPortfolioMarketAnalyses([req.params.id]);
       const reusable = portfolioMarketEstimate(access.imovel, previous.get(req.params.id));
       if (reusable.status === "atualizada") return { cached: true, status: "atualizada", valor_estimado: reusable.valor_sugerido, valor_minimo: reusable.valor_minimo, valor_maximo: reusable.valor_maximo };
-      if ((cached.rows?.[0]?.resultado as any)?.indicativa_avaliada === true) return { cached: true, analise: cached.rows[0], ...(cached.rows[0].resultado as any) };
-      const result = await researchPropertyMarketValue(access.imovel, cached.rows?.[0]?.resultado);
+      if (cachedAnalysis && (cachedAnalysis.resultado as any)?.indicativa_avaliada === true) return { cached: true, analise: cachedAnalysis, ...(cachedAnalysis.resultado as any) };
+      const result = await researchPropertyMarketValue(access.imovel, cachedAnalysis?.resultado);
       const current = await requireCarteiraAccess(req.params.id, actor, "administracao");
       if (propertyMarketFingerprint(current.imovel) !== fingerprint) throw Object.assign(new Error("O imóvel mudou durante a pesquisa. Pesquise novamente."), { status: 409 });
       const analysis = await persistCarteiraAnalysis(

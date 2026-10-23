@@ -1,5 +1,7 @@
 # Perfis, Rede, Empresas e Comunidades
 
+- 23/10/2026 — o nome público atual da entidade técnica BusinessType/Market é Tese de interesse, também em demandas, administração e mensagens de erro. Referências históricas a Tipo de negócio abaixo não representam um segundo campo. O adapter de rótulos normaliza somente aliases descontinuados conhecidos sem modificar códigos, preferências, associações ou nomes personalizados. Onboarding e Perfil já exibiam teses; cadastro e salvamento permanecem iguais.
+
 - 16/10/2026: ao salvar um Proud Member sem associação efetiva, o editor administrativo confirma a Comunidade Mãe pelo endpoint autorizado existente, em vez de bloquear o salvamento. Promoção administrativa com selo também assegura M2M à mãe conhecida. Origem de convite de candidato não vira associação em consultas; vínculos extras são preservados e falha remota bloqueia sucesso.
 
 - 16/10/2026: avisos Complete seu perfil (Início) e Próxima etapa recomendada (Perfil) têm fundo/borda e hover próprios no tema escuro, corrigindo superfícies claras translúcidas com baixo contraste. Seletores restritos a dark e screen; modo claro e impressão preservados. Sem alteração de completude, navegação ou dados.

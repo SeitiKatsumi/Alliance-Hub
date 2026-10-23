@@ -1,5 +1,7 @@
 # Administracao
 
+- 23/10/2026 — nomenclatura pública unificada: relatório funcional (inclusive versão impressa), administração da taxonomia, demandas, opções do PDF da BIA e erros do perfil/API usam Tese de interesse. `shared/public-labels.ts` resolve apenas aliases antigos conhecidos de `Market`, tanto na projeção da API quanto no cache do hook; nomes personalizados de outros conceitos são preservados. Escrita continua restrita a admin e normaliza o nome antes de persistir. Sem migração, reclassificação de BIAs, alteração de valores, permissões ou documentos emitidos. Regressões: `shared/public-labels.test.ts` e `client/src/data/platform-functional-report.test.ts`; guarda global de nomenclatura ampliada em `docs/platform/deprecations.json`.
+
 ## Objetivo e usuarios
 
 Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e auditoria da plataforma sem transformar regras administrativas em permissao global implicita.

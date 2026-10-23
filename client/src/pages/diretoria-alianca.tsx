@@ -3,7 +3,7 @@ import { Award, CircleDashed, FileText, Handshake, Shield, Star, Target } from "
 export default function DiretoriaAliancaPage() {
   const modules = [
     { icon: Star, label: "Gestão de Diretores", desc: "Cadastro e gestão dos diretores de aliança das BIAs" },
-    { icon: Target, label: "Objetivos Estratégicos", desc: "Definição e acompanhamento dos objetivos da aliança" },
+    { icon: Target, label: "Teses de Interesse", desc: "Definição e acompanhamento das teses de interesse das alianças" },
     { icon: FileText, label: "Atas e Deliberações", desc: "Registro de reuniões e decisões da diretoria" },
     { icon: Handshake, label: "Acordos de Aliança", desc: "Contratos e acordos entre os membros aliados" },
   ];
@@ -51,7 +51,7 @@ export default function DiretoriaAliancaPage() {
         <h2 className="mb-2 text-lg font-bold text-foreground">Diretoria da Aliança</h2>
         <p className="mx-auto max-w-md text-sm text-muted-foreground">
           Este módulo está sendo desenvolvido. Em breve você terá acesso à governança completa
-          das suas BIAs, gestão de diretores, objetivos estratégicos, atas e acordos de aliança.
+          das suas BIAs, gestão de diretores, teses de interesse, atas e acordos de aliança.
         </p>
       </div>
     </div>

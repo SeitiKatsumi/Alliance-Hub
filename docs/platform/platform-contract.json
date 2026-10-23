@@ -24,12 +24,12 @@
       "keywords": ["inicio", "painel", "dashboard", "contador", "pendencia", "proxima acao", "atalho", "resumo", "suas celulas"],
       "routes": ["/", "/painel", "/agenda-alertas"],
       "frontendFiles": ["client/src/App.tsx", "client/src/pages/painel.tsx", "client/src/pages/agenda-alertas.tsx", "client/src/components/app-sidebar.tsx", "client/src/lib/dashboard-navigation.ts"],
-      "backendFiles": ["server/routes.ts", "server/agenda-alerts.ts", "server/member-business-feed.ts"],
+      "backendFiles": ["server/routes.ts", "server/agenda-alerts.ts", "server/member-business-feed.ts", "shared/bia-business-type.ts"],
       "apiPrefixes": ["/api/me", "/api/me/celulas", "/api/me/negocios", "/api/agenda-alertas", "/api/agenda"],
       "dataStores": ["agregacoes dos modulos de origem", "PostgreSQL agenda_tarefas", "cache React Query"],
       "roles": ["membro", "funcionario", "aliado", "diretor", "admin"],
       "invariants": ["Contador e lista usam o mesmo escopo.", "Painel nao concede acesso ao recurso de destino.", "Pendencia resolvida sai da lista sem apagar historico."],
-      "tests": ["client/src/lib/dashboard-navigation.test.ts", "server/agenda-alerts.test.ts", "client/src/lib/agenda-alerts.test.ts"]
+      "tests": ["client/src/lib/dashboard-navigation.test.ts", "server/agenda-alerts.test.ts", "client/src/lib/agenda-alerts.test.ts", "shared/bia-business-type.test.ts", "client/src/lib/bia-thesis-consumers.test.ts"]
     },
     {
       "id": "perfil-rede-empresa",
@@ -159,6 +159,12 @@
     }
   ],
   "crossCutting": [
+    {
+      "id": "revisao-transversal-obrigatoria",
+      "keywords": ["renomear", "remover", "nomenclatura", "propagacao", "revisao global", "scripts/platform-impact.ts", "scripts/platform-consistency.ts", "scripts/lib/platform-change-safety.ts", "platform:review", "platform:consistency"],
+      "modules": ["acesso-onboarding", "inicio-gestao", "perfil-rede-empresa", "built-vitrine", "built-alliances", "capital-financeiro", "carteira", "aura", "agenda-notificacoes", "administracao", "pagamentos-integracoes"],
+      "invariant": "Toda mudanca revisa usos e dependencias ativos de ponta a ponta. A entrega exige registro do diff, consumidores e areas revisados, guarda de conceitos removidos e testes; preserva historico e compatibilidade justificada. Processo em docs/platform/CHANGE_SAFETY.md, regressao em scripts/platform-change-safety.test.ts."
+    },
     {
       "id": "multi-comunidade",
       "keywords": ["comunidade", "comunidade mae", "vinculo", "associado", "aliado"],

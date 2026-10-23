@@ -19,7 +19,7 @@ import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_V
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
 import { formatBiaPercent } from "@shared/bia-numbers";
-import { biaBusinessTypeCode, biaBusinessTypeLabel, biaBusinessTypeStoragePayload } from "../shared/bia-business-type";
+import { biaBusinessTypeCode, biaBusinessTypeLabel, biaBusinessTypeStoragePayload, opportunityScopeLabel } from "../shared/bia-business-type";
 import { createDirectusBiaCommunitySync } from "./bia-community-directus";
 import { buildBiaMouFooterText } from "../shared/bia-document-footer";
 ﻿import type { Express, Request } from "express";
@@ -82,7 +82,7 @@ import {
   renewalAfterFreeze,
 } from "@shared/monetization";
 import { getPublicContributionAreas } from "@shared/contribution-areas";
-import { PUBLIC_LABELS } from "@shared/public-labels";
+import { PUBLIC_LABELS, publicLabel, type PublicLabelKey } from "@shared/public-labels";
 import {
   RO_EVENT_TYPE,
   RO_GUEST_TERMS_VERSION,
@@ -4430,9 +4430,9 @@ export async function registerRoutes(
       await ensureTaxonomyTables();
       const overrides: any = await db.execute(sql`SELECT code, display_name, description FROM taxonomy_public_labels`);
       const byCode = new Map(resultRows(overrides).map((item) => [String(item.code), item]));
-      res.json(Object.entries(PUBLIC_LABELS).map(([code, fallback]) => ({
+      res.json(Object.keys(PUBLIC_LABELS).map((code) => ({
         code,
-        display_name: byCode.get(code)?.display_name || fallback,
+        display_name: publicLabel(code as PublicLabelKey, byCode.get(code)?.display_name),
         description: byCode.get(code)?.description || null,
       })));
     } catch (error: any) {
@@ -4462,7 +4462,7 @@ export async function registerRoutes(
       await ensureTaxonomyTables();
       const result: any = await db.execute(sql`
         INSERT INTO taxonomy_public_labels (code, display_name, description, updated_by_user_id, updated_at)
-        VALUES (${code}, ${displayName}, ${String(req.body?.description || "").trim() || null}, ${String(req.session?.directusUserId || "")}, now())
+        VALUES (${code}, ${publicLabel(code as PublicLabelKey, displayName)}, ${String(req.body?.description || "").trim() || null}, ${String(req.session?.directusUserId || "")}, now())
         ON CONFLICT (code) DO UPDATE SET display_name = EXCLUDED.display_name,
           description = EXCLUDED.description, updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = now()
         RETURNING *
@@ -7199,7 +7199,7 @@ export async function registerRoutes(
       "",
       "1.2.1. A descrição registral constante da matrícula integra este MOU por referência, sendo vedada qualquer interpretação extensiva a outros ativos.",
       "",
-      `1.3. A exploração econômica seguirá o tipo de negócio: ${campos.objetivoAlianca}.`,
+      `1.3. A exploração econômica seguirá a tese de interesse: ${campos.teseInteresse}.`,
     ].join("\n\n");
   }
 
@@ -7242,7 +7242,7 @@ export async function registerRoutes(
       cartorio: mouValue(bia?.ativo_cartorio, "Cartório não informado"),
       comarca: mouValue(bia?.ativo_comarca, "Comarca não informada"),
       destinacao: mouValue(bia?.destinacao, "não informada"),
-      objetivoAlianca: mouValue(biaBusinessTypeLabel(bia || {}) || bia?.destinacao, "não informado"),
+      teseInteresse: mouValue(biaBusinessTypeLabel(bia || {}), "não informada"),
     };
   }
 
@@ -7285,10 +7285,12 @@ export async function registerRoutes(
       folha: campos.folha,
       cartorio: campos.cartorio,
       comarca: campos.comarca,
-      objetivo: campos.objetivoAlianca,
-      destinacao: campos.objetivoAlianca,
-      "objetivo da alianca": campos.objetivoAlianca,
-      "objetico da alianca": campos.objetivoAlianca,
+      objetivo: campos.teseInteresse,
+      destinacao: campos.destinacao,
+      "tese de interesse": campos.teseInteresse,
+      "tipo de negocio": campos.teseInteresse,
+      "objetivo da alianca": campos.teseInteresse,
+      "objetico da alianca": campos.teseInteresse,
     };
     return texto.replace(/\[([^\]]+)\]/g, (match, key) => valuesByKey[normalizePlaceholder(String(key))] ?? match);
   }
@@ -8980,7 +8982,7 @@ export async function registerRoutes(
       [/\bnatureza pré-contratual\b/g, (match) => protect(match)],
       [/\bdiretrizes, compromissos mínimos vinculantes, deveres de conduta, regras de governança, matriz de participação econômica e parâmetros de responsabilidade\b/g, (match) => protect(match)],
       [/\borganização, estruturação e exploração econômica de ativo imobiliário\b/g, (match) => protect(match)],
-      [/\bA exploração econômica (?:será destinada ao objetivo da aliança|seguirá o tipo de negócio):/g, (match) => protect(match)],
+      [/\bA exploração econômica (?:será destinada ao objetivo da aliança|seguirá o tipo de negócio|seguirá a tese de interesse):/g, (match) => protect(match)],
       [/\bAs partes reconhecem\b/g, (match) => protect(match)],
       [/\bPlataforma BUILT - Builders United for Investment Logistics and Trade\b/g, (match) => protect(match)],
       [/\bBIA - BUILT Integrated Alliance - BIA\b/g, (match) => protect(match)],
@@ -10705,7 +10707,7 @@ export async function registerRoutes(
           ...o,
           bia_id: relationId(o.bia) || relationId(o.bia_id),
           nome_bia_vinculada: allBiaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
-          _matchText: normalize([o.tipo, o.ramo_atuacao, o.nucleo_alianca, o.perfil_aliado, biaBusinessTypeLabel(o), o.nome_oportunidade].join(" ")),
+          _matchText: normalize([o.tipo, o.ramo_atuacao, o.nucleo_alianca, o.perfil_aliado, opportunityScopeLabel(o), o.nome_oportunidade].join(" ")),
           _tipoText: normalize(o.tipo),
           _ramoText: normalize(o.ramo_atuacao),
         }))
@@ -10749,7 +10751,7 @@ export async function registerRoutes(
       }
 
       const classifyAbrangencia = (opa: any) => {
-        const text = normalize([opa.tipo, opa.nucleo_alianca, biaBusinessTypeLabel(opa), opa.localizacao, opa.pais].join(" "));
+        const text = normalize([opa.tipo, opa.nucleo_alianca, opportunityScopeLabel(opa), opa.localizacao, opa.pais].join(" "));
         if (/(global|internacional|exterior|fora do brasil|outside brazil)/.test(text)) return "Global";
         if (/(nacional|brasil|brazil)/.test(text)) return "Nacional";
         return "Regional";
@@ -11637,7 +11639,7 @@ export async function registerRoutes(
         assertMapRevision(Number(draft.revisao),req.body.revisaoEsperada);
         const data=validateBiaDraft(draft.dados);
         if(!draft.conclusao_iniciada && legalBlockers(legacyBiaSetup(data)).length)throw Object.assign(new Error(legalBlockers(legacyBiaSetup(data)).join(" ")),{statusCode:400});
-        if(!data.destinacao || !data.objetivo_alianca || !String(data.localizacao || "").trim() || !String(data.observacoes || "").trim())throw Object.assign(new Error("Preencha Destinação, Tipo de negócio, Localização e Descrição."),{statusCode:400});
+        if(!data.destinacao || (!draft.conclusao_iniciada && !biaBusinessTypeCode(data)) || !String(data.localizacao || "").trim() || !String(data.observacoes || "").trim())throw Object.assign(new Error("Preencha Destinação, Tese de interesse, Localização e Descrição."),{statusCode:400});
         const calculation=await calculateSubmittedInitialMap(data.map_inicial,data.map_inicial?.modeloCalculo === 5 ? 5 : 4);
         const team=biaTeamFromMapParticipants(calculation.participantes);
         if(!hasRequiredBiaTeam(team))throw Object.assign(new Error("Defina Aliado BUILT e Diretor de Aliança."),{statusCode:400});
@@ -13854,7 +13856,7 @@ ${textContent}`;
       bia_id: o.bia,
       valor_origem_opa: o.valor_origem_opa,
       Minimo_esforco_multiplicador: o.Minimo_esforco_multiplicador,
-      objetivo_alianca: biaBusinessTypeLabel(o),
+      objetivo_alianca: o.objetivo_alianca || null,
       nucleo_alianca: o.nucleo_alianca,
       pais: o.pais,
       descricao: o.descricao,
@@ -22692,9 +22694,9 @@ ${textContent}`;
       const systemPrompt = `VocÃª Ã© um analista especializado em projetos BIA da Built Alliances.
 PROJETO BIA EM ANÃLISE:
 - Nome: ${bia.nome_bia}
-- Tipo de negócio: ${biaBusinessTypeLabel(bia) || 'N/A'}
+- Tese de interesse: ${biaBusinessTypeLabel(bia) || 'N/A'}
 - LocalizaÃ§Ã£o: ${bia.localizacao || 'N/A'}
-- Dados: ${JSON.stringify(bia)}
+- Dados: ${JSON.stringify({...bia, objetivo_alianca: undefined, business_type_code: biaBusinessTypeCode(bia) || null})}
 Responda em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const response = await getOpenAI().chat.completions.create({
@@ -25888,7 +25890,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         return !!biaId && biasIds.has(biaId);
       });
       const classifyAbrangencia = (opa: any) => {
-        const text = normalize([opa.tipo, opa.nucleo_alianca, biaBusinessTypeLabel(opa), opa.localizacao, opa.pais].join(" "));
+        const text = normalize([opa.tipo, opa.nucleo_alianca, opportunityScopeLabel(opa), opa.localizacao, opa.pais].join(" "));
         if (/(global|internacional|exterior|fora do brasil|outside brazil)/.test(text)) return "Global";
         if (/(nacional|brasil|brazil)/.test(text)) return "Nacional";
         return "Regional";
@@ -26072,7 +26074,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const normalizedCellId = String(cellId || "").trim();
     const normalizedMarketCode = String(marketCode || "").trim().toUpperCase();
     if (!normalizedCellId) {
-      if (normalizedMarketCode) throw Object.assign(new Error("Escolha uma Célula antes do Tipo de negócio."), { status: 400 });
+      if (normalizedMarketCode) throw Object.assign(new Error("Escolha uma Célula antes da tese de interesse."), { status: 400 });
       return { cellId: null, typeCode: null, marketCode: null };
     }
     await ensureStrategicCellTables();
@@ -26089,7 +26091,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     `);
     const cell = result.rows?.[0] as any;
     if (!cell) throw Object.assign(new Error("Célula não encontrada ou inativa."), { status: 400 });
-    if (normalizedMarketCode && !cell.market_valid) throw Object.assign(new Error("O Tipo de negócio não pertence à Célula escolhida."), { status: 400 });
+    if (normalizedMarketCode && !cell.market_valid) throw Object.assign(new Error("A tese de interesse não pertence à Célula escolhida."), { status: 400 });
     if (biaId) {
       const communityIds = await communityIdsForBia(biaId);
       if (!communityIds.includes(String(cell.community_id))) throw Object.assign(new Error("A Célula escolhida não pertence a uma Comunidade desta BIA."), { status: 403 });

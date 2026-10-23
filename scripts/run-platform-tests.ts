@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const roots = ["client/src", "server", "shared"];
+const roots = ["client/src", "server", "shared", "scripts"];
 
 const collectTests = (directory: string): string[] => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
   const absolute = path.join(directory, entry.name);

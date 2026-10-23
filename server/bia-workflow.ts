@@ -26,7 +26,7 @@ export function validateBiaDraft(body:any) {
   const allowed = ["nome_bia","objetivo_alianca","destinacao","moeda","localizacao","latitude","longitude","observacoes","map_inicial","imagem_directus_id","anexos","selo_certified_alliance","info_comercial","valor_geral_venda_vgv","valor_realizado_venda","comissao_prevista_corretor","ir_previsto","inss_previsto","manutencao_pos_obra_prevista"];
   const data = Object.fromEntries(allowed.filter(k=>body[k] !== undefined).map(k=>[k,body[k]]));
   if (body.business_type_code !== undefined) {
-    if (typeof body.business_type_code !== "string" || (body.business_type_code !== "" && !STRATEGIC_CELL_BUSINESS_TYPES.some(([, code]) => code === body.business_type_code))) throw failure("Escolha um tipo de negócio válido.",400);
+    if (typeof body.business_type_code !== "string" || (body.business_type_code !== "" && !STRATEGIC_CELL_BUSINESS_TYPES.some(([, code]) => code === body.business_type_code))) throw failure("Escolha uma tese de interesse válida.",400);
     data.business_type_code = body.business_type_code;
     data.objetivo_alianca = biaBusinessTypeStoragePayload(body).objetivo_alianca;
   }
@@ -40,7 +40,7 @@ export function validateBiaDraft(body:any) {
   if (!String(data.nome_bia || "").trim() || String(data.nome_bia).length > 200) throw failure("Informe o nome da BIA (até 200 caracteres).",400);
   if (!CURRENCIES.some(c=>c.code===data.moeda)) throw failure("Escolha uma moeda válida.",400);
   if (data.destinacao && !BIA_DESTINACOES.includes(data.destinacao)) throw failure("Escolha uma destinação válida.",400);
-  if (data.objetivo_alianca && !biaBusinessTypeCode(data) && !BIA_OBJETIVOS.includes(data.objetivo_alianca)) throw failure("Escolha um tipo de negócio válido.",400);
+  if (data.objetivo_alianca && !biaBusinessTypeCode(data) && !BIA_OBJETIVOS.includes(data.objetivo_alianca)) throw failure("Escolha uma tese de interesse válida.",400);
   for (const [field,limit] of [["latitude",90],["longitude",180]] as const) {
     if (data[field] != null && (!Number.isFinite(data[field]) || Math.abs(data[field])>limit)) throw failure("Localização inválida.",400);
   }

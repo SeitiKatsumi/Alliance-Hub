@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "bia-objective-labels",
+      "description": "Objetivo da Aliança foi substituído pela tese canônica; não voltar a exibir o conceito antigo.",
+      "terms": ["Objetivo da Aliança", "Alocação por tipo de negócio"],
+      "roots": ["client/src", "server", "shared"],
+      "regressionTests": ["shared/bia-business-type.test.ts", "client/src/lib/bia-thesis-consumers.test.ts"],
+      "exceptions": [
+        {
+          "file": "shared/public-labels.ts",
+          "line": "if (key === \"Market\" && /^(?:tipos? de negocios?|objetivo da alianca)$/.test(normalized || \"\")) return PUBLIC_LABELS.Market;",
+          "reason": "Adaptador de nomes públicos persistidos ou em cache; apresenta a tese sem migrar dados nem apagar nomes personalizados."
+        },
+        {
+          "file": "server/routes.ts",
+          "line": "\"objetivo da alianca\": campos.teseInteresse,",
+          "reason": "Adaptador para placeholders de templates antigos, resolvidos com a tese canônica atual."
+        },
+        {
+          "file": "server/routes.ts",
+          "line": "[/\\bA exploração econômica (?:será destinada ao objetivo da aliança|seguirá o tipo de negócio|seguirá a tese de interesse):/g, (match) => protect(match)],",
+          "reason": "Formatador preserva a integridade de documentos históricos, sem reescrever aceites ou versões assinadas."
+        }
+      ]
+    },
+    {
+      "id": "bia-thesis-selector",
+      "description": "Nomenclatura pública da taxonomia é Tese de interesse em todos os consumidores, inclusive demandas, relatório, erros e PDFs.",
+      "terms": ["Tipo de negócio", "Tipos de negócio"],
+      "roots": ["client/src", "server", "shared"],
+      "regressionTests": ["client/src/pages/bia-creation.test.ts", "client/src/components/bia-review-summary.test.ts", "shared/public-labels.test.ts", "client/src/data/platform-functional-report.test.ts"],
+      "exceptions": [
+        {"file": "server/routes.ts", "line": "\"tipo de negocio\": campos.teseInteresse,", "reason": "Placeholder antigo continua resolvendo a tese canônica; novos templates usam Tese de interesse."},
+        {"file": "server/routes.ts", "line": "[/\\bA exploração econômica (?:será destinada ao objetivo da aliança|seguirá o tipo de negócio|seguirá a tese de interesse):/g, (match) => protect(match)],", "reason": "Formatador de documentos históricos preserva os textos já emitidos e assinados."}
+      ]
+    },
+    {
+      "id": "bia-report-objective-description",
+      "description": "Relatório funcional não descreve a visão geral da BIA pelo objetivo retirado.",
+      "terms": ["Objetivo, localização"],
+      "roots": ["client/src/data/platform-functional-report.ts"],
+      "regressionTests": ["client/src/data/platform-functional-report.test.ts"],
+      "exceptions": []
+    }
+  ]
+}

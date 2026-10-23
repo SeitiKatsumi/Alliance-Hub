@@ -28,3 +28,11 @@ test("resumo do relatório corresponde aos itens documentados", () => {
     features.length,
   );
 });
+
+test("relatório usa tese de interesse na BIA sem renomear objetivo patrimonial", () => {
+  const features = PLATFORM_FUNCTIONAL_MODULES.flatMap((module) => module.features);
+  const bia = features.find((feature) => feature.id === "bia-visao-geral")!;
+  assert.match(bia.description, /Tese de interesse/);
+  assert.doesNotMatch(bia.description, /objetivo|tipo de neg[oó]cio/i);
+  assert.match(features.find((feature) => feature.id === "carteira-imoveis")!.description, /objetivo/);
+});

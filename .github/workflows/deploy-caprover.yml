@@ -1,13 +1,16 @@
 name: Validar e publicar no CapRover
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
   workflow_dispatch:
 
 concurrency:
-  group: caprover-production
+  group: caprover-${{ github.event.pull_request.number || 'production' }}
   cancel-in-progress: true
 
 permissions:
@@ -22,6 +25,8 @@ jobs:
     steps:
       - name: Baixar codigo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -32,18 +37,23 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Validar contrato da plataforma
-        run: npm run platform:contract
+      - name: Exigir revisao transversal do diff
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          npm run platform:review -- --base "$BASE_SHA" --head HEAD
 
-      - name: Executar testes
-        run: npm run test:all
-
-      - name: Gerar build de producao
-        run: npm run build
+      - name: Validar contrato, conceitos, tipos, testes e build
+        run: npm run platform:verify
 
   deploy:
     name: Publicar no CapRover
     needs: validate
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production

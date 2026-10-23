@@ -38,7 +38,7 @@ export default function BiaNovaPage(){
   const [form,setForm]=useState({...empty,business_type_code:""}),[saved,setSaved]=useState(JSON.stringify({...empty,business_type_code:""}));
   const [revision,setRevision]=useState(0),[step,setStep]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);
   const dirty=JSON.stringify(form)!==saved;
-  const generalPending=[!form.nome_bia?.trim() && "Nome",!form.destinacao && "Destinação",!form.business_type_code && "Tipo de negócio",!form.localizacao?.trim() && "Localização",!form.observacoes?.trim() && "Descrição"].filter(Boolean);
+  const generalPending=[!form.nome_bia?.trim() && "Nome",!form.destinacao && "Destinação",!form.business_type_code && "Tese de interesse",!form.localizacao?.trim() && "Localização",!form.observacoes?.trim() && "Descrição"].filter(Boolean);
   useUnsavedChanges(dirty || busy);
   const members=useQuery<any[]>({queryKey:["/api/membros"]});
   const cppTypes=useQuery<Array<{id:string;Nome:string}>>({queryKey:["/api/tipos-cpp"]});

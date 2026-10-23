@@ -23,7 +23,7 @@ test("nova aliança começa pela tese do próprio perfil e permite revisar sem s
   assert.ok(page.indexOf('<BiaBusinessType', start) < page.indexOf('Nome da BIA *', start));
   assert.match(selector, /preferences\.data\?\.business_type_codes\.includes\(code\)/);
   assert.match(selector, /apiRequest\("PUT", "\/api\/me\/celulas-preferencias"/);
-  assert.match(selector, /Revisar tipos de negócios/);
+  assert.match(selector, /Revisar teses de interesse/);
   assert.match(selector, /setDraft\(\[\.\.\.preferences\.data!\.business_type_codes\]\)/);
   assert.ok(!selector.includes('Dialog'));
   assert.match(selector, /aria-expanded=\{open\}/);

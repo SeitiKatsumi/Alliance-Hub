@@ -86,7 +86,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
       { id: "mapa-obas", title: "Mapa de oportunidades", description: "Visualização geográfica e filtragem das OBAs disponíveis.", status: "disponivel" },
       { id: "interesse-obas", title: "OBAs de interesse", description: "Registro e acompanhamento do interesse do usuário em oportunidades da rede.", status: "disponivel" },
       { id: "bias", title: "BIAs", description: "Criação e gestão das alianças imobiliárias com identificação pública rastreável.", status: "disponivel" },
-      { id: "bia-visao-geral", title: "Visão geral da BIA", description: "Objetivo, localização, tipo, situação, papéis e OBAs relacionadas.", status: "disponivel" },
+      { id: "bia-visao-geral", title: "Visão geral da BIA", description: "Tese de interesse, localização, destinação, situação, papéis e OBAs relacionadas.", status: "disponivel" },
       { id: "bia-diretoria", title: "Diretoria da BIA", description: "Autor, Aliado BUILT, Diretor de Aliança e diretorias Técnica, Obra, Comercial e Capital.", status: "disponivel" },
       { id: "bia-acessos", title: "Acessos por participante", description: "Matriz por usuário com níveis de visualização e edição para módulos internos da BIA.", status: "disponivel" },
       { id: "bia-documentos", title: "Documentos unificados", description: "Arquivos classificados por núcleo e subnúcleo, incluindo os documentos do Capital.", status: "disponivel" },

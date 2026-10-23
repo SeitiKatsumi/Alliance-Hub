@@ -1,4 +1,4 @@
-import { biaBusinessTypeLabel } from "@shared/bia-business-type";
+import { biaBusinessTypeLabel, buildBiaThesisAllocation } from "@shared/bia-business-type";
 ﻿import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
@@ -320,10 +320,6 @@ function canonicalChartLabel(value?: string | null): { key: string; label: strin
   const label = compactLabel(value);
   const key = normalizeText(label).replace(/\s+/g, " ").trim();
   const aliases: Record<string, string> = {
-    operacao: "Operação",
-    venda: "Venda",
-    vendas: "Vendas",
-    renda: "Renda",
     residencial: "Residencial",
     hospedagem: "Hospedagem",
     industrial: "Industrial",
@@ -513,11 +509,11 @@ function PieDistributionCard({ title, data }: { title: string; data: Array<{ nam
               </ResponsiveContainer>
             </div>
             <div className="space-y-2 self-center">
-              {data.slice(0, 5).map((item, index) => (
+              {data.map((item, index) => (
                 <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} />
-                    <span className="truncate">{item.name}</span>
+                    <span className="break-words">{item.name}</span>
                   </span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">{fmtPercent(item.percent)}</span>
                 </div>
@@ -954,7 +950,7 @@ export default function PainelPage() {
     [bias],
   );
   const alocacaoPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
-  const alocacaoPorTipoNegocio = useMemo(() => groupCurrencyBy(bias.map(b=>({...b,tipo_negocio:biaBusinessTypeLabel(b)})), "tipo_negocio"), [bias]);
+  const alocacaoPorTese = useMemo(() => buildBiaThesisAllocation(bias.map(b => ({...b, invested: n(b.investimento_usuario_valor)}))), [bias]);
   const convergenciaMetricsData = useMemo(() => [
     { name: "Oportunidades", value: dashboardStats.convergencias_total },
     { name: "Interesses Manifestados", value: dashboardStats.interesses_manifestados },
@@ -1635,7 +1631,7 @@ export default function PainelPage() {
                 <PieDistributionCard title="Alocação por destinação" data={alocacaoPorDestinacao} />
               </div>
               <div className="xl:col-span-2">
-                <PieDistributionCard title="Alocação por tipo de negócio" data={alocacaoPorTipoNegocio} />
+                <PieDistributionCard title="Alocação por tese de interesse" data={alocacaoPorTese} />
               </div>
             </div>
           )}

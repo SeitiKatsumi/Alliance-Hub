@@ -2,7 +2,7 @@ import { biaBrandDataUrl, buildBiaHeaderSvg, loadBiaBrandArtwork, renderBiaBrand
 import { buildBiaMouFooterText } from "../../../shared/bia-document-footer";
 
 export const biaPdfSections = [
-  {id:"dados",label:"Resumo dos dados",description:"Identificação, tipo de negócio, localização e valores da BIA."},
+  {id:"dados",label:"Resumo dos dados",description:"Identificação, tese de interesse, localização e valores da BIA."},
   {id:"condicoes",label:"Capitalização e integralização",description:"Instrumentos, parcelas, periodicidade, correção e detalhes do plano."},
   {id:"map",label:"MAP Inicial",description:"Participantes, funções, aportes e participações iniciais."},
   {id:"juridico",label:"Estrutura Jurídica",description:"Formalização, responsável, quadro societário e conta."},

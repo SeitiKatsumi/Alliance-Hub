@@ -1472,9 +1472,9 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 
             {/* Details row */}
             <div className="flex items-start gap-6">
-              {/* Left: objetivo + OBAs */}
+              {/* Left: tese + OBAs */}
               <div className="flex-1 min-w-0 space-y-2">
-                {selectedBia.objetivo_alianca && (
+                {biaBusinessTypeLabel(selectedBia) && (
                   <p className="text-[10px] text-brand-gold/45 leading-relaxed line-clamp-2">{biaBusinessTypeLabel(selectedBia)}</p>
                 )}
                 {(() => {
@@ -2386,7 +2386,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         localizacao: form.localizacao.trim() || null,
         latitude: form.latitude ?parseFloat(form.latitude) : null,
         longitude: form.longitude ?parseFloat(form.longitude) : null,
-        ...(form.business_type_code ? {business_type_code:form.business_type_code} : {objetivo_alianca:form.objetivo_alianca.trim() || null}),
+        ...(form.business_type_code ? {business_type_code:form.business_type_code} : {}),
         observacoes: form.observacoes.trim() || null,
         autor_bia: form.autor_bia || null,
         aliado_built: form.aliado_built || null,
@@ -2580,7 +2580,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     if (!isEdit) {
       if (!form.destinacao.trim()) missing.push("Destinação");
       if (!form.localizacao.trim()) missing.push("Localização");
-      if (!form.business_type_code) missing.push("Tipo de negócio");
+      if (!form.business_type_code) missing.push("Tese de interesse");
       if (!form.observacoes.trim()) missing.push("Observações");
       if (parseBRLToNumber(form.valor_geral_venda_vgv) <= 0) missing.push("VGV");
     }
@@ -3026,7 +3026,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <TabsContent value="equipe" forceMount className="min-w-0 space-y-5 data-[state=inactive]:hidden"><h2 className="text-xl font-semibold">{BIA_CREATION_STEPS[1]}</h2><p className="text-sm text-muted-foreground">Use Editar composição para atualizar a BEI, as pessoas e suas funções. A revisão econômica é salva aqui, separadamente dos dados cadastrais. Convites pendentes podem existir sem participação no MAP; gerencie-os na lista abaixo.</p><BiaPartnersStatus biaId={bia.id}/>{hasBiaAccess(access,"capital_calculadora","view")?(economicOpened && <BiaMapZero biaId={bia.id} readOnly={readOnly}/>):<p>Você não tem acesso à composição econômica desta BIA.</p>}</TabsContent>
               <TabsContent value="map" className="space-y-5"><h2 className="text-xl font-semibold">MAP Inicial</h2><p className="text-sm text-muted-foreground">Consulte as versões preservadas e seus documentos. A composição é editada na área {BIA_CREATION_STEPS[1]}.</p>{hasBiaAccess(access,"capital_calculadora","view")?<BiaMapHistory biaId={bia.id} initialOnly pdfCode={bia.codigo_publico}/>:<p>Você não tem acesso ao MAP desta BIA.</p>}</TabsContent>
               <div hidden={activeTab!=="juridico" && activeTab!=="ativos" && activeTab!=="orcamento"}>{setupOpened && <SetupEditor biaName={form.nome_bia} biaId={bia.id} moeda={bia.moeda || "BRL"} members={memberNames} readOnly={readOnly} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem} section={activeTab==="orcamento"?"orcamento":activeTab==="ativos"?"ativos":"juridico"}/>}</div>
-              <TabsContent value="revisao" className="space-y-6"><h2 className="text-xl font-semibold">Resumo dos dados</h2><p className="text-sm text-muted-foreground">Este salvamento atualiza somente os Dados da BIA. A BEI e a estrutura jurídica/ativos e o orçamento possuem confirmação e revisão próprias nas respectivas áreas.</p><dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{[["Nome da BIA",form.nome_bia],["Destinação",form.destinacao],["Moeda",form.moeda],["Tipo de negócio",biaBusinessTypeLabel(form)],["Localização",form.localizacao],["Descrição",form.observacoes],["Anexos",String(existingAnexos.length+pendingFiles.length)]].map(([label,value])=><div key={label} className="min-w-0 border-b pb-3"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value || "Não informado"}</dd></div>)}</dl><Button variant="outline" onClick={()=>changeSection("geral")}>Revisar dados</Button><p role="status" className="text-sm text-muted-foreground">{identityDirty?"Há alterações nos dados ainda não salvas.":"Nenhuma alteração pendente nos dados cadastrais."}</p><BiaBudgetReadPanel biaId={bia.id} moeda={bia.moeda || "BRL"} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem}/><Button type="button" variant="outline" onClick={()=>changeSection("orcamento")}>Revisar CAPEX e OPEX</Button></TabsContent>
+              <TabsContent value="revisao" className="space-y-6"><h2 className="text-xl font-semibold">Resumo dos dados</h2><p className="text-sm text-muted-foreground">Este salvamento atualiza somente os Dados da BIA. A BEI e a estrutura jurídica/ativos e o orçamento possuem confirmação e revisão próprias nas respectivas áreas.</p><dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">{[["Nome da BIA",form.nome_bia],["Destinação",form.destinacao],["Moeda",form.moeda],["Tese de interesse",biaBusinessTypeLabel(form)],["Localização",form.localizacao],["Descrição",form.observacoes],["Anexos",String(existingAnexos.length+pendingFiles.length)]].map(([label,value])=><div key={label} className="min-w-0 border-b pb-3"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value || "Não informado"}</dd></div>)}</dl><Button variant="outline" onClick={()=>changeSection("geral")}>Revisar dados</Button><p role="status" className="text-sm text-muted-foreground">{identityDirty?"Há alterações nos dados ainda não salvas.":"Nenhuma alteração pendente nos dados cadastrais."}</p><BiaBudgetReadPanel biaId={bia.id} moeda={bia.moeda || "BRL"} valorOrigem={editMapQuery.isError?undefined:editMapQuery.data?.valorOrigem}/><Button type="button" variant="outline" onClick={()=>changeSection("orcamento")}>Revisar CAPEX e OPEX</Button></TabsContent>
               <TabsContent value="ativacao" className="space-y-5"><h2 className="text-xl font-semibold">Situação da BIA</h2><Badge variant="secondary">{biaPhaseLabel(form.situacao)}</Badge><p>Salvar uma edição não ativa a BIA, não muda sua fase e não repete aceites. Consulte os convites, documentos e controles de fase na página da aliança.</p><Button variant="outline" onClick={closeEditor}>Ver situação na página da BIA</Button></TabsContent>
             </>}
           </Tabs>

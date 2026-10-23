@@ -30,7 +30,10 @@
     "platform:impact": "tsx scripts/platform-impact.ts",
     "platform:inventory": "tsx scripts/generate-platform-inventory.ts",
     "platform:contract": "tsx scripts/platform-verify.ts",
-    "platform:verify": "npm run platform:contract && npm run check && npm run test:all && npm run build",
+    "platform:consistency": "tsx scripts/platform-consistency.ts",
+    "platform:review": "tsx scripts/platform-consistency.ts --review",
+    "platform:tooling": "tsc -p scripts/tsconfig.platform.json",
+    "platform:verify": "npm run platform:contract && npm run platform:consistency && npm run platform:tooling && npm run check && npm run test:all && npm run build",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

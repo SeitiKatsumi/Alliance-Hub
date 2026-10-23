@@ -11,6 +11,7 @@ Este diretório documenta o comportamento que precisa permanecer coerente entre 
 3. Rode `npm run platform:impact -- <termo>` antes de alterar código.
 4. Depois da mudança, rode os testes indicados pelo comando.
 5. Atualize o contrato quando uma regra, interface ou fonte de verdade mudar.
+6. Registre a revisão transversal e execute os gates conforme [Mudanças de ponta a ponta](./CHANGE_SAFETY.md). Renomeações e remoções mantêm guardas contra regressão, não apenas um checklist textual.
 
 ## Documentos globais
 
@@ -18,6 +19,8 @@ Este diretório documenta o comportamento que precisa permanecer coerente entre 
 - [Fontes de verdade](./SOURCES_OF_TRUTH.md)
 - [Glossário](./GLOSSARY.md)
 - [Contrato estruturado](./platform-contract.json)
+- [Revisão transversal e bloqueio de entrega](./CHANGE_SAFETY.md)
+- [Catálogo de conceitos descontinuados](./deprecations.json)
 - [Inventario de rotas frontend](./generated/FRONTEND_ROUTES.md)
 - [Inventario de endpoints da API](./generated/API_ENDPOINTS.md)
 - [Inventario de armazenamentos](./generated/DATA_STORES.md)

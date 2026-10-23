@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["lib/platform-change-safety.ts", "platform-consistency.ts", "platform-impact.ts", "platform-change-safety.test.ts"],
+  "exclude": []
+}

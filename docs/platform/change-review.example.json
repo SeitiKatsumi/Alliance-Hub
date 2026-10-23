@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "id": "substituir-por-id-da-mudanca",
+  "title": "Descrever a mudança e seu alcance real",
+  "status": "pending",
+  "kind": "rename",
+  "sourceOfTruth": ["shared/fonte-real.ts"],
+  "searchTerms": ["Nome antigo", "Nome novo", "identificador_tecnico"],
+  "consumers": [{"path": "client/src/consumidor-real.tsx", "decision": "pending", "reason": "Registrar a decisão após revisar este consumidor."}],
+  "areas": [
+    {"area": "interface", "status": "pending", "evidence": "Conferir cadastro, edição, lista, detalhes, filtros, busca e mobile."},
+    {"area": "api", "status": "pending", "evidence": "Conferir produtores, consumidores e contratos de entrada/saída."},
+    {"area": "dados", "status": "pending", "evidence": "Conferir PostgreSQL, Directus, caches e necessidade de migração."},
+    {"area": "calculos-graficos", "status": "pending", "evidence": "Conferir agrupamentos, legenda, base, percentuais e totais."},
+    {"area": "notificacoes-emails", "status": "pending", "evidence": "Conferir mensagens, destinatários, links, contadores e templates."},
+    {"area": "documentos-relatorios", "status": "pending", "evidence": "Conferir novos PDFs, exports, relatórios e preservar assinados."},
+    {"area": "integracoes-tarefas", "status": "pending", "evidence": "Conferir webhooks, cron, jobs e serviços externos relacionados."},
+    {"area": "permissoes", "status": "pending", "evidence": "Conferir autorização no backend e isolamento entre usuários."},
+    {"area": "legado", "status": "pending", "evidence": "Definir compatibilidade e tratamento dos registros existentes."},
+    {"area": "testes", "status": "pending", "evidence": "Registrar comandos/resultados e pendências de validação real."}
+  ],
+  "regressionTests": ["shared/fonte-real.test.ts"],
+  "deprecationRuleIds": ["id-real-no-catalogo"]
+}

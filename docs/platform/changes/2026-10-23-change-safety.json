@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "2026-10-23-change-safety",
+  "title": "Exigir revisão transversal, guardar conceitos removidos e bloquear publicação incompleta",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": ["AGENTS.md", "docs/platform/CHANGE_SAFETY.md", "scripts/lib/platform-change-safety.ts", "docs/platform/deprecations.json"],
+  "searchTerms": ["platform:consistency", "platform:review", "platform-change-safety"],
+  "consumers": [
+    {"path": "AGENTS.md", "decision": "updated", "reason": "Exige alcance global, registro do diff e gates sem atestar trabalho paralelo não revisado."},
+    {"path": "package.json", "decision": "updated", "reason": "Disponibiliza guardas, revisão estrita e typecheck das ferramentas; integra a verificação completa."},
+    {"path": "scripts/platform-impact.ts", "decision": "updated", "reason": "Varre referências no repositório e segue imports/reexports transitivos além do contrato manual."},
+    {"path": "scripts/lib/platform-change-safety.ts", "decision": "updated", "reason": "Centraliza inventário seguro, grafo, catálogo de depreciações e validação dos registros de revisão."},
+    {"path": "scripts/platform-consistency.ts", "decision": "updated", "reason": "Executa guardas e revisão de working tree, índice exato ou intervalo imutável de commits."},
+    {"path": "scripts/platform-change-safety.test.ts", "decision": "updated", "reason": "Testa situações positivas e negativas, consumidores esquecidos, exceções, remoções e versões Git."},
+    {"path": "scripts/tsconfig.platform.json", "decision": "updated", "reason": "Aplica TypeScript estrito ao novo tooling e seus testes, sem incluir scripts legados alheios."},
+    {"path": "scripts/run-platform-tests.ts", "decision": "updated", "reason": "Inclui testes das ferramentas em test:all para não deixar a própria trava sem validação."},
+    {"path": ".github/workflows/deploy-caprover.yml", "decision": "updated", "reason": "Valida diff e suíte completa em PR/push; deploy depende da validação e nunca executa em PR."},
+    {"path": "docs/platform/README.md", "decision": "updated", "reason": "Encaminha mudanças futuras ao procedimento, modelo e catálogo de conceitos descontinuados."},
+    {"path": "docs/platform/CHANGE_SAFETY.md", "decision": "updated", "reason": "Documenta execução, limites semânticos, árvores sujas, proteção de main e exceções históricas."},
+    {"path": "docs/platform/change-review.example.json", "decision": "updated", "reason": "Modelo inicia pendente e exige evidência nas dez áreas, sem aprovação pré-preenchida."},
+    {"path": "docs/platform/deprecations.json", "decision": "updated", "reason": "Primeiras guardas protegem a substituição de Objetivo da Aliança por teses, com exceções exatas."},
+    {"path": "docs/platform/platform-contract.json", "decision": "updated", "reason": "Regra transversal relaciona a nova revisão aos onze módulos sem mudar o domínio de negócio."}
+  ],
+  "areas": [
+    {"area": "interface", "status": "not-applicable", "evidence": "Este diff altera tooling e documentação, sem nova interface ou texto informativo no produto."},
+    {"area": "api", "status": "not-applicable", "evidence": "Nenhuma rota ou payload de aplicação alterado; todos os comandos operam arquivos e Git locais."},
+    {"area": "dados", "status": "verified", "evidence": "Sem acesso ao PostgreSQL/Directus; inventário ignora env, logs e artefatos; leituras Git são exatas."},
+    {"area": "calculos-graficos", "status": "not-applicable", "evidence": "Não muda valores ou cálculos; catálogo aponta para testes já existentes de teses e percentuais."},
+    {"area": "notificacoes-emails", "status": "not-applicable", "evidence": "Nenhum envio ou template de mensagem; a área permanece obrigatória nos registros futuros."},
+    {"area": "documentos-relatorios", "status": "verified", "evidence": "AGENTS, guia, modelo e contrato atualizados; nenhum documento assinado ou dado histórico é regravado."},
+    {"area": "integracoes-tarefas", "status": "verified", "evidence": "Workflow exige revisão e platform:verify antes do deploy; configuração local, sem push/deploy neste pedido."},
+    {"area": "permissoes", "status": "verified", "evidence": "Mantém contents:read e ambiente production; PR não recebe deploy, não altera branch protection externa."},
+    {"area": "legado", "status": "verified", "evidence": "Preserva adaptações históricas por linha exata, dados ambíguos e trabalhos paralelos sem autoaprovação."},
+    {"area": "testes", "status": "verified", "evidence": "platform:verify exit0: 507 testes, tipos de app/tooling, contrato e build aprovados. Os 13 testes novos incluem falhas esperadas e snapshots Git. Registro deste trabalho passou isoladamente; diff local completo segue bloqueado por revisões paralelas ausentes."}
+  ],
+  "regressionTests": ["scripts/platform-change-safety.test.ts", "shared/bia-business-type.test.ts", "client/src/lib/bia-thesis-consumers.test.ts"],
+  "deprecationRuleIds": ["bia-objective-labels", "bia-thesis-selector"]
+}

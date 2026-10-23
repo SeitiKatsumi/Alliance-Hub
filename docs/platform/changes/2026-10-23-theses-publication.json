@@ -1,0 +1,439 @@
+{
+  "version": 1,
+  "id": "2026-10-23-theses-publication",
+  "title": "Publicação isolada das teses de interesse, alocação, MOU e nomes públicos",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "shared/strategic-cells.ts",
+    "shared/bia-business-type.ts",
+    "shared/public-labels.ts"
+  ],
+  "searchTerms": [
+    "Objetivo da Aliança",
+    "Tipo de negócio",
+    "Tipos de negócio",
+    "Tese de interesse",
+    "buildBiaThesisAllocation"
+  ],
+  "consumers": [
+    {
+      "path": "scripts/platform-change-safety.test.ts",
+      "decision": "reviewed",
+      "reason": "Testes negativos da guarda usam os nomes descontinuados como fixtures; não são rótulos de interface. Os treze testes da ferramenta passaram no snapshot publicado."
+    },
+    {
+      "path": "client/src/components/admin-commercial-policies.tsx",
+      "decision": "updated",
+      "reason": "Título da taxonomia agora usa teses; sem alterar políticas ou permissões."
+    },
+    {
+      "path": "client/src/components/ai-insights-block.tsx",
+      "decision": "updated",
+      "reason": "Insights e contexto da IA recebem o rótulo canônico, não objetivos legados."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "updated",
+      "reason": "Seleção e revisão de preferências usam tese; catálogo e endpoint preservados."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "updated",
+      "reason": "Propaga business_type_code ao resumo e usa título de tese em tela/PDF."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "updated",
+      "reason": "Somente nomenclatura do seletor e opção geral; alteração paralela de busca de nomes excluída."
+    },
+    {
+      "path": "client/src/components/bia-review-summary.tsx",
+      "decision": "updated",
+      "reason": "Resumo da BIA usa rótulo canônico de tese."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Somente descrição da visão geral da BIA; expansão paralela do relatório não integra este commit."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "updated",
+      "reason": "Regressão da descrição da BIA e preservação do objetivo independente dos imóveis, sem depender da expansão paralela."
+    },
+    {
+      "path": "client/src/hooks/use-public-labels.ts",
+      "decision": "updated",
+      "reason": "Mesmo adaptador de aliases aplicado a rótulos em cache."
+    },
+    {
+      "path": "client/src/lib/print-bia-summary.ts",
+      "decision": "updated",
+      "reason": "Descrição da seção de identificação usa tese; demais seções e cálculos preservados."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Cabeçalho usa tese válida; OBAs usam helper de escopo livre independente."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Validação do formulário nomeia tese sem alterar composição ou papéis."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Lista/revisão usam tese; edição sem escolha nova omite campo para preservar valor legado armazenado."
+    },
+    {
+      "path": "client/src/pages/diretoria-alianca.tsx",
+      "decision": "updated",
+      "reason": "Rótulo e descrição da diretoria alinhados às teses de interesse."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "updated",
+      "reason": "Somente erro de carregamento renomeado; preferências mantidas."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "updated",
+      "reason": "Rótulo do seletor usa tese; vínculo de célula e payload mantidos."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Preserva exibição de escopo livre da OBA, separado da tese BIA."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "updated",
+      "reason": "Pesquisa continua incluindo escopo livre das OBAs."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Alocação agrupa por código canônico e mantém capital legado em Tese não definida; legenda completa sem corte em cinco categorias."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Escopo livre da OBA preservado no detalhe público, sem alterar autorização."
+    },
+    {
+      "path": "server/assets/bia-mou-padrao.txt",
+      "decision": "updated",
+      "reason": "Template de novos documentos usa Tese de interesse; documentos emitidos não são regravados."
+    },
+    {
+      "path": "server/assets/mou-padrao/mou-padrao-built.txt",
+      "decision": "updated",
+      "reason": "Segunda fonte do template sincronizada com tese e placeholder novo."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "updated",
+      "reason": "Mensagens usam tese; leitura/validação compatível dos rascunhos antigos preservada."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Revistos os deltas de MOU, aliases/destinação, contexto IA, escopo OBA, conclusão de rascunho e nomes públicos. Código canônico exigido antes de iniciar conclusão; retomada idempotente preservada. GET/PUT de labels usam helper sem ampliar acesso."
+    },
+    {
+      "path": "shared/bia-business-type.ts",
+      "decision": "updated",
+      "reason": "Fonte canônica e agrupamento centralizados; valores legados não são classificados por suposição; escopo OBA separado."
+    },
+    {
+      "path": "shared/public-labels.ts",
+      "decision": "updated",
+      "reason": "Normaliza somente aliases descontinuados de Market, preservando códigos e nomes personalizados."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Apenas nota da nomenclatura incluída; auditoria funcional paralela não publicada."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Contrato descreve fonte canônica, consumidores e preservação de legados."
+    },
+    {
+      "path": "docs/platform/modules/inicio-gestao.md",
+      "decision": "updated",
+      "reason": "Registra agrupamento e percentuais por tese no painel."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Registra nomenclatura pública atual sem reclassificar preferências."
+    },
+    {
+      "path": "docs/platform/SOURCES_OF_TRUTH.md",
+      "decision": "updated",
+      "reason": "Documenta campo físico compatível e fonte única da alocação."
+    },
+    {
+      "path": "client/src/components/bia-review-summary.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "client/src/lib/bia-thesis-consumers.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "client/src/pages/bia-creation.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "server/bia-workflow.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "shared/bia-business-type.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "shared/public-labels.test.ts",
+      "decision": "updated",
+      "reason": "Regressão do produtor/consumidor alterado: nomenclatura, dados canônicos, compatibilidade, MOU, gráfico ou autorização; incluída no test:all do snapshot selecionado."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Composição de páginas e hook; não altera navegação nem permissões."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "reviewed",
+      "reason": "Onboarding já apresenta teses; códigos das escolhas preservados."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "reviewed",
+      "reason": "Reutiliza impressão; revisões/documentos históricos não são regravados."
+    },
+    {
+      "path": "client/src/components/bia-pdf-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "Recebe descrição atualizada de biaPdfSections, sem mudar seleção de seções."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Entrada da aplicação, consumidor transitivo; inicialização inalterada."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "reviewed",
+      "reason": "Hospeda taxonomia com autorização existente."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "Compõe lista BIA e OBA; recebe helpers corrigidos."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Compõe editor da BIA; persistência compatível mantida."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Usa lista/área de oportunidades corrigida; mudanças paralelas de busca ficam fora."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "reviewed",
+      "reason": "Consome oportunidades; escopo livre preservado pelo helper separado."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "reviewed",
+      "reason": "Preferências de teses já canônicas; hook só normaliza nome Market."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "reviewed",
+      "reason": "Usa ContributionArea; adaptador restrito a Market, sem mudar autenticação."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "reviewed",
+      "reason": "Consome exportação da BIA; renomeação de descrição não altera valores ou transferências."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "reviewed",
+      "reason": "Versão publicada continua renderizando inventário compartilhado; expansão paralela excluída."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "reviewed",
+      "reason": "Usa hook público de ContributionArea; sem reclassificação ou novos acessos."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "reviewed",
+      "reason": "Continua validando contrato; mapeamentos selecionados não dependem de arquivos da agenda paralela."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "reviewed",
+      "reason": "Entrada das rotas; sem alterar inicialização, sessões ou tarefas."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "reviewed",
+      "reason": "Busca de objetivo/labels e revisão de templates não encontrou dependência do antigo objetivo BIA; nenhum envio real."
+    },
+    {
+      "path": "server/agenda-alerts.ts",
+      "decision": "reviewed",
+      "reason": "Sem dependência do antigo objetivo; nenhuma alteração de destinatários, estados ou envio."
+    },
+    {
+      "path": "shared/strategic-cells.ts",
+      "decision": "reviewed",
+      "reason": "Catálogo canônico das treze teses preservado."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "reviewed",
+      "reason": "Campos físicos objetivo_alianca preservados; nenhuma migração."
+    },
+    {
+      "path": "shared/bia-form-options.ts",
+      "decision": "reviewed",
+      "reason": "BIA_OBJETIVOS mantido apenas para validar rascunhos legados, não como seletor ativo."
+    },
+    {
+      "path": "server/bia-map-creation.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "server/bia-phase-readiness.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "shared/bia-budget.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "shared/bia-form-options.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "shared/bia-setup.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "shared/contribution-areas.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "client/src/pages/meu-perfil-layout.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    },
+    {
+      "path": "client/src/pages/comunidade-celulas.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor/regressão existente de workflow, storage ou nomes; executado no snapshot selecionado sem incluir deltas paralelos."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Seletores, cabeçalhos, dados/revisão BIA, demandas, perfil, administração e relatório usam tese. Conferência local anterior de relatório desktop/mobile390; gráfico vazio na conta real e treze categorias cobertas por renderização SSR. Sem alegar dados reais inexistentes."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Deltas de rotas revisados: código canônico, conclusão de rascunho, aliases de MOU, escopo OBA e labels GET/PUT; handlers reais exercitados isoladamente pelos testes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Não executa migrações nem reclassifica dados. Campo físico legado é adaptador; edição sem nova escolha preserva valor, novos rascunhos usam código canônico."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "buildBiaThesisAllocation conserva investimento positivo finito, agrupa código canônico e mantém não classificados no denominador; testes verificam treze categorias, legenda, totais e percentuais."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Mailer e alertas não usam objetivo BIA; destinatários e transporte preservados, nenhum envio real realizado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Ambos os templates, interpolação MOU, dados PDF e descrição funcional corrigidos. Documentos já emitidos/assinados e snapshots permanecem intactos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Push autorizado para main aciona o workflow existente com novos gates; não há deploy manual, rollback ou mudança de integração. Tooling está documentado no registro change-safety."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "PUT de nomes mantém isAdminRequest antes de acesso ao banco; teste 403 sem escrita. Seletores, gráficos e documentos continuam usando escopos autorizados existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Sem deduzir tese de Renda/Venda/Operação. OBA texto livre e objetivo patrimonial de imóveis são domínios independentes. Placeholders e formatação histórica têm exceções exatas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Snapshot isolado dos 53 arquivos selecionados, árvore 3e3b242ff84986dfd5f54f94a6e933bcd657826c: platform:verify exit0, 500 testes aprovados, zero falhas, tipos app/tooling, contrato, guarda e build. Depois desta execução foi adicionado somente este registro de revisão. Teste do relatório isolado da expansão paralela. Log local: .BUILT-tmp/publish-theses-exact-verify.log."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-review-summary.test.ts",
+    "client/src/lib/bia-thesis-consumers.test.ts",
+    "client/src/pages/bia-creation.test.ts",
+    "server/bia-draft-api.test.ts",
+    "server/bia-workflow.test.ts",
+    "shared/bia-business-type.test.ts",
+    "shared/public-labels.test.ts",
+    "client/src/data/platform-functional-report.test.ts",
+    "server/mailer.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "bia-objective-labels",
+    "bia-thesis-selector",
+    "bia-report-objective-description"
+  ]
+}

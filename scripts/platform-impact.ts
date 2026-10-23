@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PLATFORM_FUNCTIONAL_MODULES } from "../client/src/data/platform-functional-report";
+import { readSources, findReferences, importGraph, downstream } from "./lib/platform-change-safety";
 
 interface ContractModule {
   id: string;
@@ -43,6 +44,17 @@ if (!query) {
 }
 
 const root = process.cwd();
+const sources = readSources(root);
+const references = findReferences(sources, [query]);
+const seeds = [...new Set([...(sources.has(query) ? [query] : []), ...references.map(item => item.file)])];
+const consumers = downstream(importGraph(sources), seeds);
+console.log(`\nVarredura global: ${sources.size} arquivos de código/configuração/documentação (inclui novos não ignorados).`);
+console.log("Exclui credenciais, logs, dependências, binários, saídas geradas e experimentos locais.");
+console.log("Referências diretas (arquivo:linhas):");
+references.forEach(item => console.log(`- ${item.file}:${item.lines.join(",")}`));
+console.log("Consumidores transitivos por import/reexport:");
+consumers.forEach(file => console.log(`- ${file}`));
+console.log("Revisar também conexões por API, SQL/Directus, templates, notificações e tarefas: importação não prova cobertura semântica completa.\n");
 const contract = JSON.parse(
   fs.readFileSync(path.join(root, "docs/platform/platform-contract.json"), "utf8"),
 ) as PlatformContract;
@@ -73,14 +85,15 @@ const scored = contract.modules.map((module) => {
     ...(functional ? [functional.title, functional.summary] : []),
     ...features.flatMap((feature) => [feature.id, feature.title, feature.description]),
   ].map(normalize);
-  const exact = fields.some((field) => field.includes(normalizedQuery));
+  const dependencyHit = [...module.frontendFiles, ...module.backendFiles, ...module.tests].some(file => seeds.includes(file) || consumers.includes(file));
+  const exact = dependencyHit || fields.some((field) => field.includes(normalizedQuery));
   const tokenHits = queryTokens.filter((token) => fields.some((field) => field.includes(token))).length;
   const crossHit = crossMatches.some((rule) => rule.modules.includes(module.id));
   return { module, functional, features, score: (exact ? 100 : 0) + tokenHits * 10 + (crossHit ? 5 : 0) };
 }).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score);
 
 if (scored.length === 0) {
-  console.error(`Nenhum impacto encontrado para: ${query}`);
+  console.error(`Nenhum módulo mapeado para: ${query}. A busca global acima continua válida; registre o alcance antes de concluir.`);
   console.error(`Modulos disponiveis: ${contract.modules.map((module) => module.id).join(", ")}`);
   process.exit(2);
 }

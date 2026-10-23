@@ -1,4 +1,4 @@
-import { biaBusinessTypeLabel } from "@shared/bia-business-type";
+import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
@@ -454,7 +454,7 @@ export default function OpaDetalhePage() {
           </div>
 
           {opa.objetivo_alianca && (
-            <p className={`text-sm ${opaCyanTextHeroMuted} mt-3 leading-relaxed max-w-3xl`}>{biaBusinessTypeLabel(opa)}</p>
+            <p className={`text-sm ${opaCyanTextHeroMuted} mt-3 leading-relaxed max-w-3xl`}>{opportunityScopeLabel(opa)}</p>
           )}
         </div>
       </div>

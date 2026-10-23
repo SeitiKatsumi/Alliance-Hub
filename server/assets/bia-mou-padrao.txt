@@ -4,7 +4,7 @@ EMENTA:
 Memorando de Entendimentos de natureza pré-contratual para
 estruturação de BIA — BUILT Integrated Alliance patrimonial
 destinada à aquisição, organização e exploração econômica de
-ativo imobiliário para [Objetivo da Aliança]. Adoção do Método
+ativo imobiliário para [Tese de interesse]. Adoção do Método
 BUILT, da Plataforma BUILT, de regras de governança, rastreabilidade,
 CPPs e MAP. Definição de categorias de participação, direitos
 econômicos, remuneração institucional da BUILT, aportes, rateios,
@@ -25,7 +25,7 @@ adicional], de área [Área (em m²)]m², situado em [Município], [Estado], à
 [Comarca], com todas as suas acessões, frações ideais, características e ônus.
 1.2.1. A descrição registral constante da matrícula integra este MOU por referência,
 sendo vedada qualquer interpretação extensiva a outros ativos.
-1.3. A exploração econômica será destinada à [Objetivo da Aliança].
+1.3. A exploração econômica seguirá a tese de interesse: [Tese de interesse].
 1.4. As partes reconhecem que este instrumento não constitui, por si só, sociedade
 empresária, sociedade de fato, associação, joint venture definitiva, vínculo empregatício,
 relação de consumo ou mandato geral de representação, mas produz efeitos jurídicos

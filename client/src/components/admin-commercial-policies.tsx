@@ -160,7 +160,7 @@ export function AdminCommercialPolicies() {
       <section className="space-y-4 border-y py-5"><h2 className="font-semibold">Nomes públicos</h2>{(labelsQuery.data || []).map((item) => <div key={item.code} className="grid gap-2 sm:grid-cols-[180px_1fr_auto]"><Label className="self-center">{item.code}</Label><Input value={labels[item.code] || ""} onChange={(event) => setLabels({ ...labels, [item.code]: event.target.value })} /><Button variant="outline" onClick={() => labelMutation.mutate(item.code)}>Salvar</Button></div>)}</section>
 
       <section className="space-y-4 border-y py-5">
-        <div><h2 className="font-semibold">Células e tipos de negócio</h2><p className="mt-1 text-xs text-slate-500">Edite a linguagem pública sem alterar os códigos internos.</p></div>
+        <div><h2 className="font-semibold">Células e teses de interesse</h2><p className="mt-1 text-xs text-slate-500">Edite a linguagem pública sem alterar os códigos internos.</p></div>
         {(cellTaxonomyQuery.data || []).map((cell) => {
           const cellDraft = cellTaxonomy[`cell:${cell.code}`];
           return <div key={cell.code} className="space-y-3 rounded-md border p-4">

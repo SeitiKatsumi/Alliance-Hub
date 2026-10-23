@@ -53,7 +53,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
           })))}. Dê insights estratégicos em português sobre qual oportunidade é mais atrativa, qual tem melhor ROI potencial, e uma dica de mercado.`
         : `Analise estas ${data.length} BIAs (Built Intelligence Alliances): ${JSON.stringify(data.map(b => ({
             nome: b.nome_bia,
-            tipo_de_negocio: biaBusinessTypeLabel(b),
+            tese_de_interesse: biaBusinessTypeLabel(b),
             localizacao: b.localizacao
           })))}. Explique em português o potencial de cada aliança, riscos e oportunidades de participação.`;
       
@@ -137,15 +137,15 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
         },
         {
           icon: BarChart3,
-          title: "Tipo de negócio predominante",
+          title: "Tese de interesse predominante",
           description: dominant?.[0] || "Não informado",
           highlight: dominant ? `${dominant[1]} BIAs` : "Nenhum",
           type: "gold"
         },
         {
           icon: TrendingUp,
-          title: "Tipos de negócio",
-          description: `${Object.keys(counts).length} tipos nas alianças`,
+          title: "Teses de interesse",
+          description: `${Object.keys(counts).length} teses nas alianças`,
           highlight: `${Object.keys(counts).length}`,
           type: "info"
         },

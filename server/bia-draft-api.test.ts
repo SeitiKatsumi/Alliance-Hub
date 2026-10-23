@@ -13,6 +13,7 @@ import { transformSync } from "esbuild";
 import { BIA_WORKFLOW_SQL,validateBiaDraft } from "./bia-workflow";
 import { assertMapRevision,mapContentHash } from "./bia-map-history";
 import { hasRequiredBiaTeam } from "../shared/bia-access";
+import { biaBusinessTypeCode } from "../shared/bia-business-type";
 
 test("capa e nome do rascunho sincronizam na criação, edição e repetição após falha sem efeitos financeiros",async()=>{
  const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL+BIA_SETUP_SQL);const db=drizzle(pg);
@@ -76,7 +77,7 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
  const pg=new PGlite();await pg.exec(BIA_WORKFLOW_SQL+BIA_SETUP_SQL);const db=drizzle(pg);
  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.session={directusUserId:req.headers["x-user"]};next();});
  const setup=emptyBiaSetup();Object.assign(setup.juridico,{modalidade:"contratual",responsavel:"Responsável",oabResponsavel:"SP 123456"});
- const dados={estrutura_bia:setup,nome_bia:"Teste isolado",moeda:"BRL",destinacao:"Rural",objetivo_alianca:"Renda",localizacao:"São Paulo",observacoes:"Teste",map_inicial:{modeloCalculo:4,valorOrigem:1000,participantes:[]}};
+ const dados={estrutura_bia:setup,nome_bia:"Teste isolado",moeda:"BRL",destinacao:"Rural",objetivo_alianca:"SHORT_STAY",localizacao:"São Paulo",observacoes:"Teste",map_inicial:{modeloCalculo:4,valorOrigem:1000,participantes:[]}};
  await db.execute(sql`INSERT INTO bia_estruturacao_rascunhos (bia_id,autor_id,dados) VALUES ('teste','autor',${JSON.stringify(dados)}::jsonb)`);
  let invalid=true,fail=true,conclusions=0;const invitations=new Set<string>();
  let team={autor_bia:null,aliado_built:"a",diretor_alianca:"a"} as {autor_bia:null;aliado_built:string|null;diretor_alianca:string|null};
@@ -90,6 +91,7 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
  withMapLock:(_id:string,work:any)=>db.transaction(tx=>work(tx)),directusFetchOne:async()=>({situacao:"em_estruturacao"}),directusUpdate:async()=>{},
  calculateSubmittedInitialMap:async()=>({participantes:[]}),biaTeamFromMapParticipants:()=>team,hasRequiredBiaTeam,mapActor:()=>({id:"autor"}),
  createBiaHandler:async(req:any,res:any)=>{if(req.biaDraftValidateOnly)return invalid?res.status(400).json({error:"Aliado inválido"}):res.json({valid:true});conclusions++;invitations.add(req.biaDraftId);if(fail)return res.status(503).json({error:"Directus indisponível"});return res.json({id:req.biaDraftId});}};
+ Object.assign(scope,{biaBusinessTypeCode});
  new Function(...Object.keys(scope),transformSync(access+"\n"+routes,{loader:"ts",target:"es2022"}).code)(...Object.values(scope));
  const server=app.listen(0,"127.0.0.1");await new Promise<void>(r=>server.once("listening",r));
  const root=`http://127.0.0.1:${(server.address() as any).port}/api/bias/teste`;
@@ -99,6 +101,11 @@ test("rascunho: acesso, revisão, congelamento, falha externa e retomada idempot
   assert.equal((await call("/rascunho")).status,200);
   assert.equal((await call("/rascunho","PUT",{...dados,revisaoEsperada:0})).status,409);
   assert.equal((await call("/rascunho","PUT",{...dados,revisaoEsperada:1})).status,200);
+  await pg.exec(`UPDATE bia_estruturacao_rascunhos SET dados=jsonb_set(dados,'{objetivo_alianca}','"Renda"') WHERE bia_id='teste'`);
+  const missingThesis=await call("/concluir-estruturacao","POST",{revisaoEsperada:1});
+  assert.equal(missingThesis.status,400);assert.match((await missingThesis.json()).error,/Tese de interesse/);
+  assert.equal(invitations.size,0);
+  await pg.exec(`UPDATE bia_estruturacao_rascunhos SET dados=jsonb_set(dados,'{objetivo_alianca}','"SHORT_STAY"') WHERE bia_id='teste'`);
   assert.equal((await call("/concluir-estruturacao","POST",{revisaoEsperada:1})).status,400);
   assert.equal((await (await call("/rascunho")).json()).conclusao_iniciada,false);
   assert.equal(invitations.size,0);

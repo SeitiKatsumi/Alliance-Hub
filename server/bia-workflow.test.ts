@@ -12,7 +12,7 @@ test("rascunho preserva a tese canônica sem exigir conversão de BIAs antigas",
   const input = { nome_bia: "Teste", moeda: "BRL" };
   assert.equal(validateBiaDraft({...input,business_type_code:"FLIPPING"}).business_type_code,"FLIPPING");
   assert.equal(validateBiaDraft(input).business_type_code,undefined);
-  for (const business_type_code of ["INVALID", "REAL_ESTATE_AUCTIONS", {}, 12]) assert.throws(() => validateBiaDraft({...input,business_type_code}), /tipo de negócio/);
+  for (const business_type_code of ["INVALID", "REAL_ESTATE_AUCTIONS", {}, 12]) assert.throws(() => validateBiaDraft({...input,business_type_code}), /tese de interesse/);
 });
 
 test("fase: intenção durável, recuperação, sequência, repetição e encerramento",async()=>{

@@ -25,7 +25,7 @@ test("resumo usa valores do MAP, mantém condições personalizadas e escapa tex
   assert.match(consultation,/Resumo para consulta/);
   assert.doesNotMatch(consultation,/prévia em estruturação/);
   const thesis=renderToStaticMarkup(React.createElement(Component,{form:{...form,business_type_code:"SHORT_STAY"},map}));
-  assert.match(thesis,/Tipo de negócio/);assert.match(thesis,/Explorar locação por temporada/);
+  assert.match(thesis,/Tese de interesse/);assert.match(thesis,/Explorar locação por temporada/);
   assert.doesNotMatch(thesis,/>Objetivo<|SHORT_STAY/);
 });
 

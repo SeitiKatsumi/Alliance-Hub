@@ -1,4 +1,4 @@
-import { biaBusinessTypeLabel } from "@shared/bia-business-type";
+import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
@@ -1519,7 +1519,7 @@ export default function OportunidadesPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return opas.filter(o => {
-      const haystack = `${o.nome_oportunidade || ""} ${biaBusinessTypeLabel(o)} ${o.nucleo_alianca || ""} ${o.pais || ""} ${o.tipo || ""} ${o.ramo_atuacao || ""}`
+      const haystack = `${o.nome_oportunidade || ""} ${opportunityScopeLabel(o)} ${o.nucleo_alianca || ""} ${o.pais || ""} ${o.tipo || ""} ${o.ramo_atuacao || ""}`
         .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const matchSearch = !q || haystack.includes(q);
       const matchBia = filterBia === "__all__" || o.bia_id === filterBia;

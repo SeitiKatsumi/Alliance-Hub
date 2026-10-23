@@ -1,5 +1,7 @@
 # Inicio e Gestao
 
+- 23/10/2026: `Alocação por tese de interesse` agrupa o capital investido autorizado pelo código canônico da BIA, pelo helper `buildBiaThesisAllocation`. Valores antigos Venda/Renda/Operação não viram categorias nem são convertidos por suposição: entram em `Tese não definida`, mantendo base e percentuais. Legenda mostra todas as categorias e quebra os nomes longos no desktop/mobile. Busca, cards e insights usam a mesma resolução da tese; destinação permanece independente. Testes: `shared/bia-business-type.test.ts` e consumidores de tese.
+
 - 22/10/2026: Alertas/contador também projetam o aviso de revisão vigente do MOU/MAP Inicial já destinado à própria conta na Agenda. Só signatário atual da BIA em captação, sem aceite daquela revisão; sem herança pelo funcionário, exposição de documentos ou alteração de fase. Revisões superadas/aceitas não aparecem como pendência; abrir encaminha para Convites da Aliança. Fonte central/testes: `server/agenda-alerts.ts` e seu teste SQL.
 
 ## Objetivo e usuarios

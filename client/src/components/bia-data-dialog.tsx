@@ -16,7 +16,7 @@ import { biaBusinessTypeLabel } from "@shared/bia-business-type";
 
 type BiaData = {
   id: string; nome_bia: string; codigo_publico?: string | null; situacao?: string | null;
-  destinacao?: string | null; objetivo_alianca?: string; moeda?: string | null;
+  destinacao?: string | null; objetivo_alianca?: string; business_type_code?: string | null; moeda?: string | null;
   localizacao?: string; observacoes?: string; selo_certified_alliance?: boolean | null;
   map_inicial?: InitialMapCalculation | null;
 };
@@ -46,9 +46,9 @@ function BiaDataContent({ bia }: { bia: BiaData }) {
   const whatsapp = useMemo(()=>darkArt.data ? biaBrandDataUrl(buildBiaWhatsappSvg(bia.nome_bia,code,darkArt.data)) : "",[darkArt.data,bia.nome_bia,code]);
   const horizontal = useMemo(()=>lightArt.data ? biaBrandDataUrl(buildBiaHeaderSvg(bia.nome_bia,code,lightArt.data)) : "",[lightArt.data,bia.nome_bia,code]);
   const canExport = !!code && !!bia.nome_bia.trim() && !!squareDark && !!squareLight && !!whatsapp && !!horizontal;
-  const form = {nome_bia:bia.nome_bia,destinacao:bia.destinacao || "",objetivo_alianca:bia.objetivo_alianca || "",moeda:bia.moeda || "BRL",localizacao:bia.localizacao || "",observacoes:bia.observacoes || ""};
+  const form = {nome_bia:bia.nome_bia,destinacao:bia.destinacao || "",business_type_code:bia.business_type_code || "",objetivo_alianca:bia.objetivo_alianca || "",moeda:bia.moeda || "BRL",localizacao:bia.localizacao || "",observacoes:bia.observacoes || ""};
   const rows = [["Código público",code ? `BIA-${code}` : "Código oficial indisponível"],["Situação",biaPhaseLabel(bia.situacao as BiaPhase)]];
-  if (!bia.map_inicial) rows.push(["Nome",form.nome_bia],["Destinação",form.destinacao],["Tipo de negócio",biaBusinessTypeLabel(bia)],["Moeda",form.moeda],["Localização",form.localizacao],["Descrição",form.observacoes]);
+  if (!bia.map_inicial) rows.push(["Nome",form.nome_bia],["Destinação",form.destinacao],["Tese de interesse",biaBusinessTypeLabel(bia)],["Moeda",form.moeda],["Localização",form.localizacao],["Descrição",form.observacoes]);
   function pdf(element: HTMLDivElement | null) {
     setError("");
     if (!element || !canExport) return;

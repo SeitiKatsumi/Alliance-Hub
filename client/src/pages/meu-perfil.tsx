@@ -685,7 +685,7 @@ export default function MeuPerfilPage() {
     queryKey: ["/api/strategic-cell-types"],
     queryFn: async () => {
       const response = await fetch("/api/strategic-cell-types", { credentials: "include" });
-      if (!response.ok) throw new Error("Falha ao carregar Tipos de Negocio");
+      if (!response.ok) throw new Error("Falha ao carregar teses de interesse");
       return response.json();
     },
     placeholderData: DEFAULT_STRATEGIC_CELL_TYPES,

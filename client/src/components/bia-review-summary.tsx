@@ -12,7 +12,7 @@ export function BiaReviewSummary({form,map,consultation=false}:{
   const plan=map.estrutura?.integralizacao;
   const periodicity=plan?.forma==="a_vista" ? "Não se aplica (à vista)" : ({0:"Personalizada",1:"Mensal",2:"Bimestral",3:"Trimestral",6:"Semestral",12:"Anual"} as Record<number,string>)[plan?.meses ?? -1];
   const rows=[
-    ["Destinação",form.destinacao],["Tipo de negócio",biaBusinessTypeLabel(form)],["Moeda",form.moeda],
+    ["Destinação",form.destinacao],["Tese de interesse",biaBusinessTypeLabel(form)],["Moeda",form.moeda],
     ["Localização",form.localizacao],["Descrição",form.observacoes],
     ["Valor de Origem",money(map.valorOrigem)],
     ["Direitos econômicos / DM",formatBiaPercent(map.divisorMultiplicador)],

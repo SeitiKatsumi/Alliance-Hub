@@ -1,5 +1,11 @@
 # Pagamentos e Integracoes Externas
 
+## Orientação de falhas de emissão — 26/10/2026
+
+O modal compartilhado pelo Financeiro e Agenda explica o bloqueio por código seguro, sem expor CPF/CNPJ ou erros brutos. PAYER_PENDING consulta o cadastro atual e identifica nome/CPF/CNPJ ausente ou incompleto; cadastro já corrigido informa reavaliação automática, sem criar outra cobrança. Helper compartilhado mantém a mesma regra do worker/provider. Falhas de conta/cofre e integração possuem mensagens próprias; causa desconhecida não é atribuída ao pagador.
+
+O próprio pagador recebe link Meu Perfil com foco no campo. Administrador autorizado recebe link Cadastro Geral para o membro específico e campo; gestor financeiro não ganha edição de terceiros. A conta da BIA só recebe atalho quando existe acesso ao Banco. Links não salvam, emitem nem ampliam permissões: APIs de destino mantêm autorização. Cadastro administrativo resolve apenas registros da lista autorizada e conserva formulário/salvamento existente. Emissão, webhook, tarefas, pagamentos, relatórios monetários e documentos assinados preservados; sem migração ou mensagem externa.
+
 ## Painel da conta Asaas — 26/10/2026
 
 - GET `/api/bias/:biaId/banco/asaas/dashboard?period=30|90|365|all` exige `capital_banco=view`, resolve a BIA canônica e usa somente a credencial cifrada da conta aprovada. Consulta somente GETs remotos; não cria cobranças, transfere, concilia lançamentos ou grava histórico.

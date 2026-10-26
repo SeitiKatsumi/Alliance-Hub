@@ -530,7 +530,19 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   const [selectedComunidadeMaeId, setSelectedComunidadeMaeId] = useState<string>("");
   const [showComunidadeMaeEditor, setShowComunidadeMaeEditor] = useState(false);
   const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
+  const requestedCorrectionField = new URLSearchParams(window.location.search).get('campo');
   const [activeEditorTab, setActiveEditorTab] = useState<MemberEditorTab>("dados");
+  useEffect(() => {
+    const targets: Record<string, string> = {nome:'input-edit-nome',cpf:'input-edit-cpf',cnpj:'input-edit-cnpj-empresa'};
+    const targetId = targets[requestedCorrectionField || ''];
+    if (!targetId) return;
+    const frame = requestAnimationFrame(() => {
+      const field = document.querySelector<HTMLElement>(`[data-testid="${targetId}"]`);
+      field?.scrollIntoView({block:'center'});
+      field?.focus({preventScroll:true});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [requestedCorrectionField]);
 
   const { data: comunidades = [] } = useQuery<Array<{ id: string; nome?: string; sigla?: string; aliado?: string | { id?: string; nome?: string } | null }>>({
     queryKey: ["/api/comunidades"],
@@ -2625,6 +2637,8 @@ export default function MembrosPage() {
   const [filterEstado, setFilterEstado] = useState("");
   const [filterTipoCadastro, setFilterTipoCadastro] = useState("");
   const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
+  const correctionOpened = useRef(false);
+  const requestedMember = new URLSearchParams(window.location.search).get('editar');
   const [deleteTarget, setDeleteTarget] = useState<Membro | null>(null);
   const [adminTab, setAdminTab] = useState<"dashboard" | "cadastro" | "configuracoes">("cadastro");
   const [dashboardView, setDashboardView] = useState<"monetization" | "opportunities" | "usage">("monetization");
@@ -2654,6 +2668,13 @@ export default function MembrosPage() {
     () => membrosRaw.map(m => ({ ...m, _nome: getDisplayNome(m) })),
     [membrosRaw]
   );
+  useEffect(() => {
+    if (user?.role !== 'admin' || isLoading || !requestedMember || correctionOpened.current) return;
+    const member = membros.find(m => String(m.id) === requestedMember);
+    correctionOpened.current = true;
+    if (member) setEditingMembro(member);
+    else toast({title:'Cadastro não encontrado',description:'Não foi possível abrir o cadastro solicitado.',variant:'destructive'});
+  }, [user?.role, isLoading, requestedMember, membros, toast]);
 
   const especialidades = useMemo(() => {
     const all = new Set<string>();

@@ -7763,7 +7763,9 @@ export async function registerRoutes(
       && (!auth.access.customized || auth.access.permissions.capital_financeiro==="edit");
     if(write&&!manage){res.status(403).json({error:"Somente Diretor de Capital, Diretor da Aliança ou Aliado vinculado pode gerenciar aportes"});return null;}
     if(write){try{await assertBiaFinancialPhase(auth.bia.id);}catch{res.status(409).json({error:"A BIA precisa estar ativa para esta operação"});return null;}}
-    return {biaId:String(auth.bia.id),manage,payerId:!employee&&req.session?.membroId?String(req.session.membroId):null,actorId:String(req.session.directusUserId)};
+    return {biaId:String(auth.bia.id),manage,payerId:!employee&&req.session?.membroId?String(req.session.membroId):null,actorId:String(req.session.directusUserId),
+      canEditPayers:!employee && (await getEffectiveRole(req))==='admin',
+      canViewBank:['view','edit'].includes(auth.access.permissions.capital_banco)};
   });
   let billingBusy=false;
   const billingTimer=setInterval(async()=>{

@@ -3,6 +3,7 @@ import { asaasConfig } from "./asaas/config";
 import { AsaasStore, type AsaasDatabase } from "./asaas/store";
 import { credentialVaultReady, decryptCredential } from "./asaas/credentials";
 import { cents, providerPaymentState, safeAsaasUrl } from "../shared/contribution-billing";
+import { payerMissingFields } from '../shared/contribution-payment-guidance';
 
 export function contributionBillingEnabled(env=process.env) {
   const c=asaasConfig(env);
@@ -40,7 +41,7 @@ export class ContributionProvider {
   findCustomer(reference:string){return this.listed("/customers",reference);}
   async customer(payer:any,reference:string) {
     const document=String(payer.cpf || payer.cnpj || "").replace(/\D/g,"");
-    if(!payer.nome || ![11,14].includes(document.length))throw new AsaasError("PAYER_PENDING","Complete nome e CPF/CNPJ do pagador",422);
+    if(payerMissingFields(payer).length)throw new AsaasError("PAYER_PENDING","Complete nome e CPF/CNPJ do pagador",422);
     const c:any=await this.transport.request("/customers",{method:"POST",body:{name:payer.nome,cpfCnpj:document,email:payer.email||undefined,externalReference:reference,notificationDisabled:true}});
     if(typeof c.id!=="string")throw new Error("INVALID_CUSTOMER_RESPONSE");
     return c;

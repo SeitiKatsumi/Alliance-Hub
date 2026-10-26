@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "id": "2026-10-26-payment-correction-guidance",
+  "title": "Motivo específico de bloqueio e atalhos autorizados para correção do aporte",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "shared/contribution-payment-guidance.ts",
+    "server/contribution-billing.ts"
+  ],
+  "searchTerms": [
+    "paymentGuidance"
+  ],
+  "consumers": [
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {"path":"client/src/pages/bia-detalhe.tsx","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {"path":"client/src/pages/bia-documentos.tsx","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {"path":"client/src/pages/movimentacao-cotas.tsx","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {"path":"client/src/pages/nucleo-capital.tsx","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {"path":"scripts/platform-impact.ts","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {"path":"scripts/platform-verify.ts","decision":"preserved","reason":"Importador transitivo do fluxo compartilhado/relatório ou ferramenta de contrato; nenhuma mudança nas rotas, cálculos, documentos, execução ou validação desse consumidor."},
+    {
+      "path": "shared/contribution-payment-guidance.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "shared/contribution-payment-guidance.test.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "client/src/components/contribution-payment.test.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "docs/platform/modules/pagamentos-integracoes.md",
+      "decision": "updated",
+      "reason": "Orientação de bloqueio, destino autorizado ou regressão/documentação deste fluxo; sem emissão/pagamento real."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "server/contribution-reminders.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "server/contribution-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "server/asaas/exclusive-bia.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Consumidor inspecionado: modal compartilhado/rotas e regras preexistentes preservam dados, autorização e efeitos financeiros. Nenhuma ampliação de acesso."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada local desktop e390px escuro: aviso CPF ausente/incompleto, botão Corrigir cadastro do pagador. Clique abriu Luhan no Cadastro Geral; activeElement=input-edit-cpf. Nenhum dado salvo. Captura output/payment-correction-desktop.png; viewport restaurado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET autorizado retorna somente mensagem/ação, sem documento ou erro bruto; guardas originais precedem consulta do cadastro."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente leitura do cadastro e cobrança existentes. Sem migração, backfill ou escrita real."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Fórmulas, pagamentos, saldos e MAP preservados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Agenda usa modal compartilhado; nenhum destinatário, template, envio ou preferência alterado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; PDFs e documentos assinados preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Worker e provider usam mesma identificação de pendências; emissão e conciliação mantêm idempotência e credenciais."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Edição de terceiros exige admin efetivo e não funcionário; pagador próprio usa Meu Perfil. Banco exige view/edit. Destino mantém autorização."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "PAYER_PENDING antigo é reinterpretado pelo cadastro atual. Erros desconhecidos não culpam pagador nem retornam texto bruto."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:577 testes/0falhas, tipos/build; log .BUILT-tmp/payment-guidance-verify.log. QA real do atalho e foco; teste de permissão, campos, link malicioso, cadastro corrigido e fallback seguro. Revisão do diff separado evita atestar a homologação Sandbox ainda pendente da tarefa anterior."
+    }
+  ],
+  "regressionTests": [
+    "shared/contribution-payment-guidance.test.ts",
+    "server/contribution-flow.test.ts",
+    "client/src/components/contribution-payment.test.ts",
+    "client/src/pages/membros-permissions.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

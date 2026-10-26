@@ -29,6 +29,13 @@ test('aporte avulso: migração idempotente, vínculo único, autorização, dua
     const first=await service.enqueueFlow('bia','flow');assert.equal((await service.enqueueFlow('bia','flow')).id,first.id);
     assert.equal((await db.execute(sql`SELECT count(*)::int n FROM bia_contribution_charges`)).rows[0].n,1);
     await assert.rejects(()=>service.flowPayment('bia','flow',false,'other'),/restrito/);
+    await db.execute(sql`UPDATE bia_contribution_charges SET job_state='blocked',error_code='PAYER_PENDING' WHERE id=${first.id}`);
+    const originalMember=service.deps.member;
+    service.deps.member=async()=>({nome:'Teste',cpf:'1'});
+    assert.equal((await service.flowPayment('bia','flow',false,'payer')).correction?.href,'/meu-perfil?campo=cpf');
+    assert.equal((await service.flowPayment('bia','flow',true,'manager')).correction,null);
+    assert.match((await service.flowPayment('bia','flow',true,'admin',{canEditPayers:true})).correction!.href,/editar=payer/);
+    service.deps.member=originalMember;
     await assert.rejects(()=>protectContributionFlow(db,'flow',null),/cobrança/);
     await assert.rejects(()=>protectContributionFlow(db,'flow',{valor:20}),/cobrança/);
     await protectContributionFlow(db,'flow',{descricao:'nota'});

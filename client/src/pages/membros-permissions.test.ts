@@ -7,6 +7,15 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { transformSync } from "esbuild";
 
+test('atalho de correção abre somente membro autorizado e foca campo permitido',()=>{
+  const page=readFileSync(new URL('./membros.tsx',import.meta.url),'utf8');
+  assert.match(page,/user\?\.role !== 'admin' \|\| isLoading/);
+  assert.match(page,/membros.find\(m => String\(m.id\) === requestedMember\)/);
+  assert.match(page,/targets\[requestedCorrectionField \|\| ''\]/);
+  assert.match(page,/field\?\.focus\(\{preventScroll:true\}\)/);
+  assert.match(page,/correctionOpened.current = true/);
+});
+
 test("comunidade mãe de origem aparece sem se passar por associação e erro não aparece como ausência", () => {
   const page = readFileSync(new URL("./membros.tsx", import.meta.url), "utf8");
   const ast = ts.createSourceFile("membros.tsx", page, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { paymentGuidance, payerMissingFields } from '../shared/contribution-payment-guidance';
 import { ContributionReminders } from './contribution-reminders';
 import { asaasConfig } from "./asaas/config";
 import { requestHash, assertExclusiveBiaAccount } from "./asaas/store";
@@ -122,7 +123,7 @@ export class ContributionBilling {
       return {id};
     });
   }
-  async flowPayment(biaId:string,flowId:string,manage:boolean,payerId:string|null) {
+  async flowPayment(biaId:string,flowId:string,manage:boolean,payerId:string|null,correctionAccess:{canEditPayers?:boolean;canViewBank?:boolean}={}) {
     const entry=(await this.deps.entries(biaId)).find(e=>String(e.id)===flowId);
     if(!entry)throw fault('Lançamento não encontrado.',404);
     const charge=(await this.rows(biaId)).find((r:any)=>String(r.flow_id)===flowId&&r.vigente);
@@ -130,10 +131,15 @@ export class ContributionBilling {
     if(!manage && (!payerId || owner!==payerId))throw fault('Meio de pagamento restrito ao pagador e gestores.',403);
     const canPrepare=manage&&!charge&&!cashContributionProblem(entry);
     const payable=charge?.job_state==='ready'&&!charge.pending_revision&&['open','overdue'].includes(charge.payment_state)&&entry.status!=='pago';
+    const guidance=charge?.job_state==='blocked'?paymentGuidance({code:charge.error_code || '',
+      payer:charge.error_code==='PAYER_PENDING'?await this.deps.member(owner):undefined,
+      owner,viewer:payerId,canEditPayers:correctionAccess.canEditPayers,
+      bankHref:correctionAccess.canViewBank?`/bias/${encodeURIComponent(biaId)}?tab=capital&capital=banco`:undefined}):null;
     return {environment:this.environment,enabled:this.enabled(),canPrepare,chargeId:charge?.id || null,
       amountCents:charge?.amount_cents ?? cents(entry.valor),dueDate:charge?.due_date || iso(entry.data_vencimento),
       paymentState:charge?.payment_state || (entry.status==='pago'?'received':'none'),jobState:charge?.job_state || null,
-      message:!this.enabled()?'Emissão aguardando habilitação da integração.':!charge?cashContributionProblem(entry):charge.job_state==='blocked'?'Cobrança bloqueada: confira a conta recebedora e o cadastro do pagador.':charge.job_state==='unknown'?'Emissão em conciliação. Não crie outra cobrança.':null,
+      message:!this.enabled()?'Emissão aguardando habilitação da integração. Solicite a habilitação à administração.':!charge?cashContributionProblem(entry):guidance?.message || (charge.job_state==='unknown'?'Emissão em conciliação. Não crie outra cobrança.':null),
+      correction:this.enabled()?guidance?.correction || null:null,
       details:payable?await this.details(biaId,charge.id,manage,payerId):null};
   }
   async preview(biaId:string,raw:any,tx=this.deps.db) {
@@ -223,7 +229,7 @@ export class ContributionBilling {
         remoteCustomer=customer.external_id?{id:customer.external_id}:await provider.findCustomer(customerRef);
         if(!remoteCustomer) {
           const payer=await this.deps.member(before.payer_id);
-          if(!payer?.nome || ![11,14].includes(String(payer.cpf||payer.cnpj||"").replace(/\D/g,"").length))throw new AsaasError("PAYER_PENDING","Cadastro do pagador incompleto");
+          if(payerMissingFields(payer).length)throw new AsaasError("PAYER_PENDING","Cadastro do pagador incompleto");
           const attempt=(await this.deps.db.execute(sql`UPDATE bia_contribution_customers SET attempted=true WHERE environment=${this.environment} AND account_id=${account.id} AND payer_id=${before.payer_id} AND attempted=false RETURNING *`)).rows[0];
           if(!attempt)throw fault("Cadastro do pagador com resultado desconhecido");
           remoteCustomer=await provider.customer(payer,customerRef);

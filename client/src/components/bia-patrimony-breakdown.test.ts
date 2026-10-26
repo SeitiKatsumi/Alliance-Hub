@@ -4,6 +4,21 @@ import React from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import {readFileSync} from "node:fs";
 import {transformSync} from "esbuild";
+test('atalhos levam à fonte da pendência e respeitam permissões de cada área',()=>{
+ const source=readFileSync(new URL('./bia-patrimony-breakdown.tsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('export function')).replace('export function','function');
+ const Component=new Function('React',transformSync(code,{loader:'tsx'}).code+';return BiaPatrimonyBreakdown;')(React);
+ const estimate={value:null,assets:0,cash:0,debt:0,partial:true,issues:[],issueDetails:[{message:'Casa 07: valor ausente',target:'assets',id:'ativo-legado'},{message:'Caixa negativo',target:'finance'},{message:'Dívida ausente',target:'property',id:'property-1'}],calculatedAt:'2026-10-26'};
+ const html=(props:any={})=>renderToStaticMarkup(React.createElement(Component,{estimate,format:String,biaId:'CODE',...props}));
+ assert.doesNotMatch(html(),/href=/);
+ assert.match(html({canCorrectAssets:true}),/\/bias\/CODE\/editar\?section=ativos&amp;asset=ativo-legado/);
+ assert.doesNotMatch(html({canCorrectAssets:true}),/href="\/carteira\//);
+ assert.match(html({canCorrectFinance:true}),/capital=financeiro/);
+ assert.match(html({editablePropertyIds:['property-1']}),/href="\/carteira\/property-1"/);
+ const editor=readFileSync(new URL('../pages/bias.tsx',import.meta.url),'utf8');
+ assert.match(editor,/setActiveTab\(initialSection\)/);assert.match(editor,/useState\(initialSection==='ativos'\)/);
+ const assets=readFileSync(new URL('./bia-setup-fields.tsx',import.meta.url),'utf8');assert.match(assets,/id=\{`bia-asset-\$\{a.id\}`\}/);assert.match(assets,/scrollIntoView/);
+});
 test("patrimônio automático mostra componentes, perda, ausência e pendências sem formulário manual",()=>{
  const source=readFileSync(new URL('./bia-patrimony-breakdown.tsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('export function')).replace('export function','function');

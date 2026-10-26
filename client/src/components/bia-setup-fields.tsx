@@ -1,3 +1,4 @@
+import { assetCorrectionFields } from "@shared/bia-patrimony";
 import { BiaBudgetSummary } from "./bia-budget-fields";
 import { BiaAssetPatrimonyFields, BiaAssetPatrimonySummary } from "./bia-asset-patrimony-fields";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -46,6 +47,12 @@ export function BiaLegalFields({value,onChange,participants=[],bank=true,bankEdi
 }
 export function BiaAssetFields({value,onChange,moeda,indicators=true,indicatorsEdit=true,disabled=false}:{value:BiaSetup;onChange:(v:BiaSetup)=>void;moeda:string;indicators?:boolean;indicatorsEdit?:boolean;disabled?:boolean}) {
   const latest=useRef({value,onChange});latest.current={value,onChange};
+  const correctionAsset=typeof window==='undefined'?null:new URLSearchParams(window.location.search).get('asset');
+  useEffect(()=>{
+    if(!correctionAsset)return;
+    const frame=requestAnimationFrame(()=>{const node=document.getElementById(`bia-asset-${correctionAsset}`);const field=node?.querySelector<HTMLElement>('[data-patrimony-field].ring-2');(field || node)?.scrollIntoView({block:'center'});(field?.querySelector<HTMLElement>('input, select') || node)?.focus({preventScroll:true});});
+    return ()=>cancelAnimationFrame(frame);
+  },[correctionAsset,value.ativos.length]);
   const [portfolioOpen,setPortfolioOpen]=useState(false),[search,setSearch]=useState('');
   const portfolio=useQuery<BiaSetup['ativos']>({queryKey:['/api/carteira/imoveis?para_bia=1'],enabled:portfolioOpen,queryFn:async()=>{
     const data=await (await apiRequest('GET','/api/carteira/imoveis?para_bia=1')).json();
@@ -84,8 +91,8 @@ export function BiaAssetFields({value,onChange,moeda,indicators=true,indicatorsE
       <Button type="button" variant="ghost" onClick={()=>setPortfolioOpen(false)}>Concluir seleção</Button>
     </div>}
     <label className="flex gap-2"><input type="checkbox" disabled={disabled} checked={value.ativosIndefinidos} onChange={e=>{if(!disabled)onChange({...value,ativosIndefinidos:e.target.checked,ativos:e.target.checked?[]:value.ativos});}}/>Ativo ainda não definido</label>
-    {value.ativos.map((a,i)=><article key={a.id} className="space-y-4 rounded-lg border p-5"><h3 className="font-semibold">{a.tipo==='consorcio'?'Consórcio':'Ativo'} {i+1}</h3>{a.tipo!=='consorcio' && <div className="grid gap-4 sm:grid-cols-2"><label>Nome do ativo<Input value={a.nome} onChange={e=>patch(a.id,{nome:e.target.value})}/></label><label>Situação<select className={css} value={a.situacao} onChange={e=>patch(a.id,{situacao:e.target.value as typeof a.situacao})}><option value="">Não informada</option>{ASSET_STATES.map(s=><option key={s}>{s}</option>)}</select></label><label>Titular formal<Input value={a.titular} onChange={e=>patch(a.id,{titular:e.target.value})}/></label><label>Data de vínculo<Input type="date" value={a.dataVinculo} onChange={e=>patch(a.id,{dataVinculo:e.target.value})}/></label><label>Valor de referência ({moeda})<BiaNumberInput label={`Valor de referência do ativo ${i+1}`} value={a.valorReferencia ?? NaN} onChange={v=>patch(a.id,{valorReferencia:Number.isFinite(v)?v:null})}/></label></div>}
-      <BiaAssetPatrimonyFields asset={a} moeda={moeda} disabled={disabled} onChange={data=>patch(a.id,data)}/>
+    {value.ativos.map((a,i)=>{const missing=correctionAsset===a.id?assetCorrectionFields(a,moeda):new Set<string>();const highlight=(field:string)=>missing.has(field)?'rounded-md ring-2 ring-amber-500 bg-amber-500/10 p-1':'';return <article key={a.id} id={`bia-asset-${a.id}`} tabIndex={-1} className="space-y-4 rounded-lg border p-5 focus:outline-none"><h3 className="font-semibold">{a.tipo==='consorcio'?'Consórcio':'Ativo'} {i+1}</h3>{a.tipo!=='consorcio' && <div className="grid gap-4 sm:grid-cols-2"><label>Nome do ativo<Input value={a.nome} onChange={e=>patch(a.id,{nome:e.target.value})}/></label><label data-patrimony-field="situacao" className={highlight("situacao")}>Situação<select aria-invalid={missing.has("situacao") || undefined} className={css} value={a.situacao} onChange={e=>patch(a.id,{situacao:e.target.value as typeof a.situacao})}><option value="">Não informada</option>{ASSET_STATES.map(s=><option key={s}>{s}</option>)}</select></label><label>Titular formal<Input value={a.titular} onChange={e=>patch(a.id,{titular:e.target.value})}/></label><label>Data de vínculo<Input type="date" value={a.dataVinculo} onChange={e=>patch(a.id,{dataVinculo:e.target.value})}/></label><label data-patrimony-field="valorReferencia" className={highlight("valorReferencia")}>Valor de referência ({moeda})<BiaNumberInput label={`Valor de referência do ativo ${i+1}`} value={a.valorReferencia ?? NaN} onChange={v=>patch(a.id,{valorReferencia:Number.isFinite(v)?v:null})}/></label></div>}
+      <BiaAssetPatrimonyFields asset={a} highlightMissing={correctionAsset===a.id} moeda={moeda} disabled={disabled} onChange={data=>patch(a.id,data)}/>
       {a.carteiraImovelId && <p className="text-sm text-muted-foreground">Adicionado da Carteira · cópia informativa. <a className="underline" href={`/carteira/${encodeURIComponent(a.carteiraImovelId)}`} target="_blank" rel="noreferrer">Ver cadastro original</a></p>}
       {a.tipo==='consorcio'?<div className="space-y-3"><div className="grid gap-4 sm:grid-cols-2">
         <label>Cota<Input maxLength={100} placeholder="Ex.: 2352" value={a.consorcio?.cota || ''} onChange={e=>patch(a.id,{consorcio:{...(a.consorcio || biaConsortiumSchema.parse({})),cota:e.target.value}})}/></label>
@@ -96,7 +103,7 @@ export function BiaAssetFields({value,onChange,moeda,indicators=true,indicatorsE
         <label>Dia do vencimento mensal<Input type="number" min={1} max={31} step={1} placeholder="Ex.: 10" value={a.consorcio?.diaVencimento ?? ''} onChange={e=>patch(a.id,{consorcio:{...(a.consorcio || biaConsortiumSchema.parse({})),diaVencimento:e.target.value===''?null:Number(e.target.value)}})}/></label>
       </div><p className="text-sm text-muted-foreground">Valores informativos na moeda da BIA. Não representam dinheiro disponível nem geram parcelas no CAPEX ou OPEX.</p></div>:<BiaInformationFields section="asset" requireAsset={false} infoForm={{...EMPTY_BIA_INFO,...a.info}} setInfoForm={update=>{const current=latest.current;current.onChange({...current.value,ativos:current.value.ativos.map(asset=>asset.id!==a.id?asset:{...asset,info:typeof update==="function"?update({...EMPTY_BIA_INFO,...asset.info}):update})});}}/>}
       {indicators && <details><summary>Indicadores do ativo</summary><fieldset disabled={!indicatorsEdit} className="mt-3 grid gap-3 sm:grid-cols-2">{ASSET_METRICS.map(([k,label,d])=><label key={k}>{label}<BiaNumberInput label={`${label} — ativo ${i+1}`} decimals={d} value={a.indicadores[k] ?? NaN} onChange={v=>patch(a.id,{indicadores:{...a.indicadores,[k]:Number.isFinite(v)?v:null}})}/></label>)}</fieldset></details>}
-      <Button variant="ghost" className="text-destructive" onClick={()=>{if(window.confirm("Remover este cadastro informativo de ativo?"))onChange({...value,ativos:value.ativos.filter(r=>r.id!==a.id)});}}>Remover ativo</Button></article>)}
+      <Button variant="ghost" className="text-destructive" onClick={()=>{if(window.confirm("Remover este cadastro informativo de ativo?"))onChange({...value,ativos:value.ativos.filter(r=>r.id!==a.id)});}}>Remover ativo</Button></article>;})}
     <AssetTotals value={value} moeda={moeda}/>
   </section>;
 }

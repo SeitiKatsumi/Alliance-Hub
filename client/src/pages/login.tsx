@@ -997,7 +997,7 @@ export default function LoginPage() {
                           </div>
                         </div>
                         {resetError && <p className="text-center text-sm text-red-400">{resetError}</p>}
-                        <Button type="submit" disabled={resetLoading} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]" data-testid="button-reset-submit">
+                        <Button type="submit" disabled={resetLoading} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]" data-testid="button-reset-submit" loading={resetLoading}>
                           {resetLoading ? "Salvando..." : "Salvar nova senha"}
                         </Button>
                       </form>
@@ -1856,7 +1856,7 @@ export default function LoginPage() {
                   onClick={handleAceitarTermosCadastro}
                   disabled={aceiteLoading || !allTermsAccepted}
                   className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold disabled:opacity-50"
-                >
+                 loading={aceiteLoading}>
                   {aceiteLoading ? "Salvando..." : "Aceitar termos e avancar"}
                 </Button>
               </div>

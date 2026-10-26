@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -43,10 +44,12 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  loading?: boolean
+  loadingText?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, loadingText = "Salvando…", children, disabled, onClick, ...props }, ref) => {
     const Comp = asChild ?Slot : "button"
     const forceWhiteText =
       typeof className === "string" &&
@@ -61,7 +64,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         ref={ref}
         {...props}
-      />
+        disabled={disabled || loading}
+        aria-busy={loading || props['aria-busy']}
+        aria-disabled={asChild && loading ? true : props['aria-disabled']}
+        aria-label={loading ? loadingText : props['aria-label']}
+        onClick={loading ? (event: React.MouseEvent<HTMLButtonElement>) => { event.preventDefault(); event.stopPropagation(); } : onClick}
+      >
+        {loading ? (asChild && React.isValidElement<{children?:React.ReactNode;onClick?:React.MouseEventHandler}>(children)
+          ? React.cloneElement(children, {onClick:(event:React.MouseEvent)=>{event.preventDefault();event.stopPropagation();}}, <><Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" /><span role="status">{loadingText}</span></>)
+          : <><Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" /><span role="status">{loadingText}</span></>) : children}
+      </Comp>
     )
   },
 )

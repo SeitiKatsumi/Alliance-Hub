@@ -1016,7 +1016,7 @@ export default function LandBankDetalhePage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={saveEdit}>Salvar alterações</Button>
+            <Button onClick={saveEdit} loading={updateAssetMutation.isPending}>Salvar alterações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

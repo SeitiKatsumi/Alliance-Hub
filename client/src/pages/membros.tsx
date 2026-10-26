@@ -1107,7 +1107,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                 disabled={saveMutation.isPending || uploading}
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 data-testid="btn-salvar-membro-topo"
-              >
+               loading={saveMutation.isPending || uploading}>
                 {(saveMutation.isPending || uploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {uploading ? "Enviando foto..." : saveMutation.isPending ? "Salvando..." : "Salvar alterações"}
               </Button>
@@ -2073,7 +2073,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                 disabled={saveMutation.isPending || uploading}
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 data-testid="btn-salvar-membro"
-              >
+               loading={saveMutation.isPending || uploading}>
                 {(saveMutation.isPending || uploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {uploading ? "Enviando foto..." : saveMutation.isPending ? "Salvando..." : "Salvar alterações"}
               </Button>

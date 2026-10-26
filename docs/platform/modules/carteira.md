@@ -1,5 +1,16 @@
 # Carteira Patrimonial
 
+## Pendências patrimoniais acionáveis (26/10/2026)
+
+- Refinamento visual: no atalho de correção, valor de referência vazio/inválido continua amarelo independentemente da situação escolhida (`assetCorrectionFields`). Isso orienta o preenchimento sem alterar a elegibilidade patrimonial: negociação/análise/alienado continuam excluídos do cálculo. Salvar alteração do editor de estrutura é projetado no rodapé fixo da edição em página (Ativos/Jurídico/Orçamento), com a mesma validação, permissão e controle de concorrência; histórico e modo leitura não ganham ação de gravação.
+
+- Ao chegar pelo atalho de um ativo, cada campo pendente recebe contorno e fundo amarelos, em vez de marcar o cartão inteiro. O primeiro campo pendente recebe foco. `missingPatrimonyFields` e `setupPatrimonyAsset` compartilham as regras com o cálculo: situação/valor ausentes e, após aquisição, percentual/dívida inválidos. O destaque some ao corrigir, sem salvar automaticamente. Campos opcionais, demais ativos, criação normal e documentos exportados não recebem marcação; permissões/API/dados permanecem iguais.
+
+- Editor de estrutura e estimativa patrimonial usam `readResolvedBiaSetup`: revisão versionada tem precedência; somente na ausência dela, leem o mesmo cadastro legado (PostgreSQL e campos preenchidos do Directus). Nenhum backfill, duplicação ou gravação na leitura. Uma revisão com ativos removidos não ressuscita o legado.
+- Ativo legado com endereço/matrícula é reconhecido, mas não vira propriedade/valor por presunção. Situação ausente e valor ausente geram pendências identificadas pelo nome do ativo. Adquiridos exigem valor, fração e dívida explícitos; zero de dívida é válido. Alienados/em negociação ficam fora do patrimônio sem exigir avaliação para contabilizá-los.
+- O aviso amarelo contém detalhes e links de correção por origem: Ativos Vinculados da BIA (`section=ativos&asset=ID`), cadastro do imóvel de origem formal, ou Financeiro. A edição abre na seção e destaca/foca o ativo. Botões exigem permissão de edição da configuração, financeira ou propriedade/administração do imóvel, respectivamente; os endpoints continuam validando autorização. Um link não concede acesso.
+- Campos `issues` permanecem compatíveis; `issueDetails` é aditivo e identifica alvo/ID sem endereço/matrícula. Totais, parcelas/CPPs, percentuais MAP, documentos assinados e observações históricas não são regravados. A revalidação existente da Carteira consulta novamente a fonte após a correção.
+
 ## Dashboard consolidado, integralização das CPPs e estimativa dos imóveis (23/10/2026)
 
 - Dois blocos: **Imóveis próprios** reúne o total central estimado e o total de aquisição proporcional; **Valor total de CPPs em alianças** reúne `Aportado` e `A aportar`. O painel não exibe faixa mínima/máxima: a estimativa central soma uma estimativa válida por imóvel da carteira. Imóveis já consolidados na BIA e vínculos sem propriedade não são somados como imóveis diretos.

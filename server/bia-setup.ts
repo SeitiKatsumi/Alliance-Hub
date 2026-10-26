@@ -33,6 +33,11 @@ export async function readBiaSetup(db:any,biaId:string) {
   const current=(await db.execute(sql`SELECT dados,contexto FROM bia_estrutura_versoes WHERE bia_id=${biaId} AND evento NOT LIKE 'ativacao:%' ORDER BY revisao DESC LIMIT 1`)).rows[0];
   return current?{...head,...current}:head;
 }
+
+/** One read policy for editors and derived views: explicit revisions win, including an empty asset list. */
+export async function readResolvedBiaSetup(db:any,biaId:string,legacy:()=>Promise<any>) {
+  return await readBiaSetup(db,biaId) || {revisao:0,dados:legacyBiaSetup(await legacy()),contexto:{},criado_em:null};
+}
 export async function assertBiaSetupStorage(db:any) {
   if(!(await db.execute(sql`SELECT to_regclass('public.bia_estrutura_versoes') AS tabela`)).rows[0]?.tabela)throw Object.assign(new Error('Atualização da estrutura pendente de migração. Nenhum convite foi enviado por esta tentativa.'),{statusCode:503});
 }
@@ -62,7 +67,7 @@ export function registerBiaSetupRoutes(app:Express,deps:{db:any;ensure:()=>Promi
   const roster=(bia:any)=>Array.from(collectBiaParticipantRoles(bia),([memberId,roles])=>({memberId,cargos:roles.map(r=>BIA_PARTICIPANT_ROLE_LABELS[r])}));
   const stripBank=(data:BiaSetup,canView:boolean)=>canView?data:{...data,juridico:{...data.juridico,info:{...data.juridico.info,...Object.fromEntries(BANK_FIELDS.map(k=>[k,""]))}}};
   const stripMetrics=(data:BiaSetup,canView:boolean)=>canView?data:{...data,indicadoresLegados:Object.fromEntries(ASSET_METRICS.map(([k])=>[k,null])),ativos:data.ativos.map(a=>({...a,indicadores:Object.fromEntries(ASSET_METRICS.map(([k])=>[k,null]))}))};
-  async function load(tx:any,bia:any){return await readBiaSetup(tx,String(bia.id)) || {revisao:0,dados:legacyBiaSetup(await deps.legacy(String(bia.id),bia)),contexto:{participantes:roster(bia)},criado_em:null};}
+  async function load(tx:any,bia:any){return readResolvedBiaSetup(tx,String(bia.id),()=>deps.legacy(String(bia.id),bia));}
   app.get('/api/bias/:id/estrutura',async(req,res)=>{try{
     const auth=await deps.access(req,res,String(req.params.id),'configuracao_bia','view');if(!auth)return;
     await deps.ensure();await assertBiaSetupStorage(deps.db);const row=await load(deps.db,auth.bia),bank=canAccessSetupBank(req.session,auth.access.permissions,'view');

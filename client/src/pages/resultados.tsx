@@ -748,7 +748,7 @@ export default function ResultadosPage({
                     onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending}
                     data-testid="button-save-receita"
-                  >
+                   loading={saveMutation.isPending}>
                     <Save className="w-3 h-3" />
                     Salvar
                   </Button>
@@ -823,7 +823,7 @@ export default function ResultadosPage({
                     onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending}
                     data-testid="button-save-realizados"
-                  >
+                   loading={saveMutation.isPending}>
                     <Save className="w-3 h-3" />
                     Salvar
                   </Button>

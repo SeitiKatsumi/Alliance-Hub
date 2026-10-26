@@ -936,7 +936,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
           </div>
           <DialogFooter className="shrink-0 border-t border-border/60 bg-background px-5 py-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saveMutation.isPending} className="gap-2 bg-[#0f62fe] text-white hover:bg-[#004fd6]" data-testid="btn-salvar-agenda">
+            <Button onClick={handleSave} disabled={saveMutation.isPending} className="gap-2 bg-[#0f62fe] text-white hover:bg-[#004fd6]" data-testid="btn-salvar-agenda" loading={saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {editing ? "Salvar alterações" : "Criar ação"}
             </Button>

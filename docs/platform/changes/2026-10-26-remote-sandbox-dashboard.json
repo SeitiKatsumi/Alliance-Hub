@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "id": "2026-10-26-remote-sandbox-dashboard",
+  "title": "Restaurar painel Asaas no servidor publicado com configuração Sandbox",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/asaas/config.ts"
+  ],
+  "searchTerms": [
+    "ASAAS_SANDBOX_WEBHOOK_URL",
+    "ASAAS_TRANSFERS_ENABLED"
+  ],
+  "consumers": [
+    {
+      "path": "server/asaas/config.ts",
+      "decision": "preserved",
+      "reason": "Nenhuma mudança no código. Configuração remota mantém Sandbox, conta aprovada, autorização e confirmações; cobranças continuam desabilitadas."
+    },
+    {
+      "path": "server/asaas/operations.ts",
+      "decision": "preserved",
+      "reason": "Nenhuma mudança no código. Configuração remota mantém Sandbox, conta aprovada, autorização e confirmações; cobranças continuam desabilitadas."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "preserved",
+      "reason": "Nenhuma mudança no código. Configuração remota mantém Sandbox, conta aprovada, autorização e confirmações; cobranças continuam desabilitadas."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "preserved",
+      "reason": "Nenhuma mudança no código. Configuração remota mantém Sandbox, conta aprovada, autorização e confirmações; cobranças continuam desabilitadas."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "preserved",
+      "reason": "Nenhuma mudança no código. Configuração remota mantém Sandbox, conta aprovada, autorização e confirmações; cobranças continuam desabilitadas."
+    },
+    {
+      "path": ".BUILT-run-dev-3004.ps1",
+      "decision": "preserved",
+      "reason": "Configuração Sandbox local existente preservada; ajuste foi somente no servidor publicado."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "preserved",
+      "reason": "Regras de ambiente e flags não mudam; testes completos já aprovados na tarefa de configuração."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Painel autenticado publicado da BIA868NEL6DXJ mostra saldo0 e resumos/histórico sem registros, consultados no Asaas."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Dashboard carregou dados pela API existente, sem alterar rotas."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente duas variáveis não secretas adicionadas no CapRover built-hub-app; nenhuma gravação financeira manual."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Fórmulas e projeções preservadas; ajuste exclusivamente operacional."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Cobranças seguem desabilitadas; nenhum envio solicitado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Handoff registra diferença entre configuração local e publicada; capacidade funcional não mudou."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "ASAAS_SANDBOX_WEBHOOK_URL aponta ao endpoint público existente e ASAAS_TRANSFERS_ENABLED=true. Ambiente sandbox preservado; nenhuma ativação Produção ou transferência executada."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Guardas de visualização/edição e confirmação de transferência preservadas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Segredos e demais variáveis existentes preservados; sem migração/backfill."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Verificação funcional autenticada do painel remoto após Save & Restart; nenhuma transação usada como teste. Verificações do repositório registradas na entrega."
+    }
+  ],
+  "regressionTests": [
+    "server/asaas/foundation.test.ts",
+    "client/src/components/asaas-status.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

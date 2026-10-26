@@ -197,7 +197,7 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose, lockBia = fa
             className="flex-1 font-semibold"
             style={{ background: accentColor, color: "#001D34" }}
             data-testid="btn-salvar-doc"
-          >
+           loading={mutation.isPending || uploading}>
             {mutation.isPending || uploading ?"Salvando..." : doc ?"Atualizar" : "Registrar"}
           </Button>
         </div>

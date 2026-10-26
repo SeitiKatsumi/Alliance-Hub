@@ -43,7 +43,7 @@ export function PlatformPreferences() {
           const patch={...(draft.language!==baseline.current.language?{language:draft.language}:{}),...(Object.keys(email).length?{email}:{})};
           if (Object.keys(patch).length) await preferences.save(patch);
           setDirty(false);setFeedback('saved');
-        }catch{setFeedback('error');}finally{setSaving(false);}}}>{t(saving?'Salvando…':'Salvar preferências')}</Button>
+        }catch{setFeedback('error');}finally{setSaving(false);}}} loading={saving} loadingText={t("Salvando…")}>{t(saving?'Salvando…':'Salvar preferências')}</Button>
       </div>
     </>}
   </div>;

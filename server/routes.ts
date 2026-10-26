@@ -11563,10 +11563,12 @@ export async function registerRoutes(
   async function validateBiaAssetLinks(req:any,data:BiaSetup|undefined,prior?:BiaSetup) {
     await validateBiaPortfolioLinks(data,prior,id=>resolveCarteiraAccess(id,{...requireCarteiraActor(req),isPlatformAdmin:false}));
   }
-  registerBiaSetupRoutes(app,{db,ensure:ensureBiaMapInicialSnapshotsTable,access:requireBiaModuleAccess,lock:withMapLock,validateAssets:validateBiaAssetLinks,legacy:async(id,bia)=>{
+  async function loadBiaLegacySetupData(id:string,bia:any) {
     const local=await storage.getBiaInfoComercial(id);
-    return {...bia,info_comercial:{...(local || {}),...pickFilledBiaInfoComercialFields(bia)}};
-  }});
+    const rows=await directusFetchScoped('bias_projetos',`filter[id][_eq]=${encodeURIComponent(id)}&fields=${BIA_INFO_COMERCIAL_FIELDS.join(',')}&limit=1`);
+    return {...bia,info_comercial:{...(local || {}),...pickFilledBiaInfoComercialFields(rows[0] || {})}};
+  }
+  registerBiaSetupRoutes(app,{db,ensure:ensureBiaMapInicialSnapshotsTable,access:requireBiaModuleAccess,lock:withMapLock,validateAssets:validateBiaAssetLinks,legacy:loadBiaLegacySetupData});
 
   app.post("/api/bias", createBiaHandler);
 
@@ -16175,7 +16177,12 @@ ${inputText.slice(0, 18000)}`,
       const contributionProgress=initialSnapshot
         ? memberContributionProgress(initialSnapshot,membroId,contributionParcels.rows as any[],financialEntries as any[])
         : {committed:cppTotal,paid:cppTotal,percentage:100,partial:false};
-      const estimate=await loadBiaPatrimony(db,{id:String(bia.id),moeda:bia.moeda},financialEntries);
+      const estimate=await loadBiaPatrimony(db,{id:String(bia.id),moeda:bia.moeda},financialEntries,()=>loadBiaLegacySetupData(biaId,bia));
+      const editablePatrimonyPropertyIds:string[]=[];
+      for(const id of new Set((estimate.issueDetails || []).filter(issue=>issue.target==='property' && issue.id).map(issue=>issue.id!))) {
+        const propertyAccess=await resolveCarteiraAccess(id,{...requireCarteiraActor(req),isPlatformAdmin:false});
+        if(propertyAccess && ['proprietario','administracao'].includes(propertyAccess.nivel))editablePatrimonyPropertyIds.push(id);
+      }
       const mapPercent = Number(own?.percent || 0);
       const cppContributed=contributionProgress.percentage == null ? null : Number((cppTotal*contributionProgress.percentage/100).toFixed(2));
       const cppRemaining=cppContributed == null ? null : Number(Math.max(0,cppTotal-cppContributed).toFixed(2));
@@ -16209,6 +16216,8 @@ ${inputText.slice(0, 18000)}`,
         confirmado: !estimate.partial && estimate.value!==null,
         estimativa_patrimonial:estimate,
         can_manage_patrimonio: hasBiaAccess(access.permissions, "capital_financeiro", "edit"),
+        can_correct_assets: hasBiaAccess(access.permissions, "configuracao_bia", "edit"),
+        editable_patrimony_property_ids: editablePatrimonyPropertyIds,
         can_delete: canDelete,
         receitas_participacao: Number(revenues.toFixed(2)),
         despesas_participacao: Number(expenses.toFixed(2)),

@@ -1,13 +1,16 @@
+import { missingPatrimonyFields, setupPatrimonyAsset } from "@shared/bia-patrimony";
 import type { BiaSetup } from "@shared/bia-setup";
 import { BiaNumberInput } from "./bia-role-composition";
 
 type Asset = BiaSetup['ativos'][number];
-export function BiaAssetPatrimonyFields({asset,onChange,moeda,disabled=false}:{asset:Asset;onChange:(patch:Partial<Asset>)=>void;moeda:string;disabled?:boolean}) {
+export function BiaAssetPatrimonyFields({asset,onChange,moeda,disabled=false,highlightMissing=false}:{asset:Asset;onChange:(patch:Partial<Asset>)=>void;moeda:string;disabled?:boolean;highlightMissing?:boolean}) {
   // Portfolio references do not grant ownership; their formal-origin source remains authoritative.
   if(asset.tipo==='consorcio' || asset.carteiraImovelId)return null;
+  const missing=highlightMissing?missingPatrimonyFields(setupPatrimonyAsset(asset,moeda)):new Set<string>();
+  const highlight=(field:string)=>missing.has(field)?'rounded-md ring-2 ring-amber-500 bg-amber-500/10 p-1':'';
   return <fieldset disabled={disabled} className="grid gap-4 sm:grid-cols-2">
-    <label>Participação da BIA no imóvel (%)<BiaNumberInput label="Participação da BIA no imóvel (%)" decimals={5} value={asset.participacaoBiaPercentual ?? NaN} onChange={v=>onChange({participacaoBiaPercentual:Number.isFinite(v)?v:null})}/></label>
-    <label>Dívida total do imóvel ({moeda})<BiaNumberInput label="Dívida total do imóvel" value={asset.dividaSaldo ?? NaN} onChange={v=>onChange({dividaSaldo:Number.isFinite(v)?v:null})}/></label>
+    <label data-patrimony-field="participacaoBiaPercentual" className={highlight('participacaoBiaPercentual')}>Participação da BIA no imóvel (%)<BiaNumberInput label="Participação da BIA no imóvel (%)" decimals={5} value={asset.participacaoBiaPercentual ?? NaN} onChange={v=>onChange({participacaoBiaPercentual:Number.isFinite(v)?v:null})}/></label>
+    <label data-patrimony-field="dividaSaldo" className={highlight('dividaSaldo')}>Dívida total do imóvel ({moeda})<BiaNumberInput label="Dívida total do imóvel" value={asset.dividaSaldo ?? NaN} onChange={v=>onChange({dividaSaldo:Number.isFinite(v)?v:null})}/></label>
   </fieldset>;
 }
 

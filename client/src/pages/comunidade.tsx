@@ -2787,7 +2787,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
               disabled={isPending || !form.pais?.trim() || !form.territorio?.trim() || !form.codigo_sequencial?.trim()}
               className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
               data-testid="btn-salvar-comunidade"
-            >
+             loading={isPending}>
               {isPending ?<Loader2 className="w-4 h-4 animate-spin" /> : (editing ?"Salvar alterações" : "Criar Comunidade")}
             </Button>
           </DialogFooter>

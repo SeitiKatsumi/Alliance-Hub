@@ -179,6 +179,7 @@ interface CarteiraResumo {
     map_percent: number; aportes_oficiais: number; patrimonio_liquido_oficial?: number | null;
     valor_participacao?: number | null; valor_participacao_brl?: number | null; data_base?: string | null; metodologia?: string | null;
     liquidez?: string | null; confirmado: boolean; can_manage_patrimonio?: boolean; can_delete?: boolean;
+    can_correct_assets?: boolean; editable_patrimony_property_ids?: string[];
     estimativa_patrimonial?: import("@shared/bia-patrimony").BiaPatrimonyEstimate;
     receitas_participacao?: number; despesas_participacao?: number; contas_a_pagar_participacao?: number; evolucao_patrimonial_percentual?: number | null;
   }>;
@@ -919,7 +920,7 @@ function PropertyFormDialog({
             className="bg-blue-600 text-white hover:bg-blue-700"
             disabled={saving || uploadingPhoto || !form.nome || !form.tipo || Math.abs(mapTotal - 100) >= 0.0001 || (form.socios || []).some((item) => !item.nome || !item.email)}
             onClick={() => onSave(form)}
-          >
+           loading={saving || uploadingPhoto}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {initial ? "Salvar alterações" : "Adicionar imóvel"}
           </Button>
@@ -1330,7 +1331,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? item.estimativa_patrimonial?.partial ? "Estimativa incompleta" : "Dados insuficientes" : money(item.valor_participacao, item.moeda)}</p></div></div>
-                  <BiaPatrimonyBreakdown estimate={item.estimativa_patrimonial} format={value=>money(value,item.moeda)}/>
+                  <BiaPatrimonyBreakdown estimate={item.estimativa_patrimonial} format={value=>money(value,item.moeda)} biaId={item.codigo || item.id} canCorrectAssets={item.can_correct_assets} canCorrectFinance={item.can_manage_patrimonio} editablePropertyIds={item.editable_patrimony_property_ids}/>
                   <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs"><div><p className="text-muted-foreground">Receitas</p><p className="font-semibold text-emerald-700">{money(item.receitas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">Despesas</p><p className="font-semibold text-red-700">{money(item.despesas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">A pagar</p><p className="font-semibold">{money(item.contas_a_pagar_participacao || 0, item.moeda)}</p></div></div>
                   {item.evolucao_patrimonial_percentual != null && <p className={`text-xs font-medium ${metricTone(item.evolucao_patrimonial_percentual)}`}>Evolução patrimonial: {item.evolucao_patrimonial_percentual.toFixed(1)}%</p>}
                   <p className="text-xs text-muted-foreground">{item.valor_participacao_brl == null || !(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total) ? "Ainda não entra no patrimônio consolidado." : `${(item.valor_participacao_brl / (totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 1) * 100).toFixed(1)}% do patrimônio total estimado.`}</p>
@@ -1363,7 +1364,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
             <DialogTitle>Gestão patrimonial · {gestaoTarget?.nome}</DialogTitle>
             <DialogDescription>Estimativa automática da BIA e solicitações de aporte.</DialogDescription>
           </DialogHeader>
-          <BiaPatrimonyBreakdown estimate={(data?.aliancas.find(item=>item.id===gestaoTarget?.id)||gestaoTarget)?.estimativa_patrimonial} format={value=>money(value,gestaoTarget?.moeda)}/>
+          <BiaPatrimonyBreakdown estimate={(data?.aliancas.find(item=>item.id===gestaoTarget?.id)||gestaoTarget)?.estimativa_patrimonial} format={value=>money(value,gestaoTarget?.moeda)} biaId={gestaoTarget?.codigo || gestaoTarget?.id} canCorrectAssets={gestaoTarget?.can_correct_assets} canCorrectFinance={gestaoTarget?.can_manage_patrimonio} editablePropertyIds={gestaoTarget?.editable_patrimony_property_ids}/>
           <div className="space-y-2 border-t pt-4">
             <p className="font-semibold">Solicitações de aporte</p>
             {aporteRequestsQuery.isLoading ? <p className="text-sm text-muted-foreground">Carregando...</p> : !(aporteRequestsQuery.data || []).some((item) => item.status === "pending") ? <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p> : (aporteRequestsQuery.data || []).filter((item) => item.status === "pending").map((item) => (
@@ -1553,7 +1554,7 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved, launch }: { op
         </fieldset>
         <DialogFooter>
           <Button variant="outline" onClick={close}>Cancelar</Button>
-          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={mutation.isPending || suggestionsMutation.isPending || importMutation.isPending || !form.valor || !form.descricao.trim() || !form.data} onClick={() => mutation.mutate()}>
+          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={mutation.isPending || suggestionsMutation.isPending || importMutation.isPending || !form.valor || !form.descricao.trim() || !form.data} onClick={() => mutation.mutate()} loading={mutation.isPending}>
             {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{launch ? "Salvar alterações" : "Salvar"}
           </Button>
         </DialogFooter>
@@ -2857,7 +2858,7 @@ function DetailPage({ id }: { id: string }) {
               ...(accessQuery.data?.acessos || []).filter((access)=>access.user_id).map((access)=>({value:access.user_id!,label:access.nome || access.email || access.username || "Colaborador",searchText:[access.email,access.username].filter(Boolean).join(" ")})),
             ]} onValueChange={(value) => setDemandEditForm({ ...demandEditForm, responsavel_user_id: value === "sem_responsavel" ? "" : value })} /></div>}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setEditingDemand(null)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandEditForm.titulo.trim() || updateDemandMutation.isPending} onClick={() => editingDemand && updateDemandMutation.mutate({ demandId: editingDemand.id, patch: { ...demandEditForm, especialidades: demandEditForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean), expira_em: demandEditForm.expira_em ? new Date(`${demandEditForm.expira_em}T23:59:59`).toISOString() : null } })}>{updateDemandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setEditingDemand(null)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandEditForm.titulo.trim() || updateDemandMutation.isPending} onClick={() => editingDemand && updateDemandMutation.mutate({ demandId: editingDemand.id, patch: { ...demandEditForm, especialidades: demandEditForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean), expira_em: demandEditForm.expira_em ? new Date(`${demandEditForm.expira_em}T23:59:59`).toISOString() : null } })} loading={updateDemandMutation.isPending}>{updateDemandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       {closingDemand && <OpportunityCloseDialog open opportunityCode={closingDemand.codigo || closingDemand.id} onOpenChange={(open) => !open && setClosingDemand(null)} onSuccess={() => { setClosingDemand(null); demandsQuery.refetch(); queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades"] }); }} />}

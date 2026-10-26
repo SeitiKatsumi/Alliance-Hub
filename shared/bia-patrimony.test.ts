@@ -5,6 +5,15 @@ import {calculatePortfolioTotals} from "./member-portfolio";
 const asset=(overrides:Partial<BiaPatrimonyAsset>={})=>({id:"property:one",value:1000,debt:200,currency:"BRL",acquired:true,ownershipConfirmed:true,ownershipPercent:100,...overrides});
 const calc=(assets:BiaPatrimonyAsset[],entries:any[]=[])=>estimateBiaPatrimony({assets,entries,currency:"BRL",assetsUndefined:false,calculatedAt:"2026-10-22T00:00:00Z"});
 const entry=(id:string,tipo:string,valor:number,extra:any={})=>({id,tipo,valor,status:"pago",...extra});
+
+test('pendências identificam ativo e campo, sem exigir valor de um imóvel vendido ou em negociação',()=>{
+ const result=calc([asset({id:'setup:one',name:'Casa 07',value:null,debt:null,ownershipPercent:null})]);
+ assert.equal(result.issueDetails?.length,3);
+ assert.ok(result.issueDetails?.every(i=>i.id==='one' && i.target==='assets' && i.message.startsWith('Casa 07:')));
+ assert.equal(calc([asset({id:'setup:one',acquired:false,value:null})],[entry('cash','entrada',1)]).partial,false);
+ const property=calc([asset({value:null})]);assert.equal(property.issueDetails?.[0].target,'property');
+ const finance=calc([],[entry('cash','saida',1)]);assert.equal(finance.issueDetails?.[0].target,'finance');
+});
 test("aporte utilizado para comprar ativo não conta duas vezes; CPP e promessas não entram",()=>{
   const result=calc([asset({value:1000,debt:0})],[entry("in","entrada",1000),entry("out","saida",1000),entry("right","entrada",500,{natureza:"nao_caixa"}),entry("promise","entrada",2000,{status:"pendente"}),entry("virtual","entrada",1000,{descricao:"Valor de Origem da BIA"})]);
   assert.equal(result.value,1000);assert.equal(result.cash,0);assert.equal(result.partial,false);

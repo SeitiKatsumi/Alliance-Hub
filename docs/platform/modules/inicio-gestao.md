@@ -1,5 +1,12 @@
 # Inicio e Gestao
 
+## Feedback de salvamento transversal (26/10/2026)
+
+- `client/src/components/ui/button.tsx` centraliza `loading`/`loadingText`: um indicador animado e “Salvando…”, `aria-busy`, status acessível e bloqueio de interação enquanto a operação real está pendente. Respeita redução de movimento. Ao concluir/falhar, o estado da tela restaura a ação; o componente não inventa sucesso, não chama API nem altera tratamento de erro.
+- 53 botões assíncronos mapeados em 33 arquivos: onboarding/acesso, perfil/membros, comunidades, administração comercial, Agenda, Carteira/assistente, BIAs/estrutura/MAP/documentos/demandas, Financeiro/transferências, rede, Banco de Ativos, Vitrine, OBA, resultados e preferências. Estados reais de mutation/upload/busy são passados explicitamente; campos inválidos/permissões não acionam carregamento. Preferências preservam tradução.
+- Botões comuns, navegação, `asChild` e consumidores de `buttonVariants` preservam comportamento quando loading não é usado. A lista de consumidores está no registro `2026-10-26-global-save-loading.json`. Teste AST exige loading nos futuros botões Salvar assíncronos. Impressão/PDF nativo e portal local síncrono não simulam espera.
+- Não muda API, autorização, bancos/Directus, cálculo, documentos assinados, notificações, tarefas ou integrações. Não são realizadas gravações reais para testar animação; testes isolados cobrem o componente e o vínculo dos controles.
+
 - 23/10/2026: `Alocação por tese de interesse` agrupa o capital investido autorizado pelo código canônico da BIA, pelo helper `buildBiaThesisAllocation`. Valores antigos Venda/Renda/Operação não viram categorias nem são convertidos por suposição: entram em `Tese não definida`, mantendo base e percentuais. Legenda mostra todas as categorias e quebra os nomes longos no desktop/mobile. Busca, cards e insights usam a mesma resolução da tese; destinação permanece independente. Testes: `shared/bia-business-type.test.ts` e consumidores de tese.
 
 - 22/10/2026: Alertas/contador também projetam o aviso de revisão vigente do MOU/MAP Inicial já destinado à própria conta na Agenda. Só signatário atual da BIA em captação, sem aceite daquela revisão; sem herança pelo funcionário, exposição de documentos ou alteração de fase. Revisões superadas/aceitas não aparecem como pendência; abrir encaminha para Convites da Aliança. Fonte central/testes: `server/agenda-alerts.ts` e seu teste SQL.

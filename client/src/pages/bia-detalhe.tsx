@@ -431,7 +431,7 @@ function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessRespo
             </Button>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={close}>Cancelar</Button>
-              <Button type="button" className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || resetMutation.isPending}>
+              <Button type="button" className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || resetMutation.isPending} loading={saveMutation.isPending}>
                 {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar acessos
               </Button>
             </div>

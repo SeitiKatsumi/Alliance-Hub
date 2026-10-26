@@ -1274,7 +1274,7 @@ export default function MeuPerfilPage() {
               disabled={updateAccountPurposesMutation.isPending || !purposeObjectiveDraft.length}
               className={`gap-2 ${ACCOUNT_PURPOSE_STYLES[configuringPurpose].action}`}
               data-testid="btn-salvar-intencoes"
-            >
+             loading={updateAccountPurposesMutation.isPending}>
               {updateAccountPurposesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Salvar intenções
             </Button>
@@ -1439,7 +1439,7 @@ export default function MeuPerfilPage() {
                 disabled={loadingAccountPurposes || updateAccountPurposesMutation.isPending || !accountPurposes.length}
                 onClick={() => updateAccountPurposesMutation.mutate({ finalidades: accountPurposes, intencoes: accountObjectives })}
                 className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
-              >
+               loading={updateAccountPurposesMutation.isPending}>
                 {updateAccountPurposesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar finalidades
               </Button>
@@ -2904,7 +2904,7 @@ export default function MeuPerfilPage() {
                 disabled={updateMutation.isPending || updateStrategicCellPreferencesMutation.isPending}
                 className="gap-2 bg-blue-600 px-6 text-white shadow-lg hover:bg-blue-700"
                 data-testid="btn-salvar-perfil"
-              >
+               loading={updateMutation.isPending || updateStrategicCellPreferencesMutation.isPending}>
                 {updateMutation.isPending || updateStrategicCellPreferencesMutation.isPending ?(
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
@@ -3031,7 +3031,7 @@ export default function MeuPerfilPage() {
               disabled={uploadingFoto || !fotoCropSrc}
               className="gap-2 bg-brand-navy text-white hover:bg-brand-navy/90"
               data-testid="btn-confirmar-recorte-foto"
-            >
+             loading={uploadingFoto}>
               {uploadingFoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {uploadingFoto ? "Salvando..." : "Salvar foto"}
             </Button>

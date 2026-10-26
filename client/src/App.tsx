@@ -1110,7 +1110,7 @@ function PerfilOnboardingModal({
         )}
 
         <DialogFooter>
-          <Button onClick={handleSave} disabled={salvarMutation.isPending} className="gap-2" data-testid="btn-salvar-onboarding-perfil">
+          <Button onClick={handleSave} disabled={salvarMutation.isPending} className="gap-2" data-testid="btn-salvar-onboarding-perfil" loading={salvarMutation.isPending}>
             {salvarMutation.isPending ?<Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {mostrarPerfilCompleto ?"Salvar perfil" : "Aceitar e continuar"}
           </Button>

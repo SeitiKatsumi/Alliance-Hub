@@ -1437,7 +1437,7 @@ export function OpaFormDialog({
               disabled={saveMutation.isPending || deleteMutation.isPending || uploading}
               className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-save-opa"
-            >
+             loading={saveMutation.isPending || uploading}>
               {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OBA"}
             </Button>
           </div>

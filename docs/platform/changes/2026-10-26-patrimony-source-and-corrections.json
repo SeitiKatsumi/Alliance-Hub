@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "id": "2026-10-26-patrimony-source-and-corrections",
+  "title": "Unificar leitura patrimonial legada e atalhos de correção autorizados",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/bia-setup.ts",
+    "shared/bia-patrimony.ts"
+  ],
+  "searchTerms": [
+    "loadBiaPatrimony",
+    "readResolvedBiaSetup",
+    "BiaPatrimonyBreakdown"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "updated",
+      "reason": "Destaque reativo de percentual/dívida no ativo de destino; sem alteração do resumo exportado ou gravação. Helper compartilhado com cálculo preserva regras."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.tsx",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "server/bia-patrimony.test.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "shared/bia-patrimony.test.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.test.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Fonte comum sem migração, pendências por ativo e alvo, atalhos autorizados; teste/documentação correspondente atualizado."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas existentes editar BIA e detalhe imóvel preservadas; parâmetros aditivos não abrem nova permissão."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "updated",
+      "reason": "Mesmo botão/handler é projetado no rodapé fixo da edição em página; fallback inline em outros consumidores. Validação, bloqueio busy, permissão, revisão e histórico preservados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de catálogo verificadas no conjunto completo; capacidade descrita no novo item."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Montagem React e provider não mudam, novo botão é navegação normal."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor modal BiaFormSheet mantém initialSection geral por padrão."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Links atuais e sumário da estrutura preservados; resolver devolve o mesmo legado para o editor."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Campo reutilizado mantém criação; foco só ocorre com asset explícito existente na URL."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor CarteiraDashboardPanel usa resposta aditiva e mesma revalidação."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Renderiza catálogo atualizado sem lógica própria nova."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Lê catálogo, sem alteração da ferramenta ou relaxamento de gate."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Lê catálogo, sem alteração de verificação."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "preserved",
+      "reason": "Criação/ativação e appendBiaSetup não mudam; regressão executada na suíte."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "preserved",
+      "reason": "Permissões, origem e edição/histórico existentes continuam na suíte."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Inicialização preservada; não existe migração nova."
+    },
+    {
+      "path": "client/src/components/bia-assets.test.ts",
+      "decision": "updated",
+      "reason": "Harness executa novo efeito de foco sem mudar asserts de seleção, exclusão ou read-only."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Desktop escuro e mobile390 claro/escuro conferidos em prévia isolada do componente real. Após restart e login, clique real em Corrigir pendência na Carteira abriu Ativos Vinculados da BIA autorizada X8N39B4T2P. Deep link da Quintas abriu a mesma seção e focou ativo-legado. A carteira da sessão não lista a Quintas; diagnóstico dela validado por leitura do servidor e editor direto. Nenhum cadastro salvo."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Resumo só calcula após vínculo/permissão financeira; resolver compartilhado usa revisão ou legado, sem gravação. Link de imóvel exige propriedade/administração explícita."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Teste SQL prova leitura do legado sem INSERT, precedência de revisão vazia e falha propagada; leitura real da Quintas confirmou ausência de versão e ativo legado. Não altera dados reais."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Fórmula e centavos preservados; pendências impedem participação completa. Situação desconhecida não vira adquirido; vendidos/negociação excluídos. Zero válido e propriedade formal sem duplicação cobertos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Nenhum envio ou gatilho novo: somente leitura patrimonial e navegação."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional e contrato Carteira atualizados; PDFs e documentos assinados não são regravados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Mesmo GET Directus e fontes SQL do cadastro legado; sem chamadas financeiras, jobs ou migração."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Atalhos configuração/Financeiro independentes; imóveis exigem nível proprietário/administração, sem usar privilégio global para expor link. Endpoints mantêm guardas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Fallback somente sem versão; revisão explícita não ressuscita cadastro. issues string preservado e issueDetails aditivo. Histórico não reescrito."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado após refinamento de campos: 557 testes, tipos e build. Teste reativo cobre alvo correto, valores válidos, zero, percentual inválido e alienado. Contornos conferidos no editor real desktop e390px sem salvar cadastro. Regressões SQL, compatibilidade legada, fonte indisponível e links por permissão. platform:review com base 4321c51 aprovado."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-patrimony.test.ts",
+    "shared/bia-patrimony.test.ts",
+    "client/src/components/bia-patrimony-breakdown.test.ts",
+    "client/src/components/bia-assets.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

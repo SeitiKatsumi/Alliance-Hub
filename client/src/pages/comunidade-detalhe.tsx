@@ -1041,7 +1041,7 @@ export default function ComunidadeDetalhePage() {
               className="font-mono"
               style={{ background: "#D7BB7D", color: "#001D34" }}
               data-testid="btn-salvar-comunidade-detalhe"
-            >
+             loading={updateMutation.isPending}>
               {updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
             </Button>
           </DialogFooter>

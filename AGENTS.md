@@ -12,6 +12,8 @@ Este arquivo define o processo obrigatório para qualquer pessoa ou agente que a
 
 ## Regras de mudança
 
+- Padrão de salvamento solicitado pelo usuário: toda ação assíncrona de Salvar deve usar `Button loading={estadoRealDaOperacao}`, exibindo animação e “Salvando…” enquanto aguarda e impedindo repetição. Não inferir loading de `disabled` (pode ser validação/permissão). Preservar erros e liberar nova tentativa ao terminar. Usar `loadingText` quando houver tradução. O teste `button-loading.test.ts` protege novos formulários; impressão/exportação nativa e gravação local síncrona são exceções explícitas, sem atraso artificial.
+
 - Regra de negócio deve existir em um helper de domínio compartilhado, não ser recalculada de forma diferente em páginas distintas.
 - Permissão visual nunca substitui autorização no backend.
 - Um membro pode pertencer a mais de uma comunidade. Nunca use apenas a primeira relação como prova de vínculo global.

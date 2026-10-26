@@ -950,7 +950,7 @@ export default function CarteiraAssistentePage() {
               : step === "cadastro"
                 ? { method: method || "manual", source_type: method || "manual" }
                 : undefined,
-          })}>
+          })} loading={updateMutation.isPending}>
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar e continuar<ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         ) : (

@@ -335,7 +335,7 @@ function DocumentoSheet({
             onClick={() => saveMutation.mutate()}
             disabled={!aliancaTipo || !tipoDocumento || saveMutation.isPending}
             data-testid="button-salvar-documento"
-          >
+           loading={saveMutation.isPending}>
             {saveMutation.isPending ? "Salvando..." : "Salvar documento"}
           </Button>
         </div>

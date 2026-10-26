@@ -2263,7 +2263,7 @@ export default function VitrinePage() {
                 color: "#001D34",
               }}
               data-testid="btn-salvar-card"
-            >
+             loading={saveMutation.isPending}>
               {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
               {myCardExists ? "Salvar alterações" : "Publicar na Vitrine"}
             </Button>
@@ -2554,7 +2554,7 @@ export default function VitrinePage() {
               className="gap-2 font-mono text-xs"
               style={{ background: "linear-gradient(135deg, #D7BB7D, #b89a50)", color: "#001D34" }}
               data-testid="btn-salvar-anuncio"
-            >
+             loading={criarAnuncioMutation.isPending || editarAnuncioMutation.isPending || anuncioUploadLoading}>
               {(criarAnuncioMutation.isPending || editarAnuncioMutation.isPending) ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (

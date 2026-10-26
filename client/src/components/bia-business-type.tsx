@@ -32,7 +32,7 @@ export function BiaBusinessType({ value, onChange, disabled }: { value: string; 
         <h4 className="font-medium">Revisar teses de interesse</h4>
         {STRATEGIC_CELL_TYPES.map((cell) => <div key={cell.code} className="space-y-2"><h3 className="font-medium">{cell.publicName}</h3><div className="flex flex-wrap gap-2">{STRATEGIC_CELL_BUSINESS_TYPES.filter(([cellCode]) => cellCode === cell.code).map(([, code, , label]) => <Button key={code} type="button" variant={draft.includes(code) ? "default" : "outline"} aria-pressed={draft.includes(code)} disabled={save.isPending} className="h-auto max-w-full whitespace-normal text-left" onClick={() => setDraft((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code])}>{formatBusinessThesisLabel(label)}</Button>)}</div></div>)}
         {save.isError && <p role="alert" className="text-sm text-destructive">Não foi possível salvar suas escolhas. Tente novamente</p>}
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button><Button type="button" disabled={save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Salvando…" : "Salvar teses de interesse"}</Button></div>
+        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button><Button type="button" disabled={save.isPending} onClick={() => save.mutate()} loading={save.isPending}>{save.isPending ? "Salvando…" : "Salvar teses de interesse"}</Button></div>
     </div>}
   </section>;
 }

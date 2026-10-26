@@ -1449,7 +1449,7 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
               className="bg-blue-600 text-white hover:bg-blue-700"
               disabled={!imovelForm.nome || saveImovelMutation.isPending}
               onClick={() => saveImovelMutation.mutate({ id: editingImovelId, payload: imovelForm })}
-            >
+             loading={saveImovelMutation.isPending}>
               {saveImovelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingImovelId ? "Salvar alterações" : "Salvar imóvel"}
             </Button>
@@ -1509,7 +1509,7 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLancamentoDialogOpen(false)}>Cancelar</Button>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => createLancamentoMutation.mutate({ ...lancamentoForm, imovel_id: selectedImovel?.id || "" })}>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => createLancamentoMutation.mutate({ ...lancamentoForm, imovel_id: selectedImovel?.id || "" })} loading={createLancamentoMutation.isPending}>
               Salvar
             </Button>
           </DialogFooter>

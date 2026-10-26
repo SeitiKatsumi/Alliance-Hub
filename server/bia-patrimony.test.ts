@@ -6,6 +6,30 @@ import {loadBiaPatrimony} from "./bia-patrimony";
 import {readFileSync} from "node:fs";
 import {transformSync} from "esbuild";
 import {sql} from "drizzle-orm";
+import {readResolvedBiaSetup} from './bia-setup';
+
+test('editor e patrimônio resolvem o mesmo ativo legado sem gravar ou ressuscitar ativo removido',async()=>{
+ const pg=new PGlite();try{
+  await pg.exec(`CREATE TABLE bia_estrutura_versoes(bia_id text,revisao int,dados jsonb,evento text,contexto jsonb);
+   CREATE TABLE bia_imovel_origens(bia_id text,imovel_id text,status text);
+   CREATE TABLE inventario_imoveis(id text,data jsonb);`);
+  const db=drizzle(pg);let reads=0;
+  const legacy=async()=>{reads++;return {info_comercial:{ativo_cidade:'Lagoa Santa',ativo_numero_matricula:'SECRET'}};};
+  const editor=await readResolvedBiaSetup(db,'quintas',legacy);
+  const estimate=await loadBiaPatrimony(db,{id:'quintas'},[],legacy);
+  assert.equal(editor.dados.ativos[0].id,'ativo-legado');assert.equal(reads,2);
+  assert.equal(estimate.partial,true);assert.equal(estimate.value,null);
+  assert.match(estimate.issues.join(),/Ativo cadastrado anteriormente: situação não informada/);
+  assert.match(estimate.issues.join(),/valor de referência não informado/);
+  assert.doesNotMatch(estimate.issues.join(),/Ativos ainda não definidos|SECRET/);
+  assert.ok(estimate.issueDetails?.every(i=>i.target==='assets' && i.id==='ativo-legado'));
+  assert.equal((await pg.query<any>('SELECT count(*)::int n FROM bia_estrutura_versoes')).rows[0].n,0);
+  await pg.exec(`INSERT INTO bia_estrutura_versoes VALUES('quintas',1,'{"ativos":[],"ativosIndefinidos":true}','edicao','{}')`);
+  const current=await loadBiaPatrimony(db,{id:'quintas'},[],async()=>{throw new Error('Não ler legado quando já há revisão');});
+  assert.match(current.issues.join(),/Ativos ainda não definidos/);
+  await assert.rejects(loadBiaPatrimony(db,{id:'failed'},[],async()=>{throw new Error('Fonte indisponível');}));
+ }finally{await pg.close();}
+});
 
 test("leitura SQL usa somente ativos da BIA, sem transferir propriedade por referência ou alterar fontes",async()=>{
  const pg=new PGlite();try{
@@ -25,9 +49,9 @@ test("leitura SQL usa somente ativos da BIA, sem transferir propriedade por refe
 test("Carteira exige vínculo e leitura financeira antes das fontes, sem substituir falha por zero",async()=>{
  const source=readFileSync(new URL('./routes.ts',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function carteiraAlliancesForMember('),source.indexOf('  const MARKET_ESTIMATE_MAX_AGE_MS'));
- let allowed=false,reads=0,fail=false,partial=true,legacy=false;
+ let allowed=false,reads=0,fail=false,partial=true,legacy=false,propertyIssues=false,propertyEditable=false;
  const entries=[{tipo:'entrada',valor:100,status:'pago'},{tipo:'entrada',valor:1000,status:'pendente'},{tipo:'entrada',valor:100,status:'pago',finalidade:'integralizacao_inicial'},{tipo:'saida',valor:40,status:'pago'},{tipo:'saida',valor:60,status:'pendente'},{tipo:'saida',valor:1000,status:'cancelado'}];
- const scope={directusFetchScoped:async(collection:string)=>{if(collection==='bias_projetos')return [{id:'bia',moeda:'BRL'}];reads++;if(fail)throw new Error('indisponível');return entries;},isUserLinkedToBia:(_bia:any,id:string)=>id==='member',resolveBiaAccessForRequest:async()=>({permissions:{}}),hasBiaAccess:()=>allowed,loadInitialMapSnapshot:async()=>legacy?null:{modelo_calculo:5},getBiaAllocationMap:async()=>{reads++;return [{memberId:'member',percent:25,value:100}];},memberContributionProgress:()=>({committed:100,paid:25,percentage:25,partial:false}),loadBiaPatrimony:async()=>{reads++;return {value:200,partial,calculatedAt:'2026-10-22T00:00:00Z',propertyIds:[]};},db:{execute:async()=>({rows:[]})},sql,canDeleteBia:async()=>false,isCashEntry:()=>true,parseMarketValueServer:Number};
+ const scope={requireCarteiraActor:()=>({isPlatformAdmin:true}),resolveCarteiraAccess:async(id:string,actor:any)=>{assert.equal(id,'owned');assert.equal(actor.isPlatformAdmin,false);return propertyEditable?{nivel:'administracao'}:null;},directusFetchScoped:async(collection:string)=>{if(collection==='bias_projetos')return [{id:'bia',moeda:'BRL'}];reads++;if(fail)throw new Error('indisponível');return entries;},isUserLinkedToBia:(_bia:any,id:string)=>id==='member',resolveBiaAccessForRequest:async()=>({permissions:{}}),hasBiaAccess:()=>allowed,loadInitialMapSnapshot:async()=>legacy?null:{modelo_calculo:5},getBiaAllocationMap:async()=>{reads++;return [{memberId:'member',percent:25,value:100}];},memberContributionProgress:()=>({committed:100,paid:25,percentage:25,partial:false}),loadBiaPatrimony:async()=>{reads++;return {value:200,partial,issueDetails:propertyIssues?[{target:'property',id:'owned',message:'Valor ausente'}]:[],calculatedAt:'2026-10-22T00:00:00Z',propertyIds:[]};},db:{execute:async()=>({rows:[]})},sql,canDeleteBia:async()=>false,isCashEntry:()=>true,parseMarketValueServer:Number};
  const fn=new Function(...Object.keys(scope),transformSync(code,{loader:'ts'}).code+';return carteiraAlliancesForMember;')(...Object.values(scope));
  assert.deepEqual(await fn('member',{}),[]);assert.equal(reads,0);allowed=true;
  assert.deepEqual(await fn('other',{}),[]);assert.equal(reads,0);
@@ -35,6 +59,8 @@ test("Carteira exige vínculo e leitura financeira antes das fontes, sem substit
  partial=false;const complete=await fn('member',{});assert.equal(complete[0].valor_participacao,50);assert.equal(complete[0].evolucao_patrimonial_percentual,-50);
  assert.equal(complete[0].cpp_aportado,25);assert.equal(complete[0].cpp_a_aportar,75);assert.equal(complete[0].cpp_integralizacao.percentage,25);
  legacy=true;const compatible=await fn('member',{});assert.equal(compatible[0].cpp_aportado,100);assert.equal(compatible[0].cpp_a_aportar,0);
+ propertyIssues=true;assert.deepEqual((await fn('member',{}))[0].editable_patrimony_property_ids,[]);
+ propertyEditable=true;assert.deepEqual((await fn('member',{}))[0].editable_patrimony_property_ids,['owned']);
  assert.equal(result[0].receitas_participacao,25);assert.equal(result[0].despesas_participacao,10);assert.equal(result[0].contas_a_pagar_participacao,15);
  fail=true;await assert.rejects(fn('member',{}));
 });

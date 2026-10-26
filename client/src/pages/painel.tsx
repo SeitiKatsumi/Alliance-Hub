@@ -2106,7 +2106,7 @@ export default function PainelPage() {
                 if (!selectedCarteiraAlert || !carteiraAlertAction.trim()) return;
                 registerCarteiraAlertAction.mutate({ alert: selectedCarteiraAlert, action: carteiraAlertAction.trim() });
               }}
-            >
+             loading={registerCarteiraAlertAction.isPending}>
               {registerCarteiraAlertAction.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar ação
             </Button>

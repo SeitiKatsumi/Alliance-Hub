@@ -439,7 +439,7 @@ export function CompanyAccessPanel() {
               className="bg-blue-600 text-white hover:bg-blue-700"
               disabled={saveMutation.isPending || !form.nome.trim() || !form.email.trim() || (!editing && form.password.length < 6)}
               onClick={() => saveMutation.mutate()}
-            >
+             loading={saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? "Salvar alterações" : "Criar acesso"}
             </Button>

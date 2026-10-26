@@ -6,15 +6,35 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {transformSync} from 'esbuild';
 import ts from 'typescript';
 import * as domain from '../../../shared/bia-setup';
+import { missingPatrimonyFields, setupPatrimonyAsset, assetCorrectionFields } from '../../../shared/bia-patrimony';
 
 const source=readFileSync(new URL('./bia-setup-fields.tsx',import.meta.url),'utf8');
 const ast=ts.createSourceFile('assets.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&['BiaAssetFields','AssetTotals','BiaSetupSummary'].includes(n.name?.text || '')).map(n=>n.getText(ast).replace(/^export /,'')).join('\n')+'\n'+readFileSync(new URL('./bia-asset-patrimony-fields.tsx',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export function/g,'function');
 const wrap=({children}:any)=>React.createElement(React.Fragment,null,children);
 let id=0;
-const scope={React,Fragment:React.Fragment,...domain,useRef:(value:any)=>({current:value}),useState:(value:any)=>[value,()=>{}],useQuery:()=>({data:[]}),css:'',Input:'input',Button:'button',EMPTY_BIA_INFO:{},crypto:{randomUUID:()=>String(++id)},Dialog:wrap,DialogTrigger:wrap,DialogContent:wrap,DialogHeader:wrap,DialogTitle:wrap,DialogDescription:wrap,DialogClose:wrap,BiaBudgetSummary:()=>null,BiaInformationFields:()=>React.createElement('p',null,'Formulário de imóvel'),BiaNumberInput:({label,value,onChange}:any)=>React.createElement('input',{'aria-label':label,value:Number.isFinite(value)?value:'',onChange})};
-const {BiaAssetFields,BiaSetupSummary}=new Function(...Object.keys(scope),transformSync(functions,{loader:'tsx'}).code+';return {BiaAssetFields,BiaSetupSummary};')(...Object.values(scope));
+const scope={React,Fragment:React.Fragment,...domain,useEffect:(effect:()=>void)=>effect(),useRef:(value:any)=>({current:value}),useState:(value:any)=>[value,()=>{}],useQuery:()=>({data:[]}),css:'',Input:'input',Button:'button',EMPTY_BIA_INFO:{},crypto:{randomUUID:()=>String(++id)},Dialog:wrap,DialogTrigger:wrap,DialogContent:wrap,DialogHeader:wrap,DialogTitle:wrap,DialogDescription:wrap,DialogClose:wrap,BiaBudgetSummary:()=>null,BiaInformationFields:()=>React.createElement('p',null,'Formulário de imóvel'),BiaNumberInput:({label,value,onChange}:any)=>React.createElement('input',{'aria-label':label,value:Number.isFinite(value)?value:'',onChange})};
+const testLocation={search:''};
+const fieldScope={...scope,assetCorrectionFields,missingPatrimonyFields,setupPatrimonyAsset,window:{location:testLocation},requestAnimationFrame:()=>0,cancelAnimationFrame:()=>{}};
+const {BiaAssetFields,BiaSetupSummary}=new Function(...Object.keys(fieldScope),transformSync(functions,{loader:'tsx'}).code+';return {BiaAssetFields,BiaSetupSummary};')(...Object.values(fieldScope));
 const nodes=(n:any):any[]=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
+
+test('correction highlights only missing fields of the selected asset and clears as edited',()=>{
+  const value=domain.emptyBiaSetup();
+  value.ativos=[domain.biaSetupSchema.parse({...value,ativosIndefinidos:false,ativos:[{id:'target',nome:'Casa',situacao:'',info:{},indicadores:{}}]}).ativos[0]];
+  const render=()=>renderToStaticMarkup(BiaAssetFields({value,moeda:'BRL',onChange:()=>{}}));
+  const marked=()=>[...render().matchAll(/data-patrimony-field="([^"]+)" class="[^"]*ring-amber-500/g)].map(m=>m[1]);
+  try {
+    assert.deepEqual(marked(),[]);
+    testLocation.search='?asset=another';assert.deepEqual(marked(),[]);
+    testLocation.search='?asset=target';assert.deepEqual(marked(),['situacao','valorReferencia']);
+    value.ativos[0].situacao='Em análise';assert.deepEqual(marked(),['valorReferencia']);
+    value.ativos[0].situacao='Adquirido';assert.deepEqual(marked(),['valorReferencia','participacaoBiaPercentual','dividaSaldo']);
+    Object.assign(value.ativos[0],{valorReferencia:100,participacaoBiaPercentual:100,dividaSaldo:0});assert.deepEqual(marked(),[]);
+    value.ativos[0].participacaoBiaPercentual=101;assert.deepEqual(marked(),['participacaoBiaPercentual']);
+    value.ativos[0].situacao='Alienado';assert.deepEqual(marked(),[]);
+  } finally {testLocation.search='';}
+});
 
 test('structure editor saves without a manual reason and preserves revision and failure handling',async()=>{
   const panel=readFileSync(new URL('./bia-setup-panel.tsx',import.meta.url),'utf8');
@@ -35,6 +55,14 @@ test('structure editor saves without a manual reason and preserves revision and 
   assert.equal(states[1],4);assert.equal(states[3],false);
   fail=true;await save().props.onClick();assert.equal(states[2],'Conflito de revisão');assert.equal(states[1],4);assert.equal(states[3],false);
   assert.equal(requests[1][2].revisaoEsperada,4);
+  const portalCalls:any[]=[];
+  const portalMocks={...mocks,createPortal:(child:any,container:any)=>{portalCalls.push({child,container});return child;}};
+  const portalEditor=new Function(...Object.keys(portalMocks),transformSync(editor,{loader:'tsx'}).code+';return SetupEditor;')(...Object.values(portalMocks));
+  const container={};cursor=0;portalEditor({biaId:'bia-test',moeda:'BRL',members:{},actionContainer:container});
+  assert.equal(portalCalls[0].container,container);assert.equal(portalCalls[0].child.props.children,'Salvar alteração');
+  editable=false;cursor=0;portalEditor({biaId:'bia-test',moeda:'BRL',members:{},actionContainer:container});assert.equal(portalCalls[1].child,false);
+  const page=readFileSync(new URL('../pages/bias.tsx',import.meta.url),'utf8');
+  assert.match(page,/actionContainer=\{page\?setupActionContainer:null\}/);assert.match(page,/ref=\{setSetupActionContainer\} hidden=/);
 });
 
 test('asset choice creates only the selected form and preserves other assets and read-only guards',()=>{

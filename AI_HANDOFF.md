@@ -1,5 +1,30 @@
 # AI_HANDOFF.md
 
+## 26/10/2026 — loading de salvamento em toda a plataforma
+
+- Pedido: animação ao salvar, inclusive para próximos formulários. Button ganhou loading explícito, spinner único, Salvando…, aria-busy/status, bloqueio e redução de movimento. 53 controles/33 arquivos ligados a mutation/upload/busy reais; não usa disabled como inferência. Regra registrada no AGENTS e teste AST impede novos Salvar sem loading, exceto impressão/PDF e portal local síncrono.
+- Escopo exclusivamente visual: handlers, erros, permissões, APIs/Directus, cálculos, documentos e notificações preservados. Nenhuma operação financeira/cadastral real executada em QA. Contrato Inicio/Gestão e relatório funcional atualizados. Validação e evidências no registro global-save-loading; sem commit/push/deploy.
+- Validação:560 testes/0falhas, tipos/build e platform:review base4321c51. Preview isolada do Button real conferida desktop escuro e390px claro/escuro, sucesso/falha/nova tentativa. Mantém aria-busy de consumidores anteriores, sem tratar bloqueio por validação como loading. Screenshot salvamento-loading.png no workspace BUILT; prévia encerrada e viewport restaurado.
+
+## 26/10/2026 — fonte patrimonial unificada e atalhos de correção
+
+- Refinamento adicional: escolher Em análise não apaga amarelo do valor vazio; `assetCorrectionFields` mantém essa orientação independente sem mudar inclusão no cálculo. Salvar da estrutura usa portal no rodapé fixo de BiaFormSheet em página, preservando handler/permissões/revisão. QA local confirmou situação preenchida sem amarelo e referência vazia ainda amarela; nenhuma gravação real.
+- Validação deste refinamento: platform:verify (557 testes/0 falhas, tipos/build) e review base4321c51 aprovados. Rodapé conferido em desktop e390px; teste do portal preserva ação original e ausência de permissão. Screenshot valor-pendente-salvar-fixo.png. Sem commit/push/deploy.
+
+- Refinamento pedido: contorno amarelo por campo pendente no ativo de destino, removendo contorno do cartão. Foco inicial no primeiro campo; destaque reativo usa helper compartilhado com cálculo. Não muda valores nem salva automaticamente. Teste cobre alvo correto, campos válidos, zero de dívida, percentual inválido e ativo alienado.
+- Refinamento validado: 557 testes/0 falhas, tipos/build e review base4321c51 aprovados. Contornos conferidos na Quintas local em desktop e390px; nenhum cadastro salvo. Captura campos-pendentes-quintas.png no workspace BUILT. Sem commit/push.
+
+- Pedido: reconhecer ativo legado da Quintas Top View 7 e levar o usuário do aviso amarelo ao local da pendência. Editor e cálculo passam pelo mesmo readResolvedBiaSetup e carregador legado; revisão explícita prevalece, inclusive lista vazia. Sem migrar, duplicar ou preencher dados reais.
+- Pendências aditivas por ativo/campo e alvo; atalho para Ativos Vinculados com foco no ativo, imóvel formal ou Financeiro. Permissão de configuração é independente da financeira; imóvel só recebe atalho para proprietário/administração explícitos. Totais/CPPs/MAP/aceites/documentos/fase e provedores preservados. Endpoints de gravação continuam validando acesso e revisão.
+- Testes cobrem legado sem revisão, remoção explícita, fonte indisponível, mensagens, valores zero, exclusão de ativos não adquiridos e atalhos autorizados. Verificações e QA registrados na entrega; sem gravação financeira ou alteração no cadastro da Quintas.
+- Validação final: platform:verify aprovado (556 testes, tipos/build) e platform:review base4321c51. Após login, clique real no aviso da carteira abriu Ativos Vinculados; acesso direto à Quintas focou ativo-legado. Componente conferido em desktop escuro e mobile390 claro/escuro em prévia isolada. Carteira da sessão não lista Quintas; diagnóstico dela confirmado separadamente por leitura do servidor e editor. Sem commit/push/deploy desta correção.
+
+## 26/10/2026 — dashboard Sandbox no servidor publicado
+
+- Pedido: corrigir painel ausente no site, apesar de funcionar localmente. Commit 4321c51 já continha o dashboard; CapRover built-hub-app não tinha ASAAS_SANDBOX_WEBHOOK_URL nem opt-ins operacionais.
+- Adicionadas somente ASAAS_SANDBOX_WEBHOOK_URL=https://app.builtalliances.com/api/webhooks/asaas/sandbox e ASAAS_TRANSFERS_ENABLED=true; Save & Restart aplicado. Ambiente sandbox, segredos e demais configurações preservados. Cobranças continuam desabilitadas; nenhuma transferência, cobrança, aceite ou fase de BIA alterada.
+- Validação autenticada no site publicado: BIA868NEL6DXJ mostra dashboard novo, conta aprovada, saldo R$0,00, cobranças/transferências sem registros no período e histórico consultado com sucesso. Não houve edição de código nem ativação de dinheiro real. Registro: 2026-10-26-remote-sandbox-dashboard.json.
+
 ## 26/10/2026 — aportes herdam pagamento da saída na criação
 
 - Validação completa aprovada:553 testes, tipos, build e platform:review --base HEAD. Reinício local3004 pelo script oficial após validar processo da porta; nenhuma gravação de lançamentos reais ou chamada de cobrança. Sessão dev pode expirar. Sem commit/push/deploy.

@@ -1,0 +1,631 @@
+{
+  "version": 1,
+  "id": "2026-10-26-global-save-loading",
+  "title": "Padrão transversal de feedback em salvamento",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/components/ui/button.tsx"
+  ],
+  "searchTerms": [
+    "client/src/components/ui/button.tsx"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/App.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/PagamentoModal.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/admin-commercial-policies.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/ai-analyzer.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ai-assistant.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ai-insights-block.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/asaas-status.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-brand-preview.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-partners-status.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-pdf-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-phase-controls.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/bia-structuring-queue.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/browser-permission-help.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/company-access-panel.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/environment-access.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/initial-beneficiary-field.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/member-business-feed.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/opportunity-close-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/searchable-name-select.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/searchable-name-select.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/traceability-summary.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ui/alert-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ui/calendar.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ui/carousel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ui/pagination.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/components/ui/sidebar.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/adesao.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/aguardando-aprovacao.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/alianca-docs-page.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/avaliar-aura-candidato.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/business-trace-detail.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/carteira-assistente.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/convite-imovel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/convite.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/dashboard.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/documentacao.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/economic-opportunity-detail.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa-mobile.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/land-bank-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/nova-demanda.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/nucleo-comercial.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/nucleo-obra.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/nucleo-tecnico.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/oportunidades-imobiliarias.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/pagamento.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/portal-localhosts.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/resultados.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/pages/ro-guest-confirmation.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/validation.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/vitrine-demandas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do botão/variants sem nova regra de gravação: loading omitido mantém conteúdo, navegação e evento existentes; Slot/variants preservados."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/ui/button.tsx",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/components/ui/button-loading.test.ts",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "docs/platform/modules/inicio-gestao.md",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    },
+    {
+      "path": "AGENTS.md",
+      "decision": "updated",
+      "reason": "Prop loading vinculada ao estado real de salvamento; componente/teste/contrato correspondente. Handlers e permissões preservados."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real em prévia isolada conferido no desktop escuro e390px claro/escuro. Clique mostrou spinner/Salvando e disabled, falha liberou tentativa e sucesso retornou botão original. Botão desabilitado sem operação não mostrou spinner. Nenhum cadastro real salvo."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Somente props visuais; nenhum endpoint/handler de envio modificado."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Nenhuma migração, SQL ou escrita em Directus introduzida."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Valores e cálculos não são alterados; status de carregamento vem das operações existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Nenhum envio nem gatilho novo."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional e contrato atualizados; PDF/impressão local permanecem sem atraso artificial e documentos assinados não mudam."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem chamadas externas novas; componente só renderiza estado."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Disabled por validação/permissão é independente de loading; guardas e endpoints preservados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Props opcionais, asChild e buttonVariants compatíveis. Sem alteração de registros existentes."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "560 testes aprovados na suíte completa; teste do componente/guarda AST cobre53 controles e preservação de aria-busy anterior. Regressões focadas de Banco e botão aprovadas, tipos/build pelo platform:verify."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/ui/button-loading.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

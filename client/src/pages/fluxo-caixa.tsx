@@ -3039,7 +3039,7 @@ export default function FluxoCaixaPage({
                     disabled={createMutation.isPending || uploading}
                     className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                     data-testid="button-salvar-lancamento"
-                  >
+                   loading={createMutation.isPending || uploading}>
                     {createMutation.isPending || uploading ?(
                       <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
@@ -3533,7 +3533,7 @@ export default function FluxoCaixaPage({
                   disabled={!destValidos || hasDuplicateDest || totalPercentual > 100 || totalPercentual <= 0 || !transferObservacoes.trim() || createTransferMutation.isPending || transferUploading}
                   onClick={() => createTransferMutation.mutate()}
                   data-testid="btn-submit-transfer"
-                >
+                 loading={createTransferMutation.isPending || transferUploading}>
                   <SendHorizontal className="w-4 h-4 mr-1.5" />
                   {createTransferMutation.isPending || transferUploading
                     ?"Salvando..."
@@ -3603,7 +3603,7 @@ export default function FluxoCaixaPage({
               </Button>
               <DialogFooter>
                 <Button variant="outline" disabled={correctTransferMutation.isPending} onClick={() => setCorrectingTransfer(null)}>Cancelar</Button>
-                <Button variant={reversingTransfer ? "destructive" : "default"} disabled={correctTransferMutation.isPending || !quotaCorrectionSchema.safeParse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em } : { valor_total: Number(correctionValue), percentual_transferencia: Number(correctionPercent), motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em }).success} onClick={() => correctTransferMutation.mutate()}>
+                <Button variant={reversingTransfer ? "destructive" : "default"} disabled={correctTransferMutation.isPending || !quotaCorrectionSchema.safeParse(reversingTransfer ? { acao: "reverter", confirmar: true, motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em } : { valor_total: Number(correctionValue), percentual_transferencia: Number(correctionPercent), motivo: correctionReason, atualizado_em: correctingTransfer?.atualizado_em }).success} onClick={() => correctTransferMutation.mutate()} loading={correctTransferMutation.isPending}>
                   {correctTransferMutation.isPending ? "Salvando…" : reversingTransfer ? "Confirmar reversão" : "Confirmar correção"}
                 </Button>
               </DialogFooter>
@@ -4377,7 +4377,7 @@ export default function FluxoCaixaPage({
                   disabled={updateMutation.isPending || uploading}
                   className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                   data-testid="button-salvar-edit"
-                >
+                 loading={updateMutation.isPending || uploading}>
                   {updateMutation.isPending || uploading ?(
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   ) : (

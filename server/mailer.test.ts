@@ -5,6 +5,9 @@ import { configureEmailPreferencePolicy } from './email-preference-policy';
 
 test("convites de diretoria e sócio mantêm ação antecipada e alternativa em mobile", async (t) => {
   configureEmailPreferencePolicy(async () => true);
+  const previousAppUrl = process.env.APP_URL;
+  process.env.APP_URL = 'http://localhost:3004';
+  t.after(() => { if (previousAppUrl === undefined) delete process.env.APP_URL; else process.env.APP_URL = previousAppUrl; });
   const messages: any[] = [];
   t.mock.method(nodemailer, "createTransport", () => ({sendMail: async (message:any) => {messages.push(message);return {messageId:"preview-only"};}}));
   const mailer = await import("./mailer");
@@ -34,4 +37,9 @@ test("convites de diretoria e sócio mantêm ação antecipada e alternativa em 
   await mailer.enviarAvisoAporte({email:'example@example.test',name:'Pessoa',biaId:'bia',amount:1000,dueDate:'2031-11-15',details:{agendaTaskId:'task'},kind:'flow-reminder:initial'});
   assert.match(messages[2].html,/agenda-alertas\?view=agenda&task=task/);
   assert.match(messages[2].html,/Ver pagamento na minha Agenda/);
+  for (const {html} of messages) {
+    assert.match(html, /src="https:\/\/app\.builtalliances\.com\/built-logo-horizontal-branca-email\.png\?v=20260514"/);
+    assert.doesNotMatch(html, /src="http:\/\/localhost/);
+  }
+  assert.match(messages[2].html, /href="http:\/\/localhost:3004\/agenda-alertas/);
 });

@@ -15,6 +15,9 @@ const transporter = nodemailer.createTransport({
 
 const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.com>";
 const BASE_URL = process.env.APP_URL || "https://app.builtalliances.com";
+// Mail clients cannot load assets from the developer's localhost. Navigation
+// still uses APP_URL, but shared branding always comes from the public site.
+const EMAIL_LOGO_URL = "https://app.builtalliances.com/built-logo-horizontal-branca-email.png?v=20260514";
 
 const WINDOWS_1252_BYTE_BY_CHAR: Record<number, number> = {
   0x20ac: 0x80,
@@ -183,7 +186,7 @@ function baseTemplate(content: string, preserveColors = false): string {
     <body class="built-email" style="margin:0;padding:0;background:#f5f7fb">
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#001D34;${preserveColors ? "background-image:linear-gradient(#001D34,#001D34);" : ""}color:#fff;border-radius:12px;overflow:hidden">
       <div style="background:#001D34;background-image:linear-gradient(#001D34,#001D34);padding:16px 20px;text-align:center;border-bottom:1px solid #29435a">
-        <img src="${BASE_URL}/built-logo-horizontal-branca-email.png?v=20260514" alt="BUILT Alliances" width="220" style="width:220px;max-width:100%;height:auto;display:inline-block;border:0" />
+        <img src="${EMAIL_LOGO_URL}" alt="BUILT Alliances" width="220" style="width:220px;max-width:100%;height:auto;display:inline-block;border:0" />
       </div>
       <div style="padding:20px;overflow-wrap:break-word">
         ${content}

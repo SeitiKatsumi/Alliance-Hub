@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "id": "2026-10-26-email-logo",
+  "title": "Logo público de e-mails independente de localhost",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/mailer.ts"
+  ],
+  "searchTerms": [
+    "EMAIL_LOGO_URL",
+    "built-logo-horizontal-branca-email"
+  ],
+  "consumers": [
+    {
+      "path": "server/mailer.ts",
+      "decision": "updated",
+      "reason": "Correção compartilhada do endereço da imagem, regressão ou contrato."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "updated",
+      "reason": "Correção compartilhada do endereço da imagem, regressão ou contrato."
+    },
+    {
+      "path": "docs/platform/modules/agenda-notificacoes.md",
+      "decision": "updated",
+      "reason": "Correção compartilhada do endereço da imagem, regressão ou contrato."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do mailer; assinaturas, links, preferências e efeitos preservados."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do mailer; assinaturas, links, preferências e efeitos preservados."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do mailer; assinaturas, links, preferências e efeitos preservados."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do mailer; assinaturas, links, preferências e efeitos preservados."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Consumidor do mailer; assinaturas, links, preferências e efeitos preservados."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Regressão do consumidor de lembretes preservada; mudança somente no logo do template."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Somente URL da imagem; largura220, max-width100%, textos e layout preservados. Teste HTML de convites e aporte; não homologado em cliente Gmail real."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de endpoints ou contratos."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Sem migração ou alteração de dados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Sem alteração financeira ou de cálculos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Template compartilhado separa URL pública do logo de APP_URL. Link de agenda local preservado em teste. URL pública respondeu200 image/png."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Nenhum PDF, export ou relatório funcional muda."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "SMTP, destinatários, preferências, workers e deduplicação preservados. Nenhum e-mail real enviado."
+    },
+    {
+      "area": "permissoes",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de autorização."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "E-mails já enviados são imutáveis; apenas novos envios usam o logo público."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Regressão de APP_URL localhost com SMTP simulado; platform:verify aprovado:577 testes, tipos e build. Log .BUILT-tmp/email-logo-verify.log. GET público200 e assinatura PNG válida; sem envio real nem homologação em cliente Gmail."
+    }
+  ],
+  "regressionTests": [
+    "server/mailer.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

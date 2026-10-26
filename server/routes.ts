@@ -42,6 +42,7 @@ import { registerBiaBankHistory } from "./bia-bank-history";
 import { registerAsaasFoundation } from "./asaas/routes";
 import { ContributionBilling } from "./contribution-billing";
 import { registerContributionBilling } from "./contribution-billing-routes";
+import { protectContributionFlow } from './contribution-flow-protection';
 import { canManageContributionBilling } from "@shared/contribution-billing";
 import { registerUserPreferences, UserPreferencesStore } from './user-preferences';
 import { configureEmailPreferencePolicy } from './email-preference-policy';
@@ -1270,6 +1271,7 @@ async function initialEntryMetadata(entries: any[]) {
 
 async function protectInitialEntry(id: string, data: any) {
   if (mapOperationContext.getStore()?.initialContributionWrite) return;
+  await protectContributionFlow(mapOperationContext.getStore()?.tx || db,id,data);
   const [entry] = await initialEntryMetadata([{id}]);
   if (!entry?.parcela_inicial_id) return;
   const paymentOnly = data && Object.keys(data).every(k => k.startsWith("pagamento_") || ["status","data_pagamento"].includes(k));
@@ -7745,7 +7747,7 @@ export async function registerRoutes(
 
   const contributionBilling = new ContributionBilling({
     db,lock:withMapLock,
-    entries:(id)=>directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(id)}&fields=*`),
+    entries:async(id)=>initialEntryMetadata(await directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(id)}&fields=*`)),
     bia:(id)=>directusFetchOne("bias_projetos",id,"fields=id,situacao,moeda"),
     member:(id)=>directusFetchOne("cadastro_geral",id,"fields=id,nome,email,cpf,cnpj"),
     updateFlow:(id,data)=>mapOperationContext.run({...mapOperationContext.getStore(),initialContributionWrite:true},()=>directusUpdate("fluxo_caixa",id,data)),
@@ -13617,6 +13619,7 @@ ${textContent}`;
       const flowAccess = await requireFluxoAccess(req, res, req.params.id, "edit");
       if (!flowAccess) return;
       await protectExpenseEntry(db, req.params.id, null);
+      await protectContributionFlow(db, req.params.id, null);
       const antes = flowAccess.snapshot;
       const protegido = isProtectedValorOrigemEntry(antes);
       const confirmado = req.body?.confirmar_exclusao_protegida === true;
@@ -24315,6 +24318,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const role = await getEffectiveRole(req);
     const isAdmin = ["admin", "manager", "superadmin", "master"].includes(String(role || "").toLowerCase());
     const allItems: AgendaAlertItem[] = [];
+    allItems.push(...await contributionBilling.reminders.alerts(String(userId),session.companyEmployeeId?null:membroId?String(membroId):null));
 
     allItems.push(...await listMouRevisionAlerts(db,String(userId),session.companyEmployeeId ? null : membroId ? String(membroId) : null,BIA_MOU_VERSAO,async biaId=>{
       const bia=await phaseDeps.fetch(biaId);

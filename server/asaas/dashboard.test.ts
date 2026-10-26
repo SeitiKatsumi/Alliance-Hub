@@ -23,7 +23,7 @@ test("dashboard pagina até o fim, usa a criação, soma centavos e não expõe 
     return params.get("offset") === "0" ? { data: [record("p1"), record("p2", "CONFIRMED")], hasMore: true, totalCount: 3 } : { data: [record("p3", "RECEIVED_IN_CASH", 50)], hasMore: false, totalCount: 3 };
   } }, "sandbox", "30", new Date("2026-10-26T12:00:00Z"));
   bankDashboardSchema.parse(data);
-  assert.equal(data.scope, "company_account"); assert.equal(data.payments.complete, true); assert.equal(data.balance, 12.34);
+  assert.equal(data.scope, "bia_account"); assert.equal(data.payments.complete, true); assert.equal(data.balance, 12.34);
   assert.equal(bankTotals(data.payments.items, "payments").value, 70.02);
   assert.equal(bankTotals(data.payments.items, "payments", "received").value, 10.01);
   assert.equal(bankTotals(data.transfers.items, "transfers", "completed").value, 2);
@@ -91,6 +91,6 @@ test("endpoint autoriza view antes do banco, rejeita período inválido e usa ID
     };
     const response = await fetch(url + "?period=30");
     assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.equal((await response.json()).scope, "company_account");
+    assert.equal((await response.json()).scope, "bia_account");
   } finally { AsaasAccountOperations.prototype.dashboard = originalDashboard; }
 });

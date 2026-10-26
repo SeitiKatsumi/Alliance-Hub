@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {useSearch} from 'wouter';
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -43,6 +44,7 @@ type AgendaStatus = "pendente" | "em_andamento" | "concluida" | "cancelada";
 type AgendaPrioridade = "baixa" | "media" | "alta";
 
 interface AgendaTarefa {
+  origem_tarefa_id?: string | null;
   id: string;
   titulo: string;
   descricao?: string | null;
@@ -166,6 +168,8 @@ function membroSearchText(membro: MembroOption) {
 }
 
 export default function AgendaPage({ embedded = false }: { embedded?: boolean }) {
+  const taskId=new URLSearchParams(useSearch()).get('task');
+  const [openedTask,setOpenedTask]=useState<string|null>(null);
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaTarefa | null>(null);
@@ -396,6 +400,14 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
     setSelectedBiaId("");
     setDialogOpen(true);
   }
+
+  useEffect(()=>{
+    const task=tarefas.find(t=>t.id===taskId);
+    if(!task||openedTask===taskId)return;
+    const date=new Date(task.data+'T12:00:00');
+    if(!Number.isNaN(date.getTime()))setCalendarCursor(date);
+    setViewMode(DEFAULT_AGENDA_VIEW_MODE);openEdit(task);setOpenedTask(taskId);
+  },[taskId,tarefas,openedTask]);
 
   function handleSave() {
     if (!form.titulo.trim()) {
@@ -706,6 +718,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                             <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{tarefa.descricao}</p>
                           )}
                           {tarefa.contexto_tipo === "bia_contribution" && tarefa.contexto_id && <a className="mt-2 inline-block text-xs text-primary underline" href={`/bias/${encodeURIComponent(tarefa.contexto_id)}?tab=capital&capital=financeiro&financeiro=aportes`}>Consultar aporte da BIA</a>}
+                          {tarefa.contexto_tipo === "aporte_reminder" && tarefa.contexto_id && <a className="mt-2 inline-block text-xs text-primary underline" href={`/bias/${encodeURIComponent(tarefa.contexto_id)}?tab=capital&capital=financeiro&paymentFlow=${encodeURIComponent(tarefa.origem_tarefa_id||'')}`}>Consultar pagamento do aporte</a>}
                         </div>
                         <button
                           type="button"
@@ -741,6 +754,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
             <DialogTitle>{editing ? "Editar ação" : "Nova ação"}</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            {editing?.contexto_tipo==='aporte_reminder'&&editing.contexto_id&&<Button asChild className="w-full"><a href={`/bias/${encodeURIComponent(editing.contexto_id)}?tab=capital&capital=financeiro&paymentFlow=${encodeURIComponent(editing.origem_tarefa_id||'')}`}>Consultar aporte · Pix e boleto</a></Button>}
             <div className="space-y-2">
               <Label>Título *</Label>
               <Input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ex: ligar para cliente, revisar proposta..." data-testid="input-agenda-titulo" />

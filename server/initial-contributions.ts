@@ -143,7 +143,7 @@ export function registerInitialContributions(app: any, deps: {
       requireBase(base);
       const old = await plan(tx,id); checkRevision(old,req.body);
       if ((await tx.execute(sql`SELECT to_regclass('bia_contribution_charges') IS NOT NULL AS ready`)).rows[0]?.ready) {
-        const managed=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE bia_id=${id} LIMIT 1`)).rows[0];
+        const managed=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE bia_id=${id} AND parcel_id IS NOT NULL LIMIT 1`)).rows[0];
         if(managed)throw error("Este cronograma possui cobranças gerenciadas. Use Atualizar próximas parcelas para revisar a obrigação financeira.");
       }
       if (old?.estado === "pendente") throw error("Conclua a conciliação pendente antes de alterar o cronograma.");

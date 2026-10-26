@@ -57,6 +57,7 @@ export function AsaasAdminSummary({ data }: { data: AsaasStatus }) {
 
 async function readStatus(url: string) {
   const response = await fetch(url, { credentials: "include", signal: AbortSignal.timeout(15_000) });
+  if(response.status===409){const data=await response.json().catch(()=>({}));if(data.code==='SHARED_BIA_ACCOUNT')throw Object.assign(new Error('Esta subconta está compartilhada. Configure uma subconta exclusiva desta BIA antes de consultar o saldo ou movimentar valores.'),{code:data.code});}
   if (!response.ok || !/^application\/json(?:\s*;|$)/i.test(response.headers.get("content-type") || "")) throw new Error("Não foi possível consultar o Asaas.");
   return response.json();
 }
@@ -69,11 +70,11 @@ export function AdminAsaas() {
 export function AsaasBiaSummary({ data, actions, children }: { data: AsaasBiaStatus; actions?: React.ReactNode; children?: React.ReactNode }) {
   const configuration = <div className="space-y-3">
     <p><span className="text-muted-foreground">Integração da plataforma: </span>{states[data.integrationState]}</p>
-    {data.account ? <div className="rounded-lg border p-3"><p className="font-medium break-words">{data.account.label}</p><p className="text-sm text-muted-foreground">{owners[data.account.ownership]} · {accountStates[data.account.state]}</p><p className="mt-2 text-sm">{data.account.state === "approved" ? `${data.chargesEnabled ? "Cobranças habilitadas" : "Cobranças não habilitadas"} · ${data.transfersEnabled ? "Transferências habilitadas" : "Transferências não habilitadas"}.` : "As operações serão liberadas quando a conta estiver aprovada."}</p></div> : data.storageReady ? <p className="text-sm text-muted-foreground">Nenhuma conta Asaas vinculada a esta BIA. O vínculo será feito com a conta da SPE ou holding responsável.</p> : <p className="text-sm text-muted-foreground">O vínculo com a conta da empresa poderá ser consultado após a preparação do armazenamento.</p>}
+    {data.account ? <div className="rounded-lg border p-3"><p className="font-medium break-words">{data.account.label}</p><p className="text-sm text-muted-foreground">{owners[data.account.ownership]} · {accountStates[data.account.state]}</p><p className="mt-2 text-sm">{data.account.state === "approved" ? `${data.chargesEnabled ? "Cobranças habilitadas" : "Cobranças não habilitadas"} · ${data.transfersEnabled ? "Transferências habilitadas" : "Transferências não habilitadas"}.` : "As operações serão liberadas quando a conta estiver aprovada."}</p></div> : data.storageReady ? <p className="text-sm text-muted-foreground">Nenhuma conta Asaas vinculada a esta BIA. Configure uma subconta exclusiva desta BIA, sob titularidade da SPE ou holding responsável.</p> : <p className="text-sm text-muted-foreground">O vínculo com a conta da empresa poderá ser consultado após a preparação do armazenamento.</p>}
     {!data.storageReady && <p className="text-sm text-muted-foreground">A estrutura dos vínculos de conta ainda está em preparação.</p>}
     {actions}
   </div>;
-  return <Card data-testid="asaas-bia-status"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Conta da empresa · Asaas</CardTitle><Badge variant="outline">{data.environment === "sandbox" ? "Ambiente de testes" : "Produção"}</Badge></div></CardHeader><CardContent className="space-y-3">
+  return <Card data-testid="asaas-bia-status"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Conta da BIA · Asaas</CardTitle><Badge variant="outline">{data.environment === "sandbox" ? "Ambiente de testes" : "Produção"}</Badge></div></CardHeader><CardContent className="space-y-3">
     {data.account?.state === "approved" && data.operationsEnabled ? <><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium break-words">{data.account.label}</p><Badge variant="outline">Conta aprovada</Badge></div><details className="rounded-lg border p-3"><summary className="cursor-pointer text-sm font-medium">Configuração e situação da conta</summary><div className="pt-3">{configuration}</div></details></> : configuration}
     {children}
     <p className="text-sm text-muted-foreground">O Sandbox não movimenta dinheiro real. Em Produção, as operações usam a conta aprovada e as permissões financeiras da BIA.</p>
@@ -260,6 +261,7 @@ export function BiaAsaasStatus({ biaId, canEdit = false }: { biaId: string; canE
     },
   });
   if (query.isPending) return <p>Consultando a integração Asaas…</p>;
+  if((query.error as any)?.code==='SHARED_BIA_ACCOUNT')return <div role="alert" className="rounded-lg border p-4">{query.error?.message}</div>;
   if (!query.data) return <div role="alert" className="rounded-lg border p-4"><p>Não foi possível consultar o vínculo Asaas desta BIA.</p><Button className="mt-3" variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>;
   const actions = canEdit ? query.data.account
     ? <Button type="button" variant="outline" aria-busy={refresh.isPending} disabled={refresh.isPending} onClick={() => refresh.mutate()}>{refresh.isPending ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />}{refresh.isPending ? "Consultando Asaas…" : "Atualizar situação"}</Button>

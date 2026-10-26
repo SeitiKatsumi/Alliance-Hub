@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ContributionPaymentDialog } from './contribution-payment';
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -20,6 +21,7 @@ export function InitialContributions({biaId,membros,readOnly=false}: {biaId:stri
   const [dirty,setDirty]=useState(false);
   const [preview,setPreview]=useState(false);
   const [settlement,setSettlement]=useState<{id:string;status:string}|null>(null);
+  const [paymentFlowId,setPaymentFlowId]=useState<string|null>(null);
   const [reason,setReason]=useState("");
   const [date,setDate]=useState("");
   const [base,setBase]=useState<{revisao:number;revisaoMap:number}>();
@@ -69,6 +71,8 @@ export function InitialContributions({biaId,membros,readOnly=false}: {biaId:stri
     <h3 className="font-semibold">Integralização por componente</h3><div className="grid gap-3 sm:grid-cols-2">{query.data.resumo.map((c:any)=><div key={c.chave} className="rounded border p-3 text-sm"><strong>{c.nome} · {c.tipoCpp?.nome || c.componente}</strong><p>Comprometido: {money(c.valor)}</p><p>Integralizado: {money(c.integralizado)}</p><p>Saldo: {money(c.saldo)}</p><p className="text-xs">{c.natureza==="caixa"?"Dinheiro":"Patrimonial, sem caixa"}</p></div>)}</div>
     <details className="rounded border p-3"><summary>Parcelas e integralizações ({query.data.parcelas.filter((p:any)=>p.vigente).length})</summary><div className="max-h-96 overflow-auto space-y-2 mt-3">{query.data.parcelas.filter((p:any)=>p.vigente).map((p:any)=><div key={p.id} className="rounded border p-3 text-sm flex flex-wrap justify-between gap-3"><div><strong>{items.find(c=>c.chave===p.chave)?.nome} · parcela {p.numero}</strong><p>{String(p.vencimento).slice(0,10)} · {money(p.valor)} · {p.status}</p></div>{editable && <Button variant="outline" disabled={p.pendente} onClick={()=>{setSettlement({id:p.id,status:p.liquidado?"agendado":"pago"});setReason("");setDate("");}}>{p.liquidado?"Reverter integralização":"Registrar integralização"}</Button>}</div>)}</div></details>
     <details className="rounded border p-3"><summary>Histórico patrimonial das parcelas</summary><div className="max-h-96 overflow-auto space-y-2 mt-3">{query.data.parcelas.map((p:any)=><section key={p.id} className="rounded border p-3 text-sm"><strong>Revisão {p.revisao} · parcela {p.numero} · {money(p.valor)}</strong><p>{p.natureza==="nao_caixa"?"Sem movimentação de caixa":"Dinheiro"} · {p.vigente?"Vigente":"Substituída"}</p>{p.historico.map((h:any,index:number)=><p key={index} className="break-words mt-2">{new Date(h.data).toLocaleString("pt-BR")} · {h.autor?.membroId || h.autor?.userId || "Sistema"} · {h.motivo || (h.acao==="gerado"?"Cronograma confirmado":"Cronograma revisado")}</p>)}</section>)}</div></details>
+    <div className="flex flex-wrap gap-2">{query.data.parcelas.filter((p:any)=>p.vigente&&p.natureza==='caixa'&&p.componente==='capital'&&p.movimentos?.[0]?.id).map((p:any)=><Button key={p.id} variant="outline" onClick={()=>setPaymentFlowId(String(p.movimentos[0].id))}>Pix e boleto · parcela {p.numero} · {items.find(c=>c.chave===p.chave)?.nome}</Button>)}</div>
+    <ContributionPaymentDialog biaId={biaId} flowId={paymentFlowId} onClose={()=>setPaymentFlowId(null)}/>
     {settlement && <div role="region" aria-label="Confirmar integralização" className="rounded border p-4 space-y-3"><p>Esta operação atualiza a parcela e seu par, se houver. Não executa transferência bancária.</p><label className="block text-sm">Motivo<Input value={reason} onChange={e=>setReason(e.target.value)}/></label>{settlement.status==="pago" && <label className="block text-sm">Data da integralização<Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>}<div className="flex gap-2"><Button disabled={!reason.trim() || (settlement.status==="pago"&&!date) || settle.isPending} onClick={()=>settle.mutate()}>Confirmar</Button><Button variant="outline" onClick={()=>setSettlement(null)}>Cancelar</Button></div></div>}
   </CardContent></Card>;
 }

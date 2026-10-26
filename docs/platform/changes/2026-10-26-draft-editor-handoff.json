@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "id": "2026-10-26-draft-editor-handoff",
+  "title": "Encaminhar edição de estrutura para o rascunho aberto sem gravar ou descartar campos",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "server/bia-setup.ts"
+  ],
+  "searchTerms": [
+    "bia-draft-handoff",
+    "bia-draft-notice"
+  ],
+  "consumers": [
+    {"path":"client/src/components/bia-assets.test.ts","decision":"updated","reason":"Mock explícito da leitura sem rascunho preserva teste do salvamento normal e portal."},
+    {"path":"client/src/pages/area-aliancas.tsx","decision":"reviewed","reason":"Consome página de BIAs; listagem e atalhos não gravam rascunho nem foram alterados."},
+    {"path":"client/src/pages/bia-detalhe.tsx","decision":"reviewed","reason":"Governança permanece inalterada; Continuar estruturação já usa rota correta. Novo comportamento limitado a SetupEditor."},
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Bootstrap continua montando App e os editores existentes, sem novas gravações."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "updated",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/components/bia-draft-notice.tsx",
+      "decision": "updated",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.ts",
+      "decision": "updated",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.test.ts",
+      "decision": "updated",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Fluxo de edição e encaminhamento revisado: apenas estado local da estrutura é transportado; persistência permanece nas APIs autorizadas existentes."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Botão responsivo de encaminhamento; mesma etapa no rascunho, formulário de origem preservado em erro; validação em aba local separada sem salvar."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Reutiliza GET /rascunho antes do PUT; somente 404 significa ausência; falha bloqueia sem gravação."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Transferência volátil por ID na mesma aba, sem storage/URL de dados. Preserva revisão esperada; não faz gravação automática."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Não altera cálculo, MAP, fase, documento, mensagem, integração ou tarefa; navegação não envia operações de escrita."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Não altera cálculo, MAP, fase, documento, mensagem, integração ou tarefa; navegação não envia operações de escrita."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Não altera cálculo, MAP, fase, documento, mensagem, integração ou tarefa; navegação não envia operações de escrita."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Não altera cálculo, MAP, fase, documento, mensagem, integração ou tarefa; navegação não envia operações de escrita."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "GET rascunho mantém requireBiaDraftAccess; PUT estrutura e rascunho inalterados, sem contornar 409."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Rascunho via legacyBiaSetup existente. Ausente ou concluído usa editor versionado atual."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "client/src/lib/bia-draft-handoff.test.ts: merge de três versões, conflito, revisão e isolamento por BIA; verificação completa registrada na entrega."
+    }
+  ],
+  "regressionTests": [
+    "client/src/lib/bia-draft-handoff.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

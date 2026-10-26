@@ -77,6 +77,7 @@ export class AsaasSandboxAccounts {
     const credentialStorageReady = await this.store.credentialStorageReady();
     const blockers = sandboxAccountCreationBlockers(this.config, storageReady, credentialStorageReady);
     if (blockers.length) throw new AsaasError("ACCOUNT_CREATION_DISABLED", blockers[0], 503);
+    await this.store.requireExclusiveStorage();
   }
 
   private ownerId(cnpj: string) {

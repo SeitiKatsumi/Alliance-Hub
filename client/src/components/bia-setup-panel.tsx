@@ -1,12 +1,15 @@
 import { createPortal } from "react-dom";
+import { navigate } from 'wouter/use-browser-location';
+import { BiaDraftNotice, readOpenBiaDraft } from './bia-draft-notice';
+import { keepDraftHandoff, mergeSetupEdits } from '@/lib/bia-draft-handoff';
 import { BiaBudgetFields, BiaBudgetSummary } from "./bia-budget-fields";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { BiaLegalFields, BiaAssetFields, BiaSetupSummary } from "./bia-setup-fields";
-import { biaSetupSchema, biaSetupValidationMessage, emptyBiaSetup, governanceLabel } from "@shared/bia-setup";
+import { biaSetupSchema, biaSetupValidationMessage, emptyBiaSetup, governanceLabel, legacyBiaSetup } from "@shared/bia-setup";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 export function SetupEditor({biaId,moeda,members,section,biaName="",valorOrigem,readOnly=false,actionContainer}:{actionContainer?:HTMLElement|null;biaName?:string;biaId:string;moeda:string;members:Record<string,string>;section?:'juridico'|'ativos'|'orcamento';valorOrigem?:number|null;readOnly?:boolean}) {
@@ -17,10 +20,30 @@ export function SetupEditor({biaId,moeda,members,section,biaName="",valorOrigem,
   useEffect(()=>{if(section)setTab(section);},[section]);
   if(query.isPending || (!query.isError && revision<0))return <p>Carregando…</p>;
   if(query.isError)return <p role="alert">Não foi possível consultar a estrutura. <Button onClick={()=>query.refetch()}>Tentar novamente</Button></p>;
-  const saveAction=!readOnly && query.data.editavel && tab!=='historico' && <Button disabled={busy} onClick={async()=>{const validation=biaSetupSchema.safeParse(value);if(!validation.success){setError(biaSetupValidationMessage(validation.error));return;}setBusy(true);setError('');try{const response=await apiRequest('PUT',`/api/bias/${biaId}/estrutura`,{dados:value,motivo:"Atualização pelo editor da estrutura da BIA.",revisaoEsperada:revision});const result=await response.json();setRevision(result.revisao);setSaved(JSON.stringify(value));await query.refetch();}catch(e:any){setError(e.message);}finally{setBusy(false);}}} loading={busy}>{tab==='orcamento'?'Salvar revisão do orçamento':'Salvar alteração'}</Button>;
+  async function continueDraft(draft:any) {
+    if(draft.conclusao_iniciada)throw new Error('A conclusão do rascunho está em andamento. Suas alterações foram mantidas nesta tela; recupere a conclusão antes de editar.');
+    const setup=mergeSetupEdits(JSON.parse(saved),value,legacyBiaSetup(draft.dados));
+    queryClient.setQueryData(['/api/bias',biaId,'rascunho'],draft);
+    keepDraftHandoff(biaId,{setup,revision:draft.revisao});
+    setSaved(JSON.stringify(value));
+    setTimeout(()=>navigate(`/bias/${encodeURIComponent(biaId)}/estruturacao?section=${tab}`),0);
+  }
+  async function save(onlyContinue=false) {
+    const validation=biaSetupSchema.safeParse(value);if(!validation.success){setError(biaSetupValidationMessage(validation.error));return;}
+    setBusy(true);setError('');
+    try {
+      const draft=await readOpenBiaDraft(biaId);
+      if(draft){await continueDraft(draft);return;}
+      if(onlyContinue)throw new Error('O rascunho já foi concluído. Nenhum dado foi salvo.');
+      const response=await apiRequest('PUT',`/api/bias/${biaId}/estrutura`,{dados:value,motivo:"Atualização pelo editor da estrutura da BIA.",revisaoEsperada:revision});
+      const result=await response.json();setRevision(result.revisao);setSaved(JSON.stringify(value));await query.refetch();
+    }catch(e:any){setError(e.message);}finally{setBusy(false);}
+  }
+  const saveAction=!readOnly && query.data.editavel && tab!=='historico' && <Button disabled={busy} onClick={()=>save()} loading={busy}>{tab==='orcamento'?'Salvar revisão do orçamento':'Salvar alteração'}</Button>;
   return <div className="space-y-4"><div className="flex flex-wrap gap-2">{[['juridico','Estrutura Jurídica'],['ativos','Ativos Vinculados'],['orcamento','CAPEX e OPEX'],['historico','Histórico']].filter(([k])=>!section || k===section || k==='historico').map(([k,label])=><Button key={k} variant={tab===k?'default':'outline'} onClick={()=>setTab(k)}>{label}</Button>)}</div>
     <fieldset disabled={busy || readOnly || !query.data.editavel} className="min-w-0">{tab==='juridico' && <BiaLegalFields biaName={biaName} disabled={busy || readOnly || !query.data.editavel} value={value} onChange={setValue} bank={query.data.bancoVisivel} bankEdit={query.data.bancoEditavel} participants={query.data.participantes.map((p:any)=>({memberId:p.memberId,nome:members[p.memberId] || 'Participante'}))}/>}{tab==='ativos' && <BiaAssetFields disabled={busy || readOnly || !query.data.editavel} value={value} onChange={setValue} moeda={moeda} indicators={query.data.indicadoresVisiveis} indicatorsEdit={query.data.indicadoresEditaveis}/>}{tab==='orcamento' && <BiaBudgetFields value={value} onChange={setValue} moeda={moeda} valorOrigem={valorOrigem} disabled={busy || readOnly || !query.data.editavel}/>}</fieldset>
     {tab==='historico' && <div className="space-y-3">{!query.data.historico.length && <p>Nenhuma alteração registrada. Dados legados preservados, sem datas históricas presumidas.</p>}{query.data.historico.map((h:any)=><details key={h.revisao} className="rounded border p-3"><summary>Revisão {h.revisao} · {new Date(h.criado_em).toLocaleString('pt-BR')} · {h.motivo}</summary><p>Autor: {members[h.autor?.memberId] || "Usuário registrado"}</p>{h.anterior && <details><summary>Conteúdo anterior</summary><BiaSetupSummary value={h.anterior} moeda={moeda}/></details>}<BiaSetupSummary value={h.dados} moeda={moeda}/></details>)}</div>}
+    {!readOnly && query.data.editavel && <BiaDraftNotice biaId={biaId} disabled={busy} onContinue={()=>save(true)}/>}
     {actionContainer?createPortal(saveAction,actionContainer):saveAction}
     {error && <p role="alert" className="text-destructive">{error} <Button variant="outline" onClick={async()=>{if(window.confirm('Descartar alterações locais e carregar a versão atual?')){const fresh=await query.refetch();if(fresh.data){setValue(fresh.data.dados);setRevision(fresh.data.revisao);setSaved(JSON.stringify(fresh.data.dados));setError('');}}}}>Recarregar</Button></p>}
   </div>;

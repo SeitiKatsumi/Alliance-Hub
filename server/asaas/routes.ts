@@ -52,7 +52,10 @@ export function registerAsaasFoundation(app: Express, dependencies: {
         accountCreationAvailable: blockers.length === 0, accountCreationBlockers: blockers, account,
         integrationPending: status.pending,
       }));
-    } catch { return res.status(503).json({ error: "Não foi possível consultar a integração Asaas desta BIA." }); }
+    } catch(error) {
+      if(error instanceof AsaasError)return res.status(error.status).json({code:error.code,error:error.message});
+      return res.status(503).json({ error: "Não foi possível consultar a integração Asaas desta BIA." });
+    }
   });
 
   app.post("/api/bias/:biaId/banco/asaas/accounts", async (req, res) => {

@@ -60,7 +60,7 @@ Fila persistente por parcela/versão/momento/canal. Antes de enviar revalida obr
 Migração aditiva `migrations/20261019_contribution_billing.sql`, cinco tabelas, sem alterar IDs atuais; cobranças/revisões isoladas por ambiente. Validada duas vezes em PGlite isolado, NÃO aplicada ao remoto/produção nesta entrega. Não usar db:push como substituto.
 
 1. Aplicar migração autorizada no ambiente de homologação, após backup/migrações anteriores de aportes/Asaas.
-2. Criar ou vincular a BIA à conta aprovada da SPE/holding no esquema do ambiente. O fluxo grava external_account_id, wallet_id e a credencial cifrada no cofre; BIAs da mesma empresa podem compartilhar a conta. Nunca usa a conta BUILT como fallback.
+2. Criar ou vincular a BIA à conta aprovada da SPE/holding no esquema do ambiente. O fluxo grava external_account_id, wallet_id e a credencial cifrada no cofre; cada subconta só pode atender uma BIA. Nunca usa a conta BUILT como fallback.
 3. Configurar privadamente ASAAS_SANDBOX_ACCOUNT_<REFERENCIA> com a chave própria. `/wallets` e `/myAccount/status` validam conta antes de operar.
 4. Token/chave/cofre próprios do ambiente e opt-ins ASAAS_BASE_ENABLED, ASAAS_BAAS_ENABLED e ASAAS_CONTRIBUTIONS_ENABLED. Produção também exige ASAAS_PRODUCTION_OPERATIONS_ENABLED. Flags são false por padrão e não substituem aprovação comercial/regulatória do Asaas.
 5. Webhook público `/api/webhooks/asaas/sandbox`, token exclusivo, eventos de cobrança incluindo PAYMENT_UPDATED; validar entrega/retomada com dados fictícios.
@@ -75,3 +75,12 @@ server/contribution-billing.test.ts: domínio, migração idempotente isolada, c
 Não há QA visual do acompanhamento porque a tela agregada foi removida. A homologação financeira continua exigindo conta autorizada e validação operacional do serviço.
 
 Referências oficiais: [atualização](https://docs.asaas.com/reference/atualizar-cobranca-existente), [boleto](https://docs.asaas.com/docs/cobrancas-via-boleto), [eventos](https://docs.asaas.com/docs/webhook-para-cobrancas), [clientes](https://docs.asaas.com/docs/criando-um-cliente), [wallet](https://docs.asaas.com/reference/recuperar-walletid), [cadastro](https://docs.asaas.com/reference/consultar-situacao-cadastral-da-conta).
+## Pagamento de aportes na plataforma — 26/10/2026
+
+O Financeiro oferece Pix e boleto no mesmo pagamento Asaas. Novos aportes em dinheiro com CPP e aportes abertos vinculados a despesas podem preparar a cobrança após salvar, mediante a opção de emissão. Falha da preparação mantém o lançamento salvo e permite retomada pelo menu Pix e boleto do aporte. Pagos, não caixa e movimentos compensatórios não são emitidos. O cronograma inicial também abre os meios pelo movimento vinculado.
+
+GET /api/bias/:id/aportes-iniciais/cobrancas/lancamentos/:flowId/pagamento é somente leitura e restrito a gestor/pagador autorizado. POST no sufixo /preparar exige gestão financeira e confirmação de aporte em dinheiro. A cobrança reutiliza o mesmo flow_id; repetição recupera o vínculo existente. O worker emite BOLETO e consulta linha digitável e QR Pix do mesmo ID, sem segunda cobrança. Configurações PIX antigas permanecem para compatibilidade; novas emissões são híbridas via BOLETO. Pix depende da habilitação/chave na conta recebedora; ausência ou expiração é explícita, sem QR inventado. Pagamento confirmado continua reconciliado no lançamento original.
+
+A migração 20261027_contribution_flow_charges.sql permite parcel_id nulo e adiciona unicidade ambiente/flow_id para aportes avulsos. Não cria lançamentos nem faz backfill ou habilita emissão. Vínculos existentes e documentos preservados. Movimentos gerenciados não permitem exclusão ou alteração financeira direta; descrição, anexos e responsável continuam editáveis. Revisão de cronograma não abrange aportes avulsos.
+
+Consumidores: cadastro/menu financeiro e parcelas iniciais atualizados; provider, fila, webhook e lembretes reutilizam o mesmo vínculo; Directus recebe a baixa no mesmo ID. CPP/MAP, relatórios patrimoniais e PDFs assinados não são recalculados. Banco da BIA lê somente sua subconta exclusiva. Flags, credenciais, conta aprovada e homologação continuam obrigatórios. Testes isolados não comprovam QR real em Sandbox/Produção.

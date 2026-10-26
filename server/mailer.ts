@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import {contributionAgendaUrl} from '../shared/contribution-reminders';
 import { emailDeliveryDecision } from './email-preference-policy';
 import type { MailCategory } from '../shared/user-preferences';
 
@@ -785,7 +786,7 @@ function escapeEmailHtml(value: unknown): string {
 }
 
 export async function enviarAvisoAporte(opts:{email:string;name:string;biaId:string;amount:number;dueDate:string;details:any;kind:string}) {
-  const link=`${BASE_URL}/bias/${encodeURIComponent(opts.biaId)}?tab=capital&capital=financeiro&financeiro=aportes`;
+  const link=opts.details.agendaTaskId?`${BASE_URL}${contributionAgendaUrl(opts.details.agendaTaskId)}`:`${BASE_URL}/bias/${encodeURIComponent(opts.biaId)}?tab=capital&capital=financeiro${opts.details.flowId?'&paymentFlow='+encodeURIComponent(opts.details.flowId):'&financeiro=aportes'}`;
   const title=opts.kind.startsWith("revision:")?"Valor de aporte atualizado":"Lembrete de pagamento de aporte";
   const money=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(opts.amount/100);
   const safeLink=(value:any)=>typeof value==="string" && /^https:\/\/([a-z0-9-]+\.)*asaas\.com\//i.test(value);
@@ -795,7 +796,7 @@ export async function enviarAvisoAporte(opts:{email:string;name:string;biaId:str
     ${opts.details.barcode?`<p>Linha digitável: ${escapeEmailHtml(opts.details.barcode)}</p>`:""}
     ${safeLink(opts.details.invoiceUrl)?`<p><a href="${escapeEmailHtml(opts.details.invoiceUrl)}">Abrir cobrança no Asaas</a></p>`:""}
     ${safeLink(opts.details.bankSlipUrl)?`<p><a href="${escapeEmailHtml(opts.details.bankSlipUrl)}">Abrir boleto</a></p>`:""}
-    <p><a href="${link}">Consultar aportes da BIA</a></p>`));
+    <p><a href="${link}">${opts.details.agendaTaskId?'Ver pagamento na minha Agenda':'Consultar aportes da BIA'}</a></p>`));
 }
 
 export async function enviarLembreteVencimentoPagamento(opts: {

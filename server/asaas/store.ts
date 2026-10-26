@@ -5,6 +5,9 @@ import { AsaasError } from "./client";
 import type { EncryptedCredential } from "./credentials";
 
 export interface AsaasDatabase { execute(query: SQL): Promise<any> }
+export function assertExclusiveBiaAccount(account:any) {
+  if(account && Number(account.bia_link_count)!==1)throw new AsaasError('SHARED_BIA_ACCOUNT','Esta subconta está compartilhada entre BIAs. Configure uma subconta exclusiva antes de consultar saldo ou movimentar valores.',409);
+}
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") {
     const result = JSON.stringify(value);
@@ -53,15 +56,22 @@ export class AsaasStore {
   }
 
   async accountForBia(biaId: string) {
-    const result = await this.db.execute(sql`SELECT a.id, a.label, a.state, a.ownership
-      FROM ${this.table("bia_accounts")} b JOIN ${this.table("accounts")} a ON a.id = b.account_id WHERE b.bia_id = ${biaId}`);
-    return result.rows?.[0] || null;
+    const account = await this.internalAccountForBia(biaId);
+    return account ? {id:account.id,label:account.label,state:account.state,ownership:account.ownership} : null;
   }
 
   async internalAccountForBia(biaId: string) {
-    const result = await this.db.execute(sql`SELECT a.*
+    const result = await this.db.execute(sql`SELECT a.*,
+      (SELECT count(*)::int FROM ${this.table("bia_accounts")} links WHERE links.account_id=a.id) AS bia_link_count
       FROM ${this.table("bia_accounts")} b JOIN ${this.table("accounts")} a ON a.id = b.account_id WHERE b.bia_id = ${biaId}`);
-    return result.rows?.[0] || null;
+    const account=result.rows?.[0];
+    assertExclusiveBiaAccount(account);
+    return account || null;
+  }
+
+  async requireExclusiveStorage() {
+    const result=await this.db.execute(sql`SELECT to_regclass(${this.namespace+'.bia_accounts_exclusive_account'}) IS NOT NULL AS ready`);
+    if(!result.rows?.[0]?.ready)throw new AsaasError('EXCLUSIVE_ACCOUNT_MIGRATION_REQUIRED','A configuração de subcontas exclusivas aguarda atualização do banco.',503);
   }
 
   async accountByOwner(ownerId: string) {
@@ -78,8 +88,11 @@ export class AsaasStore {
   }
 
   async linkAccount(biaId: string, accountId: string) {
+    await this.requireExclusiveStorage();
+    const other=(await this.db.execute(sql`SELECT bia_id FROM ${this.table("bia_accounts")} WHERE account_id=${accountId} AND bia_id<>${biaId}`)).rows?.[0];
+    if(other)throw new AsaasError('ACCOUNT_ALREADY_ASSIGNED','Esta subconta já pertence a outra BIA. É necessária uma subconta exclusiva; não é possível compartilhar o saldo.',409);
     const inserted = await this.db.execute(sql`INSERT INTO ${this.table("bia_accounts")}(bia_id,account_id)
-      VALUES (${biaId},${accountId}) ON CONFLICT (bia_id) DO NOTHING RETURNING account_id`);
+      VALUES (${biaId},${accountId}) ON CONFLICT DO NOTHING RETURNING account_id`);
     if (inserted.rows?.[0]) return;
     const existing = (await this.db.execute(sql`SELECT account_id FROM ${this.table("bia_accounts")} WHERE bia_id=${biaId}`)).rows?.[0];
     if (String(existing?.account_id || "") !== accountId) throw new AsaasError("BIA_ACCOUNT_CONFLICT", "Esta BIA já possui outra conta vinculada.", 409);
@@ -89,6 +102,7 @@ export class AsaasStore {
     biaId: string; accountId: string; label: string; externalAccountId: string; walletId: string;
     credential: EncryptedCredential; state: "pending" | "in_review" | "approved";
   }) {
+    await this.requireExclusiveStorage();
     const result = await this.db.execute(sql`WITH account_updated AS (
         UPDATE ${this.table("accounts")} SET label=${input.label},external_account_id=${input.externalAccountId},wallet_id=${input.walletId},
           credential_reference='database:aes-256-gcm:v1',state=${input.state},updated_at=now()

@@ -1,5 +1,9 @@
 # Capital e Financeiro da BIA
 
+- Lembretes de aporte abrem a ação Pagar aporte na Agenda, na data do vencimento. Da ação, Consultar aporte · Pix e boleto abre o lançamento autorizado. Status da agenda não comprova pagamento financeiro. Uma ação por lançamento/pagador/vencimento, prazos de notificação independentes.
+
+- 26/10/2026: criação de aporte ou aportes vinculados permite lembretes opcionais por e-mail e plataforma, com mês/semana/dia selecionáveis. Configuração posterior no menu Lembretes do aporte. Persistência separada após criação: erro de configurar não desfaz nem recria lançamento. Gestor com edição financeira configura; pagador só consulta. Fonte: lançamento vigente + `bia_aporte_reminder_settings`/`bia_aporte_reminder_deliveries`. Sem alteração de valores, CPP, saldo, pagamento ou emissão Asaas. Link do lembrete abre pagamento por ID com autorização backend. Migração não opta registros antigos automaticamente.
+
 - 26/10/2026: Descrição exibe asterisco obrigatório no formulário compartilhado Novo/Editar Lançamento, alinhado à validação já existente. Mudança só no rótulo; API, status, persistência e regras financeiras não mudam.
 
 ## Dashboard bancário — 26/10/2026
@@ -57,7 +61,7 @@ Rascunho e alterações de MAP não criam caixa. Estruturação, captação, enc
 
 Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de origem, DM/CPP, cotas e analises financeiras.
 
-A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Banco da BIA. `capital_banco=edit` pode criar/reutilizar a subconta, atualizar situação e transferir; `view` consulta vínculo, saldo e histórico mínimo. Sandbox e Produção são isolados e Produção exige opt-in adicional. Conta aprovada somada às flags do ambiente habilita cobranças e transferências. Destinos, chaves e referências do cofre não são devolvidos; histórico anterior permanece independente.
+A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Banco da BIA. `capital_banco=edit` pode criar uma subconta exclusiva ou retomar o vínculo da mesma BIA, atualizar situação e transferir; `view` consulta vínculo, saldo e histórico mínimo. Sandbox e Produção são isolados e Produção exige opt-in adicional. Conta aprovada somada às flags do ambiente habilita cobranças e transferências. Destinos, chaves e referências do cofre não são devolvidos; histórico anterior permanece independente.
 
 ## Telas e URLs
 
@@ -199,3 +203,12 @@ Para compatibilidade com o motor de movimentações, `base_economica_inicial` co
 `estrutura_economica` guarda modalidade, instrumentos, total de CIs e plano contratual. O usuário informa uma única quantidade total de CIs; `validateEconomicStructure` deriva as CIs de cada instrumento pela proporção entre seu valor e o Valor de Origem, mantendo a chave `cotas` nos snapshots compatíveis. GET/PUT map-inicial transportam `estrutura`; o backend recalcula. Hash do modelo 5 é canônico para não depender da ordem das chaves JSONB. MOU e PDFs de versões usam os dados capturados, incluindo CIs e direitos detalhados; PDFs legados preservam seu formato.
 
 O plano contratual não gera cronograma automaticamente: parcelas, beneficiários e confirmação permanecem no Financeiro. Correção como IGP-M é informativa, sem atualização automática. Valores e cálculos são números; máscara monetária pt-BR e percentuais com cinco casas pertencem à interface.
+## Pagamento de aportes na plataforma — 26/10/2026
+
+O Financeiro oferece Pix e boleto no mesmo pagamento Asaas. Novos aportes em dinheiro com CPP e aportes abertos vinculados a despesas podem preparar a cobrança após salvar, mediante a opção de emissão. Falha da preparação mantém o lançamento salvo e permite retomada pelo menu Pix e boleto do aporte. Pagos, não caixa e movimentos compensatórios não são emitidos. O cronograma inicial também abre os meios pelo movimento vinculado.
+
+GET /api/bias/:id/aportes-iniciais/cobrancas/lancamentos/:flowId/pagamento é somente leitura e restrito a gestor/pagador autorizado. POST no sufixo /preparar exige gestão financeira e confirmação de aporte em dinheiro. A cobrança reutiliza o mesmo flow_id; repetição recupera o vínculo existente. O worker emite BOLETO e consulta linha digitável e QR Pix do mesmo ID, sem segunda cobrança. Configurações PIX antigas permanecem para compatibilidade; novas emissões são híbridas via BOLETO. Pix depende da habilitação/chave na conta recebedora; ausência ou expiração é explícita, sem QR inventado. Pagamento confirmado continua reconciliado no lançamento original.
+
+A migração 20261027_contribution_flow_charges.sql permite parcel_id nulo e adiciona unicidade ambiente/flow_id para aportes avulsos. Não cria lançamentos nem faz backfill ou habilita emissão. Vínculos existentes e documentos preservados. Movimentos gerenciados não permitem exclusão ou alteração financeira direta; descrição, anexos e responsável continuam editáveis. Revisão de cronograma não abrange aportes avulsos.
+
+Consumidores: cadastro/menu financeiro e parcelas iniciais atualizados; provider, fila, webhook e lembretes reutilizam o mesmo vínculo; Directus recebe a baixa no mesmo ID. CPP/MAP, relatórios patrimoniais e PDFs assinados não são recalculados. Banco da BIA lê somente sua subconta exclusiva. Flags, credenciais, conta aprovada e homologação continuam obrigatórios. Testes isolados não comprovam QR real em Sandbox/Produção.

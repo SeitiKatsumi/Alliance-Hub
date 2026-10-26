@@ -7,6 +7,17 @@ export function registerContributionBilling(app:any, service:ContributionBilling
     catch(e:any){res.status(e instanceof z.ZodError?400:e.statusCode||503).json({error:e instanceof z.ZodError?"Dados inválidos":e.statusCode?e.message:"Não foi possível consultar/processar os aportes"});}
   };
   const base="/api/bias/:id/aportes-iniciais/cobrancas";
+  app.get(base+'/lancamentos/:flowId/lembretes',route(false,async(req,res,a)=>res.json(await service.reminders.read(a.biaId,String(req.params.flowId),a.manage,a.payerId))));
+  app.put(base+'/lancamentos/:flowId/lembretes',route(true,async(req,res,a)=>{
+    if(!a.manage)return res.status(403).json({error:'Somente gestores podem configurar lembretes.'});
+    res.json(await service.reminders.save(a.biaId,String(req.params.flowId),req.body,a.actorId));
+  }));
+  app.get(base+'/lancamentos/:flowId/pagamento',route(false,async(req,res,a)=>res.json(await service.flowPayment(a.biaId,String(req.params.flowId),a.manage,a.payerId))));
+  app.post(base+'/lancamentos/:flowId/preparar',route(true,async(req,res,a)=>{
+    if(req.body?.cashContribution!==true)return res.status(400).json({error:'Confirme que este lançamento é um aporte em dinheiro.'});
+    const charge=await service.enqueueFlow(a.biaId,String(req.params.flowId));
+    res.status(202).json({queued:true,chargeId:charge.id});
+  }));
   app.get(base,route(false,async(_req,res,a)=>res.json(await service.dashboard(a.biaId,a.manage,a.payerId))));
   app.get(base+"/:chargeId/pagamento",route(false,async(req,res,a)=>res.json(await service.details(a.biaId,req.params.chargeId,a.manage,a.payerId))));
   app.put(base+"/lembretes",route(true,async(req,res,a)=>res.json(await service.saveSettings(a.biaId,req.body,a.actorId))));

@@ -1,4 +1,5 @@
 import { biaBusinessTypeCode } from "@shared/bia-business-type";
+import { draftSectionStep, takeDraftHandoff } from '@/lib/bia-draft-handoff';
 import { BIA_CREATION_STEPS, emptyBiaSetup, legacyBiaSetup, legalBlockers, setupWarnings } from "@shared/bia-setup";
 import { BiaBudgetFields } from "@/components/bia-budget-fields";
 import { BiaLegalFields, BiaAssetFields, BiaSetupSummary } from "@/components/bia-setup-fields";
@@ -36,7 +37,7 @@ export default function BiaNovaPage(){
   const [concluding,setConcluding]=useState(false);
   const [locationOpen,setLocationOpen]=useState(false);
   const [form,setForm]=useState({...empty,business_type_code:""}),[saved,setSaved]=useState(JSON.stringify({...empty,business_type_code:""}));
-  const [revision,setRevision]=useState(0),[step,setStep]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);
+  const [revision,setRevision]=useState(0),[step,setStep]=useState(()=>draftSectionStep(new URLSearchParams(window.location.search).get('section'))),[busy,setBusy]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);
   const dirty=JSON.stringify(form)!==saved;
   const generalPending=[!form.nome_bia?.trim() && "Nome",!form.destinacao && "Destinação",!form.business_type_code && "Tese de interesse",!form.localizacao?.trim() && "Localização",!form.observacoes?.trim() && "Descrição"].filter(Boolean);
   useUnsavedChanges(dirty || busy);
@@ -46,7 +47,7 @@ export default function BiaNovaPage(){
   const draft=useQuery<any>({queryKey:["/api/bias",params.id,"rascunho"],enabled:!!params.id});
   const brand=useBiaBrand(id,form.nome_bia,step===6);
   const loaded=useRef(false);
-  useEffect(()=>{if(draft.data && !loaded.current){loaded.current=true;const restored={...empty,...draft.data.dados,estrutura_bia:legacyBiaSetup(draft.data.dados),business_type_code:biaBusinessTypeCode(draft.data.dados)};setForm(restored);setSaved(JSON.stringify(restored));setRevision(draft.data.revisao);setDone(draft.data.concluido);setConcluding(!!draft.data.conclusao_iniciada);}},[draft.data]);
+  useEffect(()=>{if(draft.data && !loaded.current){loaded.current=true;const restored={...empty,...draft.data.dados,estrutura_bia:legacyBiaSetup(draft.data.dados),business_type_code:biaBusinessTypeCode(draft.data.dados)};const handoff=takeDraftHandoff(params.id || '');setForm(handoff?{...restored,estrutura_bia:handoff.setup}:restored);setSaved(JSON.stringify(restored));setRevision(handoff?.revision ?? draft.data.revisao);setDone(draft.data.concluido);setConcluding(!!draft.data.conclusao_iniciada);if(handoff)setError(handoff.revision!==draft.data.revisao?'O rascunho mudou durante a navegação. Os campos transferidos estão preservados, mas será necessário reconciliar a revisão antes de salvar.':'Campos transferidos. Confira os dados e clique em Salvar rascunho.');}},[draft.data]);
   useEffect(()=>{if(!params.id && defaults.data && !loaded.current){loaded.current=true;const participantes=defaults.data.participantes.map((p:InitialMapParticipantInput)=>({...p,modeloCalculo:5,cotasInvestimento:NaN}));setForm(current=>({...current,map_inicial:{...current.map_inicial,participantes:current.map_inicial.participantes.length?current.map_inicial.participantes:participantes}}));setSaved(JSON.stringify({...empty,business_type_code:"",map_inicial:{...empty.map_inicial,participantes}}));}},[params.id,defaults.data]);
   const preview=useMemo(()=>{try{
     const team=biaTeamFromMapParticipants(form.map_inicial.participantes);
@@ -131,7 +132,7 @@ export default function BiaNovaPage(){
         {step>0 && !form.nome_bia.trim() && <p role="status" className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Para salvar o rascunho, informe o Nome da BIA na etapa Dados da BIA. Isso não impede a prévia do MAP Inicial. <Button type="button" variant="ghost" className="h-auto whitespace-normal p-0 underline" onClick={()=>setStep(0)}>Preencher nome da BIA</Button></p>}
         {step===6 && generalPending.length>0 && <p role="status" className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Dados pendentes: {generalPending.join(", ")}. Complete a etapa Dados da BIA antes de concluir.</p>}
         {step===6 && preview.map && preview.teamPending && <p role="status" className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">O MAP Inicial foi calculado. Para concluir a estruturação, defina Aliado BUILT e Diretor de Aliança na etapa {steps[1]}. Autor é opcional.</p>}
-        {error && <p role="alert" className="rounded border border-red-300 p-4 text-sm text-red-700">{error}</p>}
+        {error && <p role={error.startsWith('Campos transferidos.')?'status':'alert'} className={error.startsWith('Campos transferidos.')?'rounded border p-4 text-sm':'rounded border border-red-300 p-4 text-sm text-red-700'}>{error}</p>}
         {(members.isError || defaults.isError) && <div role="alert" className="space-y-2"><p>Não foi possível carregar membros ou equipe automática. A prévia usa os dados já preenchidos; recarregue as consultas antes de concluir.</p><Button type="button" variant="outline" disabled={members.isFetching || defaults.isFetching} onClick={()=>{void members.refetch();void defaults.refetch();}}>Tentar carregar novamente</Button></div>}
       </fieldset>
       {step>1 && !(form.map_inicial.modeloCalculo===5 && step>=2) && <aside className="space-y-6 rounded-xl bg-[#001d32] p-6 text-white xl:sticky xl:top-6"><h2 className="text-lg font-semibold">Resumo econômico da BIA</h2><div><p className="text-sm text-slate-300">Valor de Origem</p><p className="mt-2 text-2xl font-semibold">{Number.isFinite(form.map_inicial.valorOrigem)?money(form.map_inicial.valorOrigem):"Pendente"}</p></div><div className="border-t border-white/20 pt-5"><p className="text-sm text-slate-300">DM total</p><p className="mt-2 text-2xl font-semibold">{preview.map?formatBiaPercent(preview.map.divisorMultiplicador):"Composição pendente"}</p></div><div className="border-t border-white/20 pt-5"><p className="text-sm text-slate-300">{form.map_inicial.modeloCalculo===5?"Referência patrimonial (VO)":"Base Econômica Inicial"}</p><p className="mt-2 text-2xl font-semibold">{preview.map?money(preview.map.baseEconomicaInicial):"—"}</p></div><p className="text-sm text-slate-300">Capital por pessoa e direitos por cargo. A BEI é o conjunto de condições; a participação final aparece no MAP Inicial.</p></aside>}

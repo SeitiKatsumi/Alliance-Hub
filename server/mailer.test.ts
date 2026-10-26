@@ -31,4 +31,7 @@ test("convites de diretoria e sócio mantêm ação antecipada e alternativa em 
     assert.doesNotMatch(html,/<form|<script|overflow:hidden[^>]*height:/);
   }
   assert.match(messages[0].html,/Percentual: 0%/);
+  await mailer.enviarAvisoAporte({email:'example@example.test',name:'Pessoa',biaId:'bia',amount:1000,dueDate:'2031-11-15',details:{agendaTaskId:'task'},kind:'flow-reminder:initial'});
+  assert.match(messages[2].html,/agenda-alertas\?view=agenda&task=task/);
+  assert.match(messages[2].html,/Ver pagamento na minha Agenda/);
 });

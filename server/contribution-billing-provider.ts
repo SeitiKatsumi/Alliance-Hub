@@ -67,6 +67,7 @@ export class ContributionProvider {
           const qr:any=await this.transport.request(`/payments/${payment.id}/pixQrCode`);
           if(typeof qr.payload==="string"&&typeof qr.encodedImage==="string"&&/^[A-Za-z0-9+/=]+$/.test(qr.encodedImage)&&qr.encodedImage.length<200000){details.pix=qr.payload;details.qrImage=qr.encodedImage;details.expiresAt=qr.expirationDate;}
         }catch{details.pixUnavailable=true;}
+        if(!details.pix || !details.qrImage)details.pixUnavailable=true;
       }
     }
     return {externalId:payment.id,amount,state,dueDate:String(payment.dueDate).slice(0,10),paidAt:payment.paymentDate||payment.confirmedDate||null,details};

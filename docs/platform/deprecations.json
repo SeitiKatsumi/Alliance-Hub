@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id": "asaas-exclusive-bia-account",
+      "description": "Banco da BIA não aceita dashboard de conta compartilhada; servidor valida vínculo exclusivo antes do provedor.",
+      "terms": ["company_account", "incluindo movimentações de outras BIAs vinculadas"],
+      "roots": ["shared/asaas-dashboard.ts", "server/asaas/dashboard.ts", "client/src/components/asaas-bank-dashboard.tsx"],
+      "regressionTests": ["server/asaas/exclusive-bia.test.ts"],
+      "exceptions": []
+    },
+    {
       "id": "expense-contribution-inherited-payment",
       "description": "Novos aportes vinculados herdam pagamento da saída; não forçar pendente no construtor.",
       "terms": ["status: \"pendente\", data_vencimento: input.dueDate"],

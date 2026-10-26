@@ -1,5 +1,8 @@
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
+import { ContributionPaymentDialog, prepareFlowPayment } from '@/components/contribution-payment';
+import {ContributionReminderFields,ContributionReminderDialog,saveContributionReminders} from '@/components/contribution-reminders';
+import {defaultContributionReminders} from '@shared/contribution-reminders';
 import { categoryText, financialCategoryOptions, matchingFinancialCategory } from "@shared/financial-categories";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -1561,6 +1564,10 @@ export default function FluxoCaixaPage({
   const [, navigate] = useLocation();
   const { user: currentUser } = useAuth();
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
+  const [paymentFlowId,setPaymentFlowId]=useState<string|null>(()=>new URLSearchParams(window.location.search).get('paymentFlow'));
+  const [reminderFlowId,setReminderFlowId]=useState<string|null>(null);
+  const [reminderSettings,setReminderSettings]=useState(defaultContributionReminders);
+  const [emitPayment,setEmitPayment]=useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -2510,6 +2517,14 @@ export default function FluxoCaixaPage({
     return rateioModo === "percentual" ?Number(((valorTotal * rawValue) / 100).toFixed(2)) : rawValue;
   }
 
+  async function prepareCreatedPayments(items:any[]) {
+    const entries=items.filter(item=>item.tipo==='entrada'&&['pendente','agendado','vencido'].includes(item.status));
+    if(reminderSettings.enabled)for(const entry of entries){try{await saveContributionReminders(selectedBiaId,String(entry.id),reminderSettings);}catch{toast({title:'Aporte salvo; lembretes não configurados',description:'Abra Lembretes do aporte no menu do lançamento para tentar novamente.',variant:'destructive'});}}
+    if(!emitPayment)return;
+    for(const entry of entries){try{await prepareFlowPayment(selectedBiaId,String(entry.id));}catch{toast({title:'Lançamento salvo; cobrança ainda não emitida',description:'Abra Pix e boleto no lançamento para conferir a pendência e tentar novamente.',variant:'destructive'});}}
+    if(entries[0])setPaymentFlowId(String(entries[0].id));
+  }
+
   function inheritedFundingPreview() {
     const amount = parseBRLToNumber(formValor);
     return rateioTipo === "grupo"
@@ -2549,6 +2564,7 @@ export default function FluxoCaixaPage({
           }
           sessionStorage.removeItem(fundingStorageKey);
           setPendingExpenseRequest(null);
+          await prepareCreatedPayments(result.movimentos || []);
           return;
         }
         const newFileIds = await uploadFiles(pendingFiles);
@@ -2562,10 +2578,13 @@ export default function FluxoCaixaPage({
               Favorecido: item.membroId && item.membroId !== "__none__" ?[item.membroId] : [],
               anexos: [...newFileIds, ...itemFileIds],
             };
-            await apiRequest("POST", "/api/fluxo-caixa", payload);
+            const created=await (await apiRequest("POST", "/api/fluxo-caixa", payload)).json();
+            if(formTiposCpp!=null)await prepareCreatedPayments([{...payload,...created}]);
           }
         } else {
-          await apiRequest("POST", "/api/fluxo-caixa", buildPayload(newFileIds));
+          const payload=buildPayload(newFileIds);
+          const created=await (await apiRequest("POST", "/api/fluxo-caixa", payload)).json();
+          if(formTiposCpp!=null)await prepareCreatedPayments([{...payload,...created}]);
         }
       } finally {
         setUploading(false);
@@ -2705,6 +2724,7 @@ export default function FluxoCaixaPage({
   }
 
   function resetForm() {
+    setReminderSettings(defaultContributionReminders);
     setGenerateFunding(false);
     setExpenseFunding(emptyExpenseFunding());
     setFormTipo("entrada");
@@ -3029,6 +3049,8 @@ export default function FluxoCaixaPage({
                     map={aportesComTransferencias.rows.map(p => ({ memberId: p.membroId, percent: p.percentual }))}
                     cppOptions={tiposCpp.map(t => ({ value: String(t.id), label: t.Nome }))} />}
                 </>}
+                {((formTipo==='entrada'&&formTiposCpp!=null)||(formTipo==='saida'&&generateFunding))&&['pendente','agendado','vencido'].includes(formStatus)&&<label className="flex items-center gap-2 text-sm"><Checkbox checked={emitPayment} onCheckedChange={value=>setEmitPayment(value===true)}/>Emitir Pix e boleto para os aportes em dinheiro</label>}
+                {((formTipo==='entrada'&&formTiposCpp!=null)||(formTipo==='saida'&&generateFunding))&&['pendente','agendado','vencido'].includes(formStatus)&&<ContributionReminderFields value={reminderSettings} onChange={setReminderSettings}/>}
                 </fieldset>
                 <DialogFooter>
                   <DialogClose asChild>
@@ -4163,6 +4185,8 @@ export default function FluxoCaixaPage({
                                       {item.pagamento_url ?"Pagamento" : "Gerar boleto"}
                                     </DropdownMenuItem>
                                   )}
+                                  {item.tipo==='entrada'&&isCashEntry(item)&&<DropdownMenuItem onSelect={()=>setPaymentFlowId(String(item.id))}>Pix e boleto do aporte</DropdownMenuItem>}
+                                  {item.tipo==='entrada'&&isCashEntry(item)&&<DropdownMenuItem onSelect={()=>setReminderFlowId(String(item.id))}>Lembretes do aporte</DropdownMenuItem>}
                                   <DropdownMenuItem onSelect={() => openEditDialog(item)} data-testid={`button-edit-${item.id}`}>
                                     <Pencil className="h-4 w-4" />
                                     Editar
@@ -4389,6 +4413,8 @@ export default function FluxoCaixaPage({
             </DialogContent>
           </Dialog>
 
+          <ContributionPaymentDialog biaId={selectedBiaId} flowId={paymentFlowId} onClose={()=>setPaymentFlowId(null)}/>
+          <ContributionReminderDialog biaId={selectedBiaId} flowId={reminderFlowId} onClose={()=>setReminderFlowId(null)}/>
           <Dialog open={!!boletoItem} onOpenChange={(open) => { if (!open) { setBoletoItem(null); setBoletoUrl(""); gerarBoletoMutation.reset(); } }}>
             <DialogContent className="sm:max-w-[520px]">
               <DialogHeader>

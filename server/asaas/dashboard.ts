@@ -64,6 +64,6 @@ export async function readBankDashboard(transport: Transport, environment: "sand
     transport.request("/finance/balance").then(raw => z.object({ balance: amount }).parse(raw).balance).catch(() => null),
     collection(transport, "payments", range), collection(transport, "transfers", range),
   ]);
-  return { environment, scope: "company_account", checkedAt: new Date().toISOString(), ...range, balance,
+  return { environment, scope: "bia_account", checkedAt: new Date().toISOString(), ...range, balance,
     balanceError: balance === null ? "Saldo indisponível no Asaas." : null, payments, transfers };
 }

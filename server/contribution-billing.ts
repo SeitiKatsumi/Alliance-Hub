@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { ContributionReminders } from './contribution-reminders';
 import { asaasConfig } from "./asaas/config";
-import { requestHash } from "./asaas/store";
+import { requestHash, assertExclusiveBiaAccount } from "./asaas/store";
 import { AsaasError } from "./asaas/client";
 import { accountTransport, ContributionProvider, contributionBillingEnabled } from "./contribution-billing-provider";
-import { billingSettingsSchema, defaultBillingSettings, revisionInputSchema, cents, revisedCents, canReviseParcel, billingTotals, saoPauloClock, dayDistance, openPaymentStates } from "../shared/contribution-billing";
+import { billingSettingsSchema, defaultBillingSettings, revisionInputSchema, cents, revisedCents, canReviseParcel, billingTotals, saoPauloClock, dayDistance, openPaymentStates, cashContributionProblem } from "../shared/contribution-billing";
 
 type Dependencies={
   db:any; lock:(id:string,work:(tx:any,base:any)=>Promise<any>)=>Promise<any>;
@@ -21,6 +22,7 @@ const reference=(c:any)=>`built:contribution:${c.environment}:${c.id}`;
 const safeError=(e:any)=>e instanceof AsaasError?e.code:e.billingFault===true?e.message:"BILLING_RECONCILIATION_PENDING";
 
 export class ContributionBilling {
+  readonly reminders=new ContributionReminders(this);
   readonly environment=asaasConfig().environment;
   constructor(readonly deps:Dependencies) {}
   get namespace(){return this.environment==="sandbox"?"asaas_sandbox":"asaas_production";}
@@ -60,7 +62,7 @@ export class ContributionBilling {
     });
   }
   async rows(biaId:string,executor=this.deps.db) {
-    const rows=(await executor.execute(sql`SELECT c.*,p.vigente,p.pendente,p.natureza,p.componente,p.numero FROM bia_contribution_charges c JOIN bia_aportes_parcelas p ON p.id=c.parcel_id WHERE c.environment=${this.environment} AND c.bia_id=${biaId} ORDER BY c.due_date,p.numero,c.id`)).rows;
+    const rows=(await executor.execute(sql`SELECT c.*,CASE WHEN c.parcel_id IS NULL THEN true ELSE p.vigente END AS vigente,COALESCE(p.pendente,false) AS pendente,COALESCE(p.natureza,'caixa') AS natureza,COALESCE(p.componente,'capital') AS componente,p.numero FROM bia_contribution_charges c LEFT JOIN bia_aportes_parcelas p ON p.id=c.parcel_id WHERE c.environment=${this.environment} AND c.bia_id=${biaId} ORDER BY c.due_date,p.numero,c.id`)).rows;
     const entries=await this.deps.entries(biaId);
     return rows.map((r:any)=>{
       const entry=entries.find(e=>String(e.id)===String(r.flow_id));
@@ -83,7 +85,7 @@ export class ContributionBilling {
     return {environment:this.environment,enabled:this.enabled(),canManage,settings,totals:billingTotals(rows,today),history,
       rows:rows.filter((r:any)=>r.vigente).map((r:any)=>({id:r.id,parcelId:r.parcel_id,payerId:r.payer_id,name:members.get(r.payer_id)?.nome||"Participante",number:r.numero,
         amountCents:r.amount_cents,originalCents:r.original_cents,dueDate:r.due_date,version:r.version,paymentState:openPaymentStates.includes(r.payment_state)&&r.due_date<today?"overdue":r.payment_state,jobState:r.job_state,errorCode:r.error_code,
-        canRevise:canManage&&canReviseParcel(r,today),canReadPayment:canManage||payerId===r.payer_id,
+        flowId:r.flow_id,canRevise:!!r.parcel_id&&canManage&&canReviseParcel(r,today),canReadPayment:canManage||payerId===r.payer_id,
         pendingRevision:!!r.pending_revision})),
       pending:[...(!this.enabled()?["Cobranças Sandbox aguardam habilitação e homologação"]:[])]};
   }
@@ -95,6 +97,44 @@ export class ContributionBilling {
     const details={...row.details};
     if(details.expiresAt&&Date.parse(details.expiresAt)<Date.now()){delete details.pix;delete details.qrImage;details.pixExpired=true;}
     return details;
+  }
+  async requireFlowStorage() {
+    await this.requireReady();
+    const row=(await this.deps.db.execute(sql`SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='bia_contribution_charges' AND column_name='parcel_id'`)).rows[0];
+    if(row?.is_nullable!=='YES')throw fault('A emissão de aportes avulsos aguarda a migração 20261027_contribution_flow_charges.',503);
+  }
+  async enqueueFlow(biaId:string,flowId:string) {
+    await this.requireFlowStorage();
+    return this.deps.lock(biaId,async(tx)=>{
+      const prior=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE environment=${this.environment} AND bia_id=${biaId} AND flow_id=${flowId}`)).rows[0];
+      if(prior)return prior;
+      const bia=await this.deps.bia(biaId);
+      if(!activePhase(bia?.situacao)||bia?.moeda!=='BRL')throw fault('A cobrança exige BIA ativa em BRL.',422);
+      const entry=(await this.deps.entries(biaId)).find(e=>String(e.id)===flowId);
+      if(!entry)throw fault('Lançamento não encontrado nesta BIA.',404);
+      const problem=cashContributionProblem(entry);if(problem)throw fault(problem,422);
+      const payer=await this.deps.member(String(entry.favorecido_id));
+      if(!payer?.id)throw fault('Pagador não encontrado.',422);
+      const parcel=(await tx.execute(sql`SELECT * FROM bia_aportes_parcelas WHERE bia_id=${biaId} AND movimentos @> ${JSON.stringify([{id:flowId}])}::jsonb LIMIT 1`)).rows[0];
+      if(parcel&&(!parcel.vigente||parcel.pendente||parcel.natureza!=='caixa'||parcel.componente!=='capital'))throw fault('Esta parcela não representa aporte em dinheiro disponível para cobrança.',422);
+      const id=randomUUID();
+      await tx.execute(sql`INSERT INTO bia_contribution_charges(id,environment,parcel_id,bia_id,payer_id,flow_id,original_cents,amount_cents,due_date) VALUES(${id},${this.environment},${parcel?.id || null},${biaId},${String(entry.favorecido_id)},${flowId},${cents(entry.valor)},${cents(entry.valor)},${iso(entry.data_vencimento)})`);
+      return {id};
+    });
+  }
+  async flowPayment(biaId:string,flowId:string,manage:boolean,payerId:string|null) {
+    const entry=(await this.deps.entries(biaId)).find(e=>String(e.id)===flowId);
+    if(!entry)throw fault('Lançamento não encontrado.',404);
+    const charge=(await this.rows(biaId)).find((r:any)=>String(r.flow_id)===flowId&&r.vigente);
+    const owner=charge?.payer_id || String(entry.favorecido_id || '');
+    if(!manage && (!payerId || owner!==payerId))throw fault('Meio de pagamento restrito ao pagador e gestores.',403);
+    const canPrepare=manage&&!charge&&!cashContributionProblem(entry);
+    const payable=charge?.job_state==='ready'&&!charge.pending_revision&&['open','overdue'].includes(charge.payment_state)&&entry.status!=='pago';
+    return {environment:this.environment,enabled:this.enabled(),canPrepare,chargeId:charge?.id || null,
+      amountCents:charge?.amount_cents ?? cents(entry.valor),dueDate:charge?.due_date || iso(entry.data_vencimento),
+      paymentState:charge?.payment_state || (entry.status==='pago'?'received':'none'),jobState:charge?.job_state || null,
+      message:!this.enabled()?'Emissão aguardando habilitação da integração.':!charge?cashContributionProblem(entry):charge.job_state==='blocked'?'Cobrança bloqueada: confira a conta recebedora e o cadastro do pagador.':charge.job_state==='unknown'?'Emissão em conciliação. Não crie outra cobrança.':null,
+      details:payable?await this.details(biaId,charge.id,manage,payerId):null};
   }
   async preview(biaId:string,raw:any,tx=this.deps.db) {
     const input=revisionInputSchema.parse(raw),today=saoPauloClock().date;
@@ -128,7 +168,9 @@ export class ContributionBilling {
     });
   }
   async account(biaId:string,executor=this.deps.db) {
-    return (await executor.execute(sql`SELECT a.* FROM ${sql.raw(this.namespace+".accounts")} a JOIN ${sql.raw(this.namespace+".bia_accounts")} b ON a.id=b.account_id WHERE b.bia_id=${biaId}`)).rows[0];
+    const row=(await executor.execute(sql`SELECT a.*,(SELECT count(*)::int FROM ${sql.raw(this.namespace+'.bia_accounts')} links WHERE links.account_id=a.id) AS bia_link_count FROM ${sql.raw(this.namespace+".accounts")} a JOIN ${sql.raw(this.namespace+".bia_accounts")} b ON a.id=b.account_id WHERE b.bia_id=${biaId}`)).rows[0];
+    assertExclusiveBiaAccount(row);
+    return row;
   }
   private async provider(account:any){return this.deps.provider?await this.deps.provider(account):new ContributionProvider(await accountTransport(account,this.deps.db));}
   private async persistSnapshot(c:any,p:any,snapshot:any,tx:any) {
@@ -163,6 +205,7 @@ export class ContributionBilling {
     if(!claimed)return;
     try {
       const before=(await this.rows(claimed.bia_id)).find((r:any)=>r.id===id);
+      if(before && !before.parcel_id && (cents(before.entry?.valor)!==before.amount_cents || String(before.entry?.favorecido_id)!==before.payer_id || iso(before.entry?.data_vencimento)!==before.due_date || before.entry?.tipo!=='entrada'))throw fault('Lançamento divergente; conciliação necessária.');
       const currentBia=await this.deps.bia(claimed.bia_id);
       if(!before?.vigente || before.pendente || !activePhase(currentBia?.situacao) || currentBia?.moeda!=="BRL")throw fault("Parcela ou BIA não disponível");
       const localRevision=!before.external_id&&!!before.pending_revision;
@@ -209,7 +252,7 @@ export class ContributionBilling {
         if(!payment) {
           if(claimed.job_state==="unknown" || claimed.error_code==="CREATE_UNKNOWN")throw fault("Emissão com resultado desconhecido; aguarde conciliação");
           // Mark the non-repeatable dispatch durably before sending it.
-          payment=await provider.create(remoteCustomer.id,reference(row),row.amount_cents,row.due_date,(await this.settings(row.bia_id,tx)).billingType);
+          payment=await provider.create(remoteCustomer.id,reference(row),row.amount_cents,row.due_date,'BOLETO');
         }
         if(revision && row.external_id) {
           if((!["PENDING","OVERDUE"].includes(payment.status) && !(["CONFIRMED","RECEIVED"].includes(payment.status)&&cents(payment.value)===Number(revision.after_cents))) || payment.deleted)throw fault("Asaas não permite revisar esta cobrança");
@@ -239,6 +282,7 @@ export class ContributionBilling {
   }
   async tick(now=new Date()) {
     if(!await this.ready())return;
+    await this.reminders.tick(now);
     // Crash recovery never repeats a POST; unknown jobs only search the deterministic external reference.
     await this.deps.db.execute(sql`UPDATE bia_contribution_charges SET job_state='unknown',error_code='CREATE_UNKNOWN' WHERE environment=${this.environment} AND job_state='creating' AND updated_at < now()-interval '3 minutes'`);
     await this.deps.db.execute(sql`UPDATE bia_contribution_notices SET state=CASE WHEN channel='agenda' THEN 'queued' ELSE 'unknown' END WHERE state='sending' AND updated_at<now()-interval '3 minutes'`);
@@ -255,7 +299,8 @@ export class ContributionBilling {
       for(const row of rows) {
         if(!row.vigente || row.pendente || row.pending_revision || row.job_state!=="ready" || !openPaymentStates.includes(row.payment_state) || !row.external_id || !row.details?.invoiceUrl)continue;
         const distance=dayDistance(row.due_date,clock.date),kinds:string[]=[];
-        if(settings.offsets.includes(distance))kinds.push(`reminder:${distance}`);
+        const explicit=await this.reminders.ready()&&(await this.deps.db.execute(sql`SELECT 1 FROM bia_aporte_reminder_settings WHERE flow_id=${row.flow_id}`)).rows.length>0;
+        if(!explicit&&settings.offsets.includes(distance))kinds.push(`reminder:${distance}`);
         const revisions=(await this.deps.db.execute(sql`SELECT id FROM bia_contribution_revisions WHERE charge_id=${row.id} AND state='applied' AND notified=false`)).rows;
         for(const rev of revisions)kinds.push(`revision:${rev.id}`);
         for(const kind of kinds)for(const channel of ["email","agenda"] as const)if(settings[channel])await this.deliver(row,kind,channel,now);
@@ -292,7 +337,7 @@ export class ContributionBilling {
         if(channel==="agenda") {
           const user=await this.deps.userForMember(member);if(!user)throw fault("Pagador sem conta");
           await tx.execute(sql`INSERT INTO agenda_tarefas(id,user_id,membro_id,titulo,descricao,data,status,prioridade,contexto_tipo,contexto_id,origem_tarefa_id)
-            VALUES(${notice.id},${user},${row.payer_id},${kind.startsWith("revision")?"Aporte atualizado":"Pagamento de aporte"},${`Parcela ${row.numero}: R$ ${(row.amount_cents/100).toFixed(2)} · vencimento ${row.due_date}. Acesse Financeiro → Aportes e parcelas.`},${saoPauloClock(now).date},'pendente','media','bia_contribution',${row.bia_id},${row.id}) ON CONFLICT(id) DO NOTHING`);
+            VALUES(${notice.id},${user},${row.payer_id},${kind.startsWith("revision")?"Aporte atualizado":"Pagamento de aporte"},${`${row.parcel_id ? `Parcela ${row.numero}` : 'Aporte'}: R$ ${(row.amount_cents/100).toFixed(2)} · vencimento ${row.due_date}. Acesse Financeiro → ${row.parcel_id ? 'Aportes e parcelas' : 'Lançamentos → Pix e boleto do aporte'}.`},${saoPauloClock(now).date},'pendente','media','bia_contribution',${row.bia_id},${row.id}) ON CONFLICT(id) DO NOTHING`);
           await tx.execute(sql`UPDATE bia_contribution_notices SET state='sent',updated_at=now() WHERE id=${notice.id}`);
         } else {
           if(!member?.email)throw fault("Pagador sem email");

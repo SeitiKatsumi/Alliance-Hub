@@ -17,7 +17,7 @@ import { AsaasAccountOperations } from "./operations";
 
 const vaultKey = Buffer.alloc(32, 7).toString("base64");
 const fixture = () => asaasConfig({ ASAAS_BASE_ENABLED: "true", ASAAS_BASE_ENVIRONMENT: "sandbox", ASAAS_SANDBOX_API_KEY: "sandbox-fixture-key", ASAAS_SANDBOX_WEBHOOK_TOKEN: "sandbox-fixture-webhook", ASAAS_SANDBOX_WEBHOOK_URL: "https://example.test/api/webhooks/asaas/sandbox", ASAAS_SANDBOX_CREDENTIAL_ENCRYPTION_KEY: vaultKey, ASAAS_BAAS_ENABLED: "true", ASAAS_CONTRIBUTIONS_ENABLED: "true", ASAAS_TRANSFERS_ENABLED: "true" });
-const migration = ["20261014_asaas_foundation.sql", "20261020_asaas_sandbox_subaccounts.sql"].map(file => readFileSync(new URL(`../../migrations/${file}`, import.meta.url), "utf8")).join("\n");
+const migration = ["20261014_asaas_foundation.sql", "20261020_asaas_sandbox_subaccounts.sql", "20261028_asaas_exclusive_bia.sql"].map(file => readFileSync(new URL(`../../migrations/${file}`, import.meta.url), "utf8")).join("\n");
 
 const accountInput = () => asaasSubaccountCreateSchema.parse({
   name: "SPE Sandbox Teste", email: "sandbox@example.com", cpfCnpj: "66.625.514/0001-40",
@@ -92,7 +92,7 @@ test("transporte Sandbox: host fixo, autenticação, JSON, falhas sanitizadas e 
   await assert.rejects(() => new AsaasTransport(asaasConfig({ ASAAS_BASE_ENVIRONMENT: "production" }), (async () => { throw Error("must not call"); }) as typeof fetch).request("/customers"), (error: AsaasError) => error.code === "NOT_CONFIGURED");
 });
 
-test("migração aditiva: isolamento, várias BIAs por conta, idempotência, concorrência e estados", async t => {
+test("migração aditiva: conta exclusiva, ambientes isolados, idempotência, concorrência e estados", async t => {
   const pg = new PGlite(); t.after(() => pg.close());
   const db = drizzle(pg); const sandbox = new AsaasStore(db, "sandbox"); const production = new AsaasStore(db, "production");
   assert.equal(await sandbox.storageReady(), false);
@@ -100,8 +100,9 @@ test("migração aditiva: isolamento, várias BIAs por conta, idempotência, con
   assert.equal(await sandbox.storageReady(), true); assert.equal(await production.storageReady(), true);
   const accountId = randomUUID();
   await db.execute(sql`INSERT INTO asaas_sandbox.accounts (id,label,ownership,owner_id) VALUES (${accountId},'SPE teste','company','company-test')`);
-  await db.execute(sql`INSERT INTO asaas_sandbox.bia_accounts (bia_id,account_id) VALUES ('bia-a',${accountId}),('bia-b',${accountId})`);
-  assert.equal((await sandbox.accountForBia("bia-a"))?.id, accountId); assert.equal((await sandbox.accountForBia("bia-b"))?.id, accountId);
+  await sandbox.linkAccount('bia-a',accountId);
+  await assert.rejects(()=>sandbox.linkAccount('bia-b',accountId));
+  assert.equal((await sandbox.accountForBia("bia-a"))?.id, accountId); assert.equal(await sandbox.accountForBia("bia-b"), null);
   assert.equal(await production.accountForBia("bia-a"), null);
   const input = { biaId: "bia-a", accountId, actorId: "operator", kind: "charge", amountCents: 12345, externalReference: "charge-test", idempotencyKey: "same-key", request: { description: "Test", customer: "test" } };
   const [first, second] = await Promise.all([sandbox.prepareOperation(input), sandbox.prepareOperation({ ...input, request: { customer: "test", description: "Test" } })]);
@@ -117,7 +118,7 @@ test("migração aditiva: isolamento, várias BIAs por conta, idempotência, con
   assert.equal((await db.execute(sql`SELECT count(*) AS count FROM asaas_sandbox.operations`)).rows[0].count, 1);
 });
 
-test("subconta Sandbox é criada uma vez, chave fica cifrada e outra BIA reutiliza a conta da empresa", async t => {
+test("subconta é exclusiva da BIA; repetição recupera a mesma conta sem compartilhar", async t => {
   const pg = new PGlite(); const db = drizzle(pg); t.after(() => pg.close()); await pg.exec(migration);
   let creations = 0;
   const transport = (config: ReturnType<typeof fixture>) => ({ request: async (path: string, options: any = {}) => {
@@ -138,9 +139,10 @@ test("subconta Sandbox é criada uma vez, chave fica cifrada e outra BIA reutili
   const service = new AsaasSandboxAccounts(store, fixture(), transport);
   const created = await service.create("bia-one", "actor-one", accountInput());
   assert.equal(created.created, true); assert.equal(created.account?.state, "approved"); assert.equal(creations, 1);
-  const reused = await service.create("bia-two", "actor-two", accountInput());
+  const reused = await service.create("bia-one", "actor-one", accountInput());
   assert.equal(reused.reused, true); assert.equal(creations, 1);
-  assert.equal((await store.accountForBia("bia-one"))?.id, (await store.accountForBia("bia-two"))?.id);
+  await assert.rejects(()=>service.create("bia-two","actor-two",accountInput()),(error:AsaasError)=>error.code==='ACCOUNT_ALREADY_ASSIGNED');
+  assert.equal(await store.accountForBia('bia-two'),null);assert.equal(creations,1);
   const credential = (await db.execute(sql`SELECT * FROM asaas_sandbox.account_credentials`)).rows[0];
   assert.equal(JSON.stringify(credential).includes("child-api-key-private"), false);
   assert.equal(decryptCredential({ ciphertext: credential.ciphertext, initializationVector: credential.initialization_vector, authenticationTag: credential.authentication_tag, keyFingerprint: credential.key_fingerprint }, vaultKey), "child-api-key-private");

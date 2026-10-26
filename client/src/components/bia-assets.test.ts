@@ -43,6 +43,7 @@ test('structure editor saves without a manual reason and preserves revision and 
   const value=domain.emptyBiaSetup(),states:any[]=[value,3,'',false,'ativos',JSON.stringify(value)],requests:any[]=[];
   let cursor=0,editable=true,fail=false;
   const mocks={...scope,useState:()=>{const index=cursor++;return [states[index],(v:any)=>states[index]=v];},useEffect:()=>{},useUnsavedChanges:()=>{},BiaAssetFields:()=>null,BiaLegalFields:()=>null,BiaBudgetFields:()=>null,useQuery:()=>({data:{editavel:editable,participantes:[],historico:[]},refetch:async()=>{}}),apiRequest:async(...args:any[])=>{requests.push(args);if(fail)throw new Error('Conflito de revisão');return {json:async()=>({revisao:4})};}};
+  Object.assign(mocks,{BiaDraftNotice:()=>null,readOpenBiaDraft:async()=>null});
   const run=new Function(...Object.keys(mocks),transformSync(editor,{loader:'tsx'}).code+';return SetupEditor;')(...Object.values(mocks));
   const render=(readOnly=false)=>{cursor=0;return run({biaId:'bia-test',moeda:'BRL',members:{},readOnly});};
   const save=(readOnly=false)=>nodes(render(readOnly)).find(n=>n.type==='button'&&n.props.children==='Salvar alteração');

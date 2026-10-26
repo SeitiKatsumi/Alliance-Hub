@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCashEntry } from './initial-contributions';
 
 export const billingSettingsSchema = z.object({
   email: z.boolean(), agenda: z.boolean(),
@@ -6,6 +7,18 @@ export const billingSettingsSchema = z.object({
   billingType: z.enum(["PIX", "BOLETO"]),
 }).strict();
 export const defaultBillingSettings = { email:true, agenda:true, offsets:[-5,0,3], billingType:"BOLETO" as const };
+
+export function cashContributionProblem(entry:any):string|null {
+  if(!isCashEntry(entry))return 'Propriedade, direitos e movimentos em conciliação não geram cobrança.';
+  if(entry.tipo!=='entrada')return 'Somente entradas de aporte em dinheiro podem gerar cobrança.';
+  if(!['pendente','agendado','vencido'].includes(entry.status) || entry.data_pagamento)return 'Aporte já pago, parcial ou sem situação de pagamento válida.';
+  if(!entry.favorecido_id)return 'Selecione o participante pagador do aporte.';
+  if(entry.pagamento_id || entry.pagamento_provider || entry.pagamento_url)return 'O lançamento já possui um pagamento vinculado.';
+  if(!(Number(entry.valor)>0) || !Number.isFinite(Number(entry.valor)))return 'Informe um valor positivo.';
+  const date=String(entry.data_vencimento || '').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0,10)!==date)return 'Informe o vencimento do aporte.';
+  return null;
+}
 export const revisionInputSchema = z.object({
   parcelIds:z.array(z.string().uuid()).min(1).max(200).refine(v=>new Set(v).size===v.length),
   fromDate:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value=>{const date=new Date(`${value}T12:00:00Z`);return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;},"Data inválida"),

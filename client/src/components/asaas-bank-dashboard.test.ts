@@ -7,13 +7,13 @@ import { BankDashboardView, BankHistory, readBankDashboardRequest } from "./asaa
 import type { BankDashboardData } from "../../../shared/asaas-dashboard";
 
 const fixture = (): BankDashboardData => ({
-  environment: "sandbox", scope: "company_account", checkedAt: "2026-10-26T12:00:00Z", from: "2026-09-27", to: "2026-10-26", balance: 123.45, balanceError: null,
+  environment: "sandbox", scope: "bia_account", checkedAt: "2026-10-26T12:00:00Z", from: "2026-09-27", to: "2026-10-26", balance: 123.45, balanceError: null,
   payments: { available: true, complete: true, totalCount: 0, items: [], error: null },
   transfers: { available: true, complete: true, totalCount: 0, items: [], error: null },
 });
 test("painel mostra escopo, saldo, grupos, período e estado vazio sem operação automática", () => {
   const html = renderToStaticMarkup(React.createElement(BankDashboardView, { data: fixture() }));
-  for (const label of ["Saldo disponível da conta", "123,45", "Cobranças geradas", "Transferências solicitadas", "Concluídas", "Vencidas", "outras BIAs", "Nenhum registro gerado no período", "não substituem o extrato completo"]) assert.ok(html.includes(label), label);
+  for (const label of ["Saldo disponível da BIA", "123,45", "Cobranças geradas", "Transferências solicitadas", "Concluídas", "Vencidas", "Subconta exclusiva desta BIA", "Nenhum registro gerado no período", "não substituem o extrato completo"]) assert.ok(html.includes(label), label);
   assert.doesNotMatch(html, /Confirmar transferência|href=/);
   const capital = readFileSync(new URL("../pages/nucleo-capital.tsx", import.meta.url), "utf8");
   assert.match(capital, /Histórico anterior da BIA/);

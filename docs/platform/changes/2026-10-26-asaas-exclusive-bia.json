@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "id": "2026-10-26-asaas-exclusive-bia",
+  "title": "Uma subconta exclusiva por BIA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/asaas/store.ts",
+    "migrations/20261028_asaas_exclusive_bia.sql"
+  ],
+  "searchTerms": [
+    "assertExclusiveBiaAccount",
+    "requireExclusiveStorage",
+    "bia_account"
+  ],
+  "consumers": [
+    {"path":"migrations/20261014_asaas_foundation.sql","decision":"preserved","reason":"Histórico original preservado; exclusividade acrescentada por migração nova, sem reescrever instalação anterior."},
+    {
+      "path": "server/asaas/store.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/accounts.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/exclusive-bia.test.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/dashboard.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "shared/asaas-dashboard.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "migrations/20261028_asaas_exclusive_bia.sql",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Exclusividade no vínculo, guardas de acesso antes do provedor e escopo do dashboard, com testes de concorrência e legado."
+    },
+    {
+      "path": "server/asaas/operations.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/asaas/events.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "reviewed",
+      "reason": "Operações usam conta exclusiva resolvida pelo store; cobrança e lembrete passam pelo guard central. Webhook mantém referência externa e apenas enfileira reconciliação. Sem mudança de permissões, flags ou chamadas financeiras reais."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "SSR passou. Componente real conferido com fixture isolada desktop/390px no escuro. Localhost respondeu 200 após reinício; sessão redirecionou ao login, sem validar conta autenticada nem emitir operações."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Autorizações mantidas; erro de compartilhamento preservado em status; dashboard não consulta provedor para conta compartilhada."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Índices únicos aplicados com autorização após testes nos dois schemas; contagem de vínculos preservada. Nenhuma conta criada ou transferência efetuada."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Saldo do provedor é exclusivo pelo vínculo, não rateado. Somatórios e estados de cobrança mantidos, teste do dashboard passou."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Worker de cobrança e lembretes consulta conta com guarda exclusiva antes de usar credencial. Sem novos envios."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; MAP, CPP, PDFs e documentos assinados não mudam."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem criação/transferência externa; conta existente exclusiva preservada. Mesmo CNPJ em outra BIA bloqueado e exige conta própria aprovada pelo Asaas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Guardas de acesso financeiro mantidas; exclusividade adicional vale para ambos ambientes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Compartilhamento legado falha antes do provedor; migração recusa duplicidade sem escolher dono nem apagar dados. Banco atual lido: um vínculo Sandbox, nenhum Produção."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify exit0 com 570 testes, tipos e build; suite exclusive-bia posteriormente ampliada e executada com 3 testes aprovados, incluindo saldos/cobranças distintos por credencial."
+    }
+  ],
+  "regressionTests": [
+    "server/asaas/exclusive-bia.test.ts",
+    "server/asaas/foundation.test.ts",
+    "client/src/components/asaas-bank-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "asaas-exclusive-bia-account"
+  ]
+}

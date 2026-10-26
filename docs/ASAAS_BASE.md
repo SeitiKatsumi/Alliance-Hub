@@ -4,7 +4,7 @@ Implementada em 14/10/2026 e ampliada em 20/10/2026. Criação/vínculo, cobran�
 
 ## Modelo de contas
 
-Conforme orientação enviada pelo Asaas, cada SPE ou holding terá uma subconta individual vinculada ao seu CNPJ. BIAs relacionadas à mesma empresa podem usar o mesmo vínculo de conta, mantendo o escopo de acesso por BIA. Conta Asaas não é um participante da BIA. O modelo escolhido é BaaS, com jornada dentro da BUILT; habilitação, contrato e playbook de produção ainda deverão ser fornecidos.
+Conforme orientação enviada pelo Asaas, cada SPE ou holding terá uma subconta individual vinculada ao seu CNPJ. Cada BIA exige vínculo exclusivo de subconta; a titularidade jurídica continua sendo da empresa. Não reutilizar a conta de outra BIA. Novas contas com o mesmo CNPJ podem depender de aprovação específica do Asaas. Conta Asaas não é um participante da BIA. O modelo escolhido é BaaS, com jornada dentro da BUILT; habilitação, contrato e playbook de produção ainda deverão ser fornecidos.
 
 ## Configuração
 
@@ -22,7 +22,7 @@ As migrações aditivas `20261014_asaas_foundation.sql` e `20261020_asaas_sandbo
 
 - Accounts: identificação local, titular/referência da empresa, ID externo, walletId e referência a cofre; nenhuma chave de subconta em texto simples.
 - Account_credentials: chave da subconta cifrada com AES-256-GCM; a chave mestra fica somente no ambiente do servidor. API, logs e navegador nunca recebem a credencial.
-- Bia_accounts: uma conta por BIA e várias BIAs por conta dentro de cada ambiente. O vínculo Sandbox é criado pelo fluxo autorizado de abertura/reutilização da conta da empresa.
+- Bia_accounts: uma subconta por BIA e uma BIA por subconta dentro de cada ambiente. O vínculo Sandbox é criado pelo fluxo autorizado de abertura/reutilização da conta da empresa.
 - Operations: intenção persistida por conta/BIA, executor, tipo, valor inteiro em centavos, referência externa, chave de idempotência e hash canônico. Mesma chave/pedido recupera a intenção; pedido diferente retorna conflito409. Estados: prepared, sent, pending, unknown, completed, rejected, cancelled. Mudanças condicionais impedem sobrescrever estado concorrente/terminal.
 - Events: ID único do evento por ambiente, tipo, origem/entidade, hash e projeção mínima de referências. Duplicados não são reprocessados. Payload integral, documentos, chaves e efeitos financeiros não são registrados nesta base. Campos novos do provedor são tolerados sem serem expostos.
 
@@ -57,4 +57,11 @@ Onboarding e envio documental conforme `onboardingUrl`; tratamento automático d
 
 ## Verificação
 
-Testes cobrem configuração sem herança, separação Sandbox/Produção, CNPJ, cofre cifrado, transporte simulado, criação única, reutilização entre BIAs, timeout sem retry, saldo, transferência única/idempotente, token, evento duplicado, autorização e estados. A UI usa modais responsivos e exige confirmação humana para criação e transferência.
+Testes cobrem configuração sem herança, separação Sandbox/Produção, CNPJ, cofre cifrado, transporte simulado, criação única, rejeição de reutilização entre BIAs, timeout sem retry, saldo, transferência única/idempotente, token, evento duplicado, autorização e estados. A UI usa modais responsivos e exige confirmação humana para criação e transferência.
+## Exclusividade por BIA — 26/10/2026
+
+Regra atual: uma subconta por BIA, sem reutilização entre BIAs mesmo da mesma empresa. Migração `20261028_asaas_exclusive_bia.sql` adiciona índices únicos por `account_id` nos dois ambientes, sem excluir ou redistribuir dados. Aplicada com autorização após os testes no banco usado pelo localhost; havia um vínculo Sandbox e nenhum Produção. Em outro ambiente com duplicidade a migração deve falhar: escolher conta/destino ou transferir saldo exige decisão explícita, nunca deduplicação automática.
+
+Store valida exclusividade antes de status, saldo, dashboard, atualização cadastral e transferências. Cobranças/lembretes usam a mesma guarda antes do provedor. A criação exige a migração e recusa conta já atribuída. A identidade CNPJ e sua trava de criação continuam: a plataforma não abre uma segunda conta para o mesmo CNPJ automaticamente; eventual aprovação para múltiplas contas deve ser tratada com o Asaas. Fonte: https://central.ajuda.asaas.com/hc/pt-br/articles/32091731715739-Posso-ter-mais-de-uma-conta-Asaas-com-o-mesmo-CPF-CNPJ .
+
+Dashboard responde `scope: bia_account`; o schema do cliente recusa o escopo antigo em cache. Saldo não é rateado nem reconstruído de cobranças: vem da credencial exclusiva. Webhooks mantêm vínculo externo e consultas autorizadas, sem recalcular MAP/CPP ou documentos assinados. Nada nesta entrega cria subcontas, emite cobranças ou movimenta dinheiro.

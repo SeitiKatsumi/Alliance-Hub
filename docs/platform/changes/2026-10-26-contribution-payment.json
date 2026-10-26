@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "id": "2026-10-26-contribution-payment",
+  "title": "Pix e boleto do mesmo aporte dentro da plataforma",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/contribution-billing.ts",
+    "shared/contribution-billing.ts"
+  ],
+  "searchTerms": [
+    "contribution-payment",
+    "enqueueFlow",
+    "protectContributionFlow"
+  ],
+  "consumers": [
+{"path":"client/src/components/asaas-bank-dashboard.test.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"client/src/components/asaas-bank-dashboard.tsx","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"client/src/components/asaas-status.test.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"client/src/components/asaas-status.tsx","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"client/src/pages/admin.tsx","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"server/asaas/dashboard.test.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"server/asaas/dashboard.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"server/asaas/foundation.test.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"server/asaas/operations.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"server/asaas/routes.ts","decision":"reviewed","reason":"Banco e transferências preservados; dependem apenas de cents/safeAsaasUrl que não mudaram. Testes de conta, autorização e dashboard passaram na suíte."},
+{"path":"client/src/data/platform-functional-report.test.ts","decision":"reviewed","reason":"Consomem catálogo funcional: mesmos IDs/status, descrições atualizadas; contrato, teste do relatório e build passaram."},
+{"path":"client/src/pages/relatorio-funcionalidades.tsx","decision":"reviewed","reason":"Consomem catálogo funcional: mesmos IDs/status, descrições atualizadas; contrato, teste do relatório e build passaram."},
+{"path":"scripts/platform-impact.ts","decision":"reviewed","reason":"Consomem catálogo funcional: mesmos IDs/status, descrições atualizadas; contrato, teste do relatório e build passaram."},
+{"path":"scripts/platform-verify.ts","decision":"reviewed","reason":"Consomem catálogo funcional: mesmos IDs/status, descrições atualizadas; contrato, teste do relatório e build passaram."},
+{"path":"client/src/pages/bia-documentos.tsx","decision":"reviewed","reason":"Consumidores transitivos da área financeira; inicial e menu renderizam novo modal sem gravar na leitura. Documentos e transferências de cotas preservados."},
+{"path":"client/src/pages/movimentacao-cotas.tsx","decision":"reviewed","reason":"Consumidores transitivos da área financeira; inicial e menu renderizam novo modal sem gravar na leitura. Documentos e transferências de cotas preservados."},
+{"path":"client/src/pages/nucleo-capital.tsx","decision":"reviewed","reason":"Consumidores transitivos da área financeira; inicial e menu renderizam novo modal sem gravar na leitura. Documentos e transferências de cotas preservados."},
+{"path":"server/bia-map-api.test.ts","decision":"reviewed","reason":"Suíte integral passou; worker mantém agendamento e baixa no mesmo ID. Lembrete legado já exclui todos os flow_id gerenciados, inclusive avulsos; testes de MAP/integralização preservados."},
+{"path":"server/contribution-billing.test.ts","decision":"reviewed","reason":"Suíte integral passou; worker mantém agendamento e baixa no mesmo ID. Lembrete legado já exclui todos os flow_id gerenciados, inclusive avulsos; testes de MAP/integralização preservados."},
+{"path":"server/index.ts","decision":"reviewed","reason":"Suíte integral passou; worker mantém agendamento e baixa no mesmo ID. Lembrete legado já exclui todos os flow_id gerenciados, inclusive avulsos; testes de MAP/integralização preservados."},
+{"path":"server/initial-contributions.test.ts","decision":"reviewed","reason":"Suíte integral passou; worker mantém agendamento e baixa no mesmo ID. Lembrete legado já exclui todos os flow_id gerenciados, inclusive avulsos; testes de MAP/integralização preservados."},
+{"path":"server/payment-reminders.test.ts","decision":"reviewed","reason":"Suíte integral passou; worker mantém agendamento e baixa no mesmo ID. Lembrete legado já exclui todos os flow_id gerenciados, inclusive avulsos; testes de MAP/integralização preservados."},
+{"path":"server/payment-reminders.ts","decision":"reviewed","reason":"Suíte integral passou; worker mantém agendamento e baixa no mesmo ID. Lembrete legado já exclui todos os flow_id gerenciados, inclusive avulsos; testes de MAP/integralização preservados."},
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "client/src/components/contribution-payment.test.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/contribution-flow-protection.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/fluxo-delete.test.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "shared/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    },
+    {
+      "path": "migrations/20261027_contribution_flow_charges.sql",
+      "decision": "updated",
+      "reason": "Preparação explícita de aporte em dinheiro, consulta privada de meios e proteção do mesmo vínculo financeiro; testes isolados preservam registros reais."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "SSR e visualização do componente real com fixture não pagável em desktop e 390x844, modo escuro; sem operação financeira real."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Teste HTTP real isolado: autorização antes de processamento, confirmação explícita, GET no-store sem emissão."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração repetida em PGlite; aplicada após autorização e testes ao banco via túnel local, com índice/nulabilidade e contagem de registros preservada verificados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Centavos do lançamento existente; exclui pago/não caixa; não altera fórmulas MAP/CPP ou dashboards."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Fila existente usa cobrança única; descrição diferencia aporte avulso de parcela, envio real não executado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; documentos assinados e PDFs anteriores preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Provider consulta boleto e Pix do mesmo ID; teste de resposta perdida confirma não duplicação. Flags e contas preservadas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Gestão financeira para preparar, pagador/gestor para detalhes; acesso entre BIAs rejeitado."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Parcelas anteriores continuam vinculadas; cobrança avulsa não bloqueia edição de cronograma sem parcelas cobradas. Nenhum backfill."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify passou: 568 testes, TypeScript, contratos e build. API, serviço, migração, provider e SSR isolados; emissão real não executada."
+    }
+  ],
+  "regressionTests": [
+    "server/contribution-flow.test.ts",
+    "server/contribution-flow-api.test.ts",
+    "client/src/components/contribution-payment.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -14,7 +14,7 @@ const collectionSchema = z.object({
   totalCount: z.number().int().nonnegative().nullable(), error: z.string().nullable(),
 });
 export const bankDashboardSchema = z.object({
-  environment: z.enum(["sandbox", "production"]), scope: z.literal("company_account"),
+  environment: z.enum(["sandbox", "production"]), scope: z.literal("bia_account"),
   checkedAt: z.string(), from: z.string().nullable(), to: z.string(),
   balance: z.number().finite().nullable(), balanceError: z.string().nullable(),
   payments: collectionSchema, transfers: collectionSchema,

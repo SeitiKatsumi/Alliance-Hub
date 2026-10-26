@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "id": "2026-10-26-contribution-reminders",
+  "title": "Lembretes opcionais por aporte em dois canais",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/contribution-reminders.ts",
+    "server/contribution-reminders.ts"
+  ],
+  "searchTerms": [
+    "contribution-reminders",
+    "aporte_reminder",
+    "contributionAgendaUrl",
+    "contributionCalendarId"
+  ],
+  "consumers": [
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "updated",
+      "reason": "Template real testado com destino da ação na Agenda e escaping preservado."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "reviewed",
+      "reason": "Categoria bia continua sob sender central; testes de opt-out e falha de preferência preservados."
+    },
+    {
+      "path": "shared/contribution-reminders.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "server/contribution-reminders.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "server/contribution-reminders.test.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "migrations/20261029_contribution_reminders.sql",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.tsx",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.test.ts",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "docs/platform/modules/agenda-notificacoes.md",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Configuração, persistência, entrega ou consumidor de lembretes por aporte; valores e cobrança preservados."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor genérico usa href e grupo pendencias; recebe nova projeção sem ação mutante especial."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "updated",
+      "reason": "Cobertura de autorização dos lembretes e relatório funcional."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Cobertura de autorização dos lembretes e relatório funcional."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Cadastro e menu; prévia real isolada desktop e390px escuro; seleção independente sem envio real."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET/PUT com autorização financeira existente; teste HTTP nega gravação sem edição."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração idempotente em PGlite, FK e unicidade; Directus financeiro intacto."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Calendário central cobre mês curto e janela; não altera saldo, CPP ou gráfico."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Uma ação no vencimento, links e-mail/Alertas para a Agenda, prazos não duplicam calendário; teste SQL com emissor simulado. Envio pontual real autorizado explicitamente pelo usuário."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; PDFs e assinados não usam preferências de lembrete."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Worker existente; estado atual e deduplicação persistentes; não emite cobrança."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Gestor configura, pagador consulta; usuário/membro atuais na projeção; exclui funcionário."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Sem opt-in automático; offsets antigos só substituídos nos configurados; revisão preservada."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Testes focados e suíte sem falhas; typecheck aprovado; sem mensagens reais."
+    }
+  ],
+  "regressionTests": [
+    "server/contribution-reminders.test.ts",
+    "client/src/components/contribution-reminders.test.ts",
+    "server/contribution-flow-api.test.ts",
+    "server/mailer.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

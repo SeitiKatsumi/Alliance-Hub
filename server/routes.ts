@@ -1,11 +1,13 @@
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { categoryText } from "../shared/financial-categories";
 import { registerBiaInviteResend } from "./bia-invite-resend";
 import { registerBiaInviteCancel } from "./bia-invite-cancel";
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
 import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
+import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry } from "./expense-contributions";
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
 import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from "./bia-setup";
@@ -1338,6 +1340,7 @@ async function directusUpdate(collection: string, id: string, data: Record<strin
     await assertBiaFinancialPhase(existing?.bia || data.bia);
   }
   if (collection === "fluxo_caixa") await protectInitialEntry(id, data);
+  if (collection === "fluxo_caixa") await protectExpenseEntry(db, id, data);
   if (mapBiaActivation && collection === "bias_projetos" && data.situacao === "ativa" && !mapOperationContext.getStore()?.tx) {
     return mapBiaActivation(id, data, () => directusUpdate(collection, id, data));
   }
@@ -1491,6 +1494,7 @@ async function directusDelete(collection: string, id: string): Promise<any> {
     await assertBiaFinancialPhase(existing?.bia);
   }
   if (collection === "fluxo_caixa") await protectInitialEntry(id, null);
+  if (collection === "fluxo_caixa") await protectExpenseEntry(db, id, null);
   if (mapFinancialWrite && collection === "fluxo_caixa" && !mapOperationContext.getStore()?.tx) {
     return mapFinancialWrite(collection, id, null, () => directusDelete(collection, id));
   }
@@ -12888,6 +12892,48 @@ export async function registerRoutes(
   }));
 
   // ========== FLUXO DE CAIXA (from Directus) ==========
+  await db.execute(sql.raw(EXPENSE_CONTRIBUTIONS_SQL));
+  registerExpenseContributions(app, {
+    db, access: (req, res, id, level) => requireBiaModuleAccess(req, res, id, "capital_financeiro", level),
+    phase: assertBiaFinancialPhase,
+    lock: (id, work) => withMapLock(id, async (tx, base) => {
+      if (base) await reconcilePendingMapEvents(tx, await directusFetchOne("bias_projetos", id, "fields=*"), base);
+      return work();
+    }),
+    map: (bia, id) => getBiaAllocationMap(bia, id, { strict: true }),
+    members: bia => [...parseBiaMemberList(bia.socios_guardioes), ...parseBiaMemberList(bia.socios_multiplicadores)],
+    one: directusFetchOne,
+    createBatch: async items => {
+      const biaId = String(items[0].bia);
+      const tx = mapOperationContext.getStore()?.tx || db;
+      const base = await loadInitialMapSnapshot(biaId, tx);
+      const bia = base ? await directusFetchOne("bias_projetos", biaId, "fields=*") : null;
+      let event: any = null;
+      let rowsBefore: any = null;
+      if (base && items.some(item => item.status === "pago")) {
+        rowsBefore = await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx });
+        const current = await directusFetchScoped("fluxo_caixa", `fields=*,Favorecido.*,Favorecido.cadastro_geral_id.*&filter[bia][_eq]=${encodeURIComponent(biaId)}`);
+        await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx, entries: [...current, ...items] });
+        if (!base.revisao && base.participantes?.length) await archiveMapBase(tx, bia, base, `preservado:${base.id}`, "Base preservada antes da movimentação");
+        event = (await db.execute(sql`INSERT INTO bia_map_eventos (bia_id, motivo, autor, antes)
+          VALUES (${biaId}, 'Despesa com aportes vinculados', ${JSON.stringify(mapActor())}::jsonb, ${JSON.stringify(rowsBefore)}::jsonb) RETURNING id`)).rows[0];
+      }
+      // Directus createMany wraps all entries and their relations in one transaction.
+      // Do not use directusBulkCreate here: its legacy flow adapter creates one row at a time.
+      const response = await fetch(`${DIRECTUS_URL}/items/fluxo_caixa`, {
+        method: "POST", headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(items), signal: AbortSignal.timeout(45000),
+      });
+      if (!response.ok) throw new Error("Falha ao gravar lote financeiro");
+      const result = (await response.json()).data;
+      if (event) {
+        const after = await getBiaAllocationMap(bia, biaId, { base, strict: true, executor: tx });
+        if (mapContentHash(rowsBefore) !== mapContentHash(after)) await captureCurrentMap(tx, bia, base, String(event.id), "Despesa com aportes vinculados");
+        await tx.execute(sql`UPDATE bia_map_eventos SET concluido_em = now() WHERE id=${String(event.id)}`);
+      }
+      return result;
+    },
+  });
   await ensureFluxoCaixaHistoricoTable().catch((err: any) => {
     console.warn(`[fluxo_historico] Tabela de historico nao sincronizada: ${err.message}`);
   });
@@ -13568,6 +13614,7 @@ ${textContent}`;
     try {
       const flowAccess = await requireFluxoAccess(req, res, req.params.id, "edit");
       if (!flowAccess) return;
+      await protectExpenseEntry(db, req.params.id, null);
       const antes = flowAccess.snapshot;
       const protegido = isProtectedValorOrigemEntry(antes);
       const confirmado = req.body?.confirmar_exclusao_protegida === true;
@@ -13598,7 +13645,7 @@ ${textContent}`;
       });
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -13702,7 +13749,7 @@ ${textContent}`;
     { nome: "5.9 Direito EconÃ´mico por LideranÃ§a de Capital", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
   ];
 
-  const PLANO_CONTAS_NOMES = new Set(PLANO_CONTAS_CATEGORIAS.map((c) => c.nome));
+  const PLANO_CONTAS_NOMES = new Set(PLANO_CONTAS_CATEGORIAS.map((c) => categoryText(c.nome)));
 
   async function ensureCategoriaBiaField() {
     try {
@@ -13732,18 +13779,18 @@ ${textContent}`;
     const items = await directusFetch("Categorias");
     const byName = new Map<string, any>();
     for (const item of items) {
-      const name = String(item.Nome_da_categoria || "").trim();
-      if (name) byName.set(name, item);
+      const name = categoryText(item.Nome_da_categoria);
+      if (name && !item.bia_id && (!byName.has(name) || Number(item.id) < Number(byName.get(name).id))) byName.set(name, item);
     }
     for (const cat of PLANO_CONTAS_CATEGORIAS) {
-      const existing = byName.get(cat.nome);
+      const existing = byName.get(categoryText(cat.nome));
       const payload = {
-        Nome_da_categoria: cat.nome,
-        Tipo_de_categoria: cat.tipo,
-        Descricao_das_categorias: cat.grupo,
+        Nome_da_categoria: categoryText(cat.nome),
+        Tipo_de_categoria: categoryText(cat.tipo),
+        Descricao_das_categorias: categoryText(cat.grupo),
       };
       if (existing) {
-        if (existing.Tipo_de_categoria !== cat.tipo || existing.Descricao_das_categorias !== cat.grupo) {
+        if (existing.Nome_da_categoria !== payload.Nome_da_categoria || existing.Tipo_de_categoria !== payload.Tipo_de_categoria || existing.Descricao_das_categorias !== payload.Descricao_das_categorias) {
           await directusUpdate("Categorias", existing.id, payload);
         }
       } else {
@@ -13762,7 +13809,7 @@ ${textContent}`;
     try {
       const biaId = typeof req.query.bia_id === "string" ? req.query.bia_id : "";
       const items = await directusFetch("Categorias");
-      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, Tipo_de_categoria: c.Tipo_de_categoria || null, bia_id: c.bia_id || null }));
+      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: categoryText(c.Nome_da_categoria), Descricao_das_categorias: categoryText(c.Descricao_das_categorias), Tipo_de_categoria: categoryText(c.Tipo_de_categoria) || null, bia_id: c.bia_id || null }));
       const sortCategorias = (a: any, b: any) =>
         String(a.Tipo_de_categoria || "").localeCompare(String(b.Tipo_de_categoria || ""), "pt-BR") ||
         String(a.Nome_da_categoria || "").localeCompare(String(b.Nome_da_categoria || ""), "pt-BR", { numeric: true });
@@ -23087,6 +23134,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!completed.includes("aceites")) return res.status(409).json({ error: "Conclua os aceites antes de iniciar o onboarding.", next_url: "/onboarding/aceites" });
       const profile = (mergedResponses as any)?.perfil || {};
       const config = (mergedResponses as any)?.configuracao || {};
+      const profileError = validateOnboardingStepPayload("perfil", { ...profile, purposes: (mergedResponses as any)?.personalizacao?.purposes });
+      if (profileError) return res.status(400).json({ error: profileError, next_url: "/onboarding/perfil" });
       await directusUpdate("cadastro_geral", String(journey.membro_id), buildInitialOnboardingProfileFields(profile, config));
       const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
       const invite = invites.find((item: any) => String(item.id) === String(journey.convite_id));
@@ -23155,6 +23204,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const responses = journey.responses && typeof journey.responses === "object" ? journey.responses : {};
     const purposes = normalizeOnboardingPurposes((responses as any)?.personalizacao?.purposes);
     const preAcceptanceFlow = Number(journey.flow_version || 1) >= 2 && !(Array.isArray(journey.completed_steps) && journey.completed_steps.includes("aceites"));
+    if (!preAcceptanceFlow) {
+      const profileError = validateOnboardingStepPayload("perfil", { ...((responses as any)?.perfil || {}), purposes });
+      if (profileError) return res.status(400).json({ error: profileError, next_url: "/onboarding/perfil" });
+    }
     const requiredKeys = preAcceptanceFlow ? preOnboardingRequiredTermKeys() : onboardingRequiredTermKeys(purposes);
     const accepted = req.body?.termos_aceitos && typeof req.body.termos_aceitos === "object" ? req.body.termos_aceitos : {};
     if (!requiredKeys.every((key) => accepted[key] === true)) return res.status(400).json({ error: "Revise e aceite todos os documentos obrigatórios." });

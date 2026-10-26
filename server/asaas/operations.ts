@@ -5,6 +5,8 @@ import { AsaasError, AsaasTransport } from "./client";
 import type { AsaasConfig } from "./config";
 import { decryptCredential } from "./credentials";
 import { AsaasStore } from "./store";
+import { readBankDashboard } from "./dashboard";
+import type { BankPeriod } from "../../shared/asaas-dashboard";
 
 type Transport = Pick<AsaasTransport, "request">;
 type TransportFactory = (config: AsaasConfig) => Transport;
@@ -52,6 +54,11 @@ export class AsaasAccountOperations {
     if (!encrypted) throw new AsaasError("ACCOUNT_CREDENTIAL_PENDING", "A credencial da conta não está disponível.", 503);
     const apiKey = decryptCredential(encrypted, this.config.credentialEncryptionKey);
     return { account, transport: this.transportFactory({ ...this.config, apiKey }) };
+  }
+
+  async dashboard(biaId: string, period: BankPeriod) {
+    const { transport } = await this.connected(biaId);
+    return readBankDashboard(transport, this.config.environment, period);
   }
 
   async overview(biaId: string) {

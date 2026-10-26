@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "id": "2026-10-26-financial-categories",
+  "title": "Categorias financeiras sem duplicação visual por codificação",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/financial-categories.ts"
+  ],
+  "searchTerms": [
+    "financial-categories"
+  ],
+  "consumers": [
+    {
+      "path": "shared/financial-categories.ts",
+      "decision": "updated",
+      "reason": "Normalização e equivalência única por código/nome, tipo, grupo e BIA."
+    },
+    {
+      "path": "shared/financial-categories.test.ts",
+      "decision": "updated",
+      "reason": "Quatro regressões incluindo seed real extraído, edição e filtro."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Criação/edição e filtro projetam catálogo único; mantém ID selecionado e inclui aliases no filtro."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Somente delta de categorias: seed compara nome normalizado; GET mantém IDs e corrige textos. Outros trabalhos não atestados aqui."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Descrição do filtro documenta equivalência e preservação de relações."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Registra fonte, dados reais, consumidores e pendência visual."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "updated",
+      "reason": "Mapeia novo helper e teste."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro, catálogo ou contrato; APIs/IDs/valores e navegação permanecem. Apenas opções e rótulos são normalizados."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada concluída em Novo Lançamento da BIA868NEL6DXJ: lista completa mostra facilities/garantia uma vez; buscas confirmadas em desktop e mobile390x844 no modo escuro, sem corte do seletor. Cancelado sem salvar; viewport restaurado. Edição e filtro cobertos pela regressão de integração com o helper."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET retorna os mesmos IDs com rótulos normalizados; seed reconhece registro existente em teste executável, sem duplicar por codificação."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Leitura Directus identificou120/180 e121/181. Sem exclusão/remapeamento; seed atualiza rótulos do ID escolhido no próximo startup normal."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Valores e agrupamentos financeiros originais preservados. Filtro por categoria cobre ambos IDs equivalentes; distinções de código/grupo/tipo/BIA preservadas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Correção do seletor não dispara eventos nem modifica status, destinatários ou templates."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado. PDFs e evidências históricas não são reescritos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Seed existente mantém escrita por ID, normaliza comparação para evitar novos duplicados por codificação. Sem mudança de cron ou Asaas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Nenhuma nova permissão/rota: escopos de BIA distintos nunca são fundidos; autorização financeira existente permanece."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "IDs antigos preservados e continuam selecionáveis na edição. Nenhuma migração destrutiva; nomes não são substitutos de vínculos persistidos."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify exit0:539 testes, tipos, contrato, consistência e build. Leitura real com helper:quatro registros de facilities/garantia viram duas opções. QA autenticada desktop/mobile concluída sem gravar lançamentos."
+    }
+  ],
+  "regressionTests": [
+    "shared/financial-categories.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -221,7 +221,9 @@ export function shouldOfferOnboardingCpf(purposes: unknown): boolean {
 
 export function buildInitialOnboardingProfileFields(profile: any, config: any): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
-  if (String(profile?.telefone || "").trim()) fields.telefone = String(profile.telefone).trim();
+  const phone = normalizeOnboardingPhone(profile?.telefone);
+  if (phone.error) throw Object.assign(new Error(phone.error), { status: 400 });
+  if (phone.value) fields.telefone = phone.value;
   if (String(profile?.professional?.empresa || "").trim()) fields.empresa = String(profile.professional.empresa).trim();
   if (String(profile?.professional?.role || "").trim()) fields.cargo = String(profile.professional.role).trim();
   if (String(profile?.cpf || "").trim()) fields.cpf = String(profile.cpf).trim();
@@ -280,6 +282,8 @@ export function validateOnboardingStepPayload(step: InitialOnboardingStep, paylo
     if (!String(payload.start_destination || "").trim()) return "Escolha por onde deseja começar.";
   }
   if (step === "perfil") {
+    const phone = normalizeOnboardingPhone(payload.telefone);
+    if (phone.error) return phone.error;
     const purposes = normalizeOnboardingPurposes(payload.purposes);
     if (purposes.includes("profissional") && !String(payload.professional?.role || "").trim()) {
       return "Informe sua função profissional.";
@@ -289,4 +293,18 @@ export function validateOnboardingStepPayload(step: InitialOnboardingStep, paylo
     return "Defina a visibilidade inicial.";
   }
   return null;
+}
+
+// Keep the optional international prefix; never infer a country or truncate digits.
+// A compact number fits cadastro_geral.telefone (varchar(30)). Drafts stay untouched.
+export function normalizeOnboardingPhone(value: unknown): { value: string; error: string | null } {
+  if (value == null || value === "") return { value: "", error: null };
+  const error = "Revise o telefone na etapa Perfil: informe apenas um número, com 7 a 15 dígitos e DDI quando necessário.";
+  if (typeof value !== "string") return { value: "", error };
+  const raw = value.trim();
+  if (!raw) return { value: "", error: null };
+  if (!/^\+?[\d\s().-]+$/.test(raw)) return { value: "", error };
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return { value: "", error };
+  return { value: `${raw.startsWith("+") ? "+" : ""}${digits}`, error: null };
 }

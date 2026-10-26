@@ -16,7 +16,7 @@ test("exclusão protegida exige confirmação booleana, autorização e auditori
   let stored: any = structuredClone(original);
   const history: any[] = [];
   let auditUnavailable = false;
-  new Function("app", "requireFluxoAccess", "isProtectedValorOrigemEntry", "registrarFluxoHistorico", "directusUpdate", "directusDelete", "mapFinancialWrite", transformSync(route, { loader: "ts" }).code)(
+  new Function("app", "requireFluxoAccess", "isProtectedValorOrigemEntry", "registrarFluxoHistorico", "directusUpdate", "directusDelete", "mapFinancialWrite", "protectExpenseEntry", "db", transformSync(route, { loader: "ts" }).code)(
     app,
     async (req: any, res: any) => {
       if (req.headers["x-test-editor"] !== "yes") { res.status(403).json({ error: "Sem permissão" }); return null; }
@@ -28,6 +28,7 @@ test("exclusão protegida exige confirmação booleana, autorização e auditori
     async (_collection: string, _id: string, patch: any) => { Object.assign(stored, patch); },
     async () => { stored = null; },
     async (_collection: string, _id: string, _data: unknown, operation: () => Promise<unknown>) => operation(), // BIA legada, sem snapshot.
+    async () => {}, {},
   );
   app.get("/fixture", (_req, res) => res.json(stored));
   const server = app.listen(0, "127.0.0.1");

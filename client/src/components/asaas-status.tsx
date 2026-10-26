@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { formatBrazilianCep, type ViaCepAddress } from "@/lib/property-address";
 import { ArrowRightLeft, Loader2, RefreshCw } from "lucide-react";
+import { AsaasBankDashboard } from "./asaas-bank-dashboard";
 import { asaasStatusSchema, asaasBiaStatusSchema, asaasAccountSummarySchema, type AsaasStatus, type AsaasBiaStatus, type AsaasSubaccountCreate, type AsaasTransferInput } from "@shared/asaas";
 
 const states = {
@@ -66,11 +67,14 @@ export function AdminAsaas() {
 }
 
 export function AsaasBiaSummary({ data, actions, children }: { data: AsaasBiaStatus; actions?: React.ReactNode; children?: React.ReactNode }) {
-  return <Card data-testid="asaas-bia-status"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Conta da empresa · Asaas</CardTitle><Badge variant="outline">{data.environment === "sandbox" ? "Ambiente de testes" : "Produção"}</Badge></div></CardHeader><CardContent className="space-y-3">
+  const configuration = <div className="space-y-3">
     <p><span className="text-muted-foreground">Integração da plataforma: </span>{states[data.integrationState]}</p>
     {data.account ? <div className="rounded-lg border p-3"><p className="font-medium break-words">{data.account.label}</p><p className="text-sm text-muted-foreground">{owners[data.account.ownership]} · {accountStates[data.account.state]}</p><p className="mt-2 text-sm">{data.account.state === "approved" ? `${data.chargesEnabled ? "Cobranças habilitadas" : "Cobranças não habilitadas"} · ${data.transfersEnabled ? "Transferências habilitadas" : "Transferências não habilitadas"}.` : "As operações serão liberadas quando a conta estiver aprovada."}</p></div> : data.storageReady ? <p className="text-sm text-muted-foreground">Nenhuma conta Asaas vinculada a esta BIA. O vínculo será feito com a conta da SPE ou holding responsável.</p> : <p className="text-sm text-muted-foreground">O vínculo com a conta da empresa poderá ser consultado após a preparação do armazenamento.</p>}
     {!data.storageReady && <p className="text-sm text-muted-foreground">A estrutura dos vínculos de conta ainda está em preparação.</p>}
     {actions}
+  </div>;
+  return <Card data-testid="asaas-bia-status"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Conta da empresa · Asaas</CardTitle><Badge variant="outline">{data.environment === "sandbox" ? "Ambiente de testes" : "Produção"}</Badge></div></CardHeader><CardContent className="space-y-3">
+    {data.account?.state === "approved" && data.operationsEnabled ? <><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium break-words">{data.account.label}</p><Badge variant="outline">Conta aprovada</Badge></div><details className="rounded-lg border p-3"><summary className="cursor-pointer text-sm font-medium">Configuração e situação da conta</summary><div className="pt-3">{configuration}</div></details></> : configuration}
     {children}
     <p className="text-sm text-muted-foreground">O Sandbox não movimenta dinheiro real. Em Produção, as operações usam a conta aprovada e as permissões financeiras da BIA.</p>
   </CardContent></Card>;
@@ -204,7 +208,6 @@ function SubaccountDialog({ biaId, statusUrl, environment }: { biaId: string; st
 function AccountOperations({ biaId, canEdit, environment, chargesEnabled, transfersEnabled }: { biaId: string; canEdit: boolean; environment: "sandbox" | "production"; chargesEnabled: boolean; transfersEnabled: boolean }) {
   const { toast } = useToast();
   const url = `/api/bias/${encodeURIComponent(biaId)}/banco/asaas/finance`;
-  const query = useQuery<any>({ queryKey: [url], queryFn: () => readStatus(url), retry: false, staleTime: 15_000, refetchOnWindowFocus: true });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<AsaasTransferInput>({ destinationType: "PIX", value: 0, pixAddressKey: "", pixAddressKeyType: "CPF", walletId: "", description: "", idempotencyKey: crypto.randomUUID(), confirmation: false });
   const mutation = useMutation({
@@ -212,12 +215,9 @@ function AccountOperations({ biaId, canEdit, environment, chargesEnabled, transf
     onSuccess: async () => { setOpen(false); await queryClient.invalidateQueries({ queryKey: [url] }); toast({ title: environment === "sandbox" ? "Transferência de teste enviada" : "Transferência enviada", description: "A situação será conciliada com o Asaas." }); },
     onError: (error: Error) => toast({ title: "Não foi possível transferir", description: error.message, variant: "destructive" }),
   });
-  if (query.isPending) return <p className="text-sm text-muted-foreground">Consultando saldo e transferências…</p>;
-  if (query.isError) return <div role="alert" className="rounded-lg border p-3 text-sm"><p>Saldo e transferências indisponíveis.</p><Button className="mt-2" size="sm" variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>;
   const money = (value: number) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  return <div className="space-y-3 rounded-lg border p-3" data-testid="asaas-account-operations">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-muted-foreground">Saldo disponível</p><p className="text-xl font-semibold">{money(query.data.balance)}</p></div>{canEdit && transfersEnabled && <Button type="button" variant="outline" onClick={() => { setForm({ destinationType: "PIX", value: 0, pixAddressKey: "", pixAddressKeyType: "CPF", walletId: "", description: "", idempotencyKey: crypto.randomUUID(), confirmation: false }); setOpen(true); }}><ArrowRightLeft className="mr-2 h-4 w-4" />Transferir</Button>}</div>
-    {!!query.data.transfers?.length && <div className="space-y-2"><p className="text-sm font-medium">Transferências recentes</p>{query.data.transfers.map((item: any) => <div key={item.id} className="flex flex-wrap justify-between gap-2 rounded border p-2 text-sm"><span>{item.operationType || item.type || "Transferência"} · {item.status}</span><span>{money(item.value)}</span></div>)}</div>}
+  return <div className="space-y-3" data-testid="asaas-account-operations">
+    <AsaasBankDashboard biaId={biaId} transferAction={canEdit && transfersEnabled ? <Button type="button" onClick={() => { setForm({ destinationType: "PIX", value: 0, pixAddressKey: "", pixAddressKeyType: "CPF", walletId: "", description: "", idempotencyKey: crypto.randomUUID(), confirmation: false }); setOpen(true); }}><ArrowRightLeft className="mr-2 h-4 w-4" />Transferir</Button> : null} />
     <Dialog open={open} onOpenChange={value => { if (!mutation.isPending) setOpen(value); }}><DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>{environment === "sandbox" ? "Transferência de teste" : "Nova transferência"}</DialogTitle><DialogDescription>{environment === "sandbox" ? "Nenhum dinheiro real será movimentado." : "Esta operação movimentará dinheiro real da conta da empresa."}</DialogDescription></DialogHeader>
       <div className="space-y-4"><label className="block text-sm"><span className="font-medium">Destino</span><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={form.destinationType} onChange={event => setForm(current => ({ ...current, destinationType: event.target.value as "PIX" | "ASAAS", confirmation: false }))}><option value="PIX">Chave Pix</option><option value="ASAAS">Conta Asaas vinculada</option></select></label>
         {form.destinationType === "PIX" ? <><label className="block text-sm"><span className="font-medium">Tipo da chave</span><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={form.pixAddressKeyType} onChange={event => setForm(current => ({ ...current, pixAddressKeyType: event.target.value as any }))}>{["CPF","CNPJ","EMAIL","PHONE","EVP"].map(item => <option key={item} value={item}>{item}</option>)}</select></label><label className="block text-sm"><span className="font-medium">Chave Pix</span><Input value={form.pixAddressKey || ""} onChange={event => setForm(current => ({ ...current, pixAddressKey: event.target.value }))} /></label></> : <label className="block text-sm"><span className="font-medium">Wallet ID da conta Asaas</span><Input value={form.walletId || ""} onChange={event => setForm(current => ({ ...current, walletId: event.target.value }))} /></label>}

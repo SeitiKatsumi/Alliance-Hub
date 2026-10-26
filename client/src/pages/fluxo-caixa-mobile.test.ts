@@ -7,6 +7,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Button } from "../components/ui/button";
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer } from "../../../shared/quota-correction";
 
+test("descrição sinaliza obrigatoriedade no formulário compartilhado de criação e edição", () => {
+  const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
+  assert.match(source, /<Label>Descrição <span className="text-red-500" aria-label="obrigatório">\*<\/span><\/Label>/);
+  assert.equal((source.match(/if \(!formDescricao.trim\(\)\)/g) || []).length, 2);
+});
+
 test("MAP não invalida em loop enquanto fontes estão carregando", () => {
   const source = readFileSync(new URL("./fluxo-caixa.tsx", import.meta.url), "utf8");
   const effect = source.match(/useEffect\(\(\) => \{ if \(selectedBiaId && \(fluxoUpdatedAt[\s\S]*?\);/);

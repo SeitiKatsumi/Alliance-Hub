@@ -40,7 +40,11 @@ test('mobile navigation and summary do not center overflowing content', () => {
 test('status queries terminate and branded dialog helper text remains readable', () => {
   const status = read('../components/asaas-status.tsx');
   assert.match(status, /AbortSignal.timeout\(15_000\)/);
-  assert.equal((status.match(/retry: false/g) || []).length, 4); // Três consultas e a atualização explícita da conta.
+  const dashboard = read('../components/asaas-bank-dashboard.tsx');
+  assert.equal((status.match(/retry: false/g) || []).length, 3); // Duas consultas e a atualização explícita da conta.
+  assert.match(dashboard, /retry: false/);
+  assert.match(dashboard, /setTimeout\(cancel, 45_000\)/);
+  assert.match(dashboard, /clearTimeout\(timer\)/);
   assert.match(status, /AbortSignal.timeout\(25_000\)/);
   assert.match(read('../pages/vitrine.tsx'), /vitrine-ad-dialog/);
   assert.match(read('../index.css'), /vitrine-ad-dialog[^\n]*color: #bdc9d7/);

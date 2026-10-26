@@ -7,6 +7,7 @@ import { AsaasStore, type AsaasDatabase } from "./store";
 import { recordSandboxEvent, validWebhookToken } from "./events";
 import { AsaasSandboxAccounts, sandboxAccountCreationBlockers } from "./accounts";
 import { AsaasAccountOperations } from "./operations";
+import { bankPeriodSchema } from "../../shared/asaas-dashboard";
 
 export type AsaasPrincipal = { id: string; role: string; employee: boolean };
 export function registerAsaasFoundation(app: Express, dependencies: {
@@ -79,6 +80,22 @@ export function registerAsaasFoundation(app: Express, dependencies: {
     } catch (error) {
       if (error instanceof AsaasError) return res.status(error.status).json({ code: error.code, error: error.message });
       return res.status(503).json({ error: "Não foi possível atualizar a situação da subconta." });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/asaas/dashboard", async (req, res) => {
+    try {
+      const bia = await dependencies.authorizeBia(req, res, String(req.params.biaId), "view");
+      if (!bia) return;
+      const period = bankPeriodSchema.parse(req.query.period);
+      const config = getConfig();
+      const service = new AsaasAccountOperations(new AsaasStore(dependencies.db, config.environment), config, dependencies.accountTransport);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(await service.dashboard(String(bia.id), period));
+    } catch (error) {
+      if (error instanceof ZodError) return res.status(400).json({ error: "Período inválido." });
+      if (error instanceof AsaasError) return res.status(error.status).json({ code: error.code, error: error.message });
+      return res.status(503).json({ error: "Não foi possível consultar o painel bancário." });
     }
   });
 

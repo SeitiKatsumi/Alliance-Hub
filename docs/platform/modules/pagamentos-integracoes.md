@@ -1,5 +1,13 @@
 # Pagamentos e Integracoes Externas
 
+## Painel da conta Asaas — 26/10/2026
+
+- GET `/api/bias/:biaId/banco/asaas/dashboard?period=30|90|365|all` exige `capital_banco=view`, resolve a BIA canônica e usa somente a credencial cifrada da conta aprovada. Consulta somente GETs remotos; não cria cobranças, transfere, concilia lançamentos ou grava histórico.
+- Saldo atual vem de `/finance/balance`. Cobranças `/payments` e transferências `/transfers` pertencem à conta da empresa inteira, inclusive outras BIAs vinculadas; não são caixa exclusivo desta BIA. Resumo por criação (datas de São Paulo), valores nominais em centavos; CONFIRMED não é recebido/disponível, RECEIVED_IN_CASH fica separado, estados desconhecidos continuam visíveis. Não pretende substituir extrato contábil completo.
+- Paginação remota até cinco páginas de100, com parada após10s entre páginas. Limite, duplicação/página repetida, contagem divergente e falha parcial são explícitos; falha inicial não vira zero. A tela mostra filtros de período/situação/busca, páginas de10, datas, líquido informado e links Asaas validados. Saldo tem falha independente das listas. Sem polling; consulta inicial, troca de período, atualização explícita e invalidação por transferência/atualização cadastral.
+- Projeção mínima não retorna pagador, CPF/CNPJ, conta/chave Pix, descrição livre ou payload bruto. Nenhuma permissão nova. Histórico anterior da BIA continua separado; overview `/finance`, transferência, cofre, webhooks e motor de aportes preservados. Não há migração, envio de mensagem, alteração em MAP/CPP nem ativação de Produção.
+- Testes: `server/asaas/dashboard.test.ts`, `client/src/components/asaas-bank-dashboard.test.ts`, regressões existentes de foundation/status. Documentação consultada: https://docs.asaas.com/reference/listar-transferencias e https://docs.asaas.com/reference/listar-cobrancas.
+
 - Cobranças de aportes (2026-10-19): adaptador `server/contribution-billing-provider.ts` usa o ambiente selecionado com timeout, sem retry cego de POST e credencial cifrada própria da SPE aprovada/wallet validada. Opt-ins de cobrança e Produção são separados. Webhook agenda consulta autoritativa; legado ignora prefixo built:contribution:. Contrato: [CONTRIBUTION_BILLING.md](../../CONTRIBUTION_BILLING.md).
 
 ## Objetivo e usuarios
@@ -23,7 +31,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 - Plano Empresa de R$ 3.836,40/ano: checkout Asaas ou Stripe; upgrade de membro vigente cobra R$ 639,40 e preserva a data de renovacao.
 - PostgreSQL `membro_anuidades` e a fonte de vigencia; `/api/me` separa usuario cadastrado, Membro BUILT, comunidades e permissoes.
 - `ends_at` e `current_period_end` sao as datas oficiais de renovacao. `billing_suspended` interrompe novas cobrancas iniciadas pela plataforma e `frozen_at` pausa a contagem sem revogar acesso.
-- Banco da BIA em migração para Asaas; adaptadores, painel de homologação e operações do provedor anterior removidos. `server/bia-bank-history.ts` mantém apenas consulta histórica autorizada e bloqueia chamadas operacionais antigas com 410. Abertura/reutilização e consulta de situação da subconta funcionam no Sandbox; onboarding/KYC, saldo, extrato, comprovantes, split, repasses e produção ainda exigem implementação e homologação. Plano: `docs/ASAAS_MIGRACAO_PLANO.md`.
+- Banco da BIA usa Asaas para vínculo, consulta cadastral, saldo, cobranças e transferências conforme flags/permissões. `server/bia-bank-history.ts` conserva consulta histórica autorizada e bloqueia operações antigas com410. Painel não é extrato completo; split/repasses e homologação de Produção permanecem fora desta entrega. Plano histórico: `docs/ASAAS_MIGRACAO_PLANO.md`.
 - OpenAI em rotas de audio, texto, arquivo e analise.
 - Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
 

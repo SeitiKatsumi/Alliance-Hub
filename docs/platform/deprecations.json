@@ -2,6 +2,46 @@
   "version": 1,
   "rules": [
     {
+      "id": "expense-contribution-inherited-payment",
+      "description": "Novos aportes vinculados herdam pagamento da saída; não forçar pendente no construtor.",
+      "terms": ["status: \"pendente\", data_vencimento: input.dueDate"],
+      "roots": ["server/expense-contributions.ts"],
+      "regressionTests": ["server/expense-contributions.test.ts"],
+      "exceptions": []
+    },
+    {
+      "id": "bank-legacy-history-label",
+      "description": "Histórico anterior da BIA não deve se confundir com cobranças atuais da conta Asaas.",
+      "terms": ["<CardTitle>Histórico de cobranças</CardTitle>"],
+      "roots": ["client/src/pages/nucleo-capital.tsx"],
+      "regressionTests": ["client/src/components/asaas-bank-dashboard.test.ts"],
+      "exceptions": []
+    },
+    {
+      "id": "onboarding-phone-shared-selector",
+      "description": "Telefone do onboarding usa seletor compartilhado de país, mantendo erro acessível.",
+      "terms": ["<Input id=\"onboarding-phone\""],
+      "roots": ["client/src/pages/initial-onboarding.tsx"],
+      "regressionTests": ["client/src/components/phone-input.test.ts"],
+      "exceptions": []
+    },
+    {
+      "id": "expense-pending-helper-copy",
+      "description": "Remoção apenas do texto auxiliar de pendência na prévia; status financeiro preservado.",
+      "terms": ["Os aportes serão registrados como pendentes."],
+      "roots": ["client/src/components/expense-contributions.tsx"],
+      "regressionTests": ["client/src/components/expense-contributions.test.ts"],
+      "exceptions": []
+    },
+    {
+      "id": "phone-country-full-name",
+      "description": "Seletor telefônico exibe o país por extenso, não a sigla isolada ao lado do DDI.",
+      "terms": ["{item.country} {item.dialCode}"],
+      "roots": ["client/src/components/phone-input.tsx"],
+      "regressionTests": ["client/src/components/phone-input.test.ts"],
+      "exceptions": []
+    },
+    {
       "id": "bia-objective-labels",
       "description": "Objetivo da Aliança foi substituído pela tese canônica; não voltar a exibir o conceito antigo.",
       "terms": ["Objetivo da Aliança", "Alocação por tipo de negócio"],

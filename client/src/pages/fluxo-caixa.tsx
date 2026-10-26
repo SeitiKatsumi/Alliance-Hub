@@ -1,5 +1,6 @@
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
+import { categoryText, financialCategoryOptions, matchingFinancialCategory } from "@shared/financial-categories";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -23,6 +24,8 @@ import { deleteFluxoBatch, fluxoDeleteError, fluxoDeleteNeedsConfirmation } from
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
 import { SearchableNameSelect } from "@/components/searchable-name-select";
+import { ExpenseContributionsFields, ExpenseContributionLinks, emptyExpenseFunding, fundingParticipants } from "@/components/expense-contributions";
+import { splitExpense, inheritedExpenseSplit } from "@shared/expense-contributions";
 import { MAP_DYNAMIC_FOOTER, allocateQuotaTransferAmounts, calculateMap, type MapContribution } from "@shared/member-portfolio";
 import {
   Wallet,
@@ -388,11 +391,11 @@ function readableApiError(error: Error): string {
 }
 
 function stripPlanoContaCode(name?: string | null): string {
-  return (name || "").replace(/^\d+(?:\.\d+)*\s+/, "").trim();
+  return categoryText(name).replace(/^\d+(?:\.\d+)*\s+/, "").trim();
 }
 
 function getPlanoContaGroup(cat?: CategoriaItem | null): string {
-  return (cat?.Descricao_das_categorias || "Outras categorias").trim();
+  return categoryText(cat?.Descricao_das_categorias) || "Outras categorias";
 }
 
 function isValorOrigemCategoriaName(name?: string | null): boolean {
@@ -708,9 +711,9 @@ function CategoriaCombobox({
   const { toast } = useToast();
 
   const filtered = useMemo(() => {
-    const base = categorias.filter((cat) => {
+    const base = financialCategoryOptions(categorias, value).filter((cat) => {
       if (!cat.Tipo_de_categoria) return true;
-      const norm = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const norm = categoryText(cat.Tipo_de_categoria).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return norm === formTipo;
     });
     const sorted = [...base].sort((a, b) => a.Nome_da_categoria.localeCompare(b.Nome_da_categoria, "pt-BR", { numeric: true }));
@@ -720,7 +723,7 @@ function CategoriaCombobox({
       stripPlanoContaCode(c.Nome_da_categoria).toLowerCase().includes(s) ||
       getPlanoContaGroup(c).toLowerCase().includes(s)
     );
-  }, [categorias, formTipo, search]);
+  }, [categorias, formTipo, search, value]);
 
   const selected = categorias.find((c) => c.id === value);
   const exactMatch = filtered.some((c) => stripPlanoContaCode(c.Nome_da_categoria).toLowerCase() === search.toLowerCase());
@@ -1019,6 +1022,7 @@ function LancamentoFormFields({
   uploading,
   isCreate,
   onCreateFavorecido,
+  singleExpense = false,
 }: {
   formTipo: "entrada" | "saida";
   setFormTipo: (v: "entrada" | "saida") => void;
@@ -1061,11 +1065,12 @@ function LancamentoFormFields({
   setExistingAnexos: (files: AnexoFile[]) => void;
   uploading: boolean;
   isCreate?: boolean;
+  singleExpense?: boolean;
   onCreateFavorecido?: (nome: string, papel: PapelFavorecidoBia) => Promise<Membro | null>;
 }) {
   const favorecidosOptions = favorecidos ?? membros;
   const selectedCategoria = categorias.find((cat) => cat.id === formCategorias);
-  const canUseRateio = isCreate || isValorOrigemCategoriaName(selectedCategoria?.Nome_da_categoria) || isValorOrigemText(formDescricao);
+  const canUseRateio = !singleExpense && (isCreate || isValorOrigemCategoriaName(selectedCategoria?.Nome_da_categoria) || isValorOrigemText(formDescricao));
   function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
     const formatted = formatInputBRL(raw);
@@ -1207,7 +1212,7 @@ function LancamentoFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label>Descrição</Label>
+        <Label>Descrição <span className="text-red-500" aria-label="obrigatório">*</span></Label>
         <Input
           value={formDescricao}
           onChange={(e) => setFormDescricao(e.target.value)}
@@ -1421,7 +1426,7 @@ function LancamentoFormFields({
         )}
       </div>
 
-      <div className="space-y-2">
+      {!singleExpense && <div className="space-y-2">
         <Label>Tipo de CPP</Label>
         <Select
           value={formTiposCpp != null ?String(formTiposCpp) : "__none__"}
@@ -1439,8 +1444,7 @@ function LancamentoFormFields({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
+      </div>}
       <div className="border-t border-border/50 pt-4 mt-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1">
           <Receipt className="w-3.5 h-3.5" /> Controle Financeiro
@@ -1585,6 +1589,14 @@ export default function FluxoCaixaPage({
   const [formCategorias, setFormCategorias] = useState<number | null>(null);
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
+  const [generateFunding, setGenerateFunding] = useState(false);
+  const [expenseFunding, setExpenseFunding] = useState(emptyExpenseFunding);
+  const [pendingExpenseRequest, setPendingExpenseRequest] = useState<any>(null);
+  const fundingStorageKey = `expense-funding:${currentUser?.id || ""}:${selectedBiaId || ""}`;
+  useEffect(() => {
+    try { setPendingExpenseRequest(JSON.parse(sessionStorage.getItem(fundingStorageKey) || "null")); }
+    catch { setPendingExpenseRequest(null); }
+  }, [fundingStorageKey]);
   const [rateioTipo, setRateioTipo] = useState<"individual" | "grupo">("individual");
   const [rateioModo, setRateioModo] = useState<RateioModo>("percentual");
   const [rateioItems, setRateioItems] = useState<RateioItem[]>([]);
@@ -1909,7 +1921,7 @@ export default function FluxoCaixaPage({
       if (filterDescricao && !(item.descricao || "").toLowerCase().includes(filterDescricao.toLowerCase())) return false;
       if (filterCategoria !== "todos") {
         const catArr = item.Categoria || [];
-        const hasCat = catArr.some((c) => String(getRelId(c as any)) === filterCategoria);
+        const hasCat = catArr.some((c) => matchingFinancialCategory(categorias, String(getRelId(c as any)), filterCategoria));
         if (!hasCat) return false;
       }
       if (filterMembro !== "todos") {
@@ -1953,7 +1965,7 @@ export default function FluxoCaixaPage({
       if (db) return 1;
       return 0;
     });
-  }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
+  }, [fluxoItemsAll, categorias, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
 
   const visibleLancamentoIds = useMemo(() => fluxoItems.map((item) => item.id), [fluxoItems]);
   const selectedVisibleLancamentoIds = useMemo(
@@ -2498,10 +2510,47 @@ export default function FluxoCaixaPage({
     return rateioModo === "percentual" ?Number(((valorTotal * rawValue) / 100).toFixed(2)) : rawValue;
   }
 
+  function inheritedFundingPreview() {
+    const amount = parseBRLToNumber(formValor);
+    return rateioTipo === "grupo"
+      ? inheritedExpenseSplit(amount, rateioModo, rateioItems.map(item => ({ memberId: item.membroId, value: parseBRLToNumber(item.valor) })))
+      : splitExpense(amount, "manual", [{ memberId: formFavorecido, value: amount }]);
+  }
+
   const createMutation = useMutation({
     mutationFn: async () => {
       setUploading(true);
       try {
+        if (pendingExpenseRequest || (formTipo === "saida" && generateFunding)) {
+          let request = pendingExpenseRequest;
+          if (!request) {
+            const newFileIds = await uploadFiles(pendingFiles);
+            const payload = buildPayload(newFileIds);
+            const expected = inheritedFundingPreview();
+            const participants = await Promise.all(expected.map(async p => ({ memberId: p.memberId, value: p.amount,
+              attachmentIds: await uploadFiles(rateioTipo === "grupo" ? rateioItems.find(row => row.membroId === p.memberId)?.anexos || [] : []) })));
+            request = { requestId: crypto.randomUUID(), bia: selectedBiaId, mirrorExpenses: true,
+              expense: { ...payload, Categoria: (payload.Categoria as any[]).map(String), Favorecido: (payload.Favorecido as any[]).map(String) },
+              mode: "manual", participants,
+              dueDate: expenseFunding.dueDate || formDataVencimento, cppType: formTiposCpp == null ? null : String(formTiposCpp),
+              expected,
+            };
+            sessionStorage.setItem(fundingStorageKey, JSON.stringify(request));
+            setPendingExpenseRequest(request);
+          }
+          const response = await fetch("/api/fluxo-caixa/despesa-aportes", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) });
+          const result = await response.json();
+          if (!response.ok) {
+            if (result.canRevise) {
+              sessionStorage.removeItem(fundingStorageKey); setPendingExpenseRequest(null);
+              queryClient.invalidateQueries({ queryKey: ["/api/bias", selectedBiaId, "map"] });
+            }
+            throw new Error(result.error || "Não foi possível concluir o lote. Retome a criação.");
+          }
+          sessionStorage.removeItem(fundingStorageKey);
+          setPendingExpenseRequest(null);
+          return;
+        }
         const newFileIds = await uploadFiles(pendingFiles);
         if (rateioTipo === "grupo" && rateioItems.length > 0) {
           const base = buildPayload(newFileIds);
@@ -2524,8 +2573,9 @@ export default function FluxoCaixaPage({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-links"] });
       const count = rateioTipo === "grupo" ?rateioItems.length : 1;
-      toast({ title: count > 1 ?`${count} lançamentos criados com sucesso` : "Lançamento criado com sucesso" });
+      toast({ title: generateFunding || pendingExpenseRequest ? "Despesa e aportes criados com sucesso" : count > 1 ?`${count} lançamentos criados com sucesso` : "Lançamento criado com sucesso" });
       resetForm();
       setDialogOpen(false);
     },
@@ -2655,6 +2705,8 @@ export default function FluxoCaixaPage({
   }
 
   function resetForm() {
+    setGenerateFunding(false);
+    setExpenseFunding(emptyExpenseFunding());
     setFormTipo("entrada");
     setFormValor("");
     setFormData(new Date().toISOString().split("T")[0]);
@@ -2752,6 +2804,12 @@ export default function FluxoCaixaPage({
   }
 
   function handleSubmit() {
+    if (pendingExpenseRequest) { createMutation.mutate(); return; }
+    if (generateFunding && formTipo === "saida") {
+      try { inheritedFundingPreview(); }
+      catch (error: any) { toast({ title: error.message, variant: "destructive" }); return; }
+      if (formStatus === "cancelado" || (formStatus === "pago" && !formDataPagamento)) { toast({ title: "Revise o status e a data de pagamento da despesa.", variant: "destructive" }); return; }
+    }
     if (!formValor || parseBRLToNumber(formValor) <= 0) {
       toast({ title: "Informe um valor válido", variant: "destructive" });
       return;
@@ -2937,6 +2995,8 @@ export default function FluxoCaixaPage({
                     Novo Lançamento
                   </DialogTitle>
                 </DialogHeader>
+                {pendingExpenseRequest && <div className="rounded border p-3 text-sm" role="status">Há uma solicitação salva para {pendingExpenseRequest.expense?.descricao}. Clique em Retomar criação para concluir a mesma despesa e seus aportes.</div>}
+                <fieldset disabled={!!pendingExpenseRequest || createMutation.isPending} className="min-w-0 space-y-3">
                 <LancamentoFormFields
                   formTipo={formTipo} setFormTipo={setFormTipo}
                   formValor={formValor} setFormValor={setFormValor}
@@ -2962,6 +3022,14 @@ export default function FluxoCaixaPage({
                   isCreate
                   onCreateFavorecido={handleCreateFavorecido}
                 />
+                {formTipo === "saida" && <>
+                  <label className="flex items-center gap-2 text-sm font-medium"><Checkbox checked={generateFunding} onCheckedChange={checked => setGenerateFunding(checked === true)} />Gerar aportes para esta despesa</label>
+                  {generateFunding && <ExpenseContributionsFields value={expenseFunding} onChange={setExpenseFunding} amount={parseBRLToNumber(formValor)} dueDate={formDataVencimento} inheritedPreview={inheritedFundingPreview}
+                    options={membros.filter(m => [...parseMemberList(selectedBia?.socios_guardioes), ...parseMemberList(selectedBia?.socios_multiplicadores), ...aportesComTransferencias.rows.map(p => p.membroId)].includes(m.id)).map(m => ({ value: m.id, label: m.Nome_de_usuario || m.nome || m.nome_completo || m.id }))}
+                    map={aportesComTransferencias.rows.map(p => ({ memberId: p.membroId, percent: p.percentual }))}
+                    cppOptions={tiposCpp.map(t => ({ value: String(t.id), label: t.Nome }))} />}
+                </>}
+                </fieldset>
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button variant="outline" data-testid="button-cancelar">Cancelar</Button>
@@ -2977,7 +3045,7 @@ export default function FluxoCaixaPage({
                     ) : (
                       <Plus className="w-4 h-4 mr-2" />
                     )}
-                    {uploading ?"Enviando..." : "Salvar"}
+                    {uploading ?"Enviando..." : pendingExpenseRequest ? "Retomar criação" : "Salvar"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -3776,7 +3844,7 @@ export default function FluxoCaixaPage({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todas</SelectItem>
-                      {categorias.map((cat) => (
+                      {financialCategoryOptions(categorias, Number(filterCategoria)).map((cat) => (
                         <SelectItem key={cat.id} value={String(cat.id)}>
                           {getPlanoContaGroup(cat)} / {stripPlanoContaCode(cat.Nome_da_categoria)}
                         </SelectItem>
@@ -4275,6 +4343,7 @@ export default function FluxoCaixaPage({
                   Editar Lançamento
                 </DialogTitle>
               </DialogHeader>
+              <ExpenseContributionLinks flowId={editingItemId || undefined} />
               <LancamentoFormFields
                 formTipo={formTipo} setFormTipo={setFormTipo}
                 formValor={formValor} setFormValor={setFormValor}
@@ -4625,6 +4694,7 @@ export default function FluxoCaixaPage({
                   Registro auditável de criação, alterações, exclusão e pagamentos vinculados a este lançamento.
                 </DialogDescription>
               </DialogHeader>
+              <ExpenseContributionLinks flowId={historicoItem?.id} onOpen={id => { const item = allFluxo.find(f => String(f.id) === id); if (item) setHistoricoItem(item); }} />
               <div className="space-y-3 py-1">
                 {loadingHistorico ?(
                   <div className="space-y-2">

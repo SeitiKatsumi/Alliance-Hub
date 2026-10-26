@@ -64,6 +64,10 @@ const COUNTRY_CODES = [
 ];
 
 type PhoneInputProps = {
+  inferUnprefixedDialCode?: boolean;
+  id?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   value?: string | null;
   onChange: (value: string) => void;
   required?: boolean;
@@ -74,7 +78,7 @@ type PhoneInputProps = {
   "data-testid"?: string;
 };
 
-function parsePhoneValue(value?: string | null) {
+function parsePhoneValue(value?: string | null, inferUnprefixedDialCode = true) {
   const raw = String(value || "").trim();
   const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.dialCode.length - a.dialCode.length);
   const matched = sortedCodes.find((item) => raw.startsWith(item.dialCode));
@@ -85,7 +89,7 @@ function parsePhoneValue(value?: string | null) {
     };
   }
   const digitsOnly = raw.replace(/\D/g, "");
-  const matchedDigits = sortedCodes.find((item) => {
+  const matchedDigits = inferUnprefixedDialCode && sortedCodes.find((item) => {
     const dialDigits = item.dialCode.replace(/\D/g, "");
     return digitsOnly.startsWith(dialDigits) && digitsOnly.length > dialDigits.length + 6;
   });
@@ -114,6 +118,10 @@ export function normalizePhoneValue(value?: string | null) {
 }
 
 export function PhoneInput({
+  inferUnprefixedDialCode = true,
+  id,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
   value,
   onChange,
   required,
@@ -123,27 +131,32 @@ export function PhoneInput({
   selectClassName,
   "data-testid": dataTestId,
 }: PhoneInputProps) {
-  const parsed = parsePhoneValue(value);
+  const parsed = parsePhoneValue(value, inferUnprefixedDialCode);
   const selected = COUNTRY_CODES.find((item) => item.dialCode === parsed.dialCode) || COUNTRY_CODES[0];
 
   return (
-    <div className={cn("flex w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
+    <div className={cn("flex w-full min-w-0 flex-col overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
       <select
         value={selected.dialCode}
         onChange={(event) => onChange(formatPhoneValue(event.target.value, parsed.number))}
         className={cn(
-          "w-[104px] shrink-0 border-0 border-r border-input bg-background px-2 text-sm font-medium text-foreground outline-none [&>option]:bg-background [&>option]:text-foreground",
+          "h-10 w-full min-w-0 shrink-0 border-0 border-b border-input bg-background px-2 text-sm font-medium text-foreground outline-none [&>option]:bg-background [&>option]:text-foreground",
           selectClassName,
         )}
-        aria-label="Código internacional"
+        aria-label="País e código internacional"
       >
         {COUNTRY_CODES.map((item) => (
           <option key={`${item.country}-${item.dialCode}`} value={item.dialCode} className="bg-background text-foreground">
-            {item.country} {item.dialCode}
+            {item.label} ({item.dialCode})
           </option>
         ))}
       </select>
       <Input
+        id={id}
+        type="tel"
+        autoComplete="tel-national"
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         value={parsed.number}
         onChange={(event) => onChange(formatPhoneValue(selected.dialCode, event.target.value))}
         required={required}

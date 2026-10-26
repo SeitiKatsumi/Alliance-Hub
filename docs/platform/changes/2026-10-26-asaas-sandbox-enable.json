@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "id": "2026-10-26-asaas-sandbox-enable",
+  "title": "Habilitar operações Asaas no localhost Sandbox por autorização",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/asaas/config.ts"
+  ],
+  "searchTerms": [
+    "ASAAS_CONTRIBUTIONS_ENABLED",
+    "ASAAS_TRANSFERS_ENABLED"
+  ],
+  "consumers": [
+    {
+      "path": "docs/ASAAS_BASE.md",
+      "decision": "updated",
+      "reason": "Registrar ativação somente local Sandbox e limites da verificação."
+    },
+    {
+      "path": ".BUILT-run-dev-3004.ps1",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "docs/CONTRIBUTION_BILLING.md",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/config.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "client/src/components/asaas-status.test.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/accounts.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/client.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/credentials.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/events.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/operations.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/asaas/store.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Configuração operacional no .env ignorado, sem mudança neste código. Guardas, permissões, fase, credenciais por ambiente e confirmação preservadas; não atesta alterações paralelas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Após usuário entrar: BIA868NEL6DXJ em Núcleo de Capital/Banco mostra Operações habilitadas, cobranças/transferências habilitadas, conta aprovada, saldo consultado R$0,00 e botão Transferir. Sem acionar transferência; nenhum formulário ou layout alterado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Configuração existente passa a operational com cobranças/transferências disponíveis. Endpoints, permissões e confirmações não foram alterados."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Read-only conferiu estrutura/cofre e fila Sandbox vazia antes da ativação. Flags somente no .env local ignorado; não alterou cadastro, parcela ou cronograma."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Nenhuma fórmula modificada; saldo continua vindo do provedor sem valores fictícios."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhum lembrete/cobrança enfileirado antes da ativação; não enviou mensagem. Processador existente mantém preferências e validações."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Não altera documentos, aceites ou capacidade implementada; apenas libera configuração local existente."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sandbox explícito, opt-in Produção falso. Webhook público respondeu401 sem token; não enviado evento válido ou transferência. Homologação de emissão/pagamento por BIA não feita neste trabalho."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Guardas view/edit de Banco e Financeiro não mudam. Não usa sessão inventada nem conclui operação em nome do usuário."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Nenhum backfill de cobrança; fila vazia e números/IDs existentes preservados. Produção/credenciais antigas não herdadas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "15 testes focados e platform:verify exit0 (542 testes/0falhas, tipos, contrato, consistência, tooling e build). UI autenticada confirmou operação/saldo/botão. Webhook sem token401. Nenhuma emissão/pagamento/transferência executada para homologação ponta a ponta. Logs .BUILT-tmp/asaas-enable-*.log; diff deste escopo sem erro, whitespace paralelo no handoff preservado."
+    }
+  ],
+  "regressionTests": [
+    "server/asaas/foundation.test.ts",
+    "client/src/components/asaas-status.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

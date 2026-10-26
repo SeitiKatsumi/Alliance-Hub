@@ -8,6 +8,8 @@ Conforme orientação enviada pelo Asaas, cada SPE ou holding terá uma subconta
 
 ## Configuração
 
+Em26/10/2026, por autorização explícita do usuário, cobranças de aportes e transferências foram habilitadas no `.env` local do localhost3004, somente em Sandbox. Produção permanece sem opt-in; nenhum deploy/configuração remota foi realizado. A configuração sanitizada retornou `operational`, sem pendências, e o receptor público recusou POST sem token com401. Fila Sandbox estava vazia antes da ativação. Isso não confirma emissão/pagamento/transferência de uma BIA real nem dispensa fase, conta aprovada, permissões e confirmação por operação.
+
 O arquivo `.env.asaas.example` contém somente nomes e valores vazios. A base usa `ASAAS_BASE_ENABLED`, `ASAAS_BASE_ENVIRONMENT`, credenciais/cofre `ASAAS_SANDBOX_*` ou `ASAAS_PRODUCTION_*`, `ASAAS_BAAS_ENABLED`, `ASAAS_CONTRIBUTIONS_ENABLED`, `ASAAS_TRANSFERS_ENABLED` e a trava adicional `ASAAS_PRODUCTION_OPERATIONS_ENABLED`. O padrão continua desabilitado. As variáveis antigas `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` não são herdadas.
 
 Habilitar a base ou informar BaaS isoladamente não libera operações. Abertura e transferências exigem `capital_banco=edit`; cobranças de aportes exigem a autorização financeira já definida. Produção só opera com o opt-in adicional, credenciais próprias e conta aprovada. Status de configuração não equivale à aprovação do Asaas.

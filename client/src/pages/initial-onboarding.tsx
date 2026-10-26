@@ -6,6 +6,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/phone-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +42,8 @@ import {
   getInitialOnboardingVisibleStepNumber,
   requiresContributionAreas,
   shouldOfferOnboardingCpf,
+  validateOnboardingStepPayload,
+  normalizeOnboardingPhone,
   type InitialOnboardingStep,
 } from "@shared/initial-onboarding";
 import builtLogo from "@assets/Logo_Built_3_Horizontal_Negativo.png";
@@ -184,8 +187,15 @@ export default function InitialOnboardingPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (_options?: { destination?: OnboardingReadyDestination }) => {
-      const response = await apiRequest("PUT", `/api/onboarding/etapas/${step}`, forms[step] || {});
-      return response.json();
+      const payload = forms[step] || {};
+      const validationError = validateOnboardingStepPayload(step, payload);
+      if (validationError) throw new Error(validationError);
+      const response = await fetch(`/api/onboarding/etapas/${step}`, {
+        method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw Object.assign(new Error(result.error || "Não foi possível salvar esta etapa."), { nextUrl: result.next_url });
+      return result;
     },
     onSuccess: async (result, options) => {
       await refetch();
@@ -197,7 +207,10 @@ export default function InitialOnboardingPage() {
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    onError: (error: any) => toast({ title: "Revise esta etapa", description: error.message, variant: "destructive" }),
+    onError: (error: any) => {
+      toast({ title: "Revise esta etapa", description: error.message, variant: "destructive" });
+      if (error.nextUrl === "/onboarding/perfil") navigate(error.nextUrl);
+    },
   });
 
   const finishMutation = useMutation({
@@ -211,7 +224,7 @@ export default function InitialOnboardingPage() {
       if (response.status === 409 && INITIAL_ONBOARDING_STEPS.some((item) => result.next_url === `/onboarding/${item}`)) {
         return { next_url: result.next_url, resumed: true };
       }
-      if (!response.ok) throw new Error(result.error || "Não foi possível registrar os aceites.");
+      if (!response.ok) throw Object.assign(new Error(result.error || "Não foi possível registrar os aceites."), { nextUrl: result.next_url });
       return result;
     },
     onSuccess: async (result) => {
@@ -226,7 +239,10 @@ export default function InitialOnboardingPage() {
       const selectedDestination = onboardingReadyDestinationFromSearch(window.location.search);
       navigate(result.invite_redirect_url || onboardingReadyDestinationHref(selectedDestination) || result.redirect_url || "/");
     },
-    onError: (error: any) => toast({ title: "Não foi possível concluir", description: error.message, variant: "destructive" }),
+    onError: (error: any) => {
+      toast({ title: "Não foi possível concluir", description: error.message, variant: "destructive" });
+      if (error.nextUrl === "/onboarding/perfil") navigate(error.nextUrl);
+    },
   });
 
   const visibleStepNumber = getInitialOnboardingVisibleStepNumber(step, flowVersion);
@@ -341,8 +357,9 @@ function OnboardingDocumentUpload({ value, onUploaded }: { value?: any; onUpload
 
 function ProfileStep({ forms, setForms, purposes }: any) {
   const profile = forms.perfil || {};
+  const phoneError = normalizeOnboardingPhone(profile.telefone).error;
   const set = (patch: any) => setForms((current: any) => ({ ...current, perfil: { ...(current.perfil || {}), ...patch } }));
-  return <div className="space-y-5"><div><h1 className="text-2xl font-bold md:text-3xl">Perfil e Validações</h1><p className="mt-2 text-sm text-slate-500">Informe o necessário para os recursos que você escolheu.</p></div><Panel title="Resumo das suas escolhas"><div className="flex flex-wrap gap-2">{purposes.map((purpose: string) => <span key={purpose} className="rounded bg-slate-100 px-3 py-2 text-sm">{PURPOSES.find((item) => item.key === purpose)?.title}</span>)}</div></Panel>{purposes.includes("imoveis") && <Panel title="Imóvel ou oportunidade" subtitle="Este perfil já está habilitado."><div className="flex items-center gap-2 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 className="h-5 w-5" />Cadastro disponível após os aceites.</div></Panel>}{purposes.includes("profissional") && <Panel title="Profissional, fornecedor ou empresa" subtitle="Os dados ficam como informados ou enviados; não há verificação externa nesta etapa."><div className="grid gap-4 md:grid-cols-2"><div><Label>Empresa</Label><Input value={profile.professional?.empresa || ""} onChange={(e) => set({ professional: { ...(profile.professional || {}), empresa: e.target.value } })} /></div><div><Label>Função profissional *</Label><Input value={profile.professional?.role || ""} onChange={(e) => set({ professional: { ...(profile.professional || {}), role: e.target.value } })} /></div><div><Label>Registro profissional</Label><Input value={profile.professional?.registro || ""} onChange={(e) => set({ professional: { ...(profile.professional || {}), registro: e.target.value } })} /></div><div><Label>Documento comprobatório</Label><OnboardingDocumentUpload value={profile.professional?.document} onUploaded={(document) => set({ professional: { ...(profile.professional || {}), document } })} /></div></div></Panel>}{purposes.includes("capital") && <Panel title="Parceiro de capital" subtitle="Dados adicionais poderão ser solicitados conforme a operação."><div className="grid gap-4 md:grid-cols-2"><div><Label>Tipo de atuação</Label><Select value={profile.capital?.type || ""} onValueChange={(value) => set({ capital: { ...(profile.capital || {}), type: value } })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="pessoa_fisica">Pessoa física</SelectItem><SelectItem value="pessoa_juridica">Pessoa jurídica</SelectItem></SelectContent></Select></div><div><Label>Faixa de interesse</Label><Input value={profile.capital?.range || ""} onChange={(e) => set({ capital: { ...(profile.capital || {}), range: e.target.value } })} placeholder="Ex.: até R$ 500 mil" /></div></div></Panel>}<Panel title="Contato"><div className="grid gap-4 md:grid-cols-2"><div><Label>Telefone</Label><Input value={profile.telefone || ""} onChange={(e) => set({ telefone: e.target.value })} /></div>{shouldOfferOnboardingCpf(purposes) ? <div><Label>CPF</Label><Input value={profile.cpf || ""} onChange={(e) => set({ cpf: e.target.value })} inputMode="numeric" placeholder="000.000.000-00" /></div> : null}</div></Panel></div>;
+  return <div className="space-y-5"><div><h1 className="text-2xl font-bold md:text-3xl">Perfil e Validações</h1><p className="mt-2 text-sm text-slate-500">Informe o necessário para os recursos que você escolheu.</p></div><Panel title="Resumo das suas escolhas"><div className="flex flex-wrap gap-2">{purposes.map((purpose: string) => <span key={purpose} className="rounded bg-slate-100 px-3 py-2 text-sm">{PURPOSES.find((item) => item.key === purpose)?.title}</span>)}</div></Panel>{purposes.includes("imoveis") && <Panel title="Imóvel ou oportunidade" subtitle="Este perfil já está habilitado."><div className="flex items-center gap-2 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 className="h-5 w-5" />Cadastro disponível após os aceites.</div></Panel>}{purposes.includes("profissional") && <Panel title="Profissional, fornecedor ou empresa" subtitle="Os dados ficam como informados ou enviados; não há verificação externa nesta etapa."><div className="grid gap-4 md:grid-cols-2"><div><Label>Empresa</Label><Input value={profile.professional?.empresa || ""} onChange={(e) => set({ professional: { ...(profile.professional || {}), empresa: e.target.value } })} /></div><div><Label>Função profissional *</Label><Input value={profile.professional?.role || ""} onChange={(e) => set({ professional: { ...(profile.professional || {}), role: e.target.value } })} /></div><div><Label>Registro profissional</Label><Input value={profile.professional?.registro || ""} onChange={(e) => set({ professional: { ...(profile.professional || {}), registro: e.target.value } })} /></div><div><Label>Documento comprobatório</Label><OnboardingDocumentUpload value={profile.professional?.document} onUploaded={(document) => set({ professional: { ...(profile.professional || {}), document } })} /></div></div></Panel>}{purposes.includes("capital") && <Panel title="Parceiro de capital" subtitle="Dados adicionais poderão ser solicitados conforme a operação."><div className="grid gap-4 md:grid-cols-2"><div><Label>Tipo de atuação</Label><Select value={profile.capital?.type || ""} onValueChange={(value) => set({ capital: { ...(profile.capital || {}), type: value } })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="pessoa_fisica">Pessoa física</SelectItem><SelectItem value="pessoa_juridica">Pessoa jurídica</SelectItem></SelectContent></Select></div><div><Label>Faixa de interesse</Label><Input value={profile.capital?.range || ""} onChange={(e) => set({ capital: { ...(profile.capital || {}), range: e.target.value } })} placeholder="Ex.: até R$ 500 mil" /></div></div></Panel>}<Panel title="Contato"><div className="grid gap-4 md:grid-cols-2"><div><Label htmlFor="onboarding-phone">Telefone</Label><PhoneInput id="onboarding-phone" inferUnprefixedDialCode={false} aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? "onboarding-phone-error" : undefined} value={profile.telefone || ""} onChange={(telefone) => set({ telefone })} />{phoneError && <p id="onboarding-phone-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{phoneError}</p>}</div>{shouldOfferOnboardingCpf(purposes) ? <div><Label>CPF</Label><Input value={profile.cpf || ""} onChange={(e) => set({ cpf: e.target.value })} inputMode="numeric" placeholder="000.000.000-00" /></div> : null}</div></Panel></div>;
 }
 
 function ConfigurationStep({ forms, setForms, purposes }: any) {
@@ -465,7 +482,7 @@ function ConnectionsStep({ forms, setForms, data }: any) {
 function ReadyStep({ forms, data, acceptsBeforeOnboarding, onSelectDestination, pendingDestination }: any) {
   const purposes = forms.personalizacao?.purposes || [];
   const actionSubtitle = acceptsBeforeOnboarding ? "Escolha para onde deseja ir ao concluir o onboarding." : "Escolha para onde deseja ir após revisar e aceitar os documentos obrigatórios.";
-  return <div className="space-y-5"><div><h1 className="text-3xl font-bold">Pronto!</h1><p className="mt-2 text-sm text-slate-500">Seu ambiente inicial está preparado. Conclua para acessar a plataforma.</p></div><Panel title="Seu onboarding foi concluído"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded bg-blue-50 p-4"><small>Perfis selecionados</small><strong className="mt-1 block text-xl">{purposes.length}</strong></div><div className="rounded bg-emerald-50 p-4"><small>Configuração</small><strong className="mt-1 block text-emerald-700">Concluída</strong></div><div className="rounded bg-violet-50 p-4"><small>Comunidade principal</small><strong className="mt-1 block text-sm">{data.comunidade?.nome || "Definida pelo convite"}</strong></div></div></Panel><Panel title="Próximas ações recomendadas" subtitle={actionSubtitle}><div className="grid gap-3 md:grid-cols-2">{purposes.includes("imoveis") && <ReadyAction destination="imovel" icon={Home} title="Cadastrar seu primeiro imóvel" text="Organize o ativo e acompanhe documentos, análises e demandas." actionLabel="Cadastrar imóvel" onSelect={onSelectDestination} pendingDestination={pendingDestination} />}{purposes.includes("profissional") && <ReadyAction destination="profissional" icon={BriefcaseBusiness} title="Completar seu perfil profissional" text="Apresente serviços, especialidades e experiências." actionLabel="Completar perfil" onSelect={onSelectDestination} pendingDestination={pendingDestination} />}{purposes.includes("capital") && <ReadyAction destination="capital" icon={Landmark} title="Configurar sua atuação em capital" text="Acompanhe oportunidades compatíveis com seus interesses." actionLabel="Ver chamadas de capital" onSelect={onSelectDestination} pendingDestination={pendingDestination} />}<ReadyAction destination="rede" icon={Network} title="Conhecer a rede BUILT" text="Veja pessoas, empresas e alianças recomendadas." actionLabel="Explorar a rede" onSelect={onSelectDestination} pendingDestination={pendingDestination} /></div></Panel><Panel title="Acessos preparados"><div className="grid gap-2 sm:grid-cols-2">{["Ambiente inicial privado", "Agenda e Alertas", "Perfil e configurações", "Recomendações personalizadas"].map((item) => <div key={item} className="flex items-center gap-2 rounded border p-3 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-600" />{item}</div>)}</div></Panel></div>;
+  return <div className="space-y-5"><div><h1 className="text-3xl font-bold">Pronto!</h1><p className="mt-2 text-sm text-slate-500">Seu ambiente inicial está preparado. Conclua para acessar a plataforma.</p></div><Panel title="Tudo pronto para concluir"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded bg-blue-50 p-4"><small>Perfis selecionados</small><strong className="mt-1 block text-xl">{purposes.length}</strong></div><div className="rounded bg-emerald-50 p-4"><small>Configuração</small><strong className="mt-1 block text-emerald-700">Concluída</strong></div><div className="rounded bg-violet-50 p-4"><small>Comunidade principal</small><strong className="mt-1 block text-sm">{data.comunidade?.nome || "Definida pelo convite"}</strong></div></div></Panel><Panel title="Próximas ações recomendadas" subtitle={actionSubtitle}><div className="grid gap-3 md:grid-cols-2">{purposes.includes("imoveis") && <ReadyAction destination="imovel" icon={Home} title="Cadastrar seu primeiro imóvel" text="Organize o ativo e acompanhe documentos, análises e demandas." actionLabel="Cadastrar imóvel" onSelect={onSelectDestination} pendingDestination={pendingDestination} />}{purposes.includes("profissional") && <ReadyAction destination="profissional" icon={BriefcaseBusiness} title="Completar seu perfil profissional" text="Apresente serviços, especialidades e experiências." actionLabel="Completar perfil" onSelect={onSelectDestination} pendingDestination={pendingDestination} />}{purposes.includes("capital") && <ReadyAction destination="capital" icon={Landmark} title="Configurar sua atuação em capital" text="Acompanhe oportunidades compatíveis com seus interesses." actionLabel="Ver chamadas de capital" onSelect={onSelectDestination} pendingDestination={pendingDestination} />}<ReadyAction destination="rede" icon={Network} title="Conhecer a rede BUILT" text="Veja pessoas, empresas e alianças recomendadas." actionLabel="Explorar a rede" onSelect={onSelectDestination} pendingDestination={pendingDestination} /></div></Panel><Panel title="Acessos preparados"><div className="grid gap-2 sm:grid-cols-2">{["Ambiente inicial privado", "Agenda e Alertas", "Perfil e configurações", "Recomendações personalizadas"].map((item) => <div key={item} className="flex items-center gap-2 rounded border p-3 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-600" />{item}</div>)}</div></Panel></div>;
 }
 
 function ReadyAction({ destination, icon: Icon, title, text, actionLabel, onSelect, pendingDestination }: any) {

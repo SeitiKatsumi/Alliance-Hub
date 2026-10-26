@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "id": "2026-10-26-expense-contributions",
+  "title": "Despesa com aportes vinculados herdando rateio e CPP da saída",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/expense-contributions.ts",
+    "server/expense-contributions.ts"
+  ],
+  "searchTerms": [
+    "expense-contributions",
+    "bia_despesa_aportes",
+    "despesa-aportes"
+  ],
+  "consumers": [
+    {"path":"client/src/pages/fluxo-caixa-mobile.test.ts","decision":"updated","reason":"Pedido posterior restrito ao rótulo Descrição: asterisco acessível no formulário compartilhado Novo/Editar; preserva as duas validações existentes. Sem mudança de domínio, API, dados ou integrações."},
+    {"path":"docs/platform/deprecations.json","decision":"updated","reason":"Guarda expense-pending-helper-copy impede retorno do texto auxiliar removido; não remove o status pendente nem altera API, dados ou cálculos."},
+    {"path":"scripts/platform-impact.ts","decision":"preserved","reason":"Consome catálogo de módulos atualizado; execução identifica novo helper e consumidores sem alterar mecanismo."},
+    {"path":"scripts/platform-verify.ts","decision":"preserved","reason":"Valida caminhos e cobertura do contrato ampliado; contrato e suíte executados sem alterar o verificador."},
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "client/src/components/expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "server/expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "shared/expense-contributions.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "shared/expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "migrations/20261026_expense_contributions.sql",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "server/fluxo-delete.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Somente integração despesa/aportes e guardas financeiras deste trabalho; alterações paralelas de onboarding não atestadas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "updated",
+      "reason": "Implementação, regressão ou documentação do fluxo de despesa com aportes."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rota financeira preservada; renderiza o formulário atualizado, sem novas permissões."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Bootstrap preservado; sem configuração global nova."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Incorpora o Financeiro existente; seleção da BIA e autorização não mudam."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Importa helpers financeiros existentes; documentos e aceites não recebem nem recalculam vínculos."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "MAP só considera lançamento elegível pago pelas regras existentes; novas entradas pagas herdam status da saída e seguem elegibilidade existente; pendentes não mudam cotas."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Continua incorporando FluxoCaixa; nova opção apenas na criação de saída."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Registra routes e cron existentes; nova tabela é inicializada em routes, sem alteração no bootstrap."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consome descrição atualizada no catálogo sem alterar apresentação ou permissões."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de cobertura do catálogo passam; id de funcionalidade preservado."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Não chamado na criação do lote. Lembretes existentes continuam limitados aos critérios de status e vencimento, inclusive saídas agendadas."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Sem inclusão de parcelas iniciais ou cobranças; lote interno não chama Asaas."
+    },
+    {
+      "path": "shared/member-portfolio.ts",
+      "decision": "preserved",
+      "reason": "Lê lançamentos oficiais e distingue pagos de pendentes; soma entrada paga e não soma pendências como pagamento."
+    },
+    {
+      "path": "server/bia-map-history.ts",
+      "decision": "preserved",
+      "reason": "Criação paga valida projeção e captura MAP via evento durável; resposta perdida usa conciliação existente. Pendentes não acrescentam CPP."
+    },
+    {
+      "path": "server/valor-origem-sync.ts",
+      "decision": "preserved",
+      "reason": "Vínculos por IDs não dependem de descrição; adaptador global bloqueia exclusão/mudança estrutural de registro vinculado."
+    },
+    {
+      "path": "server/quota-transfer.ts",
+      "decision": "preserved",
+      "reason": "Operações existentes passam pelo adaptador protegido; não gera transferências para a despesa."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Revisão confirmada pelo usuário: aportes herdam rateio e CPP da saída. QA autenticada desktop e390x844 escuro:150 dividido55/45 gera82.50/67.50 na prévia; campos repetidos ausentes, CPP original presente. Individual restaurado sem salvar lançamentos reais."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Handlers Express reais com PostgreSQL isolado e adaptador remoto controlado:403,400,409, resposta perdida, retry concorrente, consultas em ambos sentidos. mirrorExpenses cria pares com CPP e status/data herdados; vínculos retornam a saída correspondente e retry não duplica."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração aditiva e startup; intenção persistente antes do POST array Directus createMany transacional. IDs estáveis, auditoria/conclusão em transação; sem modificar lançamentos reais no QA."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Helper único calcula centavos, igualdade/manual/MAP,100/3=33.34+33.33+33.33, rejeita soma divergente/duplicados. Dashboards seguem valores/status oficiais, sem tratar pendência como pagamento."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Rota não envia mensagens. Entradas herdam status, sem cobrança externa; saída agendada continua sujeita ao cron existente, sem novo template/destinatário."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional e contrato atualizados. Anexos ficam apenas na despesa; documentos assinados/relatórios antigos não reescritos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Um POST array Directus; sem Asaas, split bancário, job novo ou transferência. Falhas remotas mantêm solicitação retomável."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Exige capital_financeiro edit/view conforme operação, fase financeira e membros válidos da BIA. Autor/hash/BIA protegem idempotência; teste de falta de permissão e leitura negada."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Opção começa desligada; fluxo sem aportes permanece. Requisições antigas sem mirrorExpenses conservam hash e formato para retry; controles independentes mantidos apenas em componente compatível, não usados na tela atual. Nenhum backfill. Exclusão e mudança estrutural de vinculados protegidas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify exit0:553 testes, tipos, contrato/consistência e build. platform:review --base HEAD aprovado. API e adaptador MAP executados com fixtures isoladas; nenhum lançamento real. Backend local reiniciado pelo script oficial, GET/login HTTP200. Sem deploy."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/fluxo-caixa-mobile.test.ts",
+    "shared/expense-contributions.test.ts",
+    "server/expense-contributions.test.ts",
+    "client/src/components/expense-contributions.test.ts",
+    "server/fluxo-delete.test.ts"
+  ],
+  "deprecationRuleIds": ["expense-pending-helper-copy", "expense-contribution-inherited-payment"]
+}

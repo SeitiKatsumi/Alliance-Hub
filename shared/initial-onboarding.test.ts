@@ -18,6 +18,7 @@ import {
   nextOnboardingStep,
   normalizeAccountPurposeObjectives,
   normalizeOnboardingPurposes,
+  normalizeOnboardingPhone,
   resolveInitialOnboardingInviteCompletion,
   requiresContributionAreas,
   shouldOfferOnboardingCpf,
@@ -242,6 +243,24 @@ test("sincroniza configuração do onboarding com os campos oficiais do perfil",
     especialidade_livre: "BIM",
     idiomas: ["Português", "Inglês"],
   });
+});
+
+test("telefone de onboarding remove só formatação, preserva DDI e cabe no limite real de 30 caracteres", () => {
+  const formatted = "+351    (912)    345    678              ";
+  assert.ok(formatted.length > 30);
+  assert.deepEqual(normalizeOnboardingPhone(formatted), { value: "+351912345678", error: null });
+  assert.equal(buildInitialOnboardingProfileFields({ telefone: formatted }, {}).telefone, "+351912345678");
+  for (const [input, expected] of [["(31) 99999-9999", "31999999999"], ["+81 (90) 1234-5678", "+819012345678"], ["00351 912 345 678", "00351912345678"], ["+123456789012345", "+123456789012345"]]) {
+    assert.equal(normalizeOnboardingPhone(input).value, expected);
+  }
+  for (const input of [null, undefined, "", "  "]) assert.equal("telefone" in buildInitialOnboardingProfileFields({ telefone: input }, {}), false);
+});
+
+test("telefone inválido é rejeitado no perfil e na projeção final, sem cortar dados", () => {
+  for (const telefone of ["1".repeat(31), "+351912345678 / +5531999999999", "ramal 123", "123", ["31999999999"], { telefone: "31999999999" }, 31999999999]) {
+    assert.match(validateOnboardingStepPayload("perfil", { telefone }) || "", /Revise o telefone/);
+    assert.throws(() => buildInitialOnboardingProfileFields({ telefone }, {}), /Revise o telefone/);
+  }
 });
 
 test("perfil profissional exige somente a função nesta versão", () => {

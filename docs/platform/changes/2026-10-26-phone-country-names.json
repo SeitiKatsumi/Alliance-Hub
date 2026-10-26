@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "id": "2026-10-26-phone-country-names",
+  "title": "País por extenso no seletor telefônico compartilhado",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "client/src/components/phone-input.tsx"
+  ],
+  "searchTerms": [
+    "PhoneInput",
+    "{item.country} {item.dialCode}",
+    "País e código internacional"
+  ],
+  "consumers": [
+    {"path":"client/src/data/platform-functional-report.ts","decision":"updated","reason":"Descreve seletor e validação no onboarding-perfil."},
+    {"path":"client/src/data/platform-functional-report.test.ts","decision":"preserved","reason":"Catálogo preserva IDs e cobertura; teste incluído na suíte completa."},
+    {"path":"client/src/pages/relatorio-funcionalidades.tsx","decision":"preserved","reason":"Apresenta descrição do catálogo atualizado sem alteração de autorização."},
+    {"path":"server/onboarding-phone.test.ts","decision":"updated","reason":"Expectativa visual passa a exigir PhoneInput e erro acessível; testes de autorização e validação do servidor preservados."},
+    {"path":"docs/platform/modules/acesso-onboarding.md","decision":"updated","reason":"Extensão solicitada à etapa Perfil: mesmo seletor, validação e erro acessível preservados; sem mudança no backend."},
+    {
+      "path": "client/src/components/phone-input.tsx",
+      "decision": "updated",
+      "reason": "Rótulo por extenso e layout que acomoda nomes; regressão/contrato/guarda sem alterar dados."
+    },
+    {
+      "path": "client/src/components/phone-input.test.ts",
+      "decision": "updated",
+      "reason": "Rótulo por extenso e layout que acomoda nomes; regressão/contrato/guarda sem alterar dados."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Rótulo por extenso e layout que acomoda nomes; regressão/contrato/guarda sem alterar dados."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Rótulo por extenso e layout que acomoda nomes; regressão/contrato/guarda sem alterar dados."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/convite.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Consumidor direto/transitivo do componente ou catálogo de impacto. Recebe rótulo compartilhado; fluxo, autorização e persistência não mudam. Não atesta deltas paralelos neste arquivo."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "updated",
+      "reason": "Pedido posterior inclui onboarding inicial: substituído input livre por PhoneInput; id/aria mantidos e validação normalizeOnboardingPhone preservada. Não regrava rascunho ao renderizar."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Meu Perfil autenticado desktop e390x844 previamente validado no escuro. Ampliação onboarding conferida em prévia isolada desktop/390x844 claro: Brasil(+55), número legado preservado e erro com123. Sem cadastrar/salvar conta real; prévia encerrada e viewport restaurado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Payload permanece campo telefone; validação normalizeOnboardingPhone e backend intactos. Props id/aria passam ao input tel; no onboarding inferUnprefixedDialCode=false impede tratar DDD31 como DDI31. Outros consumidores mantêm parsing anterior."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem alteração de schema/Directus/PostgreSQL nem números já salvos. Países e códigos do catálogo existente mantidos."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Apresentação de país no formulário de telefone não participa de cálculos ou gráficos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Sem mudança de número, envio ou templates; seletor só existe no formulário."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Dados de formalização usam o mesmo valor; não reescreve MOU/aceites nem relatórios."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Nenhuma API externa/tarefa/cron alterada ou chamada para resolver nomes; usa labels locais existentes."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Nenhuma permissão/rota/guarda alterada. QA consulta perfil atual sem salvar."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Teste mantém +27 existente sem onChange na renderização. No onboarding, telefone antigo sem+ preserva todos os dígitos e usa Brasil, sem inferir DDI a partir do DDD; +351 explícito continua Portugal. Sem backfill ou escrita ao renderizar."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "3 testes focados aprovados; platform:verify exit0 com tipos, contrato, consistência, tooling, suíte completa e build aprovados (.BUILT-tmp/phone-country-verify.log). QA autenticada desktop/mobile e busca de fechamento concluídas; diff sem erro de whitespace."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/phone-input.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "onboarding-phone-shared-selector",
+    "phone-country-full-name"
+  ]
+}

@@ -1,5 +1,7 @@
 # Acesso, Cadastro e Onboarding
 
+- 26/10/2026: telefone em Perfil e Validações usa PhoneInput compartilhado: país por extenso e DDI acima do número. Preserva label, erro acessível, validação normalizeOnboardingPhone e campo opcional. Digitação envia o mesmo campo telefone com DDI; renderização não regrava dados existentes. Sem migração ou alteração de autorização/conclusão.
+
 ## Objetivo e usuarios
 
 Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, convites, aceite dos documentos obrigatorios e conclusao progressiva do perfil. Atende visitantes, candidatos, membros, funcionarios de empresas e administradores.
@@ -57,6 +59,9 @@ Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites depo
 Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback, refresh ou webhook nao pode criar outro usuario, pagamento ou aceite.
 
 ## Invariantes
+
+- Telefone opcional do onboarding usa `normalizeOnboardingPhone`: remove somente formatação (espaços, parênteses, pontos e hífens), mantém o prefixo +/DDI informado e exige um único número de 7 a 15 dígitos. Não infere país, corta dígitos nem altera rascunhos automaticamente. O valor compacto cabe no limite verificado de30 caracteres de `cadastro_geral.telefone`.
+- Perfil valida no cliente e servidor. Conclusão v2 e aceites legados revalidam respostas antigas antes de sincronizar com Directus; entrada inválida retorna400 e `/onboarding/perfil`, sem concluir jornada, alterar convite ou registrar aceite. O frontend oferece correção com mensagem legível e preserva progresso; Pronto não anuncia conclusão antes da gravação. Fluxo de aceites iniciais v2 não exige perfil antecipadamente.
 
 - Na etapa Configuracao o usuario seleciona somente `BusinessType`. O dominio deriva os tipos de Celula correspondentes e sincroniza a associacao de forma idempotente em todas as Comunidades do usuario, incluindo a comunidade de origem do convite ainda nao materializada no M2M.
 - Todo campo de senha permite mostrar ou ocultar seu proprio valor, sem alterar os demais campos do formulario.

@@ -1,5 +1,28 @@
 # Capital e Financeiro da BIA
 
+- 26/10/2026: Descrição exibe asterisco obrigatório no formulário compartilhado Novo/Editar Lançamento, alinhado à validação já existente. Mudança só no rótulo; API, status, persistência e regras financeiras não mudam.
+
+## Dashboard bancário — 26/10/2026
+
+Banco passa a mostrar saldo da conta da empresa, cobranças geradas/recebidas/confirmadas/pendentes/vencidas e transferências solicitadas/concluídas/pendentes/falhas/canceladas. Resumos por criação, com busca, situação, paginação e comprovantes. Conta compartilhada não representa saldo de uma BIA; consultas parciais/indisponíveis são explícitas. Histórico do provedor anterior fica em bloco separado. Fonte/limites/permissões no contrato pagamentos-integracoes. Lançamentos, aportes, parcelas, MAP/CPP, avisos, documentos e motor de cobrança não mudam.
+
+## Categorias repetidas — 26/10/2026
+
+- Fonte continua Directus Categorias. Leitura real identificou pares com acentos UTF-8 corrompidos (120/180 e121/181). shared/financial-categories.ts normaliza reversivelmente Latin1/Windows1252, conservando acentos e IDs. Seed compara nomes normalizados e escolhe o menor ID global existente, sem criar outra categoria apenas por codificação.
+- Novo/Editar Lançamento e filtro apresentam uma opção por nome completo (incluindo código), grupo, direção e BIA. Edição mantém o ID selecionado; filtro abrange todos os IDs equivalentes. API mantém todas as referências, normalizando os rótulos para a lista oficial. Não exclui registros nem remapeia relações antigas.
+- Lista/cards usam rótulos corrigidos. Cálculos/MAP/CPP, notificações, integrações, PDFs e histórico financeiro não mudam. Catálogo/report atualizado; regressões em shared/financial-categories.test.ts. QA autenticada desktop e mobile390x844 concluída no modo escuro: facilities/garantia aparecem uma vez e a busca funciona. Formulário cancelado sem gravar lançamentos.
+
+## Despesa com aportes vinculados — 26/10/2026
+
+- Prévia sem frase auxiliar sobre o status pendente, a pedido do usuário. Apenas apresentação: estado inicial, cálculos, API, persistência, permissões, integrações e relatório funcional permanecem iguais.
+
+- Em Novo Lançamento, Saída oferece a opção desmarcada Gerar aportes para esta despesa. Os aportes herdam participantes, valores do rateio (percentual ou valor) e CPP da saída, sem uma segunda seleção. Individual gera um par; Em Grupo gera um par saída/entrada por participante: R$150 divididos entre três geram três saídas e três entradas de R$50. Prévia conserva centavos. Vencimento dos aportes inicia igual ao da despesa e pode ser alterado.
+- `mirrorExpenses=true` identifica o novo fluxo. O servidor valida os valores em centavos e persiste o ID da saída de origem de cada entrada no lote PostgreSQL; consulta retorna o par correspondente. Anexos comuns e individuais permanecem nas saídas. Solicitações anteriores sem essa marca são preservadas para retomada idempotente com seu hash e formato originais (uma saída e múltiplas entradas), sem conversão de histórico.
+- `POST /api/fluxo-caixa/despesa-aportes` exige edição financeira, fase financeira válida, participantes e referências válidos. Servidor recalcula e compara a prévia; divergência não grava. Novos aportes herdam status e data de pagamento da saída; Pago exige data. Vencimento dos aportes continua independente. Lotes já persistidos conservam status/datas originais na retomada, sem retroagir pagamentos. Não gera cobrança Asaas, mensagem ou transferência.
+- Fonte: Directus fluxo_caixa para valores/status, PostgreSQL bia_despesa_aportes para intenção e IDs e fluxo_caixa_historico para auditoria. Migração aditiva 20261026_expense_contributions.sql, também inicializada no startup. Intenção gravada antes de I/O; um POST array Directus (createMany transacional) cria o lote completo. Repetição usa mesmos IDs/hash/autor sob lock da BIA; resposta perdida é conciliada por leitura, sem duplicação. Auditoria e conclusão local são transacionais. Falha permanece retomável com a mesma solicitação guardada na sessão do navegador.
+- `GET /api/fluxo-caixa/:id/vinculos` exige consulta financeira da BIA e retorna somente os lançamentos vinculados. Edição e Histórico exibem a despesa de origem/aportes. Atualizações individuais não propagam valor ou status; BIA/tipo/participante são protegidos. Exclusão isolada é bloqueada, inclusive antes da limpeza de relações e auditoria de exclusão. Lote inconclusivo bloqueia alterações até retomar.
+- Consumidores: lista/cards/Análises/Carteira/MAP leem lançamentos oficiais. Aportes criados pagos entram nos cálculos existentes conforme elegibilidade da CPP; pendentes não. Lote pago projeta MAP antes do POST array e registra intenção durável em bia_map_eventos; snapshot é capturado após gravação e resposta perdida é conciliada no retry/timer existente. Anexos permanecem só nas saídas. Documentos assinados, parcelas iniciais e cobranças preservados. Sem backfill. Testes: shared/expense-contributions.test.ts, server/expense-contributions.test.ts, client/src/components/expense-contributions.test.ts e server/fluxo-delete.test.ts.
+
 - 22/10/2026: Estimativa patrimonial da Carteira calculada pelos dados registrados e MAP vigente, sem exigir snapshot manual. Não altera financeiro/MAP/CPP, não presume saldo Asaas, não usa VO nem direitos sem caixa como patrimônio. Fontes, pendências e deduplicação no contrato Carteira; POST manual antigo /patrimonio aposentado com410 após autorização e histórico preservado. Aprovação de aportes permanece independente. Testes server/bia-patrimony.test.ts e shared/bia-patrimony.test.ts.
 
 ## Aportes: cobranças internas (dashboard removido em 2026-10-20)

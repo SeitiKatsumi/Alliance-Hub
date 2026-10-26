@@ -81,7 +81,7 @@ function BancoBiaPage({ biaId, readOnly = false }: { biaId?: string | null; read
       <p>Estamos preparando a integração com o Asaas. Abertura de conta e operações bancárias ficarão disponíveis após a homologação.</p>
       <p className="mt-2 text-sm text-muted-foreground">Os lançamentos e registros financeiros existentes continuam disponíveis para consulta.</p>
     </CardContent></Card>}
-    {biaId && <Card><CardHeader><CardTitle>Histórico de cobranças</CardTitle></CardHeader><CardContent>
+    {biaId && <Card><CardHeader><CardTitle>Histórico anterior da BIA</CardTitle></CardHeader><CardContent>
       {history.isPending ? <p>Carregando histórico…</p> : history.isError ? <div role="alert"><p>Não foi possível consultar o histórico.</p><Button variant="outline" onClick={() => history.refetch()}>Tentar novamente</Button></div> : history.data?.charges.length ? <div className="space-y-3">{history.data.charges.map(charge => <div key={charge.id} className="rounded-lg border p-3">
         <p className="font-medium">{charge.descricao || "Cobrança da BIA"}</p>
         <p className="text-sm text-muted-foreground">{charge.valor == null || !Number.isFinite(Number(charge.valor)) ? "Valor não informado" : Number(charge.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} · {charge.status || "Status não informado"}</p>

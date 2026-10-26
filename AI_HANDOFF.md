@@ -1,5 +1,77 @@
 # AI_HANDOFF.md
 
+## 26/10/2026 — aportes herdam pagamento da saída na criação
+
+- Validação completa aprovada:553 testes, tipos, build e platform:review --base HEAD. Reinício local3004 pelo script oficial após validar processo da porta; nenhuma gravação de lançamentos reais ou chamada de cobrança. Sessão dev pode expirar. Sem commit/push/deploy.
+
+- Nova decisão do usuário substitui regra inicial de sempre pendente. Helper inheritedExpensePayment copia status e data; Pago sem data bloqueia antes de persistir intenção. Vencimento independente. Aplica a novas intenções, inclusive modo compatível; lotes já persistidos/retries usam movimentos originais sem recalcular nem pagar pendências antigas. Edição posterior continua independente.
+- Consumidores: API lote, helper, testes, relatório e contrato atualizados. Lista/Análises/Carteira consomem status oficial; CPP elegível paga entra no MAP. Adaptador createBatch projeta o conjunto antes do Directus e grava bia_map_eventos durável, capturando snapshot após POST; retry/timer conciliam resposta perdida. Sem Asaas, pagamento bancário, mensagens, backfill, alteração de documentos assinados ou permissões.
+- Testes isolados cobrem estados pago/pendente/agendado/vencido/parcial, data ausente, retry sem duplicar e lote antigo pendente preservado; adaptador real extraído testa projeção antes de escrita, intenção/snapshot e rejeição de MAP inválido. Não criado lançamento real em QA.
+
+## 26/10/2026 — dashboard Banco Asaas
+
+- Banco configurado ganhou saldo da conta da empresa, cobranças por situação, transferências por situação e histórico com período de criação, busca, filtros, paginação e links Asaas de cobrança/comprovante quando disponíveis. Configuração aprovada fica recolhida; histórico anterior da BIA permanece separado. Relatório funcional, contratos dos módulos e registro `2026-10-26-bank-dashboard` atualizados.
+- Consulta nova somente GET, credencial da conta aprovada e permissão capital_banco/view existentes. Sem migração, escrita financeira, mudança de flags, produção ou envio de cobrança/transferência. Totais nominais não são saldo nem fluxo de caixa; CONFIRMED não é RECEIVED. Falhas e limites de paginação aparecem como indisponível/parcial, nunca zero fictício. Conta pode incluir outras BIAs vinculadas.
+- QA autenticada após login: BIA868NEL6DXJ retornou saldoR$0,00 e históricos completos vazios em90 dias/todo histórico. Modal de teste aberto e cancelado sem envio. Desktop e390px sem overflow; fixture isolada claro/escuro com14 cobranças/5 transferências validou filtros/páginas/falhas e foi encerrada. Capturas em output/bank-dashboard-20261026.png e bank-dashboard-history-20261026.png. Resposta410 antiga em cache anterior ao reinício resolvida por fetch no-store; rota mantém no-store na resposta.
+- Validação final: platform:verify exit0,552 testes/0falhas, tipos/build/contratos; log .BUILT-tmp/bank-dashboard-verify-final.log. Não equivale a homologação bancária em Produção. Mudanças paralelas preservadas; sem commit/push/deploy.
+
+## 26/10/2026 — asterisco em Descrição
+
+- Pedido visual localizado: asterisco vermelho com nome acessível obrigatório no label compartilhado Novo/Editar Lançamento. Nenhuma regra removida; duas validações de descrição preservadas. Regressão em fluxo-caixa-mobile.test.ts. API, bancos, relatórios funcionais, cálculos, notificações, tarefas e permissões intactos.
+- QA autenticada bloqueada: aba atual em /login; não entrar como usuário nem alterar lançamentos. Gate global encontrou arquivos paralelos Asaas sem revisão, não atestados neste trabalho. Logs description-required-verify.log/review.log; sem commit/push/deploy.
+- Testes focados8/8 aprovados; platform:verify551 testes,550 passaram e1 falhou em mobile-layout.test.ts (status queries,3 versus4), fora do asterisco. Build não executado pelo gate após falha. Não declarar validação global aprovada.
+
+## 26/10/2026 — habilitação Asaas Sandbox no localhost
+
+- Usuário autorizou ativar cobranças e transferências após esclarecimento de ambiente Sandbox. Adicionadas somente ASAAS_CONTRIBUTIONS_ENABLED=true e ASAAS_TRANSFERS_ENABLED=true ao .env local ignorado; ambiente sandbox confirmado, opt-in de Produção falso. Sem edição de segredos, configuração remota, deploy ou código financeiro. Fila compartilhada Sandbox vazia antes da ativação; nenhum lançamento emitido manualmente ou dinheiro transferido.
+- Reiniciado localhost pelo script oficial. Configuração sanitizada retornou operational/sem pendências; webhook público recusou POST vazio sem token com401. Após usuário entrar, BIA868NEL6DXJ/Banco mostrou conta aprovada, cobranças e transferências habilitadas, saldo remoto R$0,00 e botão Transferir. Nenhuma transferência, aceite ou cobrança confirmada em nome do usuário. BIA continua em captação: emissão mantém travas existentes de fase/cronograma/permissão. Não equivale a homologação de emissão/Pix/recebimento nem ativação de Produção.
+- Validação:15 testes focados, platform:verify exit0 (542 testes/0falhas, tipos e build); logs .BUILT-tmp/asaas-enable-*.log. Registro2026-10-26-asaas-sandbox-enable. Sem commit/push. Mantidos trabalhos paralelos.
+
+## 26/10/2026 — seletor de país também no onboarding inicial
+
+- QA isolada desktop/390x844 claro concluída: número local com DDD31 permanece inteiro sob Brasil(+55), em vez de ser interpretado como Holanda; opção inferUnprefixedDialCode=false somente no onboarding. DDI explícito com+ preservado, demais consumidores não mudam parsing. Erro com123 confirmado sem gravar cadastro real. Prévia3014 encerrada, aba fechada e viewport restaurado.
+
+- Pedido posterior amplia PhoneInput a Perfil e Validações. Input livre substituído pelo componente compartilhado, país/DDI acima do número. Props opcionais id/aria-invalid/aria-describedby preservam label e erro; teclado tel e autocomplete tel-national no número.
+- Validação de perfil e projeção final normalizeOnboardingPhone continuam iguais; não há migração, mudança de permissão, gravação automática ou alteração de conclusão. Relatório funcional sobre validações continua válido. Teste phone-input cobre ligação na página, ausência do input antigo, acessibilidade e payload +55. Demais consumidores herdaram apenas atributos sem mudança no formato.
+
+## 26/10/2026 — prévia de aportes sem texto auxiliar
+
+- Removida somente a frase auxiliar sobre registro pendente de ExpenseContributionsFields, inclusive modo compatível. Vencimento, prévia e total mantidos; API, status inicial, permissões, persistência, cálculos, tarefas, PDFs e integrações intactos. Relatório funcional continua descrevendo corretamente o status inicial; não confundir remoção visual com mudança de regra.
+- Regressão SSR exige ausência da frase nos dois modos. Guarda expense-pending-helper-copy. QA autenticada desktop/390x844 escuro confirma ausência sem gravar dados; viewport restaurado. Nenhum reinício, commit, push ou deploy nesta alteração. Verificações em .BUILT-tmp/expense-copy-verify.log e expense-copy-review.log.
+
+## 26/10/2026 — países por extenso no telefone
+
+- Validação concluída:3 testes focados, platform:verify exit0 (540 testes/0falhas, tipos e build) e platform:review aprovado. Logs .BUILT-tmp/phone-country-verify.log e phone-country-review-final.log. Nenhum commit/push solicitado neste trabalho.
+- Pedido: substituir siglas de países no seletor telefônico para evitar confusão DDI/DDD. Fonte PhoneInput compartilhada por cadastro/login, convites, complemento de onboarding do App, Perfil/WhatsApp/cônjuge, membros administrativos, MOU da Comunidade e Vitrine. Rótulos usam label existente com DDI entre parênteses; seletor em linha própria acomoda nomes sem comprimir o número. Onboarding inicial com telefone livre não exibia siglas e permanece igual.
+- Mudança somente visual: catálogo/códigos, parsing, normalização e payload preservados; nenhuma correção automática de ZA/BR, gravação real ou novo campo obrigatório de DDD. Regressão protege nomes completos, layout, contraste e ausência de onChange ao renderizar +27 existente. QA em Meu Perfil autenticado desktop e390x844 no escuro, sem editar/salvar; viewport restaurado. Frontend atualizado por Vite, sem reinício, commit/push ou deploy. Registro2026-10-26-phone-country-names e guarda phone-country-full-name.
+
+## 26/10/2026 — ativação local da correção do onboarding
+
+- Usuário autorizou explicitamente reinício incluindo tabela aditiva de aportes de despesas. Reinício executado pelo script oficial; inicialização levou mais que a janela de espera do script, mas processo80664 iniciou às14:19 e porta3004 respondeu depois. Confirmados GET/login200 e PUT/api/onboarding/etapas/pronto401 sem sessão, sem concluir cadastro real. Correção do telefone agora carregada no backend local. Sem commit/push/deploy; usuário deve entrar e repetir a conclusão. Esta atualização substitui a pendência anterior de autorização/ativação.
+
+## 26/10/2026 — categorias duplicadas por codificação
+
+- Fechamento visual após novo login: navegação pela sessão já aberta → Alianças/BIAs → BIA Teste LuhBerDiBer → Financeiro/Novo Lançamento. Lista completa sem duplicatas facilities/garantia; busca validada em desktop e mobile390x844, modo escuro legível. Cancelado sem salvar, viewport restaurado, aba temporária fechada. Registro agora completo; não reiniciado servidor nesta retomada. 539 testes/build anteriores seguem válidos; esta retomada altera somente documentação de evidência.
+
+- Corrigidos catálogo/seed e seletores de categorias financeiras: leitura real mostrou120/180 (facilities) e121/181 (garantia), versões corretas e mojibake. Helper financial-categories normaliza reversivelmente e projeta opção única por nome completo/código+tipo+grupo+BIA. Edição mantém ID original; filtro inclui equivalentes. Não remove categorias nem relações, não altera valores/CPP. API preserva IDs e normaliza textos; seed reconhece existente antes de criar.
+- Regressão cobre codificação Windows1252, escolha determinística, ID legado selecionado, filtro, separação por escopo/tipo/grupo/código e execução do seed com fixture. Browser em /login: solicitada entrada para QA real desktop/mobile. Alterações anteriores preservadas; sem commit/push/deploy.
+- Validação deste trabalho: platform:verify exit0,539 testes, tipos e build aprovados; leitura real com helper confirmou4 registros→2 opções para facilities/garantia. Não reiniciado backend nem executado seed em base compartilhada; ajuste servidor entra no próximo reinício/publicação. Interface nova disponível pelo Vite após atualizar. Gate mantém pendência explícita de QA autenticada.
+- Retomada após usuário entrar: sessão autenticada confirmada na aba1, mas localhost deixou de escutar3004 durante abertura do Financeiro. Script oficial iniciou servidor novamente (sem encerrar processo alheio); nova aba confirmou /login e sessão anterior não sobreviveu. Backend agora carregou correção; QA visual segue pendente de novo login, sem gravar lançamentos.
+
+## 26/10/2026 — despesa com aportes vinculados
+
+- Nova saída pode gerar aportes internos pendentes, com rateio igual/MAP/manual, prévia e vencimento independente. Não cria cobrança Asaas. Helper compartilhado usa centavos e rejeita duplicados/soma divergente; backend revalida BIA, permissão, fase, membros, referências e prévia.
+- Lote persistente bia_despesa_aportes com IDs imutáveis/hash/autor, criado antes de POST array transacional no Directus; perda de resposta é conciliada sem duplicar. Retomada usa requestId guardado em sessionStorage. Auditoria e conclusão são transacionais. GET de vínculos protegido aparece na edição/histórico; bloqueia exclusão isolada e mudança estrutural, mas pagamentos/valores permanecem individuais.
+- Migração aditiva e inicialização automática no startup; servidor local iniciado via script oficial. Nenhum lançamento real criado, nenhuma cobrança/transferência. Testes de falha/rollback e repetição são isolados com PGlite e adaptador remoto controlado, não falhas injetadas em produção.
+- Validação: platform:verify exit0,535 testes, tipos, contrato, consistência e build; QA autenticada desktop/mobile390 no modo escuro conferiu150/3=50, pesquisa e ausência de overflow. Relatório funcional, contrato e registro de mudança atualizados. Sem commit/push/deploy. Alterações de onboarding de outro chat preservadas, sem atestar sua semântica.
+
+## 26/10/2026 — telefone bloqueando conclusão do onboarding
+
+- Gate final:18 pendências exclusivamente em alterações paralelas (nenhuma neste registro), .BUILT-tmp/onboarding-phone-review-final.log. Na última checagem não havia listener3004; não encerrei o processo principal. Ativação permanece pendente da autorização de reinício enviada ao usuário.
+- Validação final:29 testes focados e platform:verify exit0 (535 testes/0falhas, tipos/contrato/consistência/tooling/build). Perfil conferido na prévia isolada desktop e390x844; erro com123 e remoção com telefone internacional válido; Pronto sem sucesso antecipado. Prévia3014 encerrada e viewport restaurado. Backend3004 não reiniciado: alteração paralela executa EXPENSE_CONTRIBUTIONS_SQL ao subir; solicitada autorização específica. Não declarar correção ativada no servidor ou publicada antes do reinício/deploy. Log .BUILT-tmp/onboarding-phone-verify-final.log.
+- Pedido limitado a corrigir onboarding, sem migrar Directus. Base21d5efca15567e3124e48be1ad22c37bb3df3241; fontes limpos no início, apenas logs/artefatos locais já sujos. Metadados Directus somente leitura confirmaram telefone varchar(30); não foi encontrado rascunho pendente acima de30 caracteres na base acessível, portanto caso do print foi reproduzido por fixture, sem afirmar ter reparado a conta mostrada.
+- Helper central valida/compacta telefone sem cortar dígitos ou inferir país, compartilhado por Perfil e projeção final. Rotas v2 e legada revalidam antes de qualquer sincronização/conclusão;400 com retorno ao Perfil para rascunho inválido. UI interpreta erro estruturado, input tel acessível e título sem sucesso antecipado. Sem migração, escrita em cadastros reais, aceites automáticos, commit/push.
+
 ## 23/10/2026 — Carteira: CPP aportada versus a aportar
 
 - Pedido: consolidar quatro cards patrimoniais em dois blocos; imóveis exibem estimativa central e aquisição, CPPs exibem Aportado e A aportar. Fonte nova: MAP atual × percentual dos compromissos iniciais com parcelas vigentes, conciliadas e todos os movimentos pagos. O restante não é pagamento. BIAs legadas sem snapshot usam posição vigente porque o MAP legado deriva de aportes pagos/origens aceitas; snapshot sem cronograma fica incompleto.
@@ -526,3 +598,10 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 ## Hotfix 2026-10-22 — bootstrap de produção
 - Commit `5d10a3f943b669a2c815294d94b04356e2dfa61e` enviado à `main` e publicado no CapRover v209, com SHA confirmado no container. Correção aditiva: `p-limit` incorporado ao bundle CommonJS para evitar falha de interoperabilidade ESM no Node 20. Nenhum rollback realizado; funcionalidades patrimoniais preservadas.
 - Snapshot exato validado: contrato, TypeScript, 478 testes e build aprovados; limitador executado também no Node 20.20.2 da imagem de produção. Produção respondeu HTTP 200 na página e 401 esperado em `/api/me` sem sessão. Alterações paralelas permanecem locais.
+# 2026-10-26 — aportes herdam rateio e CPP
+
+- Confirmado pelo usuário: grupo de R$150/3 cria três saídas de R$50 e três entradas pendentes correspondentes, não uma saída única. Mesmo CPP já escolhido na saída; sem segundo seletor de divisão, pessoas ou CPP.
+- `inheritedExpenseSplit` conserva centavos a partir do rateio percentual/valor original. `mirrorExpenses` valida valores no servidor e persiste `despesa_origem_id` no lote, não como coluna Directus. Consulta de vínculos resolve cada par; anexos comuns/individuais só nas saídas.
+- Consumidores: formulário/prévia, API, vínculos, histórico e relatório funcional atualizados. Lista/MAP/Carteira continuam consumindo valores/status oficiais. Sem Asaas, mensagem, PDF ou tarefa novos. Requisições antigas preservadas sem defaults novos no hash; componente independente só como compatibilidade, não montado na tela atual.
+- QA desktop e390x844 escuro: prévia150 em55/45=82.50/67.50, nenhum campo duplicado. Sem salvar dados reais. Testes focados passaram; resultado das verificações completas registrado na entrega. Alterações paralelas onboarding/telefone preservadas, não atestadas por este trabalho.
+- Validação final: platform:verify exit0,541 testes, tipos e build; platform:review --base HEAD aprovado. Backend3004 não reiniciado: startup inclui criação aditiva de bia_despesa_aportes no banco compartilhado. Frontend já atualizado pelo Vite; novo comportamento de gravação requer reinício. Sem commit/push/deploy.

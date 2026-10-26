@@ -27,6 +27,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 ## Dados e fontes de verdade
 
+- Seletores telefônicos compartilham `PhoneInput`: país por extenso e DDI (Brasil (+55), África do Sul (+27)), com nome acessível País e código internacional. Seletor ocupa uma linha própria para não cortar nomes nem comprimir o número em telas estreitas. Mudança somente visual; catálogo, valores enviados e números existentes permanecem iguais, sem novo campo obrigatório de DDD.
+
 - Directus `cadastro_geral`: perfil de pessoa/empresa.
 - Identidade do membro: `nome` e o nome publico exibido no perfil; `nome_completo` e `cpf` sao dados restritos de formalizacao. Registros legados sem `nome_completo` podem usar `nome` apenas como fallback de leitura em documentos.
 - PostgreSQL `user_account_purposes`: finalidades escolhidas e suas intencoes; Meu Perfil usa a mesma taxonomia de `shared/initial-onboarding.ts`.

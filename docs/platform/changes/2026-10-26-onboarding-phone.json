@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "id": "2026-10-26-onboarding-phone",
+  "title": "Corrigir telefone que bloqueia conclusão do onboarding",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/initial-onboarding.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "buildInitialOnboardingProfileFields",
+    "normalizeOnboardingPhone"
+  ],
+  "consumers": [
+    {"path":"client/src/components/phone-input.test.ts","decision":"updated","reason":"Ampliação posterior do onboarding ao seletor compartilhado: teste verifica id/erro acessível, telefone nacional legado, DDI explícito e payload. Validação do servidor permanece preservada."},
+    {
+      "path": "shared/initial-onboarding.ts",
+      "decision": "updated",
+      "reason": "Validação e compactação do telefone centralizadas na etapa Perfil e projeção final."
+    },
+    {
+      "path": "shared/initial-onboarding.test.ts",
+      "decision": "updated",
+      "reason": "Regressões para formatação longa, números internacionais, vazio, tipo inválido e nenhuma truncagem."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Revalidação das respostas nas duas conclusões antes de Directus/convite/jornada; preservar deltas paralelos de despesas."
+    },
+    {
+      "path": "server/onboarding-phone.test.ts",
+      "decision": "updated",
+      "reason": "Executa handlers reais com fontes isoladas; 400/401, normalização e ordem de conclusão."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "updated",
+      "reason": "Validação local, erro acessível, retorno ao Perfil e título sem conclusão prematura."
+    },
+    {
+      "path": "docs/platform/modules/acesso-onboarding.md",
+      "decision": "updated",
+      "reason": "Contrato da correção e tratamento de jornadas antigas."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rota e guarda existentes continuam consultando status; só conclusão real libera acesso."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "preserved",
+      "reason": "Prévia existente intercepta respostas do onboarding sem gravar dados; usada para QA."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "preserved",
+      "reason": "Consome acesso a ambientes, não normalização de telefone; regra de acesso inalterada."
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.test.ts",
+      "decision": "preserved",
+      "reason": "Chama builder sem telefone; áreas de contribuição preservadas."
+    },
+    {
+      "path": "client/src/components/environment-access.tsx",
+      "decision": "preserved",
+      "reason": "Ambientes derivam finalidades, não telefone; sem novos privilégios."
+    },
+    {
+      "path": "client/src/lib/profile-completion.ts",
+      "decision": "preserved",
+      "reason": "Usa requiresContributionAreas, que não foi alterado."
+    },
+    {
+      "path": "client/src/lib/profile-completion.test.ts",
+      "decision": "preserved",
+      "reason": "Completude profissional mantém contrato; nenhuma exigência de telefone global adicionada."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Bootstrap sem alteração; carrega a página atualizada."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de acesso; telefone não muda Aura nem convite por conta própria."
+    },
+    {
+      "path": "client/src/pages/land-bank-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de acesso, sem chamada ao builder de perfil."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "preserved",
+      "reason": "Usa requiresContributionAreas; autenticação e registro inicial fora do escopo desta validação de onboarding."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Usa taxonomias/finalidades, não builder; sem mudança de dados existentes ou contratos do perfil completo."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de acesso; só recebe usuário após conclusão real."
+    },
+    {
+      "path": "client/src/pages/vitrine-demandas.tsx",
+      "decision": "preserved",
+      "reason": "Guarda de ambientes inalterada; nenhuma publicação causada pela correção."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Guarda de ambientes inalterada; nenhuma publicação causada pela correção."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Guarda de ambientes inalterada; nenhuma publicação causada pela correção."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "preserved",
+      "reason": "Guarda de ambientes inalterada; nenhuma publicação causada pela correção."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Bootstrap mantém middleware de erro e cron; respostas de validação agora explícitas nas rotas."
+    },
+    {
+      "path": "shared/environment-access.ts",
+      "decision": "preserved",
+      "reason": "Importa somente normalizeOnboardingPurposes, inalterado."
+    },
+    {
+      "path": "shared/environment-access.test.ts",
+      "decision": "preserved",
+      "reason": "Matriz de ambientes e permissões não alterada."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real na prévia isolada: Perfil desktop e390x844, telefone123 mostra erro junto ao campo e telefone internacional válido remove erro; Pronto exibe Tudo pronto para concluir. Sem envio de dados reais nem aceites."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Handlers reais v2 e legado testados com respostas antigas; retorno400 ao Perfil antes das escritas. Sessão401 mantida."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Metadados Directus lidos: telefone varchar(30). Compactação mantém dígitos e DDI; sem truncagem, migração ou escrita real. Nenhum rascunho pendente acima de30 foi encontrado na base acessível; reprodução por fixture."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Telefone do onboarding não altera valores, patrimônio, CPP ou gráficos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Validação ocorre antes de completeInitialOnboardingInvite; erro não gera conclusão nem notificações. Dados válidos mantêm fluxo existente."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Legado revalida antes de registrar aceite. Evidências/documentos assinados não são reescritos; não exige novos aceites."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Directus mantido; payload compacto cabe no schema lido. Sem mudança em cron, webhooks ou migração de serviço."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Autenticação e guarda de etapa preservadas; rota de correção limitada a /onboarding/perfil no cliente. Não conclui nem libera acessos em erro."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Revalidação de rascunho v2 e fluxo antigo; aceites iniciais v2 não exigem perfil antecipado. Vazio opcional não apaga telefone existente."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "29 testes focados passaram. Rechecagem platform:verify exit0:535 testes/0falhas, tipos, contrato, consistência, tooling e build aprovados (.BUILT-tmp/onboarding-phone-verify-final.log). Prévia visual isolada conferida; aplicação do backend no localhost aguarda autorização para reinício, pois código paralelo executa DDL de despesas no banco compartilhado. Não foi concluído onboarding real."
+    }
+  ],
+  "regressionTests": [
+    "shared/initial-onboarding.test.ts",
+    "server/onboarding-phone.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

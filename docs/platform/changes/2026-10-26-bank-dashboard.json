@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "id": "2026-10-26-bank-dashboard",
+  "title": "Dashboard da conta Asaas no Banco: saldo e históricos por situação",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/asaas-dashboard.ts",
+    "server/asaas/dashboard.ts"
+  ],
+  "searchTerms": [
+    "bankDashboardSchema",
+    "readBankDashboard",
+    "bankEntryGroup",
+    "Histórico anterior da BIA"
+  ],
+  "consumers": [
+    {
+      "path": "shared/asaas-dashboard.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "server/asaas/dashboard.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "server/asaas/dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "server/asaas/operations.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "client/src/lib/mobile-layout.test.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "docs/platform/modules/pagamentos-integracoes.md",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Dashboard bancário somente leitura e seus testes/contratos; mudanças paralelas no mesmo arquivo são preservadas, sem atestá-las."
+    },
+    {
+      "path": "shared/asaas.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "shared/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/config.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/client.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/store.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/credentials.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/accounts.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/events.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/components/asaas-status.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/bia-bank-history.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/bia-bank-history.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/integração revisado para compatibilidade: permissões, credencial, escrita financeira, cobrança, webhook e histórico permanecem existentes. Novo painel acessado via BiaAsaasStatus; demais módulos não ganham operações."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada Sandbox: saldo remoto zero e históricos completos vazios em90 dias e todo histórico; modal de transferência aberto/cancelado sem POST. Desktop e390px sem overflow (scrollWidth390); fixture isolada claro/escuro com14 cobranças e5 transferências validou filtros, paginação e falha parcial, sem persistência. Captura output/bank-dashboard-20261026.png."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Endpoint GET novo sob authorizeBia view/ID canônico, schema period30/90/365/all, no-store no cliente e resposta, projeção mínima; testes403/400/200, ID canônico e serviço com credencial da conta aprovada. Cache de resposta410 anterior ao reinício eliminado com fetch no-store; consulta real200 confirmada."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Nenhuma migração ou escrita. Cofre/vínculo existente lidos; endpoints remotos somente GET, sem alteração de Directus ou financeiro."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "bankTotals soma valores nominais em centavos por situação; saldo exclusivamente remoto. CONFIRMED/RECEIVED_IN_CASH/estornos separados; paginação, deduplicação, limite e falha parcial testados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Consulta não envia cobranças, e-mail, alerta ou mensagem e não modifica cronograma/lembretes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional Banco/Asaas atualizado; links de cobrança/comprovantes apenas Asaas validado. PDFs/aceites/snapshots não modificados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Docs oficiais de listagem Asaas conferidas; GET balance/payments/transfers com credencial própria, até5 páginas de100 e limite entre páginas. Não modifica webhooks/worker/env ou produção."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Route usa requireBiaModuleAccess capital_banco view existente; transferir permanece edit+flag+confirmação backend. Nenhuma nova permissão ou exposição de chave/CPF/conta/pagador."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Overview finance preservado; prefixo query finance invalida painel após refresh/transferência. Histórico legado não misturado ao Asaas e renomeado com guarda."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final exit0:552 testes aprovados/0falhas, contratos, consistência, tipos e build. Log .BUILT-tmp/bank-dashboard-verify-final.log. Regressões cobrem status, centavos, paginação, cap, falha parcial, credencial aprovada, autorização403/400/200, ID canônico e cache no-store. QA real Sandbox e fixture isolada realizadas; não homologa pagamentos reais."
+    }
+  ],
+  "regressionTests": [
+    "server/asaas/dashboard.test.ts",
+    "client/src/components/asaas-bank-dashboard.test.ts",
+    "client/src/components/asaas-status.test.ts",
+    "client/src/lib/mobile-layout.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "bank-legacy-history-label"
+  ]
+}

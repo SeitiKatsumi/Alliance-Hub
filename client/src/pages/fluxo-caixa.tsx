@@ -28,6 +28,7 @@ import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
 import { SearchableNameSelect } from "@/components/searchable-name-select";
 import { ExpenseContributionsFields, ExpenseContributionLinks, emptyExpenseFunding, fundingParticipants } from "@/components/expense-contributions";
+import { ExistingExpenseAction, ExistingExpenseDialog } from '@/components/existing-expense-contributions';
 import { splitExpense, inheritedExpenseSplit } from "@shared/expense-contributions";
 import { MAP_DYNAMIC_FOOTER, allocateQuotaTransferAmounts, calculateMap, type MapContribution } from "@shared/member-portfolio";
 import {
@@ -1597,6 +1598,8 @@ export default function FluxoCaixaPage({
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
   const [generateFunding, setGenerateFunding] = useState(false);
+  const [existingExpenseId, setExistingExpenseId] = useState<string | null>(null);
+  const editBaseline = useRef('');
   const [expenseFunding, setExpenseFunding] = useState(emptyExpenseFunding);
   const [pendingExpenseRequest, setPendingExpenseRequest] = useState<any>(null);
   const fundingStorageKey = `expense-funding:${currentUser?.id || ""}:${selectedBiaId || ""}`;
@@ -2515,6 +2518,17 @@ export default function FluxoCaixaPage({
     const rawValue = parseBRLToNumber(item.valor);
     const valorTotal = parseBRLToNumber(formValor);
     return rateioModo === "percentual" ?Number(((valorTotal * rawValue) / 100).toFixed(2)) : rawValue;
+  }
+
+  const editSignature = JSON.stringify({ payload: buildPayload([]), rateioTipo, rateioModo, rateioItems, pendingFiles: pendingFiles.map(file => [file.name, file.size, file.lastModified]) });
+  useEffect(() => { if (editDialogOpen) editBaseline.current = editSignature; }, [editDialogOpen, editingItemId]);
+  function openExistingExpense(id: string, fromEdit = false) {
+    if (fromEdit && editBaseline.current !== editSignature) {
+      toast({ title: 'Salve as alterações da despesa antes de gerar os aportes.', variant: 'destructive' });
+      return;
+    }
+    if (fromEdit) setEditDialogOpen(false);
+    setExistingExpenseId(id);
   }
 
   async function prepareCreatedPayments(items:any[]) {
@@ -4187,6 +4201,7 @@ export default function FluxoCaixaPage({
                                   )}
                                   {item.tipo==='entrada'&&isCashEntry(item)&&<DropdownMenuItem onSelect={()=>setPaymentFlowId(String(item.id))}>Pix e boleto do aporte</DropdownMenuItem>}
                                   {item.tipo==='entrada'&&isCashEntry(item)&&<DropdownMenuItem onSelect={()=>setReminderFlowId(String(item.id))}>Lembretes do aporte</DropdownMenuItem>}
+                                  <ExistingExpenseAction entry={item} menu onOpen={() => openExistingExpense(item.id)} />
                                   <DropdownMenuItem onSelect={() => openEditDialog(item)} data-testid={`button-edit-${item.id}`}>
                                     <Pencil className="h-4 w-4" />
                                     Editar
@@ -4360,7 +4375,7 @@ export default function FluxoCaixaPage({
           </Dialog>
 
           <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) { setEditingItemId(null); } setEditDialogOpen(open); }}>
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+            <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Pencil className="w-5 h-5 text-brand-gold" />
@@ -4392,10 +4407,11 @@ export default function FluxoCaixaPage({
                 uploading={uploading}
                 onCreateFavorecido={handleCreateFavorecido}
               />
-              <DialogFooter>
+              <DialogFooter className="sm:flex-wrap">
                 <Button variant="outline" onClick={() => { setEditDialogOpen(false); setEditingItemId(null); }} data-testid="button-cancelar-edit">
                   Cancelar
                 </Button>
+                {!readOnly && <ExistingExpenseAction entry={allFluxo.find(item => item.id === editingItemId)} onOpen={() => { if (editingItemId) openExistingExpense(editingItemId, true); }} />}
                 <Button
                   onClick={handleEditSubmit}
                   disabled={updateMutation.isPending || uploading}
@@ -4414,6 +4430,7 @@ export default function FluxoCaixaPage({
           </Dialog>
 
           <ContributionPaymentDialog biaId={selectedBiaId} flowId={paymentFlowId} onClose={()=>setPaymentFlowId(null)}/>
+          <ExistingExpenseDialog biaId={selectedBiaId} userId={String(currentUser?.id || '')} flowId={existingExpenseId} onClose={() => setExistingExpenseId(null)} onPayment={id => { setExistingExpenseId(null); setPaymentFlowId(id); }} />
           <ContributionReminderDialog biaId={selectedBiaId} flowId={reminderFlowId} onClose={()=>setReminderFlowId(null)}/>
           <Dialog open={!!boletoItem} onOpenChange={(open) => { if (!open) { setBoletoItem(null); setBoletoUrl(""); gerarBoletoMutation.reset(); } }}>
             <DialogContent className="sm:max-w-[520px]">

@@ -1,3 +1,4 @@
+import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
 import { sql } from "drizzle-orm";
 import { decorateInitialEntries } from "./initial-contributions";
 import { isCashEntry } from "../shared/initial-contributions";
@@ -138,9 +139,9 @@ function moneyValue(value: unknown): number {
 }
 
 async function fetchPaymentReminderItems(targetDate: string): Promise<PaymentReminderItem[]> {
-  const directusUrl = String(process.env.DIRECTUS_URL || "").replace(/\/$/, "");
+  const directusUrl = String(process.env.DIRECTUS_URL || (nativeDataEnabled() ? 'https://databases.builtalliances.com' : '')).replace(/\/$/, "");
   const directusToken = process.env.DIRECTUS_TOKEN;
-  if (!directusUrl || !directusToken) throw new Error("Directus nao configurado para lembretes financeiros.");
+  if (!nativeDataEnabled() && (!directusUrl || !directusToken)) throw new Error("Directus nao configurado para lembretes financeiros.");
 
   const query = new URLSearchParams({
     "filter[tipo][_eq]": "saida",

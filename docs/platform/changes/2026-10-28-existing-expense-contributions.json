@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "id": "2026-10-28-existing-expense-contributions",
+  "title": "Aportes de despesas existentes sem recriar a saída, somente homologação",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "shared/existing-expense-contributions.ts",
+    "shared/expense-contributions.ts",
+    "server/existing-expense-contributions.ts"
+  ],
+  "searchTerms": [
+    "existing-expense-contributions",
+    "despesa_existente_id",
+    "aportes_vinculados"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/existing-expense-contributions.tsx",
+      "decision": "updated",
+      "reason": "Ação na edição/menu, prévia e confirmação recuperável; opções externas depois da criação."
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "updated",
+      "reason": "Prévia compartilhada com novo lançamento e nomes nos vínculos."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Integra ações, protege alterações não salvas e invalida lista e vínculos. Rodapé da edição usa modal de 560px e flex-wrap para acomodar três ações sem invadir o recuo; no celular preserva empilhamento. Ajuste visual, sem alterar API/dados/cálculos."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Documenta geração de entradas a partir de saída existente."
+    },
+    {
+      "path": "shared/existing-expense-contributions.ts",
+      "decision": "updated",
+      "reason": "Elegibilidade e rateio usando helpers monetários existentes."
+    },
+    {
+      "path": "shared/existing-expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "Casos de centavos, partes inválidas, status e preservação de cronograma."
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "decision": "updated",
+      "reason": "Autorização, prévia, origem/versionamento, intenção durável e entradas com IDs estáveis."
+    },
+    {
+      "path": "server/existing-expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "HTTP e banco: conflitos, permissões, resposta perdida, retomada, concorrência, vínculos e histórico."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "updated",
+      "reason": "Bootstrap aditivo, registro das rotas, proteção dos vínculos e nomes dos participantes."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Serialização financeira de legadas sem snapshot, proteção no sincronizador e HTTP 409 de edição incompatível; preserva demais mudanças da migração."
+    },
+    {
+      "path": "server/valor-origem-sync.ts",
+      "decision": "updated",
+      "reason": "Flag de vínculo preserva registros agendados no cronograma."
+    },
+    {
+      "path": "migrations/20261028_existing_expense_contributions.sql",
+      "decision": "updated",
+      "reason": "Apenas colunas opcionais e unicidade parcial por despesa, sem backfill."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Contrato, fontes e decisões dos consumidores."
+    },
+    {
+      "path": "docs/platform/EXISTING_EXPENSE_QA_2026-10-28.md",
+      "decision": "updated",
+      "reason": "Evidências, defeitos encontrados, resultados e limites."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas autenticadas e permissões de navegação preservadas."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Inicialização e provedor React Query mantidos."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Financeiro continua dentro da mesma BIA autorizada."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Importador transitivo; documentos não são alterados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "MAP deriva somente dos movimentos elegíveis pagos; novos aportes permanecem abertos."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo componente Financeiro e autorização."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Inicialização registra rotas e migração aditiva; credenciais privadas e isolamento mantidos."
+    },
+    {
+      "path": "server/expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Regressão dos lotes de criação anteriores continua passando."
+    },
+    {
+      "path": "shared/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Fonte compartilhada de rateio; sem nova fórmula."
+    },
+    {
+      "path": "shared/expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Regressão de cálculos e herança mantida."
+    },
+    {
+      "path": "server/valor-origem-sync.test.ts",
+      "decision": "preserved",
+      "reason": "Regressão de cronogramas pagos/protegidos mantida."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Preparação de cobrança separada, com mesmos guards e bloqueio de integração privada."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Configuração, tarefas e disparos mantidos; ambiente privado impede SMTP real."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.tsx",
+      "decision": "preserved",
+      "reason": "Campos e salvamento opcionais reutilizados."
+    },
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "preserved",
+      "reason": "Emissão e consulta reutilizadas após lote durável."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Catálogo permanece testado pela suíte global."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Renderiza o catálogo funcional atualizado; sem alteração da navegação ou dos filtros."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Valida o contrato do relatório; executado sem alteração de regras do gate."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de emissão e vínculos executadas; serviço de cobranças preservado."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões dos aportes avulsos, CPP ausente e habilitação de cobrança preservadas."
+    },
+    {
+      "path": "server/fluxo-delete.test.ts",
+      "decision": "preserved",
+      "reason": "Guarda e retorno de exclusão continuam protegendo movimentos vinculados."
+    },
+    {
+      "path": "server/initial-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Lotes iniciais e cronogramas modernos mantêm IDs/regras próprias; suíte passou."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Desktop: edição com alteração não salva bloqueada, restauração libera prévia, MAP preenche participantes e valores manuais fecham total. Celular 390x844: prévia, carregamento e confirmação sintética. Reabertura muda ação para Ver aportes; nomes e totais conferidos."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Testes HTTP reais em Express e 35 chamadas à cópia privada: prévia, confirmação, concorrência, versões, permissão, herança de status/data/CPP e vínculos. Edição incompatível retorna 409."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração aditiva aplicada somente na cópia: origem única, intenção, distribuição e IDs duráveis. Saída original não é regravada; histórico recebe evento adicional. JSONB não depende de ordem de chaves. Directus original e backups preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Helpers compartilhados validam valores/percentuais/MAP, valores inválidos e centavos. Na cópia três entradas somam R$100; geração mantém quantidade e total das saídas. A Receber atualizado pela mesma lista oficial; sem mudar fórmulas de dashboard/MAP."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Campos e API de lembretes reutilizados após lote; configuração sintética validada independentemente. SMTP real bloqueado, não se afirma entrega de e-mail."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional e contrato atualizados. Não altera PDFs, assinaturas, anexos ou histórico anterior; criação não copia comprovantes de pagamento para aportes abertos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Preparação Pix/boleto sintética cria apenas pedido privado (202, external_id nulo); executor e rede externos desativados. Ressincronização real de Valor de Origem preservou os três IDs vinculados e aportes. Falhas de follow-up não repetem criação financeira."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Backend revalida capital_financeiro/edit e fase; 401/403 e retirada de permissão após prévia testados. Autorização novamente dentro do lock. Unicidade por despesa e serialização por BIA, inclusive sem snapshot."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Parcelas geradas pelo sincronizador antigo foram usadas nos dois modos. Repetir cronograma protege despesas/aportes vinculados ainda agendados. Criação antiga continua com regressões aprovadas, sem migração em massa."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify: 597 testes, zero falhas, TypeScript, contratos, consistência e build. Testes de domínio/HTTP com resposta perdida, duas abas, centavos, conflitos e vínculos. Homologação: cinco cenários/35 chamadas; QA visual desktop e 390px. Revisão integral mantém quatro pendências anteriores fora deste trabalho."
+    }
+  ],
+  "regressionTests": [
+    "shared/existing-expense-contributions.test.ts",
+    "server/existing-expense-contributions.test.ts",
+    "server/expense-contributions.test.ts",
+    "server/valor-origem-sync.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

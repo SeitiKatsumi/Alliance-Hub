@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "id": "2026-10-28-native-migration-journeys",
+  "title": "Jornadas de criação na cópia privada e correções de conclusão da BIA e edição de OBA",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "scripts/native-platform-journey.ts",
+    "docs/platform/MIGRATION_QA_2026-10-28.md"
+  ],
+  "searchTerms": [
+    "prepareBiaPayload",
+    "native-platform-journey",
+    "native-migration-journey",
+    "fields=id,bia,bia_id,status"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Remove estrutura versionada do payload físico de apresentação e campos inexistentes da leitura de autorização da OBA. Preserva appendBiaSetup e regras de vínculo."
+    },
+    {
+      "path": "server/native-migration-journey.test.ts",
+      "decision": "updated",
+      "reason": "Executa helper e handler reais extraídos das rotas; regressão dos dois defeitos descobertos pelas jornadas HTTP."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "updated",
+      "reason": "Operador restrito à cópia isolada: 27 jornadas HTTP, assertivas de persistência, idempotência, autorização e arquivos, sem chamadas externas."
+    },
+    {
+      "path": "scripts/tsconfig.platform.json",
+      "decision": "updated",
+      "reason": "Inclui a nova ferramenta na checagem TypeScript, sem execução no startup ou build de produção."
+    },
+    {
+      "path": "server/bia-map-creation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor de prepareBiaPayload; a suíte existente continua passando com preservação de estrutura para o versionamento posterior."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "preserved",
+      "reason": "Extração de rotas e fonte física de BIA mantidas; suite completa aprovada."
+    },
+    {
+      "path": "docs/platform/MIGRATION_QA_2026-10-28.md",
+      "decision": "updated",
+      "reason": "Registra cada jornada, resultado real, duas correções e limites explícitos de cobertura."
+    },
+    {
+      "path": "docs/platform/DIRECTUS_MIGRATION.md",
+      "decision": "updated",
+      "reason": "Atualiza decisão do usuário de adiar publicação e aponta cobertura ampliada na cópia."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-28-directus-consolidation.json",
+      "decision": "reviewed",
+      "reason": "Registro da mesma migração ainda não publicada inclui ferramenta de QA como consumidora da cópia consolidada."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-28-directus-native-runtime.json",
+      "decision": "reviewed",
+      "reason": "Registro do trabalho corrente passa a reconhecer os novos testes de escrita do runtime, sem atestar serviços externos."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Payload e sequência de conclusão continuam iguais; correção ocorre na separação das duas persistências no servidor."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Perfil sintético salvo e recarregado com Portugal +351; estado Salvando e layout desktop/390px conferidos. Demais jornadas são por API, sem alegar navegação manual de cada tela. Formulários e contratos públicos preservados."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "27 jornadas e 174 chamadas instrumentadas passaram: onboarding, cadastro, leitura, edição, exclusão de fixtures, repetição e conflito. OBA lê id,bia; conclusão da BIA preserva estrutura versionada."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente clone isolated-rehearsal; IDs, relações, dinheiro numérico e histórico verificados. estrutura_bia permanece em bia_estrutura_versoes, não na apresentação. Nenhuma migração de esquema ou mudança em produção nesta rodada."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "MAP inicial, versão/PDF, parcelas, entrada paga, herança de status e repetição sem duplicação conferidos. Helpers de valores e gráficos preservados; suíte de domínio incluída nos 594 testes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Configurar lembrete duas vezes mantém uma ação de calendário; Agenda conferida. SMTP permanece bloqueado e não se afirma entrega real. Nenhum destinatário real foi acionado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "PNG enviado/baixado com bytes iguais, documentos técnico/capital criados e editados, PDF de MAP válido baixado. Comprovante sintético aprovado sem duplicação; assinados reais preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Script requer flags privadas, loopback fixo, URL Directus inválida e marcador SQL. Rede interna e ausência de credenciais mantidas; Asaas/Stripe/OAuth/IA e e-mail reais explicitamente fora desta rodada."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Usuário sem vínculo recebe 403 na BIA privada, gravação sem sessão recebe 401, revisão antiga e ativação prematura recebem 409. Relação por segunda comunidade conferida; sem relaxar os guards."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Dados originais e backups intactos. Fixture legada ativada apenas para preparar testes financeiros; assistente moderno concluído por API até em captação. Dados de QA não serão promovidos. Limitações de retorno e integrações registradas no relatório."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify passou: 594 testes/0 falhas, contratos, consistência, tipos e build. Nova ferramenta tipada; 27 jornadas finais/174 chamadas/0 falhas e duas regressões aprovadas. Logs privados referenciados no relatório."
+    }
+  ],
+  "regressionTests": [
+    "server/native-migration-journey.test.ts",
+    "server/native-data-store.test.ts",
+    "server/bia-map-creation.test.ts",
+    "server/bia-map-api.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

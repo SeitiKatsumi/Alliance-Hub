@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "id": "2026-10-28-directus-migration-foundation",
+  "title": "Fundação da migração: inventário e backup restaurado, sem troca de backend",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "scripts/directus-migration-backup.py",
+    "docs/platform/DIRECTUS_MIGRATION.md"
+  ],
+  "searchTerms": [
+    "directus-migration"
+  ],
+  "consumers": [
+    {"path":"script/build.ts","decision":"reviewed","reason":"Ferramentas de manutenção agora empacotadas separadamente; não executadas no backup nem no startup, revisão no registro directus-native-runtime."},
+    {"path":"scripts/directus-native-recovery.py","decision":"reviewed","reason":"Consumidor posterior do backup e comparação; ensaio privado de retorno sem sobrescrever cópias ou bancos originais."},
+    {"path":"scripts/directus-migration-checkpoint.py","decision":"reviewed","reason":"Consumidor novo das rotinas de cópia privada; ensaio separado e sem escrita nas origens, coberto no registro directus-consolidation."},
+    {"path":"scripts/directus-migration-consolidate.py","decision":"reviewed","reason":"Consumidor novo de backups verificados; importa apenas em clone isolado, sem mudar a fundação."},
+    {"path":"scripts/directus-migration-consolidate-test.py","decision":"reviewed","reason":"Testa validação de backup e isolamento das novas ferramentas operacionais."},
+    {"path":"scripts/directus-migration-journal.test.ts","decision":"reviewed","reason":"Testa diário de recuperação da cópia; não muda backup original."},
+    {"path":"scripts/directus-migration-journal.sql","decision":"reviewed","reason":"Instalado somente na cópia consolidada; fontes e backups da fundação preservados."},
+    {"path":"scripts/lib/platform-change-safety.ts","decision":"updated","reason":"Inclui Python nas verificações existentes, sem relaxar exclusões de segredos e temporários; ferramentas operacionais também precisam de revisão."},
+    {"path":"scripts/platform-change-safety.test.ts","decision":"updated","reason":"Regressão garante inspeção dos scripts Python e exclusão de temporários."},
+    {"path":"scripts/platform-consistency.ts","decision":"preserved","reason":"Consumidor da classificação de fontes; passa a revisar Python sem mudar critérios de aprovação."},
+    {"path":"scripts/platform-impact.ts","decision":"preserved","reason":"Consumidor da classificação de fontes; passa a incluir scripts Python no inventário textual."},
+    {
+      "path": "scripts/directus-migration-backup.py",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    },
+    {
+      "path": "scripts/directus-migration-backup-test.py",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    },
+    {
+      "path": "scripts/directus-migration-inventory.ts",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    },
+    {
+      "path": "scripts/directus-migration.test.ts",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    },
+    {
+      "path": "scripts/tsconfig.platform.json",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    },
+    {
+      "path": "docs/platform/DIRECTUS_MIGRATION.md",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    },
+    {
+      "path": "docs/platform/modules/pagamentos-integracoes.md",
+      "decision": "updated",
+      "reason": "Ferramenta operacional, teste, verificação de tipos ou contrato da fase preparatória; não declara migração concluída."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "not-applicable",
+      "evidence": "Sem mudança de interface ou aplicação publicada; homologação navegável pendente, explicitamente documentada."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Nenhum endpoint ou contrato de produção alterado; novas ferramentas não fazem parte do runtime."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Dump somente leitura dos dois bancos, pg_restore transacional em clones sem rede. Diretórios0700 e arquivos0600. Originais e backups preservados sem exclusão automática; não há sincronismo entre snapshots, não usar para virada."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Nenhum cálculo ou saldo modificado; reconciliação funcional é etapa posterior."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Nenhuma aplicação clonada iniciada; nenhum worker, SMTP ou chamada a provedor executado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "1086 arquivos copiados e hashes conferidos; original preservado. Documento de migração identifica tarefas pendentes sem declarar entrega integral."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Clones sem rede, sem portas e parados após restauração; duas automações manuais do Directus identificadas sem execução. Nenhuma troca de configuração produtiva."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Ferramentas somente operador, nunca endpoint; preservados acessos atuais. Backup inclui dados sensíveis e permanece fora de Git/web root com acesso restrito."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Todas as tabelas e arquivos preservados, inclusive credenciais cifradas e coleções sem consumidor mapeado. Nenhum descarte/retenção automática."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:580 testes/0falhas, tipos/build (.BUILT-tmp/directus-migration-verify.log). Quatro testes Python passaram no host. Ensaio real restaurou64 tabelas Directus e129 da aplicação e verificou1086 arquivos. Aprovação somente desta fundação; migração funcional/homologação integral ainda pendentes no documento."
+    }
+  ],
+  "regressionTests": [
+    "scripts/directus-migration.test.ts",
+    "scripts/platform-change-safety.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -1,5 +1,16 @@
 # Capital e Financeiro da BIA
 
+## Aportes de saída existente — 28/10/2026, somente homologação
+
+- Menu e edição oferecem Gerar aportes para saídas em dinheiro pendentes, agendadas ou vencidas, inclusive parcelas legadas de Valor de Origem. Pago/parcial/cancelado ficam fora. Edição com alterações locais exige salvar primeiro; depois do lote, a ação torna-se Ver aportes.
+- A prévia compartilhada com a criação permite partes manuais por valor/percentual ou todos os participantes positivos do MAP oficial. Cálculos reutilizam `shared/expense-contributions.ts`; centavos fecham exatamente o total. Vencimento editável; status e CPP vêm da origem, inclusive CPP vazio.
+- GET e POST `/api/fluxo-caixa/:id/aportes`, POST `/previa`: autorização financeira de edição e fase operacional revalidadas, inclusive após espera pelo lock. Fonte oficial: saída vigente, participantes da BIA e MAP do servidor. Mudança da origem ou distribuição oficial invalida a prévia.
+- Lote PostgreSQL `bia_despesa_aportes` guarda origem única, hash/versão, distribuição, autor e IDs antes da criação. Somente entradas são criadas; saída mantém identidade, valor e histórico, recebendo evento adicional `aportes_gerados`. Resposta perdida retoma intenção congelada sem criar outra despesa/aporte. Serialização financeira por BIA abrange também legadas sem snapshot.
+- Vínculos proíbem exclusão isolada, mudança de valor/identidade e cancelamento isolado. Sincronizador de Valor de Origem preserva a parcela vinculada e as entradas do lote, ainda que agendadas. Histórico e documentos anteriores não são reescritos.
+- Lembretes/Agenda e emissão Pix/boleto reutilizam operações existentes após a confirmação financeira. Falha externa deixa o lote concluído e oferece retomar a configuração pelo menu do aporte; não recria os movimentos. Nesta homologação, SMTP e pagamentos externos continuam bloqueados.
+- Consumidores atualizados: formulário/menu Financeiro, prévia/vínculos compartilhados, API/lote, guarda de escrita/exclusão, sincronizador, relatório funcional. Preservados: agregações de entrada/saída/a receber (consomem os mesmos movimentos), MAP/CPP após pagamento, documentos/PDFs, templates e preferências de lembretes, autorização de cobrança. Sem geração retroativa em massa, alterações em produção ou no Directus original.
+- Migração aditiva `migrations/20261028_existing_expense_contributions.sql`; equivalente no bootstrap. Testes `shared/existing-expense-contributions.test.ts`, `server/existing-expense-contributions.test.ts`, regressões de lotes anteriores e Valor de Origem. Evidência e limites em `docs/platform/EXISTING_EXPENSE_QA_2026-10-28.md`.
+
 - Lembretes de aporte abrem a ação Pagar aporte na Agenda, na data do vencimento. Da ação, Consultar aporte · Pix e boleto abre o lançamento autorizado. Status da agenda não comprova pagamento financeiro. Uma ação por lançamento/pagador/vencimento, prazos de notificação independentes.
 
 - 26/10/2026: criação de aporte ou aportes vinculados permite lembretes opcionais por e-mail e plataforma, com mês/semana/dia selecionáveis. Configuração posterior no menu Lembretes do aporte. Persistência separada após criação: erro de configurar não desfaz nem recria lançamento. Gestor com edição financeira configura; pagador só consulta. Fonte: lançamento vigente + `bia_aporte_reminder_settings`/`bia_aporte_reminder_deliveries`. Sem alteração de valores, CPP, saldo, pagamento ou emissão Asaas. Link do lembrete abre pagamento por ID com autorização backend. Migração não opta registros antigos automaticamente.
@@ -204,6 +215,8 @@ Para compatibilidade com o motor de movimentações, `base_economica_inicial` co
 
 O plano contratual não gera cronograma automaticamente: parcelas, beneficiários e confirmação permanecem no Financeiro. Correção como IGP-M é informativa, sem atualização automática. Valores e cálculos são números; máscara monetária pt-BR e percentuais com cinco casas pertencem à interface.
 ## Pagamento de aportes na plataforma — 26/10/2026
+
+O editor financeiro acomoda Cancelar, Gerar/Ver aportes e Salvar Alterações dentro do recuo interno do modal: largura de até 560px no desktop, quebra de linha quando necessário e botões empilhados no celular. Ajuste apenas visual; domínio, API e dados permanecem iguais.
 
 O Financeiro oferece Pix e boleto no mesmo pagamento Asaas. Novos aportes em dinheiro com CPP e aportes abertos vinculados a despesas podem preparar a cobrança após salvar, mediante a opção de emissão. Falha da preparação mantém o lançamento salvo e permite retomada pelo menu Pix e boleto do aporte. Pagos, não caixa e movimentos compensatórios não são emitidos. O cronograma inicial também abre os meios pelo movimento vinculado.
 

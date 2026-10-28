@@ -1,3 +1,5 @@
+import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
+import { isolatedStage, assertIsolatedStageEnvironment } from './isolated-stage';
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -11,6 +13,7 @@ import { Pool } from "pg";
 import { publicBankResponse } from "./bank-response";
 
 const app = express();
+assertIsolatedStageEnvironment();
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -46,13 +49,14 @@ const sessionStore =
 
 app.use(
   session({
+    name: isolatedStage() ? 'built.stage.sid' : 'connect.sid',
     store: sessionStore,
     secret: process.env.SESSION_SECRET || "built-alliances-secret-2024",
     resave: false,
     rolling: true,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" && !isolatedStage(),
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
@@ -132,7 +136,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)/i.test(path)) {
+      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)/i.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -148,6 +152,7 @@ app.use((req, res, next) => {
   await registerRoutes(httpServer, app);
   // ── Reminder cron: runs every 30 minutes, sends 24h/48h/72h reminders for termos_pendentes
   cron.schedule("*/30 * * * *", async () => {
+    if (isolatedStage()) return;
     try {
       const { storage } = await import("./storage");
       const { enviarLembreteTermos, notificarAliadoConviteExpirado } = await import("./mailer");
@@ -225,8 +230,10 @@ app.use((req, res, next) => {
       if (result.sent || result.retry) console.log(`[payment-reminders] enviados=${result.sent} retentativas=${result.retry}`);
     })
     .catch((error: any) => console.error("[payment-reminders] job falhou:", error?.message || error));
-  void runPaymentReminders();
-  cron.schedule("*/30 * * * *", runPaymentReminders);
+  if (!isolatedStage()) {
+    void runPaymentReminders();
+    cron.schedule("*/30 * * * *", runPaymentReminders);
+  }
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

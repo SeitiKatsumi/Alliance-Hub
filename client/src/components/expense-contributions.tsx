@@ -11,6 +11,20 @@ export const emptyExpenseFunding = (): ExpenseFunding => ({ mode: "equal", parti
 const money = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const fundingParticipants = (value: ExpenseFunding) => value.participants.map(p => ({ memberId: p.memberId, value: Number(p.value.replace(/\./g, "").replace(",", ".")) }));
 
+export function ExpenseContributionPreview({ amount, preview, error, options, percentages = false }: {
+  amount: number; preview: ReturnType<typeof splitExpense>; error?: string;
+  options: { value: string; label: string }[]; percentages?: boolean;
+}) {
+  return <div aria-live="polite" className="space-y-1 border-t pt-3 text-sm">
+    <p className="font-semibold">Despesa: {money(amount || 0)}</p>
+    {error ? <p className="text-destructive">{error}</p> : preview.map(p => <p key={p.memberId}>
+      {options.find(o => o.value === p.memberId)?.label || p.memberId}: {money(p.amount)}
+      {percentages && amount > 0 && ` · ${(p.amount / amount * 100).toLocaleString('pt-BR', { maximumFractionDigits: 5 })}%`}
+    </p>)}
+    {!error && <p className="font-semibold">Total de aportes: {money(preview.reduce((n, p) => n + p.amount, 0))}</p>}
+  </div>;
+}
+
 export function ExpenseContributionsFields({ value, onChange, amount, dueDate, options, map, cppOptions, inheritedPreview }: {
   value: ExpenseFunding; onChange: (value: ExpenseFunding) => void; amount: number; dueDate: string;
   options: { value: string; label: string }[]; map: { memberId: string; percent: number }[]; cppOptions: { value: string; label: string }[];
@@ -35,10 +49,7 @@ export function ExpenseContributionsFields({ value, onChange, amount, dueDate, o
     </>}
     <div className="space-y-2"><Label htmlFor="funding-due-date">Vencimento dos aportes</Label><Input id="funding-due-date" type="date" value={value.dueDate || dueDate} onChange={e => onChange({ ...value, dueDate: e.target.value })} /></div>
     {!inheritedPreview && <div className="space-y-2"><Label>Tipo de CPP dos aportes</Label><SearchableNameSelect ariaLabel="Tipo de CPP dos aportes" value={value.cppType || "__none__"} options={[{ value: "__none__", label: "Nenhum", pinned: true }, ...cppOptions]} onValueChange={cppType => onChange({ ...value, cppType: cppType === "__none__" ? "" : cppType })} /></div>}
-    <div aria-live="polite" className="space-y-1 border-t pt-3 text-sm"><p className="font-semibold">Despesa: {money(amount || 0)}</p>
-      {error ? <p className="text-destructive">{error}</p> : preview.map(p => <p key={p.memberId}>{options.find(o => o.value === p.memberId)?.label || p.memberId}: {money(p.amount)}</p>)}
-      {!error && <p className="font-semibold">Total de aportes: {money(preview.reduce((n, p) => n + p.amount, 0))}</p>}
-    </div>
+    <ExpenseContributionPreview amount={amount} preview={preview} error={error} options={options} />
   </section>;
 }
 
@@ -53,6 +64,6 @@ export function ExpenseContributionLinks({ flowId, onOpen }: { flowId?: string; 
   if (!query.data) return null;
   return <section className="space-y-2 rounded-lg border bg-card p-3"><h3 className="font-semibold">{query.data.despesaId === flowId ? "Aportes vinculados à despesa" : "Despesa de origem e aportes"}</h3>
     {query.data.estado !== "concluido" && <p className="text-sm text-destructive">Criação pendente de conclusão.</p>}
-    {query.data.movimentos.map((m: any) => <div key={m.id} className="break-words border-t pt-2 text-sm"><p>{m.tipo === "saida" ? "Despesa" : "Aporte"}: {m.descricao}</p><p>{money(Number(m.valor))} · {m.status}</p>{m.id !== flowId && onOpen && <Button size="sm" variant="ghost" onClick={() => onOpen(m.id)}>Consultar lançamento</Button>}</div>)}
+    {query.data.movimentos.map((m: any) => <div key={m.id} className="break-words border-t pt-2 text-sm"><p>{m.tipo === "saida" ? "Despesa" : "Aporte"}: {m.descricao}</p>{m.participante && <p>{m.participante}</p>}<p>{money(Number(m.valor))} · {m.status}</p>{m.id !== flowId && onOpen && <Button size="sm" variant="ghost" onClick={() => onOpen(m.id)}>Consultar lançamento</Button>}</div>)}
   </section>;
 }

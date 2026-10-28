@@ -2,11 +2,12 @@ import { randomUUID, createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { splitExpense, inheritedExpensePayment } from "../shared/expense-contributions";
+import { EXISTING_EXPENSE_SQL, registerExistingExpenseContributions } from './existing-expense-contributions';
 
 export const EXPENSE_CONTRIBUTIONS_SQL = `CREATE TABLE IF NOT EXISTS bia_despesa_aportes (
  id uuid PRIMARY KEY, bia_id text NOT NULL, autor text NOT NULL, pedido_hash text NOT NULL,
  movimentos jsonb NOT NULL, estado text NOT NULL DEFAULT 'pendente', criado_em timestamp NOT NULL DEFAULT now()
-); CREATE INDEX IF NOT EXISTS bia_despesa_aportes_bia ON bia_despesa_aportes(bia_id);`;
+); CREATE INDEX IF NOT EXISTS bia_despesa_aportes_bia ON bia_despesa_aportes(bia_id); ${EXISTING_EXPENSE_SQL}`;
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => !isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v);
 const ids = z.array(z.string().min(1)).max(100).default([]);
 export const expenseRequest = z.object({
@@ -30,17 +31,23 @@ export async function protectExpenseEntry(db: any, id: string, patch: any) {
   if (lot.estado !== "concluido") throw fault("Conclua a criação da despesa e dos aportes antes de alterar este lançamento.");
   if (!patch) throw fault("Este lançamento pertence a uma despesa com aportes vinculados e não pode ser excluído isoladamente.");
   const original = lot.movimentos.find((m: any) => m.id === id);
+  if (lot.despesa_existente_id && patch.valor !== undefined && Number(patch.valor) !== Number(original.valor))
+    throw fault("O valor deste lançamento está vinculado à divisão dos aportes e não pode ser alterado isoladamente.");
+  if (lot.despesa_existente_id && patch.status === 'cancelado')
+    throw fault("Este lançamento possui aportes vinculados. O cancelamento exige conciliar o lote completo.");
   if ((patch.bia !== undefined && String(patch.bia) !== lot.bia_id) || (patch.tipo !== undefined && patch.tipo !== original.tipo) || (patch.favorecido_id !== undefined && patch.favorecido_id !== original.favorecido_id)) throw fault("Não altere a BIA, o tipo ou o participante de um lançamento vinculado.");
 }
 
-export function registerExpenseContributions(app: any, deps: {
+export type ExpenseContributionDependencies = {
   db: any; access: (req: any, res: any, bia: string, level: "view" | "edit") => Promise<any>;
   phase: (id: string) => Promise<void>; lock: (id: string, work: () => Promise<any>) => Promise<any>;
   map: (bia: any, id: string) => Promise<{ memberId: string; percent: number }[]>;
   members: (bia: any) => string[];
   one: (collection: string, id: string, fields?: string) => Promise<any>;
   createBatch: (items: any[]) => Promise<any>;
-}) {
+};
+export function registerExpenseContributions(app: any, deps: ExpenseContributionDependencies) {
+  registerExistingExpenseContributions(app, deps);
   app.post("/api/fluxo-caixa/despesa-aportes", async (req: any, res: any) => {
     let canRevise = false;
     try {
@@ -127,7 +134,9 @@ export function registerExpenseContributions(app: any, deps: {
       const paired = lot.movimentos.some((m: any) => m.despesa_origem_id);
       const related = paired ? lot.movimentos.filter((m: any) => m.id === expenseId || m.despesa_origem_id === expenseId) : lot.movimentos;
       const entries = await Promise.all(related.map((m: any) => deps.one("fluxo_caixa", m.id, "fields=id,descricao,valor,status,bia")));
-      res.json({ id: lot.id, estado: lot.estado, despesaId: expenseId, movimentos: related.map((m: any, i: number) => ({ id: m.id, tipo: m.tipo, descricao: entries[i]?.descricao || m.descricao, valor: entries[i]?.valor ?? m.valor, status: entries[i]?.status || "pendente" })) });
+      const participants = await Promise.all(related.map((m: any) => m.tipo === 'entrada' && m.favorecido_id ? deps.one('cadastro_geral', String(m.favorecido_id), 'fields=*') : null));
+      const names = participants.map((m: any) => m && (m.Nome_de_usuario || m.nome || m.nome_completo || [m.primeiro_nome, m.sobrenome].filter(Boolean).join(' ') || 'Participante'));
+      res.json({ id: lot.id, estado: lot.estado, despesaId: expenseId, movimentos: related.map((m: any, i: number) => ({ id: m.id, tipo: m.tipo, descricao: entries[i]?.descricao || m.descricao, valor: entries[i]?.valor ?? m.valor, status: entries[i]?.status || "pendente", participante: names[i] || null })) });
     } catch { res.status(503).json({ error: "Vínculos indisponíveis. Tente novamente." }); }
   });
 }

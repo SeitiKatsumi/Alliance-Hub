@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { isolatedStage } from './isolated-stage';
 import {contributionAgendaUrl} from '../shared/contribution-reminders';
 import { emailDeliveryDecision } from './email-preference-policy';
 import type { MailCategory } from '../shared/user-preferences';
@@ -133,6 +134,7 @@ function decodeMixedMojibakeUtf8(value: string): string {
 }
 
 async function send(category: MailCategory, to: string, subject: string, html: string): Promise<{ ok: boolean; skipped?: boolean; messageId?: string; error?: string }> {
+  if (isolatedStage()) return {ok:false, error:'Envio desativado na homologação.'};
   const decision = await emailDeliveryDecision(to, category);
   if (decision === 'suppressed') return {ok:true, skipped:true};
   if (decision === 'unavailable') return {ok:false,error:'Não foi possível verificar as preferências de e-mail.'};

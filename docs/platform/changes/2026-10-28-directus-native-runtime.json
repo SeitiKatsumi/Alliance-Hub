@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "id": "2026-10-28-directus-native-runtime",
+  "title": "Runtime próprio em homologação, retorno com novas gravações e proteção da manutenção",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/native-data-store.ts",
+    "server/native-data-transport.ts",
+    "server/migration-inbox.ts",
+    "docs/platform/DIRECTUS_MIGRATION.md"
+  ],
+  "searchTerms": [
+    "native-data-transport",
+    "BUILT_DATA_BACKEND",
+    "migration-inbox",
+    "directus-native"
+  ],
+  "consumers": [
+    {
+      "path": "server/native-data-store.ts",
+      "decision": "updated",
+      "reason": "Repositório interno PostgreSQL com allowlist, filtros parametrizados, relações, datas e transações de persistência."
+    },
+    {
+      "path": "server/native-data-transport.ts",
+      "decision": "updated",
+      "reason": "Troca opcional da persistência, login Argon2 importado, arquivos próprios e ausência de fallback para outra base."
+    },
+    {
+      "path": "server/native-data-store.test.ts",
+      "decision": "updated",
+      "reason": "Cinco testes com SQL real isolado e arquivos temporários cobrem relações, rollback, datas, login, arquivos e isolamento."
+    },
+    {
+      "path": "server/isolated-stage.ts",
+      "decision": "updated",
+      "reason": "Flags explícitas para homologação, segredo próprio e recusa de credenciais externas."
+    },
+    {
+      "path": "server/migration-inbox.ts",
+      "decision": "updated",
+      "reason": "Receptor independente com autenticação, fila cifrada durável, replay explícito local e preservação dos eventos."
+    },
+    {
+      "path": "server/migration-inbox.test.ts",
+      "decision": "updated",
+      "reason": "Quatro testes de assinatura/token, persistência cifrada, falha/repetição, replay e bloqueio das demais escritas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Todas as operações do transporte central passam pelo backend selecionado; sem fallback produtivo no modo nativo; timers externos bloqueados na cópia."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "updated",
+      "reason": "Cookie separado da homologação, bloqueio de cron externo e logs sem corpos privados no modo nativo."
+    },
+    {
+      "path": "server/auth-google.ts",
+      "decision": "updated",
+      "reason": "Usa transporte selecionado para dados cadastrais; regras OAuth e vínculo existentes preservadas, OAuth sem credenciais na homologação."
+    },
+    {
+      "path": "server/bia-community-directus.ts",
+      "decision": "updated",
+      "reason": "Mesmo reconciliador e critérios de vínculo com transporte selecionado, sem mudar comunidade mãe/permissões."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "updated",
+      "reason": "Mesmo domínio de lembretes com dados nativos; processamento externo bloqueado somente na homologação."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "updated",
+      "reason": "Homologação recusa SMTP sem declarar envio bem-sucedido; comportamento normal e preferências preservados."
+    },
+    {
+      "path": "scripts/directus-native-stage.py",
+      "decision": "updated",
+      "reason": "Cria somente banco/aplicação/rede privada novos a partir de checkpoint explícito verificado; não altera serviços originais."
+    },
+    {
+      "path": "scripts/directus-native-schema.sql",
+      "decision": "updated",
+      "reason": "Prepara três coleções ausentes na cópia e cobertura do diário; não entra em migrações automáticas de produção."
+    },
+    {
+      "path": "scripts/directus-native-recovery.py",
+      "decision": "updated",
+      "reason": "Ensaio privado de checkpoint após novas escritas e reconstrução dos dois layouts; compara linhas/sequências/arquivos, não ativa retorno."
+    },
+    {
+      "path": "scripts/directus-native-recovery-test.py",
+      "decision": "updated",
+      "reason": "Dois testes Python recusam origem/exposição indevida e limitam exclusões do catálogo de restauração aos hooks privados."
+    },
+    {
+      "path": "scripts/directus-migration-maintenance.ts",
+      "decision": "updated",
+      "reason": "Entrypoint separado e explícito para receptor ou replay; não roda no boot/cron."
+    },
+    {
+      "path": "scripts/native-data-smoke.ts",
+      "decision": "updated",
+      "reason": "34 leituras reais na cópia, em transação somente leitura; não mostra linhas nem credenciais."
+    },
+    {
+      "path": "script/build.ts",
+      "decision": "updated",
+      "reason": "Empacota file-type para Node20 e produz ferramentas de operador separadas, sem execução automática."
+    },
+    {
+      "path": "package.json",
+      "decision": "updated",
+      "reason": "Dependências fixas Argon2 e detecção do conteúdo de arquivos; Node20 validado na cópia."
+    },
+    {
+      "path": "package-lock.json",
+      "decision": "updated",
+      "reason": "Lock das duas dependências adicionadas; nenhuma atualização abrangente de outros serviços."
+    },
+    {
+      "path": "scripts/tsconfig.platform.json",
+      "decision": "updated",
+      "reason": "Inclui ferramentas novas na checagem TypeScript."
+    },
+    {
+      "path": "docs/platform/DIRECTUS_MIGRATION.md",
+      "decision": "updated",
+      "reason": "Estado real, fontes, cobertura, isolamento, retorno e operação final ainda sujeita a janela aprovada."
+    },
+    {
+      "path": "docs/platform/ARCHITECTURE.md",
+      "decision": "updated",
+      "reason": "Registra seleção de persistência sem confundir homologação com produção."
+    },
+    {
+      "path": "docs/platform/SOURCES_OF_TRUTH.md",
+      "decision": "updated",
+      "reason": "Explicita fonte oficial das coleções em cada modo e impede dois escritores após a virada."
+    },
+    {
+      "path": "docs/platform/modules/pagamentos-integracoes.md",
+      "decision": "updated",
+      "reason": "Contrato de persistência e manutenção com integração real preservada até decisão operacional."
+    },
+    {
+      "path": "scripts/reconcile-bia-communities.ts",
+      "decision": "preserved",
+      "reason": "Ferramenta existente reutiliza reconciliador selecionado; não executada contra a produção neste trabalho."
+    },
+    {
+      "path": "server/bia-community.test.ts",
+      "decision": "preserved",
+      "reason": "Regras de múltiplos vínculos continuam cobertas e passaram na suíte."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "preserved",
+      "reason": "Envio normal simulado continua passando; não houve e-mail real."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Prazos, destinatários e deduplicação existentes preservados e testados."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "preserved",
+      "reason": "Preferências de notificação seguem iguais no modo normal."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "Intenções, locks e conciliação preservados; somente a implementação de persistência injetada muda."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Rateio, status e idempotência existentes preservados; teste completo passou."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "preserved",
+      "reason": "Handlers financeiros de destino mantidos, inclusive autorização e autenticação."
+    },
+    {
+      "path": "server/asaas/events.ts",
+      "decision": "preserved",
+      "reason": "Persistência/idempotência de eventos existente mantida; receptor de manutenção apenas guarda até replay explícito."
+    },
+    {
+      "path": "server/stripe.ts",
+      "decision": "preserved",
+      "reason": "Cliente/segredos reais preservados; manutenção verifica assinatura localmente sem acessar provedor."
+    },
+    {
+      "path": "scripts/directus-migration-backup.py",
+      "decision": "preserved",
+      "reason": "Base de backup usada pelas ferramentas; não apaga dados nem muda origem."
+    },
+    {
+      "path": "scripts/directus-migration-consolidate.py",
+      "decision": "preserved",
+      "reason": "Funções de restauração e comparação reutilizadas, sem mudança da consolidação anterior."
+    },
+    {
+      "path": "scripts/directus-migration-checkpoint.py",
+      "decision": "preserved",
+      "reason": "Checkpoint anterior preservado; novo ensaio de runtime possui ferramenta separada."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "reviewed",
+      "reason": "Ferramenta de QA do mesmo trabalho: exige copia isolated-rehearsal, valida jornadas por HTTP e persistencia privada. Sem alteracao de fontes produtivas; cobertura no registro native-migration-journeys."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Sessão habitual na homologação conferiu Início, Perfil, Agenda e Financeiro; vencimentos corrigidos. Financeiro em390px; layout não alterado, limitações de apresentação preexistentes não são redesenhadas nesta migração. Nenhum aceite ou cadastro real salvo."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Login, perfil, membros, comunidades, BIAs, categorias, CPP, fluxo financeiro e upload/download validados na cópia.34 consultas de coleções/expansões passaram. Protocolo SQL interno não é exposto como rota."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Persistência própria mantém IDs/tipos/relações em built_legacy e schemas operacionais. Atualização de telefone português/segmento longo e lançamento sintético confirmados na cópia; datas monetárias e rollback cobertos. Origens não alteradas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Valores numéricos mantidos no domínio e datas sem horário; financeiro da BIA teste conserva entrada paga10 e saldo10. Total a receber inclui12,34 sintéticos somente na homologação. Helpers de MAP/patrimônio/CPP e testes existentes preservados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Agenda e5 pendências da sessão carregaram na cópia; mesmo motor de lembretes. SMTP/timers com efeitos externos bloqueados na homologação, sem afirmar entrega real; suíte de preferências/lembretes passa."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "1087 arquivos preservados no retorno, incluindo upload sintético; bytes/SHA e download conferidos. Documentos assinados não reemitidos. BIA aponta ao proxy próprio; textos dos relatórios/fontes/arquitetura atualizados para seleção por modo."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Rede interna e credenciais externas ausentes, workers e SMTP bloqueados na cópia. Fila independente autentica/cifra/persiste e testa replay somente com eventos sintéticos. Não ativada em produção; serviços e flags reais intactos."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Guards de domínio/API mantidos, allowlist interna, SQL parametrizado e arquivos restritos. Sem sessão endpoints privados retornam401; login habitual funcionou na cópia. Não aceita MFA suspenso nem reutiliza tickets; cookie próprio."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Directus original e todos os backups preservados. Retorno após novas gravações restaurou198 tabelas,1087 arquivos e705 eventos; layouts67+129 com hashes/sequências iguais. Voltar em produção ainda exige pausa/cópia atual e conciliação; nunca apontar para backup desatualizado."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado592 testes/0falhas, tipos e build. Cinco testes nativos, quatro de manutenção e dois Python de retorno; ensaio real restaurado com igualdade de dados. QA e evidências no documento. Esta revisão cobre implementação/homologação, não autoriza nem declara virada produtiva."
+    }
+  ],
+  "regressionTests": [
+    "server/native-data-store.test.ts",
+    "server/migration-inbox.test.ts",
+    "scripts/directus-migration-journal.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

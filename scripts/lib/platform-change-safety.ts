@@ -14,7 +14,7 @@ const testPath = relativePath.refine(value => /^(client\/src|server|shared|scrip
 export function isSourceFile(file: string): boolean {
   if (/(^|\/)(node_modules|dist|build|coverage|output|tmp|\.git|\.local|\.BUILT-tmp|attached_assets|generated)(\/|$)/.test(file)) return false;
   if (/(^|\/)(\.env[^/]*|AI_HANDOFF\.md)$|\.(log|map|lock)$/.test(file)) return false;
-  return /\.(?:[cm]?[jt]sx?|json|sql|html|css|txt|ya?ml|md|sh|ps1)$/.test(file);
+  return /\.(?:[cm]?[jt]sx?|json|sql|html|css|txt|ya?ml|md|sh|ps1|py)$/.test(file);
 }
 
 export function needsReview(file: string): boolean {

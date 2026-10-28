@@ -15,6 +15,7 @@ const allowlist = [
   "express",
   "express-rate-limit",
   "express-session",
+  "file-type",
   "jsonwebtoken",
   "memorystore",
   "multer",
@@ -59,6 +60,16 @@ async function buildAll() {
     minify: true,
     external: externals,
     logLevel: "info",
+  });
+
+  // Separate operator tools; neither starts with the application nor in a cron.
+  await esbuild({
+    entryPoints: {
+      "migration-maintenance": "scripts/directus-migration-maintenance.ts",
+      "native-data-smoke": "scripts/native-data-smoke.ts",
+    },
+    platform: "node", bundle: true, format: "cjs", outdir: "dist",
+    outExtension: { ".js": ".cjs" }, external: externals, logLevel: "info",
   });
 
   await cp("server/assets", "dist/server/assets", { recursive: true });

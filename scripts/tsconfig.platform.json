@@ -1,5 +1,5 @@
 {
   "extends": "../tsconfig.json",
-  "include": ["lib/platform-change-safety.ts", "platform-consistency.ts", "platform-impact.ts", "platform-change-safety.test.ts"],
+  "include": ["lib/platform-change-safety.ts", "platform-consistency.ts", "platform-impact.ts", "platform-change-safety.test.ts", "directus-migration-inventory.ts", "directus-migration.test.ts", "directus-migration-journal.test.ts", "directus-migration-maintenance.ts", "native-data-smoke.ts", "native-platform-journey.ts"],
   "exclude": []
 }

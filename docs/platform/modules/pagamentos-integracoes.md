@@ -1,5 +1,7 @@
 # Pagamentos e Integracoes Externas
 
+- 28/10/2026: preparação da retirada do Directus documentada em [DIRECTUS_MIGRATION](../DIRECTUS_MIGRATION.md). Ferramentas de inventário/backup são de operador e não entram no runtime. Backup/restauração isolada executados; substituição funcional e homologação navegável ainda pendentes. Produção, APIs, credenciais e pagamentos não foram redirecionados. Originais e backups preservados sem exclusão automática.
+
 ## Orientação de falhas de emissão — 26/10/2026
 
 O modal compartilhado pelo Financeiro e Agenda explica o bloqueio por código seguro, sem expor CPF/CNPJ ou erros brutos. PAYER_PENDING consulta o cadastro atual e identifica nome/CPF/CNPJ ausente ou incompleto; cadastro já corrigido informa reavaliação automática, sem criar outra cobrança. Helper compartilhado mantém a mesma regra do worker/provider. Falhas de conta/cofre e integração possuem mensagens próprias; causa desconhecida não é atribuída ao pagador.
@@ -15,6 +17,10 @@ O próprio pagador recebe link Meu Perfil com foco no campo. Administrador autor
 - Testes: `server/asaas/dashboard.test.ts`, `client/src/components/asaas-bank-dashboard.test.ts`, regressões existentes de foundation/status. Documentação consultada: https://docs.asaas.com/reference/listar-transferencias e https://docs.asaas.com/reference/listar-cobrancas.
 
 - Cobranças de aportes (2026-10-19): adaptador `server/contribution-billing-provider.ts` usa o ambiente selecionado com timeout, sem retry cego de POST e credencial cifrada própria da SPE aprovada/wallet validada. Opt-ins de cobrança e Produção são separados. Webhook agenda consulta autoritativa; legado ignora prefixo built:contribution:. Contrato: [CONTRIBUTION_BILLING.md](../../CONTRIBUTION_BILLING.md).
+
+## Persistência própria em homologação — 28/10/2026
+
+`BUILT_DATA_BACKEND=postgres` troca o transporte interno de dados/arquivos por PostgreSQL e volume próprios; regras de pagamento, vínculos da BIA, conciliação e permissões continuam nos serviços atuais. Homologação privada com SMTP/Asaas/Stripe/IA e workers externos bloqueados; código normal continua com Directus por padrão. Receptor de manutenção e fila cifrada são ferramentas separadas de operador, sem ativação automática. Testes: `server/native-data-store.test.ts`, `server/migration-inbox.test.ts`; ensaio de retorno preservou dados novos. O domínio oficial ainda aguarda janela aprovada e cópia final. Contrato e operação: [migração](../DIRECTUS_MIGRATION.md).
 
 ## Objetivo e usuarios
 

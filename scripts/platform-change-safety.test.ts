@@ -31,6 +31,8 @@ function fixture() {
 
 test("varredura inclui código novo em outros diretórios e exclui segredos/artefatos", () => {
   assert.equal(isSourceFile("new-module/rules.ts"), true);
+  assert.equal(isSourceFile("scripts/backup.py"), true);
+  assert.equal(isSourceFile(".BUILT-tmp/backup.py"), false);
   assert.equal(isSourceFile("package-lock.json"), true);
   for (const file of [".env", "server/.env.local", "node_modules/lib/a.ts", "dist/app.js", "output/a.html", ".BUILT-tmp/a.ts", "tmp/result.json", "app.log"]) assert.equal(isSourceFile(file), false, file);
   const refs = findReferences(new Map([["x.ts", "OBJETIVO DA ALIANÇA\nOutra coisa\nobjetivo da alianca"]]), ["Objetivo da Aliança"]);

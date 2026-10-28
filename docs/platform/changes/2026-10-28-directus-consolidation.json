@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "id": "2026-10-28-directus-consolidation",
+  "title": "Consolidar cópias isoladas e ensaiar recuperação com diário privado",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "scripts/directus-migration-consolidate.py",
+    "scripts/directus-migration-journal.sql",
+    "docs/platform/DIRECTUS_MIGRATION.md"
+  ],
+  "searchTerms": [
+    "directus-migration",
+    "built_migration",
+    "built_legacy"
+  ],
+  "consumers": [
+    {
+      "path": "script/build.ts",
+      "decision": "reviewed",
+      "reason": "Empacota separadamente ferramentas de manutenção; revisão funcional no registro directus-native-runtime, sem mudar backups existentes."
+    },
+    {
+      "path": "scripts/directus-migration-maintenance.ts",
+      "decision": "reviewed",
+      "reason": "Operador de manutenção separado; não roda na consolidação nem no startup."
+    },
+    {
+      "path": "scripts/directus-native-recovery-test.py",
+      "decision": "reviewed",
+      "reason": "Novo teste de isolamento/compatibilidade do retorno; não substitui evidências dos ensaios anteriores."
+    },
+    {
+      "path": "scripts/directus-native-recovery.py",
+      "decision": "reviewed",
+      "reason": "Reutiliza comparação/restauração para ensaio posterior a novas escritas, em clones próprios; fontes preservadas."
+    },
+    {
+      "path": "scripts/directus-native-schema.sql",
+      "decision": "reviewed",
+      "reason": "Adiciona coleções e diário somente na cópia, com marcador explícito; coberto na etapa runtime."
+    },
+    {
+      "path": "scripts/native-data-smoke.ts",
+      "decision": "reviewed",
+      "reason": "Consulta read-only da cópia consolidada; não altera dump nem dados originais."
+    },
+    {
+      "path": "server/migration-inbox.test.ts",
+      "decision": "reviewed",
+      "reason": "Testes da fila independente da manutenção; uso do nome de migração não implica alteração do checkpoint."
+    },
+    {
+      "path": "server/migration-inbox.ts",
+      "decision": "reviewed",
+      "reason": "Fila separada do banco e da consolidação, com eventos sintéticos nos testes."
+    },
+    {
+      "path": "server/native-data-store.test.ts",
+      "decision": "reviewed",
+      "reason": "SQL isolado valida persistência nativa posterior à consolidação."
+    },
+    {
+      "path": "server/native-data-store.ts",
+      "decision": "reviewed",
+      "reason": "Runtime nativo consome built_legacy da cópia; estado posterior e cobertura no registro directus-native-runtime."
+    },
+    {
+      "path": "server/native-data-transport.ts",
+      "decision": "reviewed",
+      "reason": "Transporte selecionável consome banco consolidado; nenhum serviço original foi trocado."
+    },
+    {
+      "path": "scripts/directus-migration-backup-test.py",
+      "decision": "preserved",
+      "reason": "Testes existentes da rotina de backup reutilizada; nenhuma alteração no seu comportamento."
+    },
+    {
+      "path": "scripts/directus-migration.test.ts",
+      "decision": "preserved",
+      "reason": "Inventário e isolamento de backup permanecem válidos; testes adicionais verificam consolidação e diário."
+    },
+    {
+      "path": "scripts/directus-migration-consolidate.py",
+      "decision": "updated",
+      "reason": "Consolida somente dumps conferidos em novo PostgreSQL17 offline, compara conteúdo e preserva origem."
+    },
+    {
+      "path": "scripts/directus-migration-checkpoint.py",
+      "decision": "updated",
+      "reason": "Ponto de recuperação de cópia isolada, com dump integral e diário; não executa rollback produtivo."
+    },
+    {
+      "path": "scripts/directus-migration-journal.sql",
+      "decision": "updated",
+      "reason": "Captura mudanças transacionais somente na cópia; acesso privado e snapshots anteriores preservados."
+    },
+    {
+      "path": "scripts/directus-migration-consolidate-test.py",
+      "decision": "updated",
+      "reason": "Recusa origem inválida, backup alterado e clones sem isolamento."
+    },
+    {
+      "path": "scripts/directus-migration-journal.test.ts",
+      "decision": "updated",
+      "reason": "Regressão real PostgreSQL/PGlite: rollback, antes/depois, restauração de registro e autorização do diário."
+    },
+    {
+      "path": "scripts/tsconfig.platform.json",
+      "decision": "updated",
+      "reason": "Inclui novo teste na verificação de tipos das ferramentas."
+    },
+    {
+      "path": "docs/platform/DIRECTUS_MIGRATION.md",
+      "decision": "updated",
+      "reason": "Estado real e limites da recuperação; não declara retirada do Directus concluída."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Runtime ainda depende do Directus. Troca e homologação funcional pendentes; nenhuma configuração produtiva modificada."
+    },
+    {
+      "path": "scripts/directus-migration-backup.py",
+      "decision": "preserved",
+      "reason": "Reutiliza leitura de backup, checksum e diretório exclusivo; originais preservados."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "reviewed",
+      "reason": "Ferramenta de QA do mesmo trabalho: exige copia isolated-rehearsal, valida jornadas por HTTP e persistencia privada. Sem alteracao de fontes produtivas; cobertura no registro native-migration-journeys."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "not-applicable",
+      "evidence": "Nenhuma tela alterada; homologação navegável ainda pendente, sem afirmar QA visual."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Ferramentas offline não são endpoints nem serviços de produção. Runtime permanece atual."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Consolidação real193 tabelas191806 linhas, hashes por tabela iguais às cópias restauradas; nenhuma conexão das ferramentas aos bancos de origem."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Valores preservados byte/JSON semanticamente por hash; nenhum novo cálculo implementado. Comparação funcional do runtime pendente."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Nenhuma aplicação/worker iniciado. Clones sem rede, sem envio de mensagens."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "1086 arquivos copiados e SHA256 individual conferido; assinaturas e histórico inalterados. Documentação explicita pendências."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Ferramentas exigem argumento explícito. Não pertencem a startup/CI. Sem rede/portas/restart automático e sem uso de credenciais copiadas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Operador root, diretórios0700/arquivos0600; diário privado sem grants públicos; teste com escritor limitado comprova gravação sem acesso ao diário."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Directus original, cópias, scratch e backups preservados sem exclusão/retenção; nenhuma reversão sobre banco antigo automático."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify passou583 testes/0falhas, tipos/build. Dois testes Python passaram no host. Execução final20261028t094657-51ecca61 consolidou193 tabelas com hashes/IDs/sequências iguais; checkpoint7b09b8fce76d906f restaurou195 tabelas incluindo diário e1086 arquivos. Isso conclui somente as ferramentas offline; runtime e migração funcional permanecem pendentes no contrato."
+    }
+  ],
+  "regressionTests": [
+    "scripts/directus-migration-journal.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

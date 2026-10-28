@@ -1,3 +1,5 @@
+import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
+import { isolatedStage } from './isolated-stage';
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { categoryText } from "../shared/financial-categories";
@@ -8,6 +10,7 @@ import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry } from "./expense-contributions";
+import { linkedExpenseMovementIds } from './existing-expense-contributions';
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
 import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from "./bia-setup";
@@ -1031,6 +1034,7 @@ async function directusFetchScoped(collection: string, params: string) {
 }
 
 async function fetchProductionCollectionFallback(collection: string): Promise<any[] | null> {
+  if (nativeDataEnabled()) return null;
   const normalizedCollection = String(collection || "").toLowerCase();
   if (normalizedCollection === "cadastro_geral") {
     const cached = readCachedApiArrayFromLogs("/api/membros") || readCachedApiArrayFromLogs("/api/vitrine");
@@ -1072,6 +1076,7 @@ async function fetchProductionItemFallback(collection: string, id: string): Prom
 }
 
 function readCachedApiArrayFromLogs(endpoint: string): any[] | null {
+  if (nativeDataEnabled()) return null;
   const candidates = fs.readdirSync(process.cwd())
     .filter((file) => file.endsWith(".log"))
     .map((file) => path.resolve(process.cwd(), file));
@@ -1131,8 +1136,10 @@ async function proxyDirectusAsset(req: any, res: any) {
   const height = Number(req.query.height) || 360;
   const assetUrls = [
     `${DIRECTUS_URL}/assets/${id}${qs ? `?${qs}` : ""}`,
-    `${PRODUCTION_APP_API_URL}/api/assets/${id}${qs ? `?${qs}` : ""}`,
-    `${PRODUCTION_APP_API_URL}/assets/${id}${qs ? `?${qs}` : ""}`,
+    ...(nativeDataEnabled() ? [] : [
+      `${PRODUCTION_APP_API_URL}/api/assets/${id}${qs ? `?${qs}` : ""}`,
+      `${PRODUCTION_APP_API_URL}/assets/${id}${qs ? `?${qs}` : ""}`,
+    ]),
   ];
 
   for (const url of assetUrls) {
@@ -3118,6 +3125,9 @@ async function syncValorOrigemLancamento(
     throw new Error("Nao foi possivel consultar os lancamentos atuais. Nenhuma alteracao financeira foi realizada.");
   }
 
+  // Linked installments own their schedule slot even while still unpaid.
+  const linkedOrigins = await linkedExpenseMovementIds(db, biaId);
+  existing = existing.map(entry => ({ ...entry, aportes_vinculados: linkedOrigins.has(String(entry.id)) }));
   const protectedBefore = protectedValorOrigemSnapshot(existing);
   const syncPayload = {
     syncId,
@@ -4227,6 +4237,7 @@ export async function registerRoutes(
   };
   let reconcilingBiaCommunities = false;
   const runBiaCommunityReconciliation = async () => {
+    if (isolatedStage()) return;
     if (reconcilingBiaCommunities) return;
     reconcilingBiaCommunities = true;
     try { await reconcileBiaCommunities(); } finally { reconcilingBiaCommunities = false; }
@@ -4259,8 +4270,10 @@ export async function registerRoutes(
       for (const community of communities || []) await ensureCommunityStrategicCells(String(community.id));
     })
     .catch((err: any) => console.warn("[strategic-cells] Estrutura nao sincronizada:", err?.message || err));
-  processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Competencias nao sincronizadas:", err?.message || err));
-  setInterval(() => processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Cron de governanca falhou:", err?.message || err)), 6 * 60 * 60 * 1000).unref();
+  if (!isolatedStage()) {
+    processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Competencias nao sincronizadas:", err?.message || err));
+    setInterval(() => processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Cron de governanca falhou:", err?.message || err)), 6 * 60 * 60 * 1000).unref();
+  }
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
   ensureInitialOnboardingTable().catch((err: any) => console.warn("[initial-onboarding] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
@@ -6924,7 +6937,7 @@ export async function registerRoutes(
           id: f.id,
           title: f.title || f.filename_download || f.id,
           filename: f.filename_download || f.id,
-          url: `${DIRECTUS_URL}/assets/${f.id}`,
+          url: nativeDataEnabled() ? assetApiUrl(f.id) : `${DIRECTUS_URL}/assets/${f.id}`,
           size: f.filesize,
         };
       }).filter(Boolean),
@@ -7602,6 +7615,9 @@ export async function registerRoutes(
     const context = mapOperationContext.getStore();
     if (context?.tx && context.biaId === biaId) return work(context.tx, await loadInitialMapSnapshot(biaId, context.tx));
     return db.transaction(async (tx) => {
+      // Legacy BIAs have no snapshot row to lock. Serialize them as well, including
+      // competing confirmations from different tabs/processes and ordinary edits.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`bia-financial:${biaId}`}))`);
       const base = await loadInitialMapSnapshot(biaId, tx, true);
       return mapOperationContext.run({ ...context, biaId, tx }, () => work(tx, base));
     });
@@ -7769,6 +7785,7 @@ export async function registerRoutes(
   });
   let billingBusy=false;
   const billingTimer=setInterval(async()=>{
+    if(isolatedStage())return;
     if(billingBusy)return;billingBusy=true;
     try{await contributionBilling.tick();}catch{console.warn("[contribution-billing] Conciliação pendente; nova tentativa no próximo ciclo");}finally{billingBusy=false;}
   },60_000);billingTimer.unref();
@@ -7789,6 +7806,7 @@ export async function registerRoutes(
     },
   });
   const mapRecoveryTimer = setInterval(async () => {
+    if(isolatedStage())return;
     try {
       await ensureBiaMapInicialSnapshotsTable();
       await initialContributions.recover();
@@ -11132,6 +11150,9 @@ export async function registerRoutes(
     // Strip private side-channel fields (prefixed with _) before sending to Directus
     const data = biaBusinessTypeStoragePayload(Object.fromEntries(Object.entries(body).filter(([k]) => !k.startsWith("_"))));
     delete (data as any).codigo_publico;
+    // Versioned structure is persisted in bia_estrutura_versoes after the draft
+    // concludes; it is not a physical field of the BIA's presentation record.
+    delete (data as any).estrutura_bia;
     for (const field of [
       "diretor_alianca", "diretor_nucleo_tecnico", "diretor_execucao", "diretor_comercial", "diretor_capital",
       "perc_dir_alianca", "perc_dir_tecnico", "perc_dir_obras", "perc_dir_comercial", "perc_dir_capital",
@@ -13367,7 +13388,7 @@ ${textContent}`;
       });
       res.json(item);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -14198,7 +14219,7 @@ ${textContent}`;
       }
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
-      const currentOpa = await directusFetchOne("tipos_oportunidades", req.params.id, "fields=id,bia,bia_id,status");
+      const currentOpa = await directusFetchOne("tipos_oportunidades", req.params.id, "fields=id,bia");
       const mergedBiaId = directusRelationId(payload.bia) || directusRelationId(payload.bia_id)
         || directusRelationId(currentOpa?.bia) || directusRelationId(currentOpa?.bia_id) || null;
       const structuralFields = ["nome_oportunidade", "tipo", "status", "nucleo_alianca", "objetivo_alianca", "valor_origem_opa", "Minimo_esforco_multiplicador"];
@@ -21037,8 +21058,9 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   }
 
-  processOpportunityAutomation().catch((error: any) => console.warn("[opportunity-automation] execução inicial falhou:", error?.message || error));
+  if (!isolatedStage()) processOpportunityAutomation().catch((error: any) => console.warn("[opportunity-automation] execução inicial falhou:", error?.message || error));
   const opportunityAutomationTimer = setInterval(() => {
+    if(isolatedStage())return;
     processOpportunityAutomation().catch((error: any) => console.warn("[opportunity-automation] execução falhou:", error?.message || error));
   }, 15 * 60 * 1000);
   opportunityAutomationTimer.unref?.();

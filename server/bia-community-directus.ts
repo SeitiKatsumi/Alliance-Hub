@@ -1,3 +1,4 @@
+import { platformDataFetch as fetch } from './native-data-transport';
 import { sql } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createBiaCommunitySync } from "./bia-community";

@@ -35,6 +35,10 @@ Uma informação deve ter uma fonte oficial. Espelhos servem para leitura, desem
 | Notificações | estado do objeto de origem | contadores, cards e e-mails | contador inclui apenas pendências acionáveis e deduplicadas |
 | Pagamentos externos | evento validado do provedor | convite, assinatura e dashboard | webhook deve ser idempotente e autenticado |
 
+## Seleção da persistência durante a migração
+
+As referências a Directus nesta tabela descrevem o backend atualmente usado em produção. No modo `BUILT_DATA_BACKEND=postgres`, essas mesmas coleções e IDs são a fonte oficial no schema `built_legacy` do banco próprio; não existe consulta alternativa ao Directus ou leitura de logs. O estado local em `public` e os schemas de pagamentos mantêm seus papéis. É uma troca de persistência, sem nova fórmula, revisão de MAP, emissão de documento ou alteração de permissão. Os originais são preservados para recuperação; não são um segundo escritor após a futura virada. Estado e limites: [migração](./DIRECTUS_MIGRATION.md).
+
 ## Regras para sincronização
 
 1. Declare qual lado inicia a escrita.

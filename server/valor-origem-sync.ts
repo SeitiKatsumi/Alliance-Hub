@@ -53,7 +53,8 @@ export function isProtectedValorOrigemEntry(entry: Record<string, any>): boolean
   const status = normalizeText(entry.status);
   const paymentStatus = normalizeText(entry.pagamento_status);
 
-  return PROTECTED_STATUSES.has(status)
+  return entry.aportes_vinculados === true
+    || PROTECTED_STATUSES.has(status)
     || PROTECTED_STATUSES.has(paymentStatus)
     || hasItems(entry.data_pagamento)
     || hasItems(entry.Anexos)

@@ -37,6 +37,8 @@ flowchart LR
 
 ## Persistência
 
+- Migração em homologação (28/10/2026): com `BUILT_DATA_BACKEND=postgres`, o adaptador interno `native-data-transport` resolve dados e arquivos antigos no PostgreSQL consolidado (`built_legacy`) e em volume próprio. Não usa a API Directus nem fallback de produção. Sem essa seleção, a arquitetura atual abaixo continua válida. APIs/autorização/helpers de domínio permanecem os mesmos; a migração não foi ativada no site oficial. Procedimento, isolamento e retorno: [DIRECTUS_MIGRATION.md](./DIRECTUS_MIGRATION.md).
+
 - PostgreSQL local: autenticação, sessões, convites, permissões, Carteira, eventos, distribuição, notificações e tabelas operacionais.
 - Directus: cadastro geral, BIAs, fluxo financeiro e coleções administrativas legadas/principais.
 - Algumas entidades possuem espelho ou sincronização. Toda sincronização precisa declarar direção, gatilho, fallback e conflito.

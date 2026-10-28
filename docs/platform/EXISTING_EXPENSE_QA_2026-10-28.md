@@ -27,3 +27,7 @@ Logs locais: `.BUILT-tmp/existing-expense-verify.log`, `.BUILT-tmp/existing-expe
 ## 29/10 — recuo do rodapé de edição
 
 Três ações excediam a largura útil do modal de 500px. Editor ampliado para 560px no desktop e rodapé permite quebra de linha; celular continua empilhado. Conferência visual somente leitura na homologação: Cancelar com recuo de 74px no desktop e 18px em 390px, sem overflow horizontal. Nenhum lançamento salvo ou aporte gerado nesta conferência. `platform:verify` passou novamente (597/597); revisão do escopo aprovada (636 fontes, 59 arquivos), com as mesmas quatro pendências anteriores na revisão integral. Logs: `.BUILT-tmp/expense-footer-verify.log` e `.BUILT-tmp/expense-footer-review-exact.log`.
+
+## 29/10 — publicação autorizada e pacote
+
+Usuário autorizou publicar na main, após o commit 4c9e111 na branch de homologação. Publicação de código não troca o backend de produção, que permanece Directus. O pacote do workflow omitia scripts/ exigido pelos novos pontos de entrada de script/build.ts; o CapRover rejeitou a montagem e preservou a versão ativa. Diretório adicionado ao git archive, com regressão que cria o arquivo real e confere os pontos de entrada. platform:verify passou com 598 testes. O sucesso do envio com App Token é assíncrono e não comprova a troca da imagem; conferir serviço/site separadamente. Nenhum cutover ou alteração de credenciais realizado.

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "2026-10-29-deploy-package",
+  "title": "Include operator build inputs in the CapRover source archive",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [".github/workflows/deploy-caprover.yml", "script/build.ts"],
+  "searchTerms": ["deploy.tar", "migration-maintenance", "native-data-smoke"],
+  "consumers": [
+    {"path":"docs/platform/DIRECTUS_MIGRATION.md","decision":"preserved","reason":"Operator commands remain separate; no cutover executed by publishing code."},
+    {"path":"docs/CAPROVER_AUTO_DEPLOY.md","decision":"updated","reason":"Clarifies source archive requirements and asynchronous CapRover confirmation."},
+    {"path":"scripts/tsconfig.platform.json","decision":"preserved","reason":"Build tools remain typechecked by existing tooling configuration."},
+    {"path":"docs/platform/changes/2026-10-28-directus-consolidation.json","decision":"preserved","reason":"Historical consolidation review; operator source is now included in packaging."},
+    {"path":"docs/platform/changes/2026-10-28-directus-native-runtime.json","decision":"preserved","reason":"Historical native-runtime review; backend remains opt-in."},
+    {"path":"docs/platform/changes/2026-10-23-change-safety.json","decision":"preserved","reason":"Historical workflow review; verification gates unchanged."},
+    {"path":"scripts/platform-change-safety.test.ts","decision":"preserved","reason":"Workflow safety regressions unchanged and included in full suite."},
+    {"path":".github/workflows/deploy-caprover.yml","decision":"updated","reason":"Include scripts in the tracked source archive so esbuild can resolve the operator entry points."},
+    {"path":"scripts/deploy-package.test.ts","decision":"updated","reason":"Builds the real git archive from workflow paths and verifies that every declared build entry point is present."},
+    {"path":"script/build.ts","decision":"preserved","reason":"Server and separate operator entry points remain unchanged."},
+    {"path":"docs/platform/EXISTING_EXPENSE_QA_2026-10-28.md","decision":"updated","reason":"Records the packaging failure and validation of the corrected publication."}
+  ],
+  "areas": [
+    {"area":"interface","status":"not-applicable","evidence":"Only deployment packaging changes; the previously validated frontend remains unchanged."},
+    {"area":"api","status":"not-applicable","evidence":"No routes, request bodies or handlers changed."},
+    {"area":"dados","status":"not-applicable","evidence":"No migration execution, backend flag or data mutation; production keeps its current Directus backend."},
+    {"area":"calculos-graficos","status":"not-applicable","evidence":"No financial calculations or dashboard changes."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"No notification or email changes or sends."},
+    {"area":"documentos-relatorios","status":"verified","evidence":"Release QA report documents packaging scope; signed documents and application reports unchanged."},
+    {"area":"integracoes-tarefas","status":"verified","evidence":"CapRover build requires scripts/directus-migration-maintenance.ts and scripts/native-data-smoke.ts; git archive previously omitted their directory. Operator tools remain separate and do not execute at startup."},
+    {"area":"permissoes","status":"not-applicable","evidence":"No workflow permissions, credentials, application permissions or backend selection changed."},
+    {"area":"legado","status":"verified","evidence":"Original Directus data and backups preserved; packaging includes source files only, not fixtures or database copies."},
+    {"area":"testes","status":"verified","evidence":"Real archive regression passed; platform:verify passed with 598 tests, types, contracts and build. Exact staged scope reviewed separately from unrelated pending files."}
+  ],
+  "regressionTests": ["scripts/deploy-package.test.ts"],
+  "deprecationRuleIds": []
+}

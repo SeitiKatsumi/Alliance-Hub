@@ -24,6 +24,8 @@ Tambem e possivel iniciar a mesma rotina manualmente em **Actions > Validar e pu
 - Um novo push cancela uma execucao anterior ainda em andamento, evitando publicar versao ultrapassada.
 - O job de deploy so inicia depois de contrato, testes e build passarem.
 - O deploy empacota em `deploy.tar` somente o codigo, as configuracoes de build, as migracoes e os ativos de marca usados pela aplicacao. Logs, evidencias, arquivos locais, `.git`, `node_modules` e alteracoes nao commitadas nao sao enviados.
+- O pacote inclui `script/` e `scripts/`: o build compila tambem ferramentas operacionais separadas. O teste `scripts/deploy-package.test.ts` verifica os pontos de entrada no arquivo real gerado por `git archive`.
+- Com App Token, sucesso no job significa que o CapRover recebeu o pacote. A montagem acontece depois: confirmar a imagem ativa e a resposta do site antes de declarar a publicacao concluida.
 - O typecheck completo continua obrigatorio no desenvolvimento local, mas nao bloqueia este workflow enquanto a `main` preservar os diagnosticos legados documentados em `AGENTS.md`. Ele deve voltar ao gate quando o baseline remoto estiver limpo.
 - O CapRover continua usando o `captain-definition` e o `Dockerfile` existentes.
 - O `start.sh` executa as migracoes previstas pela aplicacao antes de iniciar o servidor; por isso, toda migracao nova precisa continuar aditiva e testada.

@@ -80,6 +80,7 @@ jobs:
             server \
             shared \
             script \
+            scripts \
             migrations \
             attached_assets/Logo_Built_2_Horizontal_Branca_Nova.png \
             attached_assets/Logo_Built_3_Horizontal_Negativo.png

@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "id": "2026-10-28-directus-segment-storage",
+  "title": "Segmento múltiplo cabe no banco Directus sem truncar cadastro",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "scripts/directus-segmento-text.sql",
+    "shared/initial-onboarding.ts"
+  ],
+  "searchTerms": [
+    "directus-segmento-text.sql"
+  ],
+  "consumers": [
+    {
+      "path": "scripts/directus-segmento-text.sql",
+      "decision": "updated",
+      "reason": "Migração operacional, regressão ou contrato da capacidade de armazenamento."
+    },
+    {
+      "path": "shared/onboarding-segment-storage.test.ts",
+      "decision": "updated",
+      "reason": "Migração operacional, regressão ou contrato da capacidade de armazenamento."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Migração operacional, regressão ou contrato da capacidade de armazenamento."
+    },
+    {
+      "path": "shared/initial-onboarding.ts",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "shared/initial-onboarding.test.ts",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "client/src/lib/vitrine-partner-search.ts",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Seleção serializada continua string integral; mesma taxonomia, delimitador, API, autorização e leitura."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Sem alteração visual. Onboarding, Perfil, Membros e filtros continuam consumindo string de seleção múltipla, sem truncar."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Payload e autorização preservados. Directus interpretava erro PostgreSQL22001 pelo primeiro campo do UPDATE (telefone); campo excedido real é segmento."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração varchar255 para text no banco Directus. Teste INSERT em tabela temporária com469 caracteres falha antes e passa depois; contagem/hash dos segmentos existentes iguais."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Sem cálculos financeiros alterados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Sem envio ou mudança de destinatários/templates."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Não altera documentos assinados, aceites ou formatos de saída."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Apenas estrutura de armazenamento Directus; cache limpo e serviço reiniciado para renovar schema. Sem concluir jornada real."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Nenhuma autorização alterada; SQL exige banco e tipo esperados e timeout de lock."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Strings existentes preservadas integralmente; sem migração de valores ou novo delimitador."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:578 testes/0falhas, tipos e build (.BUILT-tmp/segment-storage-verify.log). SQL temporário reproduziu falha469 antes/passou depois sem alterar pessoa. Após reinício, API Directus retorna text/maxLength null e saúde200. Não executada conclusão da jornada em nome da usuária; ela precisa tentar novamente."
+    }
+  ],
+  "regressionTests": [
+    "shared/onboarding-segment-storage.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

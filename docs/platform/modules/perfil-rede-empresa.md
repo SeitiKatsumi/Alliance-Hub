@@ -1,5 +1,7 @@
 # Perfis, Rede, Empresas e Comunidades
 
+- 28/10/2026: `cadastro_geral.segmento` usa PostgreSQL `text`, preservando a seleção múltipla serializada já usada no onboarding/perfil, sem cortar opções. Correção operacional em `scripts/directus-segmento-text.sql`, exclusiva do banco Directus. O adaptador de erros PostgreSQL do Directus pode atribuir VALUE_TOO_LONG ao primeiro campo do UPDATE, não ao campo excedido; telefone não deve ser alterado com base nesse rótulo. Sem mudança de API, valores, permissões ou aceites.
+
 - 23/10/2026 — o nome público atual da entidade técnica BusinessType/Market é Tese de interesse, também em demandas, administração e mensagens de erro. Referências históricas a Tipo de negócio abaixo não representam um segundo campo. O adapter de rótulos normaliza somente aliases descontinuados conhecidos sem modificar códigos, preferências, associações ou nomes personalizados. Onboarding e Perfil já exibiam teses; cadastro e salvamento permanecem iguais.
 
 - 16/10/2026: ao salvar um Proud Member sem associação efetiva, o editor administrativo confirma a Comunidade Mãe pelo endpoint autorizado existente, em vez de bloquear o salvamento. Promoção administrativa com selo também assegura M2M à mãe conhecida. Origem de convite de candidato não vira associação em consultas; vínculos extras são preservados e falha remota bloqueia sucesso.

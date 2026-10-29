@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existingExpenseProblem, previewExistingExpense } from './existing-expense-contributions';
+import { expensePercent, initialExpenseDistribution, existingExpenseProblem, previewExistingExpense } from './existing-expense-contributions';
 import { reconcileValorOrigemEntries } from '../server/valor-origem-sync';
 
 test('existing expense: manual amounts, percentages and MAP preserve cents and reject invalid splits', () => {
@@ -19,4 +19,18 @@ test('origin resync preserves both original unpaid installment and its generated
   const result = reconcileValorOrigemEntries([source, contribution], [{ ...source, valor: 500 }]);
   assert.deepEqual(result.preserved.map(r => r.id), ['out', 'in']);
   assert.equal(result.replaceable.length, 0); assert.equal(result.toCreate.length, 0);
+});
+
+test('initial expense MAP uses the saved initial percentages or legacy origin, never current contributions', () => {
+  const rows = initialExpenseDistribution({ participantes: [{ memberId: 'a', mapPercentual: 40 }, { memberId: 'b', mapPercentual: 60 }] });
+  assert.deepEqual(rows.map(r => r.percent), [40, 60]);
+  assert.deepEqual(previewExistingExpense(100, 'map_initial', 'percentual', rows, rows).map(r => r.amount), [40, 60]);
+  assert.deepEqual(initialExpenseDistribution(null, [{ membro_id: 'a', nome: 'A', valor: 25 }, { membro_id: 'b', nome: 'B', valor: 75 }]).map(r => r.percent).sort((a,b) => a-b), [25, 75]);
+  assert.deepEqual(initialExpenseDistribution(null), []);
+  assert.throws(() => initialExpenseDistribution({ participantes: [{ memberId: 'a' }] }));
+  assert.equal(expensePercent(10.00004), '10');
+  assert.equal(expensePercent(9.9997), '10');
+  assert.equal(expensePercent(33.333333), '33,33');
+  const exact = previewExistingExpense(14597.84, 'map_initial', 'percentual', rows, rows);
+  assert.equal(exact.reduce((n, r) => n + Math.round(r.amount * 100), 0), 1459784);
 });

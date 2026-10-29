@@ -3,7 +3,7 @@
 ## Aportes de saída existente — 28/10/2026, somente homologação
 
 - Menu e edição oferecem Gerar aportes para saídas em dinheiro pendentes, agendadas ou vencidas, inclusive parcelas legadas de Valor de Origem. Pago/parcial/cancelado ficam fora. Edição com alterações locais exige salvar primeiro; depois do lote, a ação torna-se Ver aportes.
-- A prévia compartilhada com a criação permite partes manuais por valor/percentual ou todos os participantes positivos do MAP oficial. Cálculos reutilizam `shared/expense-contributions.ts`; centavos fecham exatamente o total. Vencimento editável; status e CPP vêm da origem, inclusive CPP vazio.
+- A prévia compartilhada com a criação permite partes manuais por valor/percentual ou todos os participantes positivos do MAP inicial ou MAP atual oficial. Cálculos reutilizam `shared/expense-contributions.ts`; centavos fecham exatamente o total. Vencimento editável; status e CPP vêm da origem, inclusive CPP vazio.
 - GET e POST `/api/fluxo-caixa/:id/aportes`, POST `/previa`: autorização financeira de edição e fase operacional revalidadas, inclusive após espera pelo lock. Fonte oficial: saída vigente, participantes da BIA e MAP do servidor. Mudança da origem ou distribuição oficial invalida a prévia.
 - Lote PostgreSQL `bia_despesa_aportes` guarda origem única, hash/versão, distribuição, autor e IDs antes da criação. Somente entradas são criadas; saída mantém identidade, valor e histórico, recebendo evento adicional `aportes_gerados`. Resposta perdida retoma intenção congelada sem criar outra despesa/aporte. Serialização financeira por BIA abrange também legadas sem snapshot.
 - Vínculos proíbem exclusão isolada, mudança de valor/identidade e cancelamento isolado. Sincronizador de Valor de Origem preserva a parcela vinculada e as entradas do lote, ainda que agendadas. Histórico e documentos anteriores não são reescritos.
@@ -225,3 +225,10 @@ GET /api/bias/:id/aportes-iniciais/cobrancas/lancamentos/:flowId/pagamento é so
 A migração 20261027_contribution_flow_charges.sql permite parcel_id nulo e adiciona unicidade ambiente/flow_id para aportes avulsos. Não cria lançamentos nem faz backfill ou habilita emissão. Vínculos existentes e documentos preservados. Movimentos gerenciados não permitem exclusão ou alteração financeira direta; descrição, anexos e responsável continuam editáveis. Revisão de cronograma não abrange aportes avulsos.
 
 Consumidores: cadastro/menu financeiro e parcelas iniciais atualizados; provider, fila, webhook e lembretes reutilizam o mesmo vínculo; Directus recebe a baixa no mesmo ID. CPP/MAP, relatórios patrimoniais e PDFs assinados não são recalculados. Banco da BIA lê somente sua subconta exclusiva. Flags, credenciais, conta aprovada e homologação continuam obrigatórios. Testes isolados não comprovam QR real em Sandbox/Produção.
+
+### Rateio por MAP inicial e atual — 29/10/2026
+
+- O modo `map` mantém o MAP atual; `map_initial` usa `bia_map_inicial.participantes[].mapPercentual` e versão id/revisão/hash. Sem snapshot, usa somente `bia_map_origem_alocacoes`, nunca aportes posteriores ou transferências. Ausência/erro desabilita o modo inicial, sem fallback para o atual.
+- Prévia/confirmar revalidam a versão do MAP escolhido. Intenção persistida conserva modo e distribuição para retomada idempotente. JSONB existente suporta o novo modo sem migração.
+- Percentuais da prévia e participantes exibem no máximo duas casas decimais; precisão de cálculo e valores em centavos preservados.
+- Consumidores: edição/menu e API atualizados; criação compartilha apenas a formatação da prévia. Dashboard, lembretes, cobrança, cronogramas, PDFs e aceites continuam usando os mesmos lançamentos/vínculos, sem alteração de suas regras.

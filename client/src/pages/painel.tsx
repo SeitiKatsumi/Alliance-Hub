@@ -1527,7 +1527,7 @@ export default function PainelPage() {
             </TabsList>
 
             <TabsContent value="imoveis" className="mt-0">
-              <CarteiraDashboardPanel compact />
+              <CarteiraDashboardPanel compact showAlliances={false} />
             </TabsContent>
 
             <TabsContent value="bias" className="space-y-4 mt-0">

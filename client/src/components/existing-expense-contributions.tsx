@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
-import { existingExpenseProblem, previewExistingExpense, type ExistingExpenseMode, type ExistingExpenseUnit } from '@shared/existing-expense-contributions';
+import { expensePercent, existingExpenseProblem, previewExistingExpense, type ExistingExpenseMode, type ExistingExpenseUnit } from '@shared/existing-expense-contributions';
 import { defaultContributionReminders } from '@shared/contribution-reminders';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -50,7 +50,7 @@ function ExistingExpenseForm({ flowId, biaId, userId, onPayment }: { flowId: str
   const refresh = () => { setPreview(null); review.reset(); void context.refetch(); };
   const change = (work: () => void) => { work(); setPreview(null); review.reset(); };
   const input = () => ({ mode, unit, participants: rows.map(r => ({ memberId: r.memberId, ...(mode === 'manual' ? { value: number(r.value) } : {}) })),
-    dueDate: dueDate || ctx.expense.data_vencimento, sourceVersion: ctx.sourceVersion, mapVersion: mode === 'map' ? ctx.mapVersion : null });
+    dueDate: dueDate || ctx.expense.data_vencimento, sourceVersion: ctx.sourceVersion, mapVersion: mode === 'map_initial' ? ctx.initialMapVersion : mode === 'map' ? ctx.mapVersion : null });
   const review = useMutation({ mutationFn: async () => {
     const value = input(); const result = await request('POST', url + '/previa', value);
     return { ...value, expected: result.expected };
@@ -77,7 +77,7 @@ function ExistingExpenseForm({ flowId, biaId, userId, onPayment }: { flowId: str
   const busy = review.isPending || confirm.isPending;
   let localPreview: { memberId: string; amount: number }[] = [], localError = '';
   if (ctx?.expense && rows.length) try {
-    localPreview = previewExistingExpense(ctx.expense.valor, mode, unit, input().participants, ctx.participants.map((p: any) => ({ memberId: p.memberId, percent: p.percent })));
+    localPreview = previewExistingExpense(ctx.expense.valor, mode, unit, input().participants, ctx.participants.map((p: any) => ({ memberId: p.memberId, percent: mode === 'map_initial' ? p.initialPercent : p.percent })));
   } catch (error: any) { localError = error.message; }
   if (context.isPending) return <p role="status">Consultando despesa e participantes…</p>;
   if (context.isError) return <div role="alert"><p>{context.error.message}</p><Button variant="outline" onClick={() => context.refetch()}>Tentar novamente</Button></div>;
@@ -100,14 +100,15 @@ function ExistingExpenseForm({ flowId, biaId, userId, onPayment }: { flowId: str
       <Label htmlFor="existing-expense-mode">Divisão dos aportes</Label>
       <select id="existing-expense-mode" className="w-full rounded-md border bg-background p-2" value={mode} onChange={e => change(() => {
         const next = e.target.value as ExistingExpenseMode; setMode(next);
-        if (next === 'map') { setUnit('percentual'); setRows(ctx.participants.filter((p: any) => p.percent > 0).map((p: any) => ({ memberId: p.memberId, value: String(p.percent).replace('.', ',') }))); }
+        if (next !== 'manual') { const field = next === 'map_initial' ? 'initialPercent' : 'percent'; setUnit('percentual'); setRows(ctx.participants.filter((p: any) => p[field] > 0).map((p: any) => ({ memberId: p.memberId, value: String(p[field]).replace('.', ',') }))); }
       })}>
-        <option value="manual">Definir a parte de cada um</option><option value="map" disabled={!ctx.mapAvailable}>Usar o MAP</option>
+        <option value="manual">Definir a parte de cada um</option><option value="map_initial" disabled={!ctx.initialMapAvailable}>Usar o MAP inicial</option><option value="map" disabled={!ctx.mapAvailable}>Usar o MAP atual</option>
       </select>
-      {!ctx.mapAvailable && <p className="text-sm text-muted-foreground">MAP indisponível. Você pode definir a divisão manualmente.</p>}
+      {!ctx.mapAvailable && <p className="text-sm text-muted-foreground">MAP atual indisponível. Você pode definir a divisão manualmente.</p>}
+      {!ctx.initialMapAvailable && <p className="text-sm text-muted-foreground">MAP inicial indisponível. Confira a composição inicial da BIA.</p>}
       {mode === 'manual' && <><Label htmlFor="existing-expense-unit">Informar por</Label><select id="existing-expense-unit" className="w-full rounded-md border bg-background p-2" value={unit} onChange={e => change(() => { setUnit(e.target.value as ExistingExpenseUnit); setRows(rows.map(r => ({ ...r, value: '' }))); })}><option value="valor">Valor (R$)</option><option value="percentual">Percentual (%)</option></select></>}
       {rows.map((row, i) => <div className="space-y-2 rounded-lg border p-3 min-w-0" key={i}>
-        {mode === 'manual' ? <SearchableNameSelect ariaLabel={`Participante ${i + 1}`} value={row.memberId} options={ctx.participants.map((p: any) => ({ value: p.memberId, label: p.label }))} onValueChange={memberId => change(() => setRows(rows.map((r, j) => j === i ? { ...r, memberId } : r)))} /> : <p>{labels.get(row.memberId)} · {number(row.value).toLocaleString('pt-BR', { maximumFractionDigits: 5 })}%</p>}
+        {mode === 'manual' ? <SearchableNameSelect ariaLabel={`Participante ${i + 1}`} value={row.memberId} options={ctx.participants.map((p: any) => ({ value: p.memberId, label: p.label }))} onValueChange={memberId => change(() => setRows(rows.map((r, j) => j === i ? { ...r, memberId } : r)))} /> : <p>{labels.get(row.memberId)} · {expensePercent(number(row.value))}%</p>}
         {mode === 'manual' && <><Input inputMode="decimal" aria-label={`Parte do participante ${i + 1}`} placeholder={unit === 'valor' ? '0,00' : '0,00%'} value={row.value} onChange={e => change(() => setRows(rows.map((r, j) => j === i ? { ...r, value: e.target.value } : r)))} /><Button type="button" variant="ghost" size="sm" onClick={() => change(() => setRows(rows.filter((_, j) => j !== i)))}>Remover participante</Button></>}
       </div>)}
       {mode === 'manual' && <Button type="button" variant="outline" disabled={rows.length >= 100} onClick={() => change(() => setRows([...rows, { memberId: '', value: '' }]))}>Adicionar participante</Button>}

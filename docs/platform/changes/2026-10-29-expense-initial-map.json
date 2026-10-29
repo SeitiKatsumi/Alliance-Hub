@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "id": "2026-10-29-expense-initial-map",
+  "title": "Rateio independente por MAP inicial e atual, percentuais compactos",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "shared/existing-expense-contributions.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "map_initial",
+    "initialExpenseDistribution",
+    "expensePercent"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/existing-expense-contributions.tsx",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "shared/existing-expense-contributions.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "shared/existing-expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "server/existing-expense-contributions.test.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "MAP inicial e atual independentes; apresentação arredondada e contratos/testes correspondentes."
+    },
+    {
+      "path": "server/valor-origem-sync.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "migrations/20261028_existing_expense_contributions.sql",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "docs/platform/EXISTING_EXPENSE_QA_2026-10-28.md",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "shared/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "shared/expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/valor-origem-sync.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/fluxo-delete.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "server/initial-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor mantém contratos de lançamentos e vínculos; não depende do novo modo."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do catálogo funcional; ferramenta executada sem alterar o algoritmo."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação localhost3018: mesma despesa de R$100 exibe manual, MAP inicial e MAP atual. Evidência visual map-opcoes-atualizadas.png. Percentuais com até duas casas, cálculos preservados."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Testes HTTP cobrem map_initial, conflito de revisão inicial, mudança independente do atual, indisponibilidade e repetição."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Snapshot oficial e alocações legadas somente leitura; novo modo persiste no JSONB existente sem migração."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Helper compartilhado preserva centavos; 10,00004% aparece como 10%; snapshot inicial diferente do atual coberto por regressão."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Preservados: follow-ups recebem os mesmos IDs de entradas, sem dependência do modo de divisão."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Contrato e relatório funcional atualizados; PDFs e aceites não alterados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Emissão e sincronizador preservam contratos e vínculos; nenhuma chamada externa real efetuada."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mesma autorização revalidada no backend; suíte HTTP mantém testes de acesso e retirada de permissão."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Modo map continua atual; inicial usa alocações legadas registradas se não houver snapshot. Sem fallback para atual quando inicial indisponível."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: 599 testes, zero falhas, tipos, contrato, consistência e build. Revisão do diff isolado aprovada; pendências anteriores de Sandbox excluídas deste escopo."
+    }
+  ],
+  "regressionTests": [
+    "shared/existing-expense-contributions.test.ts",
+    "server/existing-expense-contributions.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

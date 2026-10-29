@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "id": "2026-10-29-carteira-tabs",
+  "title": "Remover lista duplicada de alianças da aba Imóveis",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/pages/painel.tsx",
+    "client/src/pages/carteira.tsx"
+  ],
+  "searchTerms": [
+    "CarteiraDashboardPanel",
+    "showAlliances"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Aba Imóveis oculta lista duplicada; aba Minhas Alianças preservada."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Prop explícita oculta seção e atalho; default preserva rota independente."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas e montagem preservadas; nenhum contrato alterado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação localhost3018: aba Minhas Alianças presente (1), seção duplicada #minhas-aliancas ausente (0), Carteira Patrimonial presente (1). Evidência imoveis-sem-lista-aliancas.png."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "permissoes",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "legado",
+      "status": "not-applicable",
+      "evidence": "Mudança apenas na composição da aba Imóveis; contratos, dados, cálculos, permissões, documentos e operações preservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: 599 testes, zero falhas, tipos, contrato, consistência e build. Revisão do diff isolado aprovada; pendências anteriores de Sandbox excluídas deste escopo."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

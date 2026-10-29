@@ -13,12 +13,15 @@ test('existing expense HTTP: previews, stale data, authorization, one source, du
   await pg.exec(EXPENSE_CONTRIBUTIONS_SQL);
   await pg.exec('CREATE TABLE fluxo_caixa_historico (fluxo_caixa_id text,bia_id text,acao text,ator_user_id text,origem text,dados_depois jsonb,payload jsonb)');
   const entries = new Map<string, any>(), maps = [{ memberId: 'a', percent: 60 }, { memberId: 'b', percent: 40 }];
+  const initial = [{ memberId: 'a', percent: 25 }, { memberId: 'b', percent: 75 }];
+  let initialRevision = '1', initialUnavailable = false;
   let mode = 'ok', calls = 0, allowed = true, tail = Promise.resolve();
   const source = (overrides = {}) => { const row = { id: randomUUID(), bia: 'bia', tipo: 'saida', valor: '100.00', descricao: 'Valor de Origem da BIA - Parcela 1/1',
     data: '2026-10-28', data_vencimento: '2026-11-10', data_pagamento: null, status: 'agendado', Categoria: [{ categorias_id: 2 }], tipo_de_cpp: [{ tipos_cpp_id: 3 }], Anexos: [], ...overrides }; entries.set(row.id, row); return row; };
   const app = express(); app.use(express.json()); app.use((req: any, _res, next) => { req.session = req.headers['x-session'] === 'no' ? {} : { directusUserId: 'actor' }; next(); });
   registerExpenseContributions(app, { db, access: async (req, res, bia) => { if (!allowed || bia !== 'bia' || req.headers['x-access'] === 'no') { res.status(403).json({ error: 'Negado' }); return null; } return { bia: { id: 'bia' } }; },
     phase: async () => {}, members: () => ['a', 'b'], map: async () => maps,
+    initialMap: async () => { if (initialUnavailable) throw new Error('Unavailable'); return { rows: initial, revision: initialRevision }; },
     one: async (collection, id) => collection === 'fluxo_caixa' ? structuredClone(entries.get(id) || null) : ['a', 'b'].includes(id) ? { id, nome: 'Fixture ' + id } : null,
     lock: async (_id, work) => { const before = tail; let release!: () => void; tail = new Promise<void>(r => release = r); await before; try { return await work(); } finally { release(); } },
     createBatch: async rows => { calls++; if (mode === 'fail') throw new Error('Before commit'); for (const row of rows) { assert.equal(row.tipo, 'entrada'); assert.ok(!entries.has(row.id)); entries.set(row.id, structuredClone(row)); } if (mode === 'lost') { mode = 'ok'; throw new Error('Response lost'); } },
@@ -29,7 +32,7 @@ test('existing expense HTTP: previews, stale data, authorization, one source, du
   const path = (id: string) => `/api/fluxo-caixa/${id}/aportes`;
   async function preview(id: string, splitMode = 'manual', unit = 'valor') {
     const ctx = await call(path(id)); assert.equal(ctx.status, 200, JSON.stringify(ctx.body));
-    const input = { mode: splitMode, unit, sourceVersion: ctx.body.sourceVersion, mapVersion: splitMode === 'map' ? ctx.body.mapVersion : null,
+    const input = { mode: splitMode, unit, sourceVersion: ctx.body.sourceVersion, mapVersion: splitMode === 'map_initial' ? ctx.body.initialMapVersion : splitMode === 'map' ? ctx.body.mapVersion : null,
       participants: [{ memberId: 'a', value: 60 }, { memberId: 'b', value: 40 }], dueDate: '2026-11-12' };
     const p = await call(path(id) + '/previa', input); assert.equal(p.status, 200, JSON.stringify(p.body));
     return { ...input, requestId: randomUUID(), expected: p.body.expected };
@@ -93,5 +96,23 @@ test('existing expense HTTP: previews, stale data, authorization, one source, du
     assert.equal((await call(path(stale.id), staleInput)).status, 409, 'Changing CPP also invalidates the preview');
     const dueStale = await preview(stale.id); stale.data_vencimento = '2026-12-03';
     assert.equal((await call(path(stale.id), dueStale)).status, 409);
+    const initialSource = source(), initialInput = await preview(initialSource.id, 'map_initial');
+    assert.deepEqual(initialInput.expected.map((p: any) => p.amount), [25, 75]);
+    assert.notEqual((await call(path(initialSource.id))).body.initialMapVersion, (await call(path(initialSource.id))).body.mapVersion);
+    initialRevision = '2';
+    assert.equal((await call(path(initialSource.id), initialInput)).status, 409, 'Initial revision changes invalidate confirmation even with equal percentages');
+    const initialFresh = await preview(initialSource.id, 'map_initial');
+    maps[0].percent = 99; maps[1].percent = 1;
+    const initialResult = await call(path(initialSource.id), initialFresh);
+    assert.equal(initialResult.status, 200, 'Current MAP changes do not replace the initial allocation');
+    assert.deepEqual(initialResult.body.movimentos.filter((m: any) => m.tipo === 'entrada').map((m: any) => Number(m.valor)), [25, 75]);
+    const saved = (await db.execute(sql`SELECT rateio FROM bia_despesa_aportes WHERE despesa_existente_id=${initialSource.id}`)).rows[0].rateio as any;
+    assert.equal(saved.request.mode, 'map_initial'); assert.deepEqual(saved.map, initial);
+    assert.equal((await call(path(initialSource.id), initialFresh)).status, 200);
+    const unavailableSource = source(), unavailableInput = await preview(unavailableSource.id, 'map_initial');
+    initialUnavailable = true;
+    const unavailable = await call(path(unavailableSource.id));
+    assert.equal(unavailable.body.initialMapAvailable, false); assert.equal(unavailable.body.mapAvailable, true);
+    assert.equal((await call(path(unavailableSource.id), unavailableInput)).status, 503, 'No fallback to current MAP');
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); await pg.close(); }
 });

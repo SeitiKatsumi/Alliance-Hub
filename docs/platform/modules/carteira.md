@@ -152,3 +152,6 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `client/src/pages/carteira-mobile-launch.test.ts`
 - `shared/property-ownership.test.ts`
 - Ao alterar: testar dono/convidado/nao autorizado, evento gerado, publicacao/retirada, documentos, alertas e viewport mobile.
+
+## 29/10/2026 — Lista de alianças sem duplicação no Início
+A aba Imóveis do painel usa showAlliances=false: oculta lista Minhas Alianças e seu atalho interno. A aba própria Minhas Alianças permanece. Rota Carteira independente mantém lista e ações. Dashboard consolidado, totais, API, permissões, dados, notificações e documentos preservados; alteração somente de composição visual.

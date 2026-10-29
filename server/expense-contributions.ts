@@ -42,6 +42,7 @@ export type ExpenseContributionDependencies = {
   db: any; access: (req: any, res: any, bia: string, level: "view" | "edit") => Promise<any>;
   phase: (id: string) => Promise<void>; lock: (id: string, work: () => Promise<any>) => Promise<any>;
   map: (bia: any, id: string) => Promise<{ memberId: string; percent: number }[]>;
+  initialMap?: (bia: any, id: string) => Promise<{ rows: { memberId: string; percent: number }[]; revision: string }>;
   members: (bia: any) => string[];
   one: (collection: string, id: string, fields?: string) => Promise<any>;
   createBatch: (items: any[]) => Promise<any>;

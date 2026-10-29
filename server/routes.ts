@@ -11,6 +11,7 @@ import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-port
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry } from "./expense-contributions";
 import { linkedExpenseMovementIds } from './existing-expense-contributions';
+import { initialExpenseDistribution } from '@shared/existing-expense-contributions';
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
 import { BIA_WORKFLOW_SQL, validateBiaDraft, transitionBiaPhase } from "./bia-workflow";
 import { appendBiaSetup, readBiaSetup, registerBiaSetupRoutes, assertBiaSetupStorage, canAccessSetupBank, validateBiaPortfolioLinks } from "./bia-setup";
@@ -12928,6 +12929,13 @@ export async function registerRoutes(
       return work();
     }),
     map: (bia, id) => getBiaAllocationMap(bia, id, { strict: true }),
+    initialMap: async (_bia, id) => {
+      const base = await loadInitialMapSnapshot(id);
+      if (base) return { rows: initialExpenseDistribution(base), revision: JSON.stringify([base.id, base.revisao, base.snapshot_hash]) };
+      const executor = mapOperationContext.getStore()?.tx || db;
+      const legacy = (await executor.execute(sql`SELECT membro_id,nome,valor::float8 AS valor FROM bia_map_origem_alocacoes WHERE bia_id=${id}`)).rows as any[];
+      return { rows: initialExpenseDistribution(null, legacy), revision: 'legacy-origin' };
+    },
     members: bia => [...parseBiaMemberList(bia.socios_guardioes), ...parseBiaMemberList(bia.socios_multiplicadores)],
     one: directusFetchOne,
     createBatch: async items => {

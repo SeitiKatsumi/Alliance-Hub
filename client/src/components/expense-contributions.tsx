@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { splitExpense, type ExpenseSplitMode } from "@shared/expense-contributions";
+import { expensePercent } from '@shared/existing-expense-contributions';
 import { SearchableNameSelect } from "./searchable-name-select";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -19,7 +20,7 @@ export function ExpenseContributionPreview({ amount, preview, error, options, pe
     <p className="font-semibold">Despesa: {money(amount || 0)}</p>
     {error ? <p className="text-destructive">{error}</p> : preview.map(p => <p key={p.memberId}>
       {options.find(o => o.value === p.memberId)?.label || p.memberId}: {money(p.amount)}
-      {percentages && amount > 0 && ` · ${(p.amount / amount * 100).toLocaleString('pt-BR', { maximumFractionDigits: 5 })}%`}
+      {percentages && amount > 0 && ` · ${expensePercent(p.amount / amount * 100)}%`}
     </p>)}
     {!error && <p className="font-semibold">Total de aportes: {money(preview.reduce((n, p) => n + p.amount, 0))}</p>}
   </div>;

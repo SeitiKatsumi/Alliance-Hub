@@ -1033,7 +1033,7 @@ function PropertyCard({
   );
 }
 
-export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean }) {
+export function CarteiraDashboardPanel({ compact = false, showAlliances = true }: { compact?: boolean; showAlliances?: boolean }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1231,7 +1231,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           <p className="mt-1 text-sm text-muted-foreground">Imóveis próprios e participações econômicas em alianças, consolidados em um só lugar.</p>
           <div className="mt-3 flex gap-2">
             <Button size="sm" variant="outline" onClick={() => document.getElementById("meus-imoveis")?.scrollIntoView({ behavior: "smooth" })}>Meus imóveis</Button>
-            <Button size="sm" variant="outline" onClick={() => document.getElementById("minhas-aliancas")?.scrollIntoView({ behavior: "smooth" })}>Minhas Alianças</Button>
+            {showAlliances && <Button size="sm" variant="outline" onClick={() => document.getElementById("minhas-aliancas")?.scrollIntoView({ behavior: "smooth" })}>Minhas Alianças</Button>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1307,7 +1307,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           ))}
         </div>
       )}
-      <section id="minhas-aliancas" className="scroll-mt-20 space-y-3 border-t pt-5">
+      {showAlliances && <section id="minhas-aliancas" className="scroll-mt-20 space-y-3 border-t pt-5">
         <div>
           <h3 className="text-lg font-semibold">Minhas Alianças</h3>
           <p className="text-sm text-muted-foreground">Participações com acesso financeiro, estimadas pelos dados registrados.</p>
@@ -1342,7 +1342,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
             ))}
           </div>
         )}
-      </section>
+      </section>}
       {portfolioRegions.length > 0 && <section className="space-y-3 border-t pt-5">
         <div><h3 className="text-lg font-semibold">Mapa de calor patrimonial por região</h3><p className="text-sm text-muted-foreground">Quanto mais intensa a cor, maior o patrimônio estimado da Carteira naquela região. Endereços privados não são exibidos.</p></div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{portfolioRegions.map(([region, summary]) => <div key={region} className="rounded-md border p-3" style={{ backgroundColor: `rgba(37, 99, 235, ${0.08 + 0.42 * Math.max(0, summary.value) / maxRegionValue})` }}><p className="font-medium">{region}</p><p className="text-xs text-slate-700">{summary.assets} ativo(s) · {money(summary.value)}</p></div>)}</div>

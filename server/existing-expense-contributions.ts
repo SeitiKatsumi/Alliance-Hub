@@ -10,7 +10,7 @@ ALTER TABLE bia_despesa_aportes ADD COLUMN IF NOT EXISTS origem_versao text;
 ALTER TABLE bia_despesa_aportes ADD COLUMN IF NOT EXISTS rateio jsonb;
 CREATE UNIQUE INDEX IF NOT EXISTS bia_despesa_aportes_origem_unica ON bia_despesa_aportes(despesa_existente_id) WHERE despesa_existente_id IS NOT NULL;`;
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v);
-const distribution = z.object({ mode: z.enum(['manual', 'map']), unit: z.enum(['valor', 'percentual']),
+const distribution = z.object({ mode: z.enum(['manual', 'map', 'map_initial']), unit: z.enum(['valor', 'percentual']),
   participants: z.array(z.object({ memberId: z.string().min(1), value: z.number().finite().optional() }).strict()).min(1).max(100),
   dueDate: day, sourceVersion: z.string().length(64), mapVersion: z.string().nullable() }).strict();
 const confirmation = distribution.extend({ requestId: z.string().uuid(), expected: z.array(z.object({ memberId: z.string(), amount: z.number() })).min(1).max(100) });
@@ -46,29 +46,40 @@ export function registerExistingExpenseContributions(app: any, deps: ExpenseCont
     const auth = await deps.access(req, res, bia, level);
     return auth ? { row, auth, bia: String(auth.bia.id) } : null;
   }
-  async function current(auth: any, bia: string, id: string, requireMap = false) {
+  async function current(auth: any, bia: string, id: string, requiredMode = 'manual') {
     const row = await source(id); if (!row || relation(row.bia) !== bia) throw fault('A despesa mudou. Reabra o lançamento.');
     const expense = expenseSourceSnapshot(row);
     let map: { memberId: string; percent: number }[] = [], mapAvailable = true;
     try { map = (await deps.map(auth.bia, bia)).filter(m => m.memberId && m.percent > 0).sort((a, b) => a.memberId.localeCompare(b.memberId, 'en')); }
     catch { mapAvailable = false; }
-    if (requireMap && (!mapAvailable || !map.length)) throw fault('Não foi possível consultar o MAP oficial. Tente novamente ou escolha a divisão manual.', 503);
-    return { expense, sourceVersion: hash(expense), map, mapAvailable, mapVersion: mapAvailable ? hash(map) : null,
-      allowed: new Set([...deps.members(auth.bia), ...map.map(m => m.memberId)]) };
+    let initialMap: { memberId: string; percent: number }[] = [], initialMapVersion: string | null = null;
+    try {
+      const initial = await deps.initialMap?.(auth.bia, bia);
+      if (initial) {
+        initialMap = initial.rows.filter(m => m.memberId && m.percent > 0).sort((a, b) => a.memberId.localeCompare(b.memberId, 'en'));
+        initialMapVersion = hash({ revision: initial.revision, rows: initialMap });
+      }
+    } catch { /* Initial MAP failure must never silently use the current MAP. */ }
+    if (requiredMode === 'map' && (!mapAvailable || !map.length)) throw fault('Não foi possível consultar o MAP atual. Tente novamente ou escolha a divisão manual.', 503);
+    if (requiredMode === 'map_initial' && !initialMap.length) throw fault('MAP inicial indisponível. Confira a composição inicial da BIA ou escolha outra divisão.', 503);
+    return { expense, sourceVersion: hash(expense), map, initialMap, initialMapVersion, mapAvailable, mapVersion: mapAvailable ? hash(map) : null,
+      allowed: new Set([...deps.members(auth.bia), ...map.map(m => m.memberId), ...initialMap.map(m => m.memberId)]) };
   }
   async function prepare(auth: any, bia: string, id: string, input: z.infer<typeof distribution>) {
     await deps.phase(bia);
-    const ctx = await current(auth, bia, id, input.mode === 'map');
+    const ctx = await current(auth, bia, id, input.mode);
+    const selectedMap = input.mode === 'map_initial' ? ctx.initialMap : ctx.map;
+    const selectedVersion = input.mode === 'map_initial' ? ctx.initialMapVersion : ctx.mapVersion;
     const problem = existingExpenseProblem(ctx.expense); if (problem) throw fault(problem, 422);
-    if (ctx.sourceVersion !== input.sourceVersion || (input.mode === 'map' && input.mapVersion !== ctx.mapVersion))
+    if (ctx.sourceVersion !== input.sourceVersion || (input.mode !== 'manual' && input.mapVersion !== selectedVersion))
       throw fault('A despesa ou o MAP mudou. Atualize os dados e confira uma nova prévia.');
     for (const p of input.participants) if (!ctx.allowed.has(p.memberId) || !await deps.one('cadastro_geral', p.memberId, 'fields=id'))
       throw fault('Participante indisponível nesta BIA.', 400);
     let expected;
-    try { expected = previewExistingExpense(ctx.expense.valor, input.mode, input.unit, input.participants, ctx.map); }
+    try { expected = previewExistingExpense(ctx.expense.valor, input.mode, input.unit, input.participants, selectedMap); }
     catch (e: any) { throw fault(e.message, 400); }
     if (!ctx.expense.data || !ctx.expense.data_vencimento || !ctx.expense.descricao.trim()) throw fault('Complete a descrição e as datas da despesa antes de gerar aportes.', 422);
-    return { ...ctx, expected };
+    return { ...ctx, expected, selectedMap, selectedVersion };
   }
   function failure(res: any, error: any, retry = false) {
     res.status(error instanceof z.ZodError ? 400 : error.statusCode || 503).json({ retry,
@@ -82,9 +93,11 @@ export function registerExistingExpenseContributions(app: any, deps: ExpenseCont
       const ctx = await current(found.auth, found.bia, String(req.params.id));
       const participants = await Promise.all([...ctx.allowed].map(async memberId => {
         const m = await deps.one('cadastro_geral', memberId, 'fields=*');
-        return { memberId, label: m?.Nome_de_usuario || m?.nome || m?.nome_completo || [m?.primeiro_nome, m?.sobrenome].filter(Boolean).join(' ') || memberId, percent: ctx.map.find(p => p.memberId === memberId)?.percent || 0 };
+        return { memberId, label: m?.Nome_de_usuario || m?.nome || m?.nome_completo || [m?.primeiro_nome, m?.sobrenome].filter(Boolean).join(' ') || memberId, percent: ctx.map.find(p => p.memberId === memberId)?.percent || 0,
+          initialPercent: ctx.initialMap.find(p => p.memberId === memberId)?.percent || 0 };
       }));
       res.json({ linked: false, expense: ctx.expense, sourceVersion: ctx.sourceVersion, mapVersion: ctx.mapVersion,
+        initialMapVersion: ctx.initialMapVersion, initialMapAvailable: ctx.initialMap.length > 0,
         mapAvailable: ctx.mapAvailable && ctx.map.length > 0, participants, problem: existingExpenseProblem(ctx.expense) });
     } catch (error) { failure(res, error); }
   });
@@ -95,7 +108,7 @@ export function registerExistingExpenseContributions(app: any, deps: ExpenseCont
         const freshAuth = await deps.access(req, res, found.bia, 'edit'); if (!freshAuth) return null;
         if (await existingExpenseLot(deps.db, String(req.params.id))) throw fault('Esta despesa já possui aportes vinculados. Consulte os vínculos.');
         const ctx = await prepare(freshAuth, found.bia, String(req.params.id), input);
-        return { expected: ctx.expected, sourceVersion: ctx.sourceVersion, mapVersion: ctx.mapVersion };
+        return { expected: ctx.expected, sourceVersion: ctx.sourceVersion, mapVersion: input.mode === 'manual' ? null : ctx.selectedVersion };
       });
       if (result) res.json(result);
     } catch (error) { failure(res, error); }
@@ -120,7 +133,7 @@ export function registerExistingExpenseContributions(app: any, deps: ExpenseCont
             data_pagamento: null, membro_responsavel: p.memberId, favorecido_id: p.memberId, Categoria: [],
             tipo_de_cpp: expense.tipo_de_cpp.map(tipos_cpp_id => ({ tipos_cpp_id })), Anexos: [], despesa_origem_id: id }))];
           await deps.db.execute(sql`INSERT INTO bia_despesa_aportes (id,bia_id,autor,pedido_hash,movimentos,despesa_existente_id,origem_versao,rateio)
-            VALUES (${input.requestId},${found.bia},${actor},${requestHash},${JSON.stringify(movements)}::jsonb,${id},${ctx.sourceVersion},${JSON.stringify({ request: input, map: input.mode === 'map' ? ctx.map : null })}::jsonb)`);
+            VALUES (${input.requestId},${found.bia},${actor},${requestHash},${JSON.stringify(movements)}::jsonb,${id},${ctx.sourceVersion},${JSON.stringify({ request: input, map: input.mode !== 'manual' ? ctx.selectedMap : null })}::jsonb)`);
           lot = { id: input.requestId, bia_id: found.bia, movimentos: movements };
         }
         retry = true;

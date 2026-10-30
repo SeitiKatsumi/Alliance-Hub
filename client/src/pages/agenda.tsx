@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {useSearch} from 'wouter';
+import {useSearch, useLocation} from 'wouter';
+import { agendaSourceAction, agendaTaskTitle } from "@shared/agenda-action";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -168,6 +169,7 @@ function membroSearchText(membro: MembroOption) {
 }
 
 export default function AgendaPage({ embedded = false }: { embedded?: boolean }) {
+  const [, navigate] = useLocation();
   const taskId=new URLSearchParams(useSearch()).get('task');
   const [openedTask,setOpenedTask]=useState<string|null>(null);
   const { toast } = useToast();
@@ -401,12 +403,18 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
     setDialogOpen(true);
   }
 
+  function openAction(tarefa: AgendaTarefa) {
+    const action = agendaSourceAction(tarefa);
+    if (action) navigate(action.href);
+    else openEdit(tarefa);
+  }
+
   useEffect(()=>{
     const task=tarefas.find(t=>t.id===taskId);
     if(!task||openedTask===taskId)return;
     const date=new Date(task.data+'T12:00:00');
     if(!Number.isNaN(date.getTime()))setCalendarCursor(date);
-    setViewMode(DEFAULT_AGENDA_VIEW_MODE);openEdit(task);setOpenedTask(taskId);
+    setViewMode(DEFAULT_AGENDA_VIEW_MODE);openAction(task);setOpenedTask(taskId);
   },[taskId,tarefas,openedTask]);
 
   function handleSave() {
@@ -581,11 +589,11 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                             <button
                               key={tarefa.id}
                               type="button"
-                              onClick={(event) => { event.stopPropagation(); openEdit(tarefa); }}
+                              onClick={(event) => { event.stopPropagation(); openAction(tarefa); }}
                               className={`w-full rounded border px-2 py-1 text-left text-[11px] leading-tight transition-colors hover:border-blue-300 ${STATUS_CLASS[tarefa.status]}`}
-                              title={tarefa.titulo}
+                              title={agendaTaskTitle(tarefa)}
                             >
-                              <span className="block truncate font-semibold">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}{tarefa.titulo}</span>
+                              <span className="block truncate font-semibold">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}{agendaTaskTitle(tarefa)}</span>
                             </button>
                           ))}
                           {day.tarefas.length > 3 && (
@@ -628,8 +636,8 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                             + Nova ação
                           </button>
                           {allDayTasks.map((tarefa) => (
-                            <button key={tarefa.id} type="button" onClick={() => openEdit(tarefa)} className={`w-full rounded border px-1.5 py-1 text-left text-[10px] font-semibold ${STATUS_CLASS[tarefa.status]}`} title={tarefa.titulo}>
-                              <span className="block truncate">{tarefa.titulo}</span>
+                            <button key={tarefa.id} type="button" onClick={() => openAction(tarefa)} className={`w-full rounded border px-1.5 py-1 text-left text-[10px] font-semibold ${STATUS_CLASS[tarefa.status]}`} title={agendaTaskTitle(tarefa)}>
+                              <span className="block truncate">{agendaTaskTitle(tarefa)}</span>
                             </button>
                           ))}
                         </div>
@@ -658,12 +666,12 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                                 <button
                                   key={tarefa.id}
                                   type="button"
-                                  onClick={() => openEdit(tarefa)}
+                                  onClick={() => openAction(tarefa)}
                                   className={`pointer-events-auto w-full rounded border px-1.5 py-1 text-left text-[10px] leading-tight shadow-sm ${STATUS_CLASS[tarefa.status]}`}
-                                  title={`${String(tarefa.hora || "").slice(0, 5)} · ${tarefa.titulo}`}
+                                  title={`${String(tarefa.hora || "").slice(0, 5)} · ${agendaTaskTitle(tarefa)}`}
                                 >
                                   <span className="block truncate font-bold">{String(tarefa.hora || "").slice(0, 5)}</span>
-                                  <span className="block truncate font-semibold">{tarefa.titulo}</span>
+                                  <span className="block truncate font-semibold">{agendaTaskTitle(tarefa)}</span>
                                 </button>
                               ))}
                             </div>
@@ -704,7 +712,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                               </span>
                             )}
                           </div>
-                          <p className="mt-3 break-words text-sm font-bold text-foreground">{tarefa.titulo}</p>
+                          <p className="mt-3 break-words text-sm font-bold text-foreground">{agendaTaskTitle(tarefa)}</p>
                           {(tarefa.atribuido_por_nome || (tarefa.compartilhada_com ?? 0) > 0) && (
                             <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                               <Users className="h-3 w-3" />
@@ -717,8 +725,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                           {tarefa.descricao && (
                             <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{tarefa.descricao}</p>
                           )}
-                          {tarefa.contexto_tipo === "bia_contribution" && tarefa.contexto_id && <a className="mt-2 inline-block text-xs text-primary underline" href={`/bias/${encodeURIComponent(tarefa.contexto_id)}?tab=capital&capital=financeiro&financeiro=aportes`}>Consultar aporte da BIA</a>}
-                          {tarefa.contexto_tipo === "aporte_reminder" && tarefa.contexto_id && <a className="mt-2 inline-block text-xs text-primary underline" href={`/bias/${encodeURIComponent(tarefa.contexto_id)}?tab=capital&capital=financeiro&paymentFlow=${encodeURIComponent(tarefa.origem_tarefa_id||'')}`}>Consultar pagamento do aporte</a>}
+                          {agendaSourceAction(tarefa) && <a className="mt-2 inline-block text-xs text-primary underline" href={agendaSourceAction(tarefa)!.href}>{agendaSourceAction(tarefa)!.label}</a>}
                         </div>
                         <button
                           type="button"
@@ -754,7 +761,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
             <DialogTitle>{editing ? "Editar ação" : "Nova ação"}</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            {editing?.contexto_tipo==='aporte_reminder'&&editing.contexto_id&&<Button asChild className="w-full"><a href={`/bias/${encodeURIComponent(editing.contexto_id)}?tab=capital&capital=financeiro&paymentFlow=${encodeURIComponent(editing.origem_tarefa_id||'')}`}>Consultar aporte · Pix e boleto</a></Button>}
+            {editing && agendaSourceAction(editing) && <Button asChild className="w-full"><a href={agendaSourceAction(editing)!.href}>{agendaSourceAction(editing)!.label}</a></Button>}
             <div className="space-y-2">
               <Label>Título *</Label>
               <Input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ex: ligar para cliente, revisar proposta..." data-testid="input-agenda-titulo" />

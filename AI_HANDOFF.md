@@ -1,5 +1,12 @@
 # AI_HANDOFF.md
 
+## 31/10/2026 — aviso do MOU abre a leitura diretamente
+
+- Pedido pelo áudio: aviso de Rafael Fabri levava à Agenda; agora `Ler e aceitar MOU` abre a revisão identificada na origem. Helper shared/agenda-action.ts aplicado a Alertas, resumo, Próximas ações e calendário; tarefas comuns conservam edição por ID e aportes abrem o fluxo existente. Lista mantém Editar.
+- Link confrontado com pendências pessoais; polling não reabre após fechar. Backend valida signatário, bloqueia funcionário delegado e compara revisão sob lock antes do aceite. Consulta sem aceitar_mou não ativa BIA nem assina; evidências/dados contratuais permanecem obrigatórios. Sem reenvio ou alteração de contratos históricos.
+- QA desktop e390x844 em prévia local isolada com BIA fictícia: resumo abre documento, aceite desabilitado, cancelar permanece fechado e revisão2 substituída pela3 não abre automaticamente. Capturas output/mou-direct-action. Conta real aberta está sem MOU pendente; nenhum aceite real realizado.
+- Verificação completa final aprovada:633 testes/0 falhas, contratos, consistência, tipos e build. Localhost reiniciado e HTTP200. Revisão de consumidores em docs/platform/changes/2026-10-31-mou-direct-action.json. Base51999787438b0c6bb85c86cb83525e16f242de1c. Sem commit/push nesta tarefa.
+
 ## 31/10/2026 — publicação conjunta autorizada (envie tudo)
 
 - Revisadas as mudanças pendentes: contraste dos convites, filtros das comunidades junto à busca, quebra de textos da Gestão, edição econômica concentrada na BIA, Análises por tese e projeção do nome público da sessão. Google alinhado ao mesmo helper após revisão de consumidor; IDs, OAuth e permissões preservados. Inclui registros e contratos correspondentes.

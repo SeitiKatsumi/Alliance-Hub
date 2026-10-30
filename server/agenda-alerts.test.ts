@@ -27,7 +27,7 @@ test("alerta de MOU usa destinatário/revisão vigente, deduplica e some após a
     `);
     const db=drizzle(pg),eligible=async(id:string)=>id==='bia';
     const result=await listMouRevisionAlerts(db,'u','m','current',eligible);
-    assert.equal(result.length,1);assert.equal(result[0].source_id,'bia:2');assert.equal(result[0].href,'/convites-alianca');assert.equal(activeAgendaAlertCount(result),1);
+    assert.equal(result.length,1);assert.equal(result[0].source_id,'bia:2');assert.equal(result[0].href,'/convites-alianca?mou=bia&revisao=2');assert.equal(activeAgendaAlertCount(result),1);
     assert.equal((await listMouRevisionAlerts(db,'other-user','different-member','current',eligible)).length,0);
     assert.equal((await listMouRevisionAlerts(db,'u',null,'current',eligible)).length,0);
     await assert.rejects(listMouRevisionAlerts(db,'u','m','current',async()=>{throw new Error('indisponível');}));

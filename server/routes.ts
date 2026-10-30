@@ -26,6 +26,7 @@ import { dashboardAcquisitionValue, portfolioDashboard } from "../shared/portfol
 import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
 import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis } from "./property-market-evidence";
 import { listMouRevisionAlerts } from "./agenda-alerts";
+import { agendaTaskHref, agendaTaskTitle, matchesMouRevision, MOU_REVIEW_LABEL } from "../shared/agenda-action";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
 import { formatBiaPercent } from "@shared/bia-numbers";
 import { biaBusinessTypeCode, biaBusinessTypeLabel, biaBusinessTypeStoragePayload, opportunityScopeLabel } from "../shared/bia-business-type";
@@ -7640,8 +7641,8 @@ export async function registerRoutes(
     const memberIds = Array.from(new Set([...biaFormalParticipantIds(bia), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
     for (const memberId of memberIds) await tx.execute(sql`
       INSERT INTO agenda_tarefas (user_id, membro_id, titulo, descricao, data, prioridade, contexto_tipo, contexto_id, origem_tarefa_id)
-      SELECT id, ${memberId}, ${active ? "MAP Inicial corrigido" : "Revise o MOU da BIA"},
-        ${active ? `A base da BIA ${bia.nome_bia} recebeu a revisão ${base.revisao}. Consulte o histórico do MAP.` : `O MAP Inicial da BIA ${bia.nome_bia} mudou para a revisão ${base.revisao}. Aceite novamente em Notificações antes da ativação.`},
+      SELECT id, ${memberId}, ${active ? "MAP Inicial corrigido" : MOU_REVIEW_LABEL},
+        ${active ? `A base da BIA ${bia.nome_bia} recebeu a revisão ${base.revisao}. Consulte o histórico do MAP.` : `O MAP Inicial da BIA ${bia.nome_bia} mudou para a revisão ${base.revisao}. Leia o documento atualizado e confirme seu aceite antes da ativação.`},
         CURRENT_DATE, 'media', 'bia', ${String(bia.id)}, ${`map:${bia.id}:${base.revisao}`}
       FROM users WHERE membro_directus_id = ${memberId}`);
   }
@@ -12562,6 +12563,7 @@ export async function registerRoutes(
   app.get("/api/bia-mou/minhas-pendencias", async (req, res) => {
     const memberId = (req.session as any).membroId;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if ((req.session as any).companyEmployeeId) return res.json([]);
     if (!memberId) return res.json([]);
     try {
       const pending = (await db.execute(sql`SELECT s.bia_id, s.revisao FROM bia_map_inicial_snapshots s
@@ -12586,16 +12588,24 @@ export async function registerRoutes(
     try {
       const memberId = (req.session as any).membroId;
       if (!(req.session as any).directusUserId || !memberId) return res.status(401).json({ error: "Não autenticado" });
+      if ((req.session as any).companyEmployeeId) return res.status(403).json({ error: "O aceite do MOU é pessoal do signatário." });
       const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
       if (!bia) return res.status(404).json({ error: "BIA não encontrada" });
+      return await withMapLock(String(bia.id), async () => {
       const base = await loadInitialMapSnapshot(String(bia.id));
       const ids = new Set([...biaFormalParticipantIds(bia), ...(base?.participantes || []).map((p: any) => p.memberId)]);
       if (!ids.has(String(memberId))) return res.status(403).json({ error: "Você não é signatário desta BIA." });
+      if (req.body?.map_revisao !== undefined && !matchesMouRevision(req.body.map_revisao, Number(base?.revisao || 0))) {
+        return res.status(409).json({ error: "Esta revisão do MOU foi substituída. Abra a revisão atual em Aprovações pendentes." });
+      }
       const check = await ensureMouAceitoOuRetornaPendencia(String(bia.id), String(memberId), req.body?.aceitar_mou === true,
         req.body?.dados_contratuais_mou, req.body?.aceite_localizacao, (req.session as any).directusUserId);
       if (!check.ok) return res.status((check as any).statusCode || 200).json(check.response);
+      // Opening a notice must not activate a BIA, even if it was already accepted.
+      if (req.body?.aceitar_mou !== true) return res.json({ resolved: true });
       await activatePropertyOriginIfReady(String(bia.id));
       res.json({ success: true });
+      });
     } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message }); }
   });
 
@@ -24635,13 +24645,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         ...activeTasks.map((task) => ({
           id: `agenda:${task.id}`,
           type: "tarefa",
-          title: task.titulo,
+          title: agendaTaskTitle(task),
           description: task.descricao || null,
           date: task.data,
           time: task.hora || null,
           priority: task.prioridade || "media",
           overdue: Boolean(task.data && task.data < today),
-          href: agendaAlertHref("agenda"),
+          href: agendaTaskHref(task),
         })),
         ...(calls as any[])
           .filter((call) => {

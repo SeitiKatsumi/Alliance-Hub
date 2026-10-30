@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id": "mou-notice-clear-action",
+      "description": "Aviso acionável deve pedir leitura e aceite, não revisão editorial do documento.",
+      "terms": ["\"Revise o MOU da BIA\"", ">Revisão do MOU<"],
+      "roots": ["server/routes.ts", "client/src/pages/comunidade.tsx"],
+      "regressionTests": ["shared/agenda-action.test.ts", "client/src/pages/mou-navigation.test.ts"],
+      "exceptions": []
+    },
+    {
       "id": "retire-capital-dm-tab",
       "description": "Edição econômica fica no editor da BIA; Capital não monta a calculadora duplicada.",
       "terms": ["tab-capital-calculadora", "tab-bia-calculadora", "<BiasCalculadoraPage"],

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { MOU_REVIEW_LABEL, mouRevisionHref } from "../shared/agenda-action";
 
 export type AgendaAlertGroup = "pendencias" | "atualizacoes" | "historico";
 
@@ -21,9 +22,9 @@ export async function listMouRevisionAlerts(db: any, userId: string, memberId: s
     if (!await eligible(String(row.bia_id))) continue;
     const sourceId=`${row.bia_id}:${row.revisao}`;
     items.push({id:`mou:${sourceId}`,source_type:"bia_mou_revisao",source_id:sourceId,
-      group:"pendencias",category:"convite_bia",title:`Aceitar MOU/MAP Inicial · revisão ${row.revisao}`,
+      group:"pendencias",category:"convite_bia",title:`${MOU_REVIEW_LABEL} · revisão ${row.revisao}`,
       description:row.descricao,priority:"alta",status:"pendente",created_at:row.atualizado_em,
-      action_required:true,active:true,href:"/convites-alianca",actions:["consultar"],
+      action_required:true,active:true,href:mouRevisionHref(String(row.bia_id),Number(row.revisao)),actions:["consultar"],
       metadata:{bia_id:String(row.bia_id),map_revisao:Number(row.revisao)}});
   }
   return items;

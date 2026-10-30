@@ -8,6 +8,7 @@ import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useSearch } from "wouter";
+import { matchesMouRevision, MOU_REVIEW_LABEL } from "@shared/agenda-action";
 import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
@@ -1513,19 +1514,43 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   const [auraMicBlocked, setAuraMicBlocked] = useState(false);
   const [auraMicPromptOpen, setAuraMicPromptOpen] = useState(false);
   const [mouPendente, setMouPendente] = useState<MouPendente | null>(null);
-  const { data: mouRevisoes = [], isError: mouRevisoesError } = useQuery<Array<{ id: string; bia_nome: string; map_revisao: number }>>({
+  const { data: mouRevisoes = [], isError: mouRevisoesError, isSuccess: mouRevisoesReady } = useQuery<Array<{ id: string; bia_nome: string; map_revisao: number }>>({
     queryKey: ["/api/bia-mou/minhas-pendencias"],
     enabled: !!user && (convitesOnly || activeTab === "convites"),
     refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
   const revisarMouMutation = useMutation({
-    mutationFn: async (id: string) => ({ id, data: await (await apiRequest("POST", `/api/bias/${id}/mou/aceitar`, {})).json() }),
+    mutationFn: async ({ id, revision }: { id: string; revision: number }) => ({ id, data: await (await apiRequest("POST", `/api/bias/${encodeURIComponent(id)}/mou/aceitar`, { map_revisao: revision })).json() }),
     onSuccess: ({ id, data }) => {
       if (data?.mou) { setMouPendente({ tipo: "revisao", id, ...data.mou }); setMouAceito(false); }
-      else queryClient.invalidateQueries({ queryKey: ["/api/bia-mou/minhas-pendencias"] });
+      else {
+        queryClient.invalidateQueries({ queryKey: ["/api/bia-mou/minhas-pendencias"] });
+        invalidateAgendaAlertQueries(queryClient);
+        toast({ title: "Este MOU não tem aceite pendente para você." });
+      }
     },
     onError: (error: any) => toast({ title: "Não foi possível abrir o MOU", description: error.message, variant: "destructive" }),
   });
+  const openedMouLink = useRef<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const id = params.get("mou");
+    if (!id) { openedMouLink.current = null; return; }
+    if (!convitesOnly || !mouRevisoesReady) return;
+    const revision = Number(params.get("revisao"));
+    const key = `${id}:${revision}`;
+    if (openedMouLink.current === key) return;
+    openedMouLink.current = key;
+    setNotificacoesTab("aprovacoes");
+    setMostrarHistoricoAprovacoes(false);
+    setAprovacoesSearch("");
+    const pending = mouRevisoes.find(item => String(item.id) === id);
+    if (!pending || !matchesMouRevision(revision, Number(pending.map_revisao))) {
+      toast({ title: "Este aviso não corresponde a um aceite pendente atual.", description: "Consulte suas Aprovações pendentes para abrir a revisão disponível." });
+      return;
+    }
+    revisarMouMutation.mutate({ id, revision });
+  }, [searchParams, convitesOnly, mouRevisoesReady, mouRevisoes, revisarMouMutation.mutate, toast]);
   const [mouAceito, setMouAceito] = useState(false);
   const [mouDadosOpen, setMouDadosOpen] = useState(false);
   const [mouDadosForm, setMouDadosForm] = useState<MouDadosContratuais>(EMPTY_MOU_DADOS);
@@ -2210,13 +2235,13 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                   <div key={`mou-${item.id}`} data-testid={`aprovacao-mou-${item.id}`} className="flex flex-col gap-3 bg-violet-50/35 p-4 dark:bg-card sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-mono font-bold text-brand-navy">Revisão do MOU</p>
+                        <p className="text-sm font-mono font-bold text-brand-navy">{MOU_REVIEW_LABEL}</p>
                         <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-mono font-bold text-violet-700">
                           Pendente
                         </span>
                       </div>
                       <p className="text-xs font-mono text-slate-600">
-                        Revise o MOU da BIA {item.bia_nome}.
+                        Leia o MOU atualizado da BIA {item.bia_nome} e confirme seu aceite.
                       </p>
                       <p className="text-[10px] font-mono text-slate-400">
                         MAP Inicial — revisão {item.map_revisao}. É necessário aceitar esta revisão antes da ativação.
@@ -2224,7 +2249,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                     </div>
                     <Button
                       type="button"
-                      onClick={() => revisarMouMutation.mutate(item.id)}
+                      onClick={() => revisarMouMutation.mutate({ id: item.id, revision: Number(item.map_revisao) })}
                       disabled={revisarMouMutation.isPending}
                       className="w-full sm:w-auto"
                       data-testid={`btn-revisar-mou-${item.id}`}

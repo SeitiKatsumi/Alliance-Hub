@@ -1,4 +1,5 @@
 import { biaBusinessTypeLabel, buildBiaThesisAllocation } from "@shared/bia-business-type";
+import { agendaTaskHref, agendaTaskTitle } from "@shared/agenda-action";
 ﻿import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
@@ -117,6 +118,9 @@ interface DashboardStrategicCell {
 }
 
 interface AgendaTarefa {
+  contexto_tipo?: string | null;
+  contexto_id?: string | null;
+  origem_tarefa_id?: string | null;
   id: string;
   titulo: string;
   descricao?: string | null;
@@ -1026,7 +1030,8 @@ export default function PainelPage() {
         id: acao.id,
         dia: date.toLocaleDateString("pt-BR", { day: "2-digit" }),
         mes: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase(),
-        titulo: acao.titulo,
+        titulo: agendaTaskTitle(acao),
+        href: agendaTaskHref(acao),
         subtitulo: acao.descricao || (acao.status === "em_andamento" ? "Em andamento" : "Pendente"),
         hora: acao.hora || "--:--",
         prioridade: acao.prioridade || "media",
@@ -1479,7 +1484,7 @@ export default function PainelPage() {
                     Nenhuma ação pendente. Criar na agenda.
                   </button>
                 ) : proximasAcoes.map((acao) => (
-                  <div key={acao.id} className="flex items-center gap-3 rounded-lg py-1">
+                  <button type="button" key={acao.id} onClick={() => navigate(acao.href)} className="flex w-full items-center gap-3 rounded-lg py-1 text-left hover:bg-muted/50">
                     <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-900">
                       <span className="text-sm font-bold leading-none">{acao.dia}</span>
                       <span className="mt-0.5 text-[9px] font-semibold uppercase leading-none">{acao.mes}</span>
@@ -1494,7 +1499,7 @@ export default function PainelPage() {
                       <p className="truncate text-[11px] text-muted-foreground">{acao.subtitulo}</p>
                     </div>
                     <span className="shrink-0 text-xs font-medium text-muted-foreground">{acao.hora}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </CardContent>

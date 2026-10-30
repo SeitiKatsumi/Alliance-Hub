@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "id": "2026-10-30-bia-profile-links",
+  "title": "Abrir perfil pelos participantes da Governança e CPP da BIA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/lib/public-refs.ts",
+    "shared/member-portfolio.ts"
+  ],
+  "searchTerms": [
+    "BiaMemberLink"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-member-link.tsx",
+      "decision": "updated",
+      "reason": "Atalho canônico apenas por ID explicitamente disponível no diretório existente. Pedido visual posterior: nomes sem sublinhado em todas as apresentações do componente; clique, hover e foco de teclado preservados."
+    },
+    {
+      "path": "client/src/components/bia-member-link.test.ts",
+      "decision": "updated",
+      "reason": "Identidade, homônimos, ausência de perfil e integração das apresentações."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Todas as três instâncias MembroChip e ambas as apresentações CPP usam a identidade existente."
+    },
+    {
+      "path": "client/src/lib/public-refs.ts",
+      "decision": "preserved",
+      "reason": "getMembroUrl e resolveMembroByRef mantêm o contrato público existente."
+    },
+    {
+      "path": "shared/member-portfolio.ts",
+      "decision": "preserved",
+      "reason": "Projeção monetária preservada; a página associa memberId na mesma ordem dos participantes."
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Destino existente usa o mesmo diretório /api/membros; sem ampliar dados ou permissão."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rota /membro/:id e guardas mantidas; nenhum novo ambiente."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do App; bootstrap não muda."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Somente adicionado atalho à lista de ações BIA; alterações paralelas preservadas."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Contrato de navegação por identidade registrado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticado em 30/10: nomes sem sublinhado na Governança e CPP, desktop e viewport390; clique em Rodrigo abriu o perfil correspondente /membro/M000CAYAJR, depois voltou à BIA. Viewport restaurado. Evidência output/profile-link-style/desktop.jpg. Sem mudar dados, cargos ou permissões."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Reutiliza /api/membros já carregado; destino usa o mesmo endpoint, sem novo contrato."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Nenhum campo, snapshot ou registro alterado; IDs existentes usados exclusivamente para navegação."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "initialMapEconomicSummary e fallback monetário preservados; acrescenta identidade sem recalcular CPP."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Atalho de interface local não altera templates, mensagens, destinatários ou eventos."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Ação adicionada ao catálogo funcional; PDFs, MAPs e aceites históricos intactos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Nenhuma nova integração, tarefa ou ação financeira."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Link só existe para ID presente no diretório já autorizado; destino e backend preservam controles existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Funções legadas sem identidade, instituições e cargos não atribuídos permanecem texto; não resolve pessoas por nome."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify reexecutado após remover sublinhado: contratos, consistência, TypeScript, 610 testes/0 falhas e build; inclui 3 testes do atalho. QA autenticado desktop/mobile e clique no perfil confirmados. Diff check passou. platform:review permanece bloqueado por pendências de outros registros, sem ateste alheio."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-member-link.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

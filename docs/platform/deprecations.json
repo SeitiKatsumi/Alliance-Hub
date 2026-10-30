@@ -91,6 +91,37 @@
       "roots": ["client/src/data/platform-functional-report.ts"],
       "regressionTests": ["client/src/data/platform-functional-report.test.ts"],
       "exceptions": []
+    },
+    {
+      "id": "property-journey-canonical-theses",
+      "description": "Seleção do cadastro usa a taxonomia oficial; não restaurar lista independente de objetivos.",
+      "terms": [
+        "const INTENTS = [",
+        "const PROPERTY_INTENT_OPTIONS = ["
+      ],
+      "roots": [
+        "client/src/pages/carteira-assistente.tsx",
+        "client/src/pages/login.tsx"
+      ],
+      "regressionTests": [
+        "shared/property-thesis.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "property-assistant-no-path-choice",
+      "description": "Cadastro do imóvel não oferece escolha de relação; preserva rotas explícitas legadas.",
+      "terms": [
+        "É meu imóvel",
+        "Escolha a relação com o imóvel"
+      ],
+      "roots": [
+        "client/src/pages/carteira-assistente.tsx"
+      ],
+      "regressionTests": [
+        "shared/property-thesis.test.ts"
+      ],
+      "exceptions": []
     }
   ]
 }

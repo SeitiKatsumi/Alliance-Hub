@@ -43,6 +43,7 @@ import {
   getAuraAudioFilename,
 } from "@/lib/aura-audio";
 import { isCommunityApprovalPending } from "@shared/community-approval";
+import { memberCommunityMembership, type MemberCommunityLink } from "@shared/member-community";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -1014,6 +1015,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"comunidades" | "convites">(convitesOnly ?"convites" : "comunidades");
+  const [communityScope, setCommunityScope] = useState<"mine" | "all">("mine");
   const [notificacoesTab, setNotificacoesTab] = useState<"aprovacoes" | "chamadas" | "opas">("aprovacoes");
   const [aprovacoesSearch, setAprovacoesSearch] = useState("");
   const [mostrarHistoricoAprovacoes, setMostrarHistoricoAprovacoes] = useState(false);
@@ -1037,6 +1039,21 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     queryFn: () => fetch("/api/comunidades").then(r => { if (!r.ok) throw new Error("Erro ao buscar comunidades"); return r.json(); }),
     enabled: !isLimitedCoOwner,
   });
+
+  const memberCommunityQuery = useQuery<MemberCommunityLink[]>({
+    queryKey: ["/api/membros", user?.membro_directus_id, "comunidades", "incluir_origem=1"],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const response = await fetch(`/api/membros/${user!.membro_directus_id}/comunidades?incluir_origem=1`, { credentials: "include" });
+      if (!response.ok) throw new Error("Não foi possível identificar suas comunidades.");
+      return response.json();
+    },
+    enabled: !!user?.membro_directus_id && !isLimitedCoOwner && !convitesOnly && activeTab === "comunidades",
+  });
+  const communityMembership = useMemo(() => memberCommunityMembership(memberCommunityQuery.data || []), [memberCommunityQuery.data]);
+  const myCommunityCount = comunidades.filter(c => communityMembership.has(String(c.id))).length;
+  const membershipLoading = !!user?.membro_directus_id && memberCommunityQuery.isLoading;
 
   const { data: membros = [] } = useQuery<Membro[]>({
     queryKey: ["/api/membros", isLimitedCoOwner ? user?.membro_directus_id : "todos"],
@@ -1147,6 +1164,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     mutationFn: (data: any) => apiRequest("POST", "/api/comunidades", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", user?.membro_directus_id, "comunidades"] });
       toast({ title: "Comunidade criada com sucesso!" });
       setDialogOpen(false);
     },
@@ -1157,6 +1175,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/comunidades/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", user?.membro_directus_id, "comunidades"] });
       toast({ title: "Comunidade atualizada!" });
       setDialogOpen(false);
     },
@@ -1167,6 +1186,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     mutationFn: (id: string) => apiRequest("DELETE", `/api/comunidades/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", user?.membro_directus_id, "comunidades"] });
       toast({ title: "Comunidade removida." });
       setDeleteTarget(null);
     },
@@ -1241,6 +1261,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   }
 
   const filtered = comunidades.filter(c => {
+    if (communityScope === "mine" && !communityMembership.has(String(c.id))) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     const codigo = getComunidadeCodigo(c).toLowerCase();
@@ -2023,6 +2044,16 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
 
       {!convitesOnly && activeTab === "comunidades" && (
         <>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar comunidades">
+        <Button variant={communityScope === "mine" ? "default" : "outline"} aria-pressed={communityScope === "mine"} onClick={() => setCommunityScope("mine")} data-testid="filter-my-communities">
+          Minhas comunidades{!membershipLoading && !memberCommunityQuery.isError ? ` (${myCommunityCount})` : ""}
+        </Button>
+        <Button variant={communityScope === "all" ? "default" : "outline"} aria-pressed={communityScope === "all"} onClick={() => setCommunityScope("all")} data-testid="filter-all-communities">Todas ({comunidades.length})</Button>
+      </div>
+      {memberCommunityQuery.isError && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        Não foi possível identificar suas comunidades.
+        <Button variant="outline" size="sm" onClick={() => memberCommunityQuery.refetch()}>Tentar novamente</Button>
+      </div>}
       <ComunidadesMapHeader comunidades={filtered} />
 
       {/* Search */}
@@ -2043,13 +2074,13 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       </div>
 
       {/* List */}
-      {isLoading ?(
+      {isLoading || (communityScope === "mine" && membershipLoading) ?(
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
             <div key={i} className="rounded-2xl h-48 animate-pulse" style={{ background: "rgba(255,255,255,0.03)" }} />
           ))}
         </div>
-      ) : filtered.length === 0 ?(
+      ) : communityScope === "mine" && memberCommunityQuery.isError ? null : filtered.length === 0 ?(
         <div
           className="rounded-2xl border border-white/8 p-12 flex flex-col items-center justify-center text-center"
           style={{ background: "linear-gradient(145deg, #071626, #040e1c)", minHeight: 280 }}
@@ -2059,8 +2090,9 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
             {search ?"// Nenhum resultado" : "// Sem comunidades"}
           </p>
           <p className="text-white/20 font-mono text-sm">
-            {search ?"Tente outro termo de busca." : "Crie a primeira comunidade BUILT."}
+            {search ?"Tente outro termo de busca." : communityScope === "mine" ? "Você ainda não participa de nenhuma comunidade." : "Nenhuma comunidade disponível."}
           </p>
+          {communityScope === "mine" && <Button variant="outline" className="mt-4" onClick={() => setCommunityScope("all")}>Ver todas as comunidades</Button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -2068,6 +2100,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
             <ComunidadeCard
               key={c.id}
               comunidade={c}
+              membership={memberCommunityQuery.isError ? undefined : communityMembership.get(String(c.id))}
               canEdit={isAdmin || user?.membro_directus_id === resolveAliadoId(c)}
               onEdit={() => openEdit(c)}
               onDelete={() => setDeleteTarget(c)}
@@ -3559,8 +3592,9 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   );
 }
 
-function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
+function ComunidadeCard({ comunidade: c, membership, canEdit, onEdit, onDelete }: {
   comunidade: Comunidade;
+  membership?: { isPrimary: boolean };
   canEdit?: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -3587,6 +3621,10 @@ function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
         style={{ background: "linear-gradient(90deg, transparent, rgba(215,187,125,0.4), transparent)" }} />
 
       <div className="p-5 space-y-4">
+        {membership && <div className="flex flex-wrap gap-2" data-testid={`community-membership-${c.id}`}>
+          <Badge className="bg-blue-500/15 text-blue-300 border-blue-400/30"><UserCheck className="mr-1 h-3 w-3" />Você participa</Badge>
+          {membership.isPrimary && <Badge className="bg-amber-500/15 text-amber-300 border-amber-400/30">Comunidade principal</Badge>}
+        </div>}
         {/* Sigla + Status */}
         <div className="flex items-start justify-between gap-2">
           <div>

@@ -1,3 +1,4 @@
+import { PROPERTY_THESIS_OPTIONS } from "@shared/property-thesis";
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -51,15 +52,7 @@ const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário & Negócios Aplicados";
 const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
 const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
 const DEFAULT_AREAS: string[] = [];
-const PROPERTY_INTENT_OPTIONS = [
-  ["gerir", "Apenas cadastrar e gerir"],
-  ["vender", "Vender"],
-  ["alugar", "Alugar"],
-  ["reformar", "Reformar"],
-  ["construir", "Construir"],
-  ["regularizar", "Regularizar"],
-  ["estruturar_alianca", "Estruturar uma Aliança BUILT"],
-] as const;
+const PROPERTY_INTENT_OPTIONS = PROPERTY_THESIS_OPTIONS;
 const CONTRIBUTION_AREA_ORDER = [
   "lideranca tecnica",
   "projeto",
@@ -1242,7 +1235,7 @@ export default function LoginPage() {
                         </div>
 
                         <div className="mt-4 border-t border-slate-100 pt-4">
-                          <p className="text-sm font-bold text-[#001D34]">O que você deseja fazer?</p>
+                          <p className="text-sm font-bold text-[#001D34]">Qual é o seu objetivo inicial?</p>
                           <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                             {PROPERTY_INTENT_OPTIONS.map(([value, label]) => {
                               const selected = propertyIntent === value;

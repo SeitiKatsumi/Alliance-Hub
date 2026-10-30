@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "id": "2026-10-30-property-theses",
+  "title": "Unificar opções do objetivo do imóvel com teses oficiais",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "shared/strategic-cells.ts",
+    "shared/property-thesis.ts"
+  ],
+  "searchTerms": [
+    "propertyThesisOptions",
+    "PROPERTY_THESIS_OPTIONS"
+  ],
+  "consumers": [
+    {
+      "path": "shared/property-thesis.ts",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "shared/property-thesis.test.ts",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "server/property-journey.ts",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "shared/carteira.ts",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "client/src/pages/carteira-assistente.tsx",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Cadastro, persistência e apresentação da tese compartilhada; preserva alterações anteriores."
+    },
+    {
+      "path": "shared/strategic-cells.ts",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "server/property-journey.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "server/carteira-domain.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "server/carteira-alertas.ts",
+      "decision": "preserved",
+      "reason": "Consumidor revisado: mantém autorização/contrato e usa dados normalizados sem lista concorrente."
+    },
+    {
+      "path": "server/carteira-launch-edit.test.ts",
+      "decision": "preserved",
+      "reason": "Teste consumidor de routes; proteção de lançamentos preservada."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Pergunta Qual é o seu objetivo inicial? preservada por solicitação; assistente/retomada, login, edição e Pulso usam opções oficiais. Removidos cartões de escolha de relação no assistente; mantém contexto imóvel por padrão e rotas legadas explícitas."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "POST/PATCH/conclusão da sessão e sanitização validam código; origem-BIA copia apenas tese canônica."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "intencao da sessão e objetivo do imóvel são JSON existentes; legado preservado sem backfill nem migração."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Recomendação usa família da tese; gerir não conta como tese definida no diagnóstico. Totais monetários e MAP preservados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhuma mensagem adicionada; atualizações periódicas usam mesma tese sem alterar destinatários ou agendamento."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; prompt de análise usa rótulo oficial. Documentos históricos preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem nova chamada externa; análise mantém contrato e usa teses oficiais; nenhum pagamento real."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Guardas atuais de dono da sessão e administracao do imóvel mantidas, incluindo origem-BIA."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Opção antiga exibida somente quando já persistida; não transformar alugar/vender em tese específica."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify passou com603 testes, TypeScript/build;14 testes focados pós-ajustes. Homologação isolada:13 requisições reais com dados sintéticos validaram criação, retomada, alteração de tese, rejeição inválida, conclusão idempotente, persistência e edição. Nenhuma chamada externa. Desktop e390x844 conferidos."
+    }
+  ],
+  "regressionTests": [
+    "shared/property-thesis.test.ts",
+    "server/property-journey.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "property-journey-canonical-theses",
+    "property-assistant-no-path-choice"
+  ]
+}

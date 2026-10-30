@@ -1,3 +1,4 @@
+import { propertyThesisCode, propertyThesisGroup } from "../shared/property-thesis";
 export const ACCOUNT_PURPOSES = ["imoveis", "profissional", "capital"] as const;
 export type AccountPurpose = typeof ACCOUNT_PURPOSES[number];
 
@@ -13,7 +14,8 @@ export const PROPERTY_INTENTS = [
   "regularizar",
   "estruturar_alianca",
 ] as const;
-export type PropertyIntent = typeof PROPERTY_INTENTS[number];
+type LegacyPropertyIntent = typeof PROPERTY_INTENTS[number];
+export type PropertyIntent = string;
 
 export const PROPERTY_PATHS = ["imovel", "oportunidade"] as const;
 export const PROPERTY_METHODS = ["conversa", "cartorio", "documentos", "manual"] as const;
@@ -32,7 +34,7 @@ export type PropertyExtractionConflict = {
   fonte?: string | null;
 };
 
-const PROPERTY_INTENT_SPECIALTIES: Record<PropertyIntent, string[]> = {
+const PROPERTY_INTENT_SPECIALTIES: Record<LegacyPropertyIntent, string[]> = {
   gerir: [
     "administração de imóveis",
     "gestão imobiliária",
@@ -149,8 +151,10 @@ export function normalizePropertyAssistantStep(value: unknown): PropertyAssistan
 }
 
 export function normalizePropertyIntent(value: unknown): PropertyIntent {
+  const thesis = propertyThesisCode(value);
+  if (thesis) return thesis;
   const normalized = String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ -]+/g, "_");
-  return PROPERTY_INTENTS.includes(normalized as PropertyIntent)
+  return PROPERTY_INTENTS.includes(normalized as LegacyPropertyIntent)
     ? normalized as PropertyIntent
     : "gerir";
 }
@@ -166,12 +170,12 @@ export function normalizeInitialPropertyJourney(value: unknown): InitialProperty
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   const path = String(input.path || "").trim().toLowerCase();
-  const intent = String(input.intencao || "").trim().toLowerCase();
+  const intent = propertyThesisCode(input.intencao) || String(input.intencao || "").trim().toLowerCase();
   const rawMethod = String(input.method || "").trim();
   const method = normalizePropertyMethod(rawMethod);
   if (
     !PROPERTY_PATHS.includes(path as PropertyPath)
-    || !PROPERTY_INTENTS.includes(intent as PropertyIntent)
+    || (!propertyThesisCode(intent) && !PROPERTY_INTENTS.includes(intent as LegacyPropertyIntent))
     || (rawMethod && !method)
   ) return null;
   const journey: InitialPropertyJourney = {
@@ -299,7 +303,13 @@ export function normalizeJourneySearchText(value: unknown) {
 }
 
 export function propertyIntentSpecialties(intent: unknown) {
-  return PROPERTY_INTENT_SPECIALTIES[normalizePropertyIntent(intent)];
+  const group = propertyThesisGroup(intent);
+  const specialties: Record<string, LegacyPropertyIntent[]> = {
+    VALUE_RESALE: ["vender"], REAL_ESTATE_INCOME: ["alugar"], REAL_ESTATE_DEVELOPMENT: ["construir"],
+    ASSET_UNLOCKING: ["regularizar", "reformar"], PROPERTY_OPERATIONS: ["gerir", "alugar"],
+  };
+  return group ? [...new Set(specialties[group].flatMap(key => PROPERTY_INTENT_SPECIALTIES[key]))]
+    : PROPERTY_INTENT_SPECIALTIES[normalizePropertyIntent(intent) as LegacyPropertyIntent];
 }
 
 export function scorePropertyProfessionalMatch(input: PropertyProfessionalMatchInput) {

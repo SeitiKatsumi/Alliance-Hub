@@ -56,3 +56,6 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 - `server/aura-lexico.test.ts`
 - `server/aura-audio.test.ts`
 - Ao alterar: testar palavras/expressoes, usuario em varias comunidades, relacao BIA, duplicidade, permissao negada de microfone e falha de IA.
+
+## Contraste do aviso de vínculo
+Descrição do aviso de registro restrito usa âmbar escuro opaco no tema claro e âmbar claro no tema escuro, sem transparência no texto. Mudança visual localizada; vínculo, score e permissões preservados.

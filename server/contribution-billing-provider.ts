@@ -48,6 +48,7 @@ export class ContributionProvider {
   }
   async muteCustomer(id:string) {await this.transport.request(`/customers/${id}`,{method:"PUT",body:{notificationDisabled:true}});}
   create(customer:string, reference:string, amount:number,dueDate:string,billingType:string) {return this.transport.request("/payments",{method:"POST",body:{customer,externalReference:reference,value:amount/100,dueDate,billingType,description:"Integralização de aporte BUILT"}});}
+  cancel(id:string){return this.transport.request(`/payments/${id}`,{method:"DELETE"});}
   read(id:string){return this.transport.request(`/payments/${id}`);}
   update(id:string,amount:number){return this.transport.request(`/payments/${id}`,{method:"PUT",body:{value:amount/100}});}
   async snapshot(payment:any,expectedReference:string,customerId?:string) {

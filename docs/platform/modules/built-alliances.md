@@ -167,6 +167,8 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 
 ## Dados e fontes de verdade
 
+- Visão geral da BIA: nomes na Governança, CPP–DM e Distribuição CPP abrem o perfil público existente pela referência canônica de `getMembroUrl`. Governança usa o ID do cargo; CPP usa `memberId` do mesmo participante/snapshot projetado economicamente, nunca correspondência por nome. Somente IDs presentes no diretório autorizado já carregado (`/api/membros`) ganham link. Instituições sem membro, cargos legados, não atribuídos e pessoas indisponíveis continuam texto. Não altera cálculos, snapshots, APIs, autorização ou documentos. Regressão: `client/src/components/bia-member-link.test.ts`.
+
 - Directus `bias_projetos`, `land_bank_assets` e colecoes legadas de oportunidade.
 - PostgreSQL: `bias_projetos` operacional, `oportunidades`, `opportunity_*`, `business_trace_*`, aprovacoes, solicitacoes e permissoes.
 - PostgreSQL `opportunity_meetings` e `opportunity_meeting_participants` sao as fontes das ROs e dos convidados externos; tokens sao persistidos somente como hash e o aceite preserva versao, horario e evidencia.

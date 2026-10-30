@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "id": "2026-10-29-contribution-cancellation",
+  "title": "Cancelar cobrança aberta para permitir correção do lançamento",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/contribution-billing.ts",
+    "server/contribution-flow-protection.ts"
+  ],
+  "searchTerms": [
+    "cancelFlow",
+    "protectContributionFlow",
+    "canCancel"
+  ],
+  "consumers": [
+    {
+      "path": "server/contribution-flow-protection.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "server/contribution-cancellation.test.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Fluxo de cancelamento confirmado, guarda de edição e contratos/testes."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "client/src/components/existing-expense-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "server/contribution-reminders.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "client/src/components/contribution-payment.test.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "server/fluxo-delete.test.ts",
+      "decision": "preserved",
+      "reason": "Contratos dos movimentos e integração com modal/guarda preservados; sem alteração de cálculos ou permissões."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "server/asaas/exclusive-bia.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "server/contribution-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; montagem, identidade das entradas e contratos anteriores preservados. Regressões integrais executadas sem modificar estes arquivos."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Usa o modal compartilhado; cancelamento da cobrança não remove proteção de edição isolada das parcelas nem cria nova parcela."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Modal oferece cancelamento explícito com confirmação, loading e erro. Mensagem da guarda indica Pix/boleto. Homologação: botão confirmado no modal de cobrança aberta; evidência cancelar-cobranca-editar.png. Nenhuma cobrança do usuário cancelada."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Endpoint exige edição, gestão, ID vigente e confirmação; testes HTTP de negação e sucesso."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração: preserva cobrança cancelada, evidência, autor e vínculo original em JSONB; reemissão explícita recebe novo ID."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Cancelar cobrança não altera valor/status financeiro; guardas de lotes e cronogramas continuam."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Avisos da cobrança cancelada são suprimidos; lembrete do aporte continua porque obrigação original permanece. Nenhum e-mail real enviado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório e contrato atualizados; PDFs/aceites preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "DELETE e leitura confirmatória do mesmo pagamento na subconta. Worker não reclama cobranças canceladas. Asaas simulado nos testes."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Autorização existente da BIA e gestão obrigatórias; pagamento recebido/processamento não é cancelável."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Guardas de parcelas e despesas vinculadas preservadas. Reenvio de valor numérico/data/ID equivalente não bloqueia edição de descrição."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Testes PGlite e HTTP: cancelamento local, pago, desconhecido, emissão em andamento, resposta perdida, repetição, reemissão, histórico e BIA incorreta. Verificação integral no log charge-edit-verify. platform:verify: 600 testes aprovados, tipos e build. Homologação: 12 chamadas HTTP com fixture sintética validaram editar descrição, bloquear exclusão, cancelar intenção, editar valor e excluir; zero operações externas."
+    }
+  ],
+  "regressionTests": [
+    "server/contribution-cancellation.test.ts",
+    "server/contribution-flow-api.test.ts",
+    "server/contribution-flow.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

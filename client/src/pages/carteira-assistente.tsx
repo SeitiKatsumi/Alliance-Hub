@@ -1,15 +1,14 @@
+import { propertyThesisOptions, propertyThesisLabel } from "@shared/property-thesis";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft,
   ArrowRight,
-  Building2,
   Camera,
   Check,
   FileSearch,
   FileText,
-  House,
   Info,
   Loader2,
   MapPin,
@@ -108,15 +107,7 @@ const METHODS: Array<{ id: JourneyMethod; title: string; description: string; ic
   { id: "manual", title: "Preencher manualmente", description: "Cadastre diretamente os dados essenciais.", icon: PencilLine },
 ];
 
-const INTENTS = [
-  ["gerir", "Apenas cadastrar e gerir"],
-  ["vender", "Vender"],
-  ["alugar", "Alugar"],
-  ["reformar", "Reformar"],
-  ["construir", "Construir"],
-  ["regularizar", "Regularizar"],
-  ["estruturar_alianca", "Estruturar uma Aliança BUILT"],
-] as const;
+
 
 const FIELD_LABELS: Record<string, string> = {
   nome: "Nome ou identificação",
@@ -415,6 +406,7 @@ export default function CarteiraAssistentePage() {
     },
     onSuccess: (updated, variables) => {
       queryClient.setQueryData(["/api/carteira/assistente/sessoes", sessionId], updated);
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/assistente/recomendacoes", sessionId] });
       setJourneyUrl({ step: variables.nextStep });
     },
     onError: (error: Error) => toast({ title: "Não foi possível salvar", description: error.message, variant: "destructive" }),
@@ -611,7 +603,7 @@ export default function CarteiraAssistentePage() {
         <header>
           <p className="text-xs font-semibold uppercase text-blue-600">Primeiro imóvel</p>
           <h1 className="mt-1 text-2xl font-bold text-[#001D34]">O que você deseja fazer?</h1>
-          <p className="mt-1 text-sm text-slate-600">Escolha a relação com o imóvel e seu objetivo inicial.</p>
+          <p className="mt-1 text-sm text-slate-600">Escolha o objetivo inicial para este cadastro.</p>
         </header>
 
         <nav className="grid grid-cols-4 overflow-hidden rounded-md border border-slate-200 bg-slate-50" aria-label="Etapas do cadastro">
@@ -622,22 +614,11 @@ export default function CarteiraAssistentePage() {
           ))}
         </nav>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <button type="button" onClick={() => setJourneyUrl({ path: "imovel", step: "intencao" })} className={`flex items-start gap-3 rounded-md border p-4 text-left ${path === "imovel" ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"}`}>
-            <House className="mt-0.5 h-5 w-5 text-blue-600" />
-            <span><strong className="block text-[#001D34]">É meu imóvel</strong><span className="mt-1 block text-sm text-slate-600">O ativo entrará em Meus Imóveis para gestão privada.</span></span>
-          </button>
-          <button type="button" onClick={() => setJourneyUrl({ path: "oportunidade", step: "intencao" })} className={`flex items-start gap-3 rounded-md border p-4 text-left ${path === "oportunidade" ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}>
-            <Building2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-            <span><strong className="block text-[#001D34]">Identifiquei uma oportunidade</strong><span className="mt-1 block text-sm text-slate-600">O registro será privado e você aparecerá como originador, não como proprietário.</span></span>
-          </button>
-        </div>
-
         <section>
           <h2 className="text-base font-semibold text-[#001D34]">Qual é o seu objetivo inicial?</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {INTENTS.map(([value, label]) => (
-              <button key={value} type="button" onClick={() => setDraft({ ...draft, intencao: value })} className={`min-h-16 rounded-md border px-4 text-left text-sm font-medium ${draft.intencao === value ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 bg-white hover:border-blue-300"}`}>
+            {propertyThesisOptions(draft.intencao).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setDraft({ ...draft, intencao: value })} className={`min-h-16 rounded-md border px-4 py-3 text-left text-sm font-medium ${draft.intencao === value ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 bg-white hover:border-blue-300"}`}>
                 {draft.intencao === value && <Check className="mr-2 inline h-4 w-4" />}{label}
               </button>
             ))}
@@ -664,7 +645,7 @@ export default function CarteiraAssistentePage() {
           <h1 className="text-2xl font-bold text-[#001D34]">{title}</h1>
           <p className="mt-1 text-sm text-slate-600">Seu progresso fica salvo. Toda sugestão da IA pode ser revisada.</p>
         </div>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">{INTENTS.find(([value]) => value === draft.intencao)?.[1] || "Cadastro em andamento"}</span>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">{propertyThesisLabel(draft.intencao)}</span>
       </header>
 
       <nav className="grid grid-cols-4 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
@@ -868,16 +849,15 @@ export default function CarteiraAssistentePage() {
 
       {step === "intencao" && (
         <section className="rounded-md border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold text-[#001D34]">O que você deseja fazer?</h2>
+          <h2 className="font-semibold text-[#001D34]">Qual é o seu objetivo inicial?</h2>
           <p className="mt-1 text-sm text-slate-600">Essa escolha orienta a análise e pode ser alterada depois.</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {INTENTS.map(([value, label]) => (
-              <button key={value} type="button" onClick={() => setDraft({ ...draft, intencao: value })} className={`min-h-16 rounded-md border px-4 text-left text-sm font-medium ${draft.intencao === value ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 hover:border-blue-300"}`}>
+            {propertyThesisOptions(draft.intencao).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setDraft({ ...draft, intencao: value })} className={`min-h-16 rounded-md border px-4 py-3 text-left text-sm font-medium ${draft.intencao === value ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 hover:border-blue-300"}`}>
                 {draft.intencao === value && <Check className="mr-2 inline h-4 w-4" />}{label}
               </button>
             ))}
           </div>
-          {draft.intencao === "estruturar_alianca" && <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Ao final, será preparada uma solicitação de estruturação. Nenhuma BIA será ativada automaticamente.</p>}
         </section>
       )}
 

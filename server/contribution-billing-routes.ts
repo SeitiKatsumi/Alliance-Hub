@@ -12,6 +12,11 @@ export function registerContributionBilling(app:any, service:ContributionBilling
     if(!a.manage)return res.status(403).json({error:'Somente gestores podem configurar lembretes.'});
     res.json(await service.reminders.save(a.biaId,String(req.params.flowId),req.body,a.actorId));
   }));
+  app.post(base+'/lancamentos/:flowId/cancelar',route(true,async(req,res,a)=>{
+    if(!a.manage)return res.status(403).json({error:'Somente gestores podem cancelar cobranças.'});
+    const input=z.object({confirm:z.literal(true),chargeId:z.string().uuid()}).parse(req.body);
+    res.json(await service.cancelFlow(a.biaId,String(req.params.flowId),a.actorId,input.chargeId));
+  }));
   app.get(base+'/lancamentos/:flowId/pagamento',route(false,async(req,res,a)=>res.json(await service.flowPayment(a.biaId,String(req.params.flowId),a.manage,a.payerId,{canEditPayers:a.canEditPayers,canViewBank:a.canViewBank}))));
   app.post(base+'/lancamentos/:flowId/preparar',route(true,async(req,res,a)=>{
     if(req.body?.cashContribution!==true)return res.status(400).json({error:'Confirme que este lançamento é um aporte em dinheiro.'});

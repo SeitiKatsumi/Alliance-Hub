@@ -29,6 +29,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 ## Dados e fontes de verdade
 
+- Lista de Comunidades abre em Minhas comunidades, com alternativa Todas. Mapa e busca seguem o mesmo filtro; cartões de vínculos confirmados mostram Você participa e, quando is_mae, Comunidade principal. A consulta existente `/api/membros/:id/comunidades?incluir_origem=1` usa a identidade do usuário atual, sem herdar a empresa. `memberCommunityMembership` considera todos os vínculos membro/aliado/ambos e normaliza IDs; origem, convite e pendência não concedem participação. Falha mostra nova tentativa, sem afirmar ausência de vínculo. Filtro visual não altera cadastro, autorizações, convites ou aceites.
+
 - Seletores telefônicos compartilham `PhoneInput`: país por extenso e DDI (Brasil (+55), África do Sul (+27)), com nome acessível País e código internacional. Seletor ocupa uma linha própria para não cortar nomes nem comprimir o número em telas estreitas. Mudança somente visual; catálogo, valores enviados e números existentes permanecem iguais, sem novo campo obrigatório de DDD.
 
 - Directus `cadastro_geral`: perfil de pessoa/empresa.

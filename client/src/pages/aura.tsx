@@ -1545,7 +1545,7 @@ export default function AuraPage() {
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <div className="space-y-1">
                   <p className="font-semibold">Registro restrito a vínculos BUILT</p>
-                  <p className="text-amber-800/80">
+                  <p className="text-amber-900 dark:text-amber-100">
                     Você pode consultar esta Aura, mas só pode registrar percepção para pessoas vinculadas à sua BIA ou Comunidade.
                   </p>
                 </div>

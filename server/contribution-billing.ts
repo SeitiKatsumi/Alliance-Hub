@@ -58,7 +58,7 @@ export class ContributionBilling {
         const job=state==="received"?"ready":protectedEntry?"blocked":"queued";
         await tx.execute(sql`INSERT INTO bia_contribution_charges(id,environment,parcel_id,bia_id,payer_id,flow_id,original_cents,amount_cents,due_date)
           VALUES(${randomUUID()},${this.environment},${p.id},${biaId},${String(movement.favorecido_id)},${String(movement.id)},${cents(p.valor)},${cents(entry.valor)},${iso(p.vencimento)}) ON CONFLICT(environment,parcel_id) DO NOTHING`);
-        await tx.execute(sql`UPDATE bia_contribution_charges SET payment_state=${state},job_state=${job},amount_cents=${cents(entry.valor)} WHERE environment=${this.environment} AND parcel_id=${p.id} AND external_id IS NULL AND account_id IS NULL AND pending_revision IS NULL`);
+        await tx.execute(sql`UPDATE bia_contribution_charges SET payment_state=${state},job_state=${job},amount_cents=${cents(entry.valor)} WHERE environment=${this.environment} AND parcel_id=${p.id} AND external_id IS NULL AND account_id IS NULL AND pending_revision IS NULL AND payment_state<>'cancelled'`);
       }
     });
   }
@@ -67,12 +67,12 @@ export class ContributionBilling {
     const entries=await this.deps.entries(biaId);
     return rows.map((r:any)=>{
       const entry=entries.find(e=>String(e.id)===String(r.flow_id));
-      if(r.vigente && !entry)throw fault("Uma parcela não pôde ser consultada no financeiro",503);
+      if(r.vigente && !entry && r.payment_state!=="cancelled")throw fault("Uma parcela não pôde ser consultada no financeiro",503);
       const paid=entry?.status==="pago";
       const foreign=!!(entry?.pagamento_id && entry.pagamento_id!==r.external_id);
       const evidence=(entry?.Anexos||entry?.anexos||[]).length>0;
       const protectedStatus=entry && !["agendado","pendente","vencido"].includes(entry.status);
-      return {...r,due_date:iso(r.due_date),amount_cents:Number(r.amount_cents),original_cents:Number(r.original_cents),
+      return {...r,vigente:r.vigente && r.payment_state!=="cancelled",due_date:iso(r.due_date),amount_cents:Number(r.amount_cents),original_cents:Number(r.original_cents),
         payment_state:!r.external_id?(paid?"received":protectedStatus||foreign||evidence||entry?.data_pagamento?"processing":"none"):r.payment_state,
         protected:paid||!!entry?.data_pagamento||foreign||evidence||protectedStatus,entry};
     });
@@ -107,7 +107,7 @@ export class ContributionBilling {
   async enqueueFlow(biaId:string,flowId:string) {
     await this.requireFlowStorage();
     return this.deps.lock(biaId,async(tx)=>{
-      const prior=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE environment=${this.environment} AND bia_id=${biaId} AND flow_id=${flowId}`)).rows[0];
+      const prior=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE environment=${this.environment} AND bia_id=${biaId} AND flow_id=${flowId} AND payment_state<>'cancelled'`)).rows[0];
       if(prior)return prior;
       const bia=await this.deps.bia(biaId);
       if(!activePhase(bia?.situacao)||bia?.moeda!=='BRL')throw fault('A cobrança exige BIA ativa em BRL.',422);
@@ -118,9 +118,41 @@ export class ContributionBilling {
       if(!payer?.id)throw fault('Pagador não encontrado.',422);
       const parcel=(await tx.execute(sql`SELECT * FROM bia_aportes_parcelas WHERE bia_id=${biaId} AND movimentos @> ${JSON.stringify([{id:flowId}])}::jsonb LIMIT 1`)).rows[0];
       if(parcel&&(!parcel.vigente||parcel.pendente||parcel.natureza!=='caixa'||parcel.componente!=='capital'))throw fault('Esta parcela não representa aporte em dinheiro disponível para cobrança.',422);
+      // Preserve cancelled payment evidence while freeing the live flow/parcel uniqueness.
+      await tx.execute(sql`UPDATE bia_contribution_charges SET flow_id='cancelled:'||id::text||':'||flow_id,parcel_id=NULL WHERE environment=${this.environment} AND bia_id=${biaId} AND flow_id=${flowId} AND payment_state='cancelled'`);
       const id=randomUUID();
       await tx.execute(sql`INSERT INTO bia_contribution_charges(id,environment,parcel_id,bia_id,payer_id,flow_id,original_cents,amount_cents,due_date) VALUES(${id},${this.environment},${parcel?.id || null},${biaId},${String(entry.favorecido_id)},${flowId},${cents(entry.valor)},${cents(entry.valor)},${iso(entry.data_vencimento)})`);
       return {id};
+    });
+  }
+  async cancelFlow(biaId:string,flowId:string,actor:string,chargeId:string) {
+    await this.requireReady();
+    return this.deps.lock(biaId,async(tx)=>{
+      const raw=(await tx.execute(sql`SELECT * FROM bia_contribution_charges WHERE id=${chargeId} AND environment=${this.environment} AND bia_id=${biaId} AND flow_id=${flowId} FOR UPDATE`)).rows[0];
+      if(!raw)throw fault('Cobrança alterada. Atualize os dados.',409);
+      if(raw.payment_state==='cancelled')return {cancelled:true};
+      const row=(await this.rows(biaId,tx)).find((r:any)=>r.id===chargeId);
+      if(!row || row.protected || row.pending_revision || !['none','open','overdue'].includes(row.payment_state))throw fault('Cobrança paga, em processamento ou revisão. Concilie o pagamento antes de alterar o lançamento.');
+      if(row.job_state==='creating')throw fault('Emissão em andamento. Aguarde a conclusão antes de cancelar.');
+      if(row.external_id || row.job_state==='unknown' || row.error_code==='CREATE_UNKNOWN') {
+        const account=await this.account(biaId,tx);
+        if(row.account_id && (row.account_id!==account.id || row.external_account_id!==account.external_account_id))throw fault('Conta da cobrança divergente. Solicite conciliação.');
+        const provider=await this.provider(account);await provider.verifyAccount(account);
+        const payment:any=row.external_id?await provider.read(row.external_id):await provider.findPayment(reference(row));
+        if(!payment)throw fault('Emissão com resultado desconhecido. A cobrança precisa ser localizada antes de liberar o lançamento.');
+        if(payment.externalReference!==reference(row) || (row.external_id&&payment.id!==row.external_id))throw fault('Vínculo da cobrança divergente.');
+        if(!['PENDING','OVERDUE'].includes(payment.status))throw fault('O Asaas já confirmou ou processou este pagamento. Não é possível cancelar para editar.');
+        if(!payment.deleted) {
+          await provider.cancel(payment.id);
+          const confirmed:any=await provider.read(payment.id);
+          if(confirmed.id!==payment.id || confirmed.deleted!==true)throw fault('Cancelamento ainda não confirmado no Asaas. Tente consultar novamente.');
+        }
+      }
+      // Only clear our own open payment markers. Keep the original provider evidence in the charge.
+      if(row.entry?.pagamento_id && row.entry.pagamento_id===row.external_id)await this.deps.updateFlow(flowId,{pagamento_id:null,pagamento_provider:null,pagamento_url:null,pagamento_status:null});
+      await tx.execute(sql`UPDATE bia_contribution_charges SET payment_state='cancelled',job_state='ready',error_code=NULL,details=${JSON.stringify({cancelledBy:actor,cancelledAt:new Date().toISOString(),originalFlowId:flowId,originalParcelId:row.parcel_id})}::jsonb,version=version+1,updated_at=now() WHERE id=${chargeId}`);
+      await tx.execute(sql`UPDATE bia_contribution_notices SET state='suppressed' WHERE charge_id=${chargeId} AND state IN ('queued','failed')`);
+      return {cancelled:true};
     });
   }
   async flowPayment(biaId:string,flowId:string,manage:boolean,payerId:string|null,correctionAccess:{canEditPayers?:boolean;canViewBank?:boolean}={}) {
@@ -135,7 +167,7 @@ export class ContributionBilling {
       payer:charge.error_code==='PAYER_PENDING'?await this.deps.member(owner):undefined,
       owner,viewer:payerId,canEditPayers:correctionAccess.canEditPayers,
       bankHref:correctionAccess.canViewBank?`/bias/${encodeURIComponent(biaId)}?tab=capital&capital=banco`:undefined}):null;
-    return {environment:this.environment,enabled:this.enabled(),canPrepare,chargeId:charge?.id || null,
+    return {environment:this.environment,enabled:this.enabled(),canPrepare,canCancel:manage&&!!charge&&!charge.protected&&!charge.pending_revision&&charge.job_state!=="creating"&&["none","open","overdue"].includes(charge.payment_state),chargeId:charge?.id || null,
       amountCents:charge?.amount_cents ?? cents(entry.valor),dueDate:charge?.due_date || iso(entry.data_vencimento),
       paymentState:charge?.payment_state || (entry.status==='pago'?'received':'none'),jobState:charge?.job_state || null,
       message:!this.enabled()?'Emissão aguardando habilitação da integração. Solicite a habilitação à administração.':!charge?cashContributionProblem(entry):guidance?.message || (charge.job_state==='unknown'?'Emissão em conciliação. Não crie outra cobrança.':null),
@@ -207,7 +239,7 @@ export class ContributionBilling {
     await tx.execute(sql`UPDATE bia_contribution_revisions SET state='applied',error_code=NULL,applied_at=now() WHERE id=${r.id}`);
   }
   async processCharge(id:string) {
-    const claimed=(await this.deps.db.execute(sql`UPDATE bia_contribution_charges SET job_state='creating',updated_at=now() WHERE id=${id} AND environment=${this.environment} AND job_state<>'creating' RETURNING *`)).rows[0];
+    const claimed=(await this.deps.db.execute(sql`UPDATE bia_contribution_charges SET job_state='creating',updated_at=now() WHERE id=${id} AND environment=${this.environment} AND job_state<>'creating' AND payment_state<>'cancelled' RETURNING *`)).rows[0];
     if(!claimed)return;
     try {
       const before=(await this.rows(claimed.bia_id)).find((r:any)=>r.id===id);
@@ -292,7 +324,7 @@ export class ContributionBilling {
     // Crash recovery never repeats a POST; unknown jobs only search the deterministic external reference.
     await this.deps.db.execute(sql`UPDATE bia_contribution_charges SET job_state='unknown',error_code='CREATE_UNKNOWN' WHERE environment=${this.environment} AND job_state='creating' AND updated_at < now()-interval '3 minutes'`);
     await this.deps.db.execute(sql`UPDATE bia_contribution_notices SET state=CASE WHEN channel='agenda' THEN 'queued' ELSE 'unknown' END WHERE state='sending' AND updated_at<now()-interval '3 minutes'`);
-    const ids=(await this.deps.db.execute(sql`SELECT id FROM bia_contribution_charges WHERE environment=${this.environment} AND job_state<>'creating' AND NOT(external_id IS NULL AND payment_state IN ('received','processing')) AND (job_state IN ('queued','sync') OR updated_at<now()-interval '5 minutes') ORDER BY updated_at LIMIT 20`)).rows;
+    const ids=(await this.deps.db.execute(sql`SELECT id FROM bia_contribution_charges WHERE environment=${this.environment} AND job_state<>'creating' AND payment_state<>'cancelled' AND NOT(external_id IS NULL AND payment_state IN ('received','processing')) AND (job_state IN ('queued','sync') OR updated_at<now()-interval '5 minutes') ORDER BY updated_at LIMIT 20`)).rows;
     for(const row of ids)await this.processCharge(row.id);
     await this.notices(now);
   }

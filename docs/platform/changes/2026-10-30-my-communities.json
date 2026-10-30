@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "id": "2026-10-30-my-communities",
+  "title": "Identificar comunidades do usuário e principal na listagem",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/member-community.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "memberCommunityMembership"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "updated",
+      "reason": "Filtro inicial mine, busca/mapa consistentes, selos por vínculo e tratamento de carregamento/erro; consulta desativada nas telas de convites."
+    },
+    {
+      "path": "shared/member-community.ts",
+      "decision": "updated",
+      "reason": "Novo helper de apresentação normaliza IDs, reúne todos os papéis confirmados, exclui origem/pendência; funções anteriores intactas."
+    },
+    {
+      "path": "shared/member-community.test.ts",
+      "decision": "updated",
+      "reason": "Cobre múltiplos vínculos, principal fora da primeira posição, IDs expandidos/numéricos, duplicidade, ausência e origem sem associação."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Descrição da funcionalidade Comunidades acrescida dos filtros e selos; preservado trabalho paralelo."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Contrato da apresentação e fonte canônica registrado."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Mesma rota /comunidade, guardas de acesso preservadas."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo, inicialização não muda."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "As duas entradas reutilizam ComunidadePage e recebem automaticamente filtro e selos."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "preserved",
+      "reason": "Consome convites; nova consulta/filtro não se aplicam a convitesOnly."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "preserved",
+      "reason": "Wrapper convitesOnly mantém comportamento e acesso."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo sem alteração de runtime."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Endpoint existente incluir_origem=1 retorna vínculo e is_mae; modo estrito propaga falha. Sem mudança de autorização ou persistência neste trabalho."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticado no localhost3018: Minhas comunidades(1) mostra vínculo e Comunidade principal; Todas(23) atualiza contagem do mapa; retorno a Minhas preserva card. Desktop e390x844 conferidos; sem alterar dados."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Reutiliza GET /api/membros/:id/comunidades?incluir_origem=1 com membro da sessão; nenhum endpoint ou contrato novo."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem alteração de campos nem migração. Origem sem vínculo não exibe participação; leitura usa consulta existente."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Mapa recebe a mesma lista filtrada dos cartões; contagem de Minhas usa IDs confirmados deduplicados. Sem cálculo financeiro."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Escopo só da apresentação de Comunidades; convitesOnly não consulta novos vínculos; nenhum evento ou mensagem novo."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional atualizado; documentos e exportações não dependem deste filtro local."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem tarefa, webhook ou integração nova; usa API existente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Filtro/selos não concedem acesso nem edição. Papéis de aliado/admin e guardas de rota mantidos; identidade do funcionário não herda a empresa."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Normaliza IDs simples/expandidos; mantém helpers de origem/adesão intactos. Convite/pendência/origem isolada excluídos."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: contratos, consistência, TypeScript, 610 testes/0 falhas e build. Diff check passou. platform:review executado e bloqueado por QA de interface desta tarefa e pendências de registros anteriores. Não atesta trabalhos paralelos."
+    }
+  ],
+  "regressionTests": [
+    "shared/member-community.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

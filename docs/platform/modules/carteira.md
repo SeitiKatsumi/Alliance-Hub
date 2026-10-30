@@ -155,3 +155,28 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 ## 29/10/2026 — Lista de alianças sem duplicação no Início
 A aba Imóveis do painel usa showAlliances=false: oculta lista Minhas Alianças e seu atalho interno. A aba própria Minhas Alianças permanece. Rota Carteira independente mantém lista e ações. Dashboard consolidado, totais, API, permissões, dados, notificações e documentos preservados; alteração somente de composição visual.
+
+## 30/10/2026 — Ação principal da Carteira
+Removido somente o botão Identifiquei uma oportunidade do cabeçalho de CarteiraDashboardPanel (Início/Imóveis e rota Carteira). Cadastrar meu imóvel e filtro de período preservados. Rotas e demais ações de oportunidades permanecem; nenhuma alteração de dados, cálculo ou permissão.
+
+## 30/10/2026 — Tese única no cadastro do imóvel
+Fonte: shared/strategic-cells.ts, adaptada por shared/property-thesis.ts. Assistente (criação/retomada), primeiro acesso, edição do imóvel e Pulso usam a mesma lista + gerir. O campo JSON intencao da sessão conserva o código; conclusão grava objetivo do imóvel com esse código. Edição/Pulso validam no servidor. Originação de BIA copia somente tese canônica para objetivo_alianca; nomes antigos ambíguos não são convertidos. Estruturação permanece na ação posterior de origem-BIA, sem automatismo. Recomendações profissionais usam a família da tese; análise recebe o rótulo. Diagnóstico trata gerir como tese não definida. Dados legados mantêm uma opção de leitura/edição identificada, sem backfill nem migração. API/autorização privada preservadas. Valores, MAP, gráficos financeiros, alertas, e-mails e documentos assinados não mudam. Testes: shared/property-thesis.test.ts e server/property-journey.test.ts.
+Validação final:603 testes/tipos/build aprovados;13 chamadas na homologação com imóvel sintético confirmaram persistência/conclusão/edição e rejeição inválida. Interface conferida em desktop e390x844. Sem commit, push ou produção.
+
+Ajuste de texto solicitado: pergunta inicial e retomada voltam a “Qual é o seu objetivo inicial?”, também no primeiro acesso. Opções canônicas, persistência e regras permanecem; guarda impede listas concorrentes, não essa pergunta aprovada.
+
+Cadastro de Meus Imóveis: removida a escolha É meu imóvel/Identifiquei uma oportunidade. A entrada padrão e path=imovel mantêm o fluxo de imóvel; rotas explícitas legadas de oportunidade continuam respeitadas, sem conversão de sessões existentes. Só apresentação; nenhum dado ou permissão alterado.
+
+## 30/10/2026 — Carteira unificada responsiva
+CarteiraDashboardPanel apresenta imóveis e CPPs em colunas no desktop e seções consecutivas no celular. Métricas e observações continuam em shared/portfolio-dashboard.ts. Composição por quantidade usa shared/portfolio-composition.ts: somente imóveis próprios, ID único, sem converter ocupação desconhecida em vaga e sem somar ativos consolidados pela BIA. Painel injeta buildBiaThesisAllocation já usado na lista de alianças (valor investido, não valor de CPP); rota independente oferece acesso à lista quando distribuição não está disponível. Ações abrem cadastro, lista local de imóveis ou aba de alianças, preservando cadastro/edição e suas permissões. Fontes /api/carteira/resumo, /api/carteira/evolucao e dashboard existente; nenhuma migração, alteração financeira, integração, e-mail ou documento.
+
+Ajuste responsivo: duas colunas a partir de 1024px de viewport (lg), incluindo desktop de 1168–1254px. Valores compactos até 1279px, com valor integral na ajuda, evitam quebra em cartões menores. Mobile permanece empilhado.
+
+Pedido posterior: na aba Imóveis do Início, showAlliances=false também oculta o bloco de KPIs, evolução de CPPs e teses de alianças do dashboard; imóveis ocupam a largura disponível. Aba Minhas Alianças preservada. Rota Carteira independente mantém suporte ao bloco. Apenas apresentação, sem excluir dados.
+
+O aviso amarelo de patrimônio parcial por pendências das alianças também respeita showAlliances; não aparece na aba Imóveis. Indicadores de imóveis e avisos próprios preservados.
+
+## CPPs na aba Minhas Alianças
+Painel usa CarteiraDashboardPanel em modo alliancesOnly para valores aportados/a aportar e evolução, com mesmos helpers, resumo, observações e filtro de período. Não dispara atualização de cotação nem pesquisa de imóveis nesse modo; nenhuma duplicação de listas/teses. Aba Imóveis usa título Meus imóveis e descrição específica; standalone mantém Carteira Patrimonial. API, cálculos, persistência e permissões preservados.
+
+Ordem solicitada: valores e evolução das CPPs ficam no final da aba Minhas Alianças, depois dos indicadores e da lista de BIAs. Apenas posição visual.

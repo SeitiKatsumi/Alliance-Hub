@@ -1,6 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "./member-community";
+import { memberCommunityMembership, orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "./member-community";
+
+test("participação considera todos os vínculos e a principal fora da primeira posição", () => {
+  const membership = memberCommunityMembership([
+    { id: 1, papel: "membro" },
+    { id: { id: "2" }, papel: "aliado", is_mae: true },
+    { id: "3", papel: "ambos" },
+    { id: "2", papel: "membro" },
+  ]);
+  assert.deepEqual([...membership], [["1", { isPrimary: false }], ["2", { isPrimary: true }], ["3", { isPrimary: false }]]);
+});
+
+test("origem, convite e pendência não confirmam participação nem principal", () => {
+  assert.equal(memberCommunityMembership([]).size, 0);
+  assert.equal(memberCommunityMembership([
+    { id: "origem", papel: "origem", is_mae: true },
+    { id: "convite", papel: "convidado" },
+    { id: "pendente", papel: "pendente" },
+    { id: null, papel: "membro" },
+    { id: "sem-papel" },
+  ]).size, 0);
+});
 
 test("usa a comunidade do convite original quando o candidato ainda não está no M2M", () => {
   const origin = selectMemberCommunityOrigin([

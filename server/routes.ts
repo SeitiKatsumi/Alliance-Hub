@@ -1,3 +1,4 @@
+import { validatePropertyGoal, propertyThesisLabel, propertyThesisCode, PROPERTY_THESIS_OPTIONS } from "../shared/property-thesis";
 import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
 import { isolatedStage } from './isolated-stage';
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
@@ -1279,7 +1280,7 @@ async function initialEntryMetadata(entries: any[]) {
 
 async function protectInitialEntry(id: string, data: any) {
   if (mapOperationContext.getStore()?.initialContributionWrite) return;
-  await protectContributionFlow(mapOperationContext.getStore()?.tx || db,id,data);
+  await protectContributionFlow(mapOperationContext.getStore()?.tx || db,id,data,await directusFetchOne("fluxo_caixa",id));
   const [entry] = await initialEntryMetadata([{id}]);
   if (!entry?.parcela_inicial_id) return;
   const paymentOnly = data && Object.keys(data).every(k => k.startsWith("pagamento_") || ["status","data_pagamento"].includes(k));
@@ -15294,7 +15295,7 @@ ${textContent}`;
       foto: body.foto || "",
       status: body.status || "ativo",
       ocupacao: body.ocupacao || "desconhecido",
-      objetivo: body.objetivo || "indefinido",
+      objetivo: validatePropertyGoal(body.objetivo || "indefinido"),
       titularidade: Array.isArray(body.titularidade) ? body.titularidade : [],
       participacao_percentual: Math.min(100, Math.max(0, Number(body.participacao_percentual ?? 100))),
       situacao_pagamento: ["quitado", "financiado"].includes(String(body.situacao_pagamento || "")) ? body.situacao_pagamento : "quitado",
@@ -15838,14 +15839,10 @@ ${textContent}`;
       const actor = requireCarteiraActor(req);
       const pathValue = req.body?.path === "oportunidade" ? "oportunidade" : "imovel";
       const method = normalizePropertyMethod(req.body?.method);
-      const requestedIntent = String(req.body?.intencao ?? req.body?.draft?.intencao ?? "").trim();
-      const normalizedIntent = requestedIntent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ -]+/g, "_");
-      if (!["gerir", "vender", "alugar", "reformar", "construir", "regularizar", "estruturar_alianca"].includes(normalizedIntent)) {
-        return res.status(400).json({ error: "Selecione um objetivo inicial válido para o imóvel." });
-      }
+      const normalizedIntent = validatePropertyGoal(req.body?.intencao ?? req.body?.draft?.intencao);
       const initialDraft = {
         ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}),
-        intencao: normalizePropertyIntent(normalizedIntent),
+        intencao: normalizedIntent,
       };
       const result = await db.execute(sql`
         INSERT INTO property_assistant_sessions (owner_user_id, owner_membro_id, path, method, draft)
@@ -15902,7 +15899,8 @@ ${textContent}`;
         ? nextPropertyAssistantStep(current.step)
         : normalizePropertyAssistantStep(req.body?.step ?? current.step);
       const draft = { ...(current.draft || {}), ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}) };
-      if (req.body?.intencao) draft.intencao = normalizePropertyIntent(req.body.intencao);
+      if (req.body?.intencao !== undefined) draft.intencao = req.body.intencao;
+      if (draft.intencao !== undefined) draft.intencao = validatePropertyGoal(draft.intencao);
       const suggestions = { ...(current.suggestions || {}), ...(req.body?.suggestions && typeof req.body.suggestions === "object" ? req.body.suggestions : {}) };
       const confirmations = { ...(current.confirmations || {}), ...(req.body?.confirmations && typeof req.body.confirmations === "object" ? req.body.confirmations : {}) };
       const sourceType = normalizePropertyMethod(req.body?.source_type);
@@ -15966,7 +15964,7 @@ ${textContent}`;
         messages: [{
           role: "user",
           content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados ou estime valor de mercado. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
-{"draft":{"nome":null,"tipo":null,"area_m2":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cartorio":null,"descricao":null},"intencao":"gerir|vender|alugar|reformar|construir|regularizar|estruturar_alianca","resumo":"texto curto","especialidades":["..."]}
+{"draft":{"nome":null,"tipo":null,"area_m2":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
 
 CONTEÚDO:
 ${inputText.slice(0, 18000)}`,
@@ -16123,6 +16121,8 @@ ${inputText.slice(0, 18000)}`,
         ? current.suggestions.estimativa_mercado as Record<string, unknown>
         : null;
       const draft = applyConfirmedPropertyMarketEstimate(submittedDraft, marketSuggestion);
+      draft.intencao = validatePropertyGoal(draft.intencao);
+      draft.objetivo = draft.intencao;
       if (!String(draft.nome || draft.qualificacao || "").trim()) return res.status(400).json({ error: "Informe um nome ou qualificação para continuar." });
       if (current.path === "oportunidade") {
         const id = `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
@@ -17187,6 +17187,7 @@ ${inputText.slice(0, 18000)}`,
       const aliadoId = directusRelationId(comunidade?.aliado) || null;
       const nomeBia = String(req.body?.nome_bia || `BIA ${access.imovel.nome || "Imóvel"}`).trim();
       const createPayload = withUpdatedBiaFinancials(prepareBiaPayload({
+        objetivo_alianca: propertyThesisCode(access.imovel.objetivo) || null,
         nome_bia: nomeBia, descricao_bia: `BIA originada pelo imóvel ${access.imovel.nome || req.params.id}`,
         valor_origem: valorOrigem, moeda: String(access.imovel.moeda || "BRL"), situacao: "em_formacao", bia_publica: false,
         autor_bia: actor.membroId, diretor_alianca: actor.membroId, aliado_built: aliadoId || undefined,
@@ -17933,7 +17934,7 @@ ${textContent.slice(0, 16000)}`,
         preview: {
           campos: {
             ocupacao: req.body?.ocupacao || null,
-            objetivo: req.body?.objetivo || null,
+            objetivo: req.body?.objetivo ? validatePropertyGoal(req.body.objetivo) : null,
           },
           lancamentos,
           alertas,
@@ -18093,7 +18094,7 @@ ${textContent.slice(0, 16000)}`,
           messages: [{
             role: "user",
             content: `Explique em até 80 palavras, sem prometer resultado, por que a alternativa "${alternativas[0].titulo}" tem melhor aderência.
-Objetivo: ${entrada.objetivo || "não informado"}.
+Tese: ${propertyThesisLabel(entrada.objetivo)}.
 Prazo: ${entrada.prazo}.
 Preferência: ${entrada.preferencia}.
 Situação: ${diagnostico?.situacao || "preliminar"}.

@@ -1527,7 +1527,7 @@ export default function PainelPage() {
             </TabsList>
 
             <TabsContent value="imoveis" className="mt-0">
-              <CarteiraDashboardPanel compact showAlliances={false} />
+              <CarteiraDashboardPanel compact showAlliances={false} thesisAllocation={alocacaoPorTese} onViewAlliances={() => handleCarteiraViewChange("bias")} />
             </TabsContent>
 
             <TabsContent value="bias" className="space-y-4 mt-0">
@@ -1670,6 +1670,7 @@ export default function PainelPage() {
             </div>
           )}
 
+              <CarteiraDashboardPanel compact alliancesOnly />
             </TabsContent>
           </Tabs>
         </TabsContent>

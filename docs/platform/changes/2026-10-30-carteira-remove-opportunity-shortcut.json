@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "id": "2026-10-30-carteira-remove-opportunity-shortcut",
+  "title": "Remover atalho de oportunidade do cabeçalho da Carteira",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/pages/carteira.tsx"
+  ],
+  "searchTerms": [
+    "CarteiraDashboardPanel"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Remoção localizada do botão no cabeçalho; demais ações de oportunidade preservadas."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Montagem do painel compartilhado mantém contratos, rotas e propriedades."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Montagem do painel compartilhado mantém contratos, rotas e propriedades."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Montagem do painel compartilhado mantém contratos, rotas e propriedades."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Removido apenas JSX do atalho; Cadastrar meu imóvel e período mantidos."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "permissoes",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "legado",
+      "status": "not-applicable",
+      "evidence": "Sem alteração de domínio: fontes, cálculos, dados, autorização, APIs, documentos, tarefas e demais ações de oportunidade preservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Verificação integral em remove-opportunity-verify.log; sem teste novo para remoção visual reversível."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

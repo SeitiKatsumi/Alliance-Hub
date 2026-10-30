@@ -1,5 +1,25 @@
 # AI_HANDOFF.md
 
+## 30/10/2026 — nomes clicáveis sem sublinhado
+
+- Pedido visual: BiaMemberLink agora usa no-underline; nomes de Governança e CPP continuam links canônicos, com hover/foco preservados. Sem mudança de identidade ou permissão.
+- QA autenticado desktop/390px confirmou nomes sem linha; clicar em Rodrigo abriu /membro/M000CAYAJR. Viewport restaurado. Evidência output/profile-link-style/desktop.jpg. Pendência de QA dos links da BIA resolvida.
+- platform:verify:610 testes/0 falhas, contratos/tipos/build aprovados. Revisão global continua bloqueada por outros registros; sem commit/push. Comunidades também conferida em desktop: conta atual mostra1 vínculo, selos Você participa/Comunidade principal e alternativa Todas11; QA móvel dessa tarefa ainda pendente.
+
+## 30/10/2026 — identificar Minhas comunidades
+
+- Lista abre em Minhas comunidades, alterna Todas e aplica busca/mapa à mesma seleção. Cartões marcam Você participa e Comunidade principal. Todas as entradas de ComunidadePage recebem a mudança; convitesOnly fica intacto.
+- Fonte: GET /api/membros/:id/comunidades?incluir_origem=1 pelo membro da sessão. Helper memberCommunityMembership usa todos os vínculos confirmados membro/aliado/ambos, normaliza IDs e não transforma origem/convite/pendência em participação. Sem mudança de dados, autorização, API ou associação; cache atualiza após CRUD da comunidade e ao retomar foco.
+- platform:verify passou com610 testes/0 falhas, tipos/contratos/build. Diff check passou. platform:review permanece bloqueado por QA autenticado de interface e registros paralelos; nenhum ateste paralelo. Registro docs/platform/changes/2026-10-30-my-communities.json.
+- Usuário informou que localhost não estava aberto: serviço estava indisponível, reativado via scripts/start-local-app.ps1 e aberta aba visível em /comunidade. Login necessário; ainda não validado visualmente em desktop/mobile. Não mexer em credenciais. Base8425919d22d9ab990974269aaeb7111c4d8b44bf, sem commit/push.
+
+## 30/10/2026 — nomes da Governança e CPP abrem perfil
+
+- Pedido localizado à BIA: implementado BiaMemberLink nas três instâncias de MembroChip e nas duas apresentações CPP. Usa ID explícito do cargo/MAP, getMembroUrl e diretório existente; não associa homônimos pelo nome. Ausentes, instituições e funções legadas sem ID permanecem texto.
+- Cálculos, snapshots, APIs e permissões preservados; catálogo funcional e contrato built-alliances atualizados. Registro: docs/platform/changes/2026-10-30-bia-profile-links.json.
+- platform:verify aprovado: contratos, consistência, TypeScript, 607 testes/0 falhas e build, incluindo os três testes do atalho. Diff check passou. platform:review bloqueado pelo QA de interface pendente e registro paralelo remote-sandbox-contributions. QA desktop/mobile e clique autenticado pendentes de login. Localhost estava desligado e foi reativado pelo launcher existente, sem alteração de configuração. Usuário recebeu pedido de login.
+- Base 8425919d22d9ab990974269aaeb7111c4d8b44bf; árvore já continha trabalhos paralelos de aportes/carteira/migração, preservados sem ateste. Sem commit/push nesta tarefa.
+
 ## 28/10/2026 — testes de criação após migração; publicação adiada pelo usuário
 
 - Pedido mais recente: manter em homologação e testar desde onboarding até criações relacionadas ao Directus. Não publicar nem promover a cópia com dados de QA. Produção, Directus original e backups preservados; sem commit/push.
@@ -676,3 +696,28 @@ Três opções: manual, MAP inicial registrado e MAP atual. Fonte inicial: snaps
 
 ## 29/10/2026 — Imóveis sem lista duplicada de alianças
 CarteiraDashboardPanel recebe showAlliances (default true). Painel/Início passa false na aba Imóveis, ocultando seção e atalho interno; aba Minhas Alianças e Carteira independente preservadas. Sem alteração de cálculos ou dados.
+
+## 29/10/2026 — Cobrança e edição de lançamentos
+Adicionado cancelamento explícito no modal Pix/boleto para liberar correção/exclusão. Estado remoto confirmado antes de liberar; pagas/revisão/emissão ativa protegidas. Guarda compara campos reenviados sem alteração. Lotes de despesas e parcelas mantêm suas restrições. Testes sintéticos, sem cancelar cobranças reais.
+
+## 30/10/2026 — Teses no cadastro assistido
+Alterados assistente, login, Carteira, domínio de jornada e trechos de routes de sessão/sanitização/origem-BIA. Campos JSON existentes preservados; apenas homologação, sem mensagens/pagamentos/publicação. Alterações anteriores de cobrança e cabeçalho mantidas.
+
+## 2026-10-30 — Carteira unificada aprovada
+Implementado primeiro conceito desktop e adaptação mobile: PortfolioPatrimonyDashboard agrupa KPIs/evolução/composição por coluna; portfolio-composition conta IDs únicos próprios com ocupação desconhecida explícita. painel injeta alocacaoPorTese existente e callback para aba bias; lista de imóveis continua abaixo, sem duplicar cards de alianças no Início. Valores compactos no celular e integrais no popover. 608 testes, tipos e build aprovados; desktop/mobile e ações conferidos; capturas em C:/Users/ESPC/Documents/ChatGPT/BUILT/carteira-*-implementada.png; design-qa.md aprovado. Atualizado somente container privado localhost:3018, sem produção/commit/push. Revisão global mantém pendências externas remote-sandbox-contributions e bia-profile-links; não atestadas por este trabalho.
+
+## 2026-10-30 — Ocultar alianças em Imóveis
+Pedido posterior substitui ajuste de duas colunas nesta aba: showAlliances do painel agora alcança o dashboard. Oculta CPPs/gráfico/teses/botões de alianças; mantém aba própria e componente reutilizável. Teste render valida ausência e gráfico único. platform:verify 610 aprovados, tipos/build; revisão do índice temporário aprovada. Homologação atualizada; desktop e 390x844 conferidos por AX/screenshot. Sem produção/commit/push.
+
+## 2026-10-30 — Aviso de alianças fora da aba Imóveis
+Aviso amarelo de patrimônio parcial agora condicionado a showAlliances, assim como o bloco. Nenhum dado/cálculo alterado. platform:verify 610 testes/tipos/build aprovados, revisão temporária aprovada; localhost3018 atualizado e AX confirmou Meus imóveis presente, aviso ausente e aba Minhas Alianças presente. Sem produção/commit/push.
+
+## 2026-10-30 — CPPs na aba Minhas Alianças
+CarteiraDashboardPanel alliancesOnly reutiliza resumo e observações, desativa pesquisa/cotação imobiliária e apresenta apenas CPPs e evolução. Painel monta esse modo na aba bias; aba imóveis tem título/descrição específicos. showProperties/showTheses controlam composição sem duplicar teses existentes. Teste render cobre ambos os modos. platform:verify 610 testes/tipos/build aprovados; homologação atualizada, desktop/390px e troca de abas conferidos. Sem commit/push/produção.
+
+CPPs movidas ao final da aba Minhas Alianças após a lista, conforme pedido. platform:verify aprovado e atualização privada concluída; AX confirma posição após último Ver detalhes. Nenhuma regra/dado alterado.
+
+Aura: descrição do aviso de vínculo passa de text-amber-800/80 para text-amber-900 dark:text-amber-100. Somente cor; acesso/cálculos intactos. 610 testes/tipos/build aprovados, desktop/mobile conferidos, homologação atualizada. Captura aura-aviso-contraste.png. Sem produção/commit/push.
+
+## 2026-10-30 — Revisão para commit de todas as alterações
+QA de comunidades concluído em sessão autenticada privada: filtros1/23, mapa e card com participação/principal, desktop/mobile. Incluídos ajustes de carteira/teses/CPPs, cobrança, links de perfis, comunidades e Aura. Logs, outputs temporários e rascunho histórico remote-sandbox-contributions permanecem locais, sem atestar operação externa pendente. Verificação geral vigente:610 testes/tipos/build aprovados.

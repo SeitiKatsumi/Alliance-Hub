@@ -1,6 +1,7 @@
 import { biaBusinessTypeLabel, opportunityScopeLabel } from "@shared/bia-business-type";
 import { BiaGovernancePanel } from "@/components/bia-setup-panel";
 import { BiaDataDialog } from "@/components/bia-data-dialog";
+import { BiaMemberLink } from "@/components/bia-member-link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
 import { useParams, useLocation, useSearch } from "wouter";
@@ -251,7 +252,7 @@ function StatBox({ label, value, color }: { label: string; value: string; color?
   );
 }
 
-function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; icon: any }) {
+function MembroChip({ nome, memberId, members, role, icon: Icon }: { nome?: string; memberId?: string | null; members: Membro[]; role: string; icon: any }) {
   const unassigned = !nome;
   const isAliadoBuilt = role === "Aliado BUILT";
   return (
@@ -269,7 +270,7 @@ function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; i
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider leading-none">{role}</p>
-        <p className={`text-xs font-medium truncate mt-0.5 ${unassigned ?"text-muted-foreground/50 italic" : ""}`}>{nome || "Não atribuído"}</p>
+        <p className={`text-xs font-medium truncate mt-0.5 ${unassigned ?"text-muted-foreground/50 italic" : ""}`}><BiaMemberLink memberId={nome ? memberId : null} name={nome || "Não atribuído"} members={members} /></p>
       </div>
       {isAliadoBuilt && !unassigned && (
         <img
@@ -678,7 +679,12 @@ export default function BiaDetalhePage() {
   }, [bia]);
 
   const dmSummary = useMemo(() => {
-    if (bia?.map_inicial) return initialMapEconomicSummary(bia.map_inicial);
+    if (bia?.map_inicial) {
+      const snapshot = bia.map_inicial;
+      const summary = initialMapEconomicSummary(snapshot);
+      // Preserve the economic projection/order; identity comes from the same snapshot, never the name.
+      return { ...summary, rows: summary.rows.map((row, index) => ({ ...row, memberId: snapshot.participantes[index].memberId })) };
+    }
     const valorOrigem = n(bia?.valor_origem);
     const rows = [
       { label: "Autor da Oportunidade", perc: n(bia?.perc_autor_opa) },
@@ -689,7 +695,7 @@ export default function BiaDetalhePage() {
       { label: "Dir. Núcleo de Capital", perc: n(bia?.perc_dir_capital) },
       { label: "Aliado BUILT", perc: n(bia?.perc_aliado_built) },
       { label: "BUILT", perc: n(bia?.perc_built) },
-    ].map((row) => ({ ...row, cpp: valorOrigem * row.perc / 100 }));
+    ].map((row) => ({ ...row, memberId: null, cpp: valorOrigem * row.perc / 100 }));
     const divisor = rows.reduce((total, row) => total + row.perc, 0);
     const cppTotal = rows.reduce((total, row) => total + row.cpp, 0);
     return {
@@ -987,6 +993,8 @@ export default function BiaDetalhePage() {
                   <MembroChip
                     key={i}
                     nome={e.id ?membros[e.id] : undefined}
+                    memberId={e.id}
+                    members={membrosRaw}
                     role={e.role}
                     icon={e.icon}
                   />
@@ -1080,7 +1088,7 @@ export default function BiaDetalhePage() {
                 <div className="space-y-2.5">
                   {cpp.map((row, i) => (
                     <div key={i} className="flex items-start justify-between gap-2">
-                      <span className="text-sm text-muted-foreground">{row.label}</span>
+                      <BiaMemberLink memberId={row.memberId} name={row.label} members={membrosRaw} className="min-w-0 break-words text-sm text-muted-foreground" />
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-brand-gold/80">{pct(row.perc)}</p>
                         <p className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(row.cpp, bia.moeda || "BRL")}</p>
@@ -1183,6 +1191,8 @@ export default function BiaDetalhePage() {
                         <MembroChip
                           key={i}
                           nome={e.id ?membros[e.id] : undefined}
+                          memberId={e.id}
+                          members={membrosRaw}
                           role={e.role}
                           icon={e.icon}
                         />
@@ -1242,6 +1252,8 @@ export default function BiaDetalhePage() {
                           <MembroChip
                             key={`${nucleo.id}-${index}`}
                             nome={role.id ?membros[role.id] : undefined}
+                            memberId={role.id}
+                            members={membrosRaw}
                             role={role.role}
                             icon={role.icon}
                           />
@@ -1324,7 +1336,7 @@ export default function BiaDetalhePage() {
                         <div className="grid gap-2 sm:grid-cols-2">
                           {cpp.map((row) => (
                             <div key={row.label} className="flex items-center justify-between rounded-md bg-background px-3 py-2">
-                              <span className="text-sm text-muted-foreground">{row.label}</span>
+                              <BiaMemberLink memberId={row.memberId} name={row.label} members={membrosRaw} className="min-w-0 break-words text-sm text-muted-foreground" />
                               <span className="text-sm font-semibold">{pct(row.perc)}</span>
                             </div>
                           ))}

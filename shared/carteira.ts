@@ -135,7 +135,7 @@ export function diagnosticarCarteira(input: {
   const ocupacao = String(input.imovel.ocupacao || "").toLowerCase();
   const objetivo = String(input.imovel.objetivo || "").toLowerCase();
   const hasOcupacao = Boolean(ocupacao && !["desconhecido", "nao_informado", "não informado"].includes(ocupacao));
-  const hasObjetivo = Boolean(objetivo && !["indefinido", "nao_definido", "não definido"].includes(objetivo));
+  const hasObjetivo = Boolean(objetivo && !["gerir", "indefinido", "nao_definido", "não definido"].includes(objetivo));
   const isVazio = ["vazio", "ocioso", "desocupado"].includes(ocupacao);
   const isParcial = ["parcial", "parcialmente_ocupado", "subutilizado"].includes(ocupacao);
   const hasCriticalAlert = alertas.some((item) => ["alta", "critica", "crítica"].includes(String(item.severidade || "").toLowerCase()));

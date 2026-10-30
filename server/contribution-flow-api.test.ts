@@ -6,7 +6,7 @@ import { registerContributionBilling } from './contribution-billing-routes';
 test('API de aporte exige gestão e confirmação; consulta não emite',async()=>{
   let writes=0,reads=0;
   const app=express();app.use(express.json());
-  registerContributionBilling(app,{requireReady:async()=>{},reminders:{read:async()=>({settings:{enabled:false}}),save:async()=>{writes++;return{settings:{enabled:true}};}},flowPayment:async(bia:string)=>{assert.equal(bia,'canonical');reads++;return{details:null};},enqueueFlow:async(bia:string,id:string)=>{assert.equal(bia,'canonical');assert.equal(id,'flow');writes++;return{id:'charge'};}} as any,async(req,res,write)=>{
+  registerContributionBilling(app,{requireReady:async()=>{},cancelFlow:async(bia:string,id:string,actor:string,chargeId:string)=>{assert.equal(bia,'canonical');assert.equal(id,'flow');assert.equal(actor,'user');assert.ok(chargeId);writes++;return{cancelled:true};},reminders:{read:async()=>({settings:{enabled:false}}),save:async()=>{writes++;return{settings:{enabled:true}};}},flowPayment:async(bia:string)=>{assert.equal(bia,'canonical');reads++;return{details:null};},enqueueFlow:async(bia:string,id:string)=>{assert.equal(bia,'canonical');assert.equal(id,'flow');writes++;return{id:'charge'};}} as any,async(req,res,write)=>{
     if(req.headers['x-access']!==(write?'edit':'view')){res.status(403).end();return null;}
     return{biaId:'canonical',manage:write,payerId:'payer',actorId:'user'};
   });
@@ -21,5 +21,8 @@ test('API de aporte exige gestão e confirmação; consulta não emite',async()=
     assert.equal((await fetch(url+'/lembretes',{method:'PUT',headers:{'x-access':'view'}})).status,403);assert.equal(writes,1);
     assert.equal((await fetch(url+'/lembretes',{headers:{'x-access':'view'}})).status,200);assert.equal(writes,1);
     assert.equal((await fetch(url+'/lembretes',{method:'PUT',headers:{'x-access':'edit','content-type':'application/json'},body:JSON.stringify({enabled:true})})).status,200);assert.equal(writes,2);
+    assert.equal((await fetch(url+'/cancelar',{method:'POST',headers:{'x-access':'view'}})).status,403);
+    assert.equal((await fetch(url+'/cancelar',{method:'POST',headers:{'x-access':'edit','content-type':'application/json'},body:JSON.stringify({confirm:false})})).status,400);assert.equal(writes,2);
+    assert.equal((await fetch(url+'/cancelar',{method:'POST',headers:{'x-access':'edit','content-type':'application/json'},body:JSON.stringify({confirm:true,chargeId:'00000000-0000-4000-8000-000000000001'})})).status,200);assert.equal(writes,3);
   }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });

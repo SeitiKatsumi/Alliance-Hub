@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "id": "2026-10-30-unified-portfolio",
+  "title": "Carteira com imóveis e CPPs nas respectivas abas",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/portfolio-dashboard.ts",
+    "shared/portfolio-composition.ts",
+    "shared/bia-business-type.ts"
+  ],
+  "searchTerms": [
+    "PortfolioPatrimonyDashboard",
+    "portfolioComposition"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "client/src/components/portfolio-composition.tsx",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "shared/portfolio-composition.ts",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "shared/portfolio-composition.test.ts",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Modo alliancesOnly reutiliza resumo/histórico/cálculos sem pesquisa imobiliária; título específico de imóveis."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Bloco de CPPs ao final da aba Minhas Alianças, após indicadores e lista; demais conteúdos preservados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Composição visual e gráficos do painel unificado; dados e fluxos existentes preservados."
+    },
+    {
+      "path": "design-qa.md",
+      "decision": "updated",
+      "reason": "Evidências da comparação visual e correção da quebra de valores no mobile."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação: CPPs/evolução/período presentes em Minhas Alianças; imóveis têm título/descrição específicos e não mostram CPPs. Desktop e390x844, troca de abas conferidos."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Contratos e endpoints existentes preservados; nenhuma escrita nova."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem alteração de persistência ou migração; observações existentes preservadas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "KPIs/histórico usam portfolio-dashboard; teses usam buildBiaThesisAllocation; contagem por ID exclui consolidado_via_bia."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Sem dependência: apresentação somente; nenhum envio."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; PDFs e documentos assinados intactos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Nenhuma integração ou tarefa alterada."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Dados já filtrados pelas APIs existentes; nenhuma ampliação de acesso."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "URLs e ações existentes preservadas; ocupação ausente agrupada como não informada."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify 610 aprovados, tipos/build; render cobre propriedades somente e CPPs somente, sem gráficos cruzados."
+    }
+  ],
+  "regressionTests": [
+    "shared/portfolio-composition.test.ts",
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

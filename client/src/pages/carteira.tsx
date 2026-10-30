@@ -1,3 +1,4 @@
+import { propertyThesisOptions, propertyThesisLabel } from "@shared/property-thesis";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
@@ -432,7 +433,7 @@ const EMPTY_PROPERTY: Omit<CarteiraImovel, "id"> = {
   foto: "",
   status: "ativo",
   ocupacao: "desconhecido",
-  objetivo: "indefinido",
+  objetivo: "gerir",
   titularidade: [],
   participacao_percentual: 100,
   socios: [],
@@ -717,17 +718,11 @@ function PropertyFormDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Objetivo *</Label>
+            <Label>Tese do imóvel</Label>
             <Select value={form.objetivo} onValueChange={(value) => setForm({ ...form, objetivo: value })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="renda">Gerar renda</SelectItem>
-                <SelectItem value="venda">Venda</SelectItem>
-                <SelectItem value="valorizacao">Valorização</SelectItem>
-                <SelectItem value="uso">Uso próprio</SelectItem>
-                <SelectItem value="reforma">Reforma</SelectItem>
-                <SelectItem value="construcao">Construção</SelectItem>
-                <SelectItem value="indefinido">Ainda não definido</SelectItem>
+                {propertyThesisOptions(form.objetivo).map(([code, label]) => <SelectItem key={code} value={code}>{label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -1033,7 +1028,7 @@ function PropertyCard({
   );
 }
 
-export function CarteiraDashboardPanel({ compact = false, showAlliances = true }: { compact?: boolean; showAlliances?: boolean }) {
+export function CarteiraDashboardPanel({ compact = false, showAlliances = true, alliancesOnly = false, thesisAllocation, onViewAlliances }: { compact?: boolean; showAlliances?: boolean; alliancesOnly?: boolean; thesisAllocation?: { name: string; value: number; percent: number }[]; onViewAlliances?: () => void }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1099,7 +1094,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true }
     onError: (error: any) => toast({ title: "Não foi possível excluir o imóvel", description: error?.message, variant: "destructive" }),
   });
   useEffect(() => {
-    if (!data) return;
+    if (alliancesOnly || !data) return;
     const pendingCurrencies = data.cambio?.precisa_atualizar ? data.cambio.moedas_necessarias : [];
     const key = pendingCurrencies.slice().sort().join(",");
     if (!key.replace("|", "") || automaticRefreshKey.current === key) return;
@@ -1115,7 +1110,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true }
       }
       if (changed) queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     })();
-  }, [data]);
+  }, [data, alliancesOnly]);
   const historyQuery = useQuery<{ available: boolean; observations: PortfolioObservation[] }>({
     queryKey: ["/api/carteira/evolucao", period, data?.imoveis.map(p => `${p.id}:${p.participacao_percentual}`).join(","), data?.aliancas.map(b => `${b.id}:${b.map_percent}`).join(",")],
     enabled: !!data, staleTime: 60000, refetchOnWindowFocus: true,
@@ -1133,7 +1128,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true }
     recordObservation.mutate();
   }, [data, isError]);
   useEffect(() => {
-    if (isError || !data || document.visibilityState === "hidden") return;
+    if (alliancesOnly || isError || !data || document.visibilityState === "hidden") return;
     for (const property of data.imoveis) {
       if (property.consolidado_via_bia || Number(property.participacao_percentual ?? 100) <= 0 ||
         !["proprietario", "administracao"].includes(String(property.access_level)) || !property.estimativa_mercado?.precisa_atualizar) continue;
@@ -1147,7 +1142,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true }
           invalidateDashboard();
         });
     }
-  }, [data, isError]);
+  }, [data, isError, alliancesOnly]);
   const deleteAllianceMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/bias/${id}`),
     onSuccess: () => {
@@ -1221,29 +1216,27 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true }
   if(isLoading)return <div role="status" className="rounded-md border p-4 text-sm text-muted-foreground">Calculando patrimônio…</div>;
   if(isError)return <div role="alert" className="rounded-md border p-4">Não foi possível atualizar o patrimônio. <Button variant="outline" onClick={()=>refetch()}>Tentar novamente</Button></div>;
 
+  if (alliancesOnly) return <div className="space-y-4" data-testid="alliance-cpp-dashboard">
+    <div className="flex justify-end"><Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40" aria-label="Período das CPPs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select></div>
+    {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
+    {data?.dashboard && <PortfolioPatrimonyDashboard metrics={data.dashboard} showProperties={false} showTheses={false}
+      observations={historyQuery.data?.observations || []} historyLoading={historyQuery.isLoading || recordObservation.isPending}
+      historyError={historyQuery.isError || recordObservation.isError ? "Não foi possível atualizar o histórico patrimonial." : historyQuery.data?.available === false ? "Histórico aguardando configuração." : undefined} />}
+  </div>;
+
   return (
     <div className="space-y-5">
-      {!!data?.aliancas.some(item=>item.estimativa_patrimonial?.partial) && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Patrimônio parcial · há dados pendentes nas alianças.</p>}
+      {showAlliances && !!data?.aliancas.some(item=>item.estimativa_patrimonial?.partial) && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Patrimônio parcial · há dados pendentes nas alianças.</p>}
       {!!excludedCurrencies.length && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Valores em {excludedCurrencies.join(", ")} fora dos totais por falta de cotação.</p>}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>Carteira Patrimonial</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Imóveis próprios e participações econômicas em alianças, consolidados em um só lugar.</p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => document.getElementById("meus-imoveis")?.scrollIntoView({ behavior: "smooth" })}>Meus imóveis</Button>
-            {showAlliances && <Button size="sm" variant="outline" onClick={() => document.getElementById("minhas-aliancas")?.scrollIntoView({ behavior: "smooth" })}>Minhas Alianças</Button>}
-          </div>
+          <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>{showAlliances ? "Carteira Patrimonial" : "Meus imóveis"}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{showAlliances ? "Imóveis próprios e participações econômicas em alianças, consolidados em um só lugar." : "Acompanhe o valor e a evolução dos seus imóveis."}</p>
+
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select>
-          <Button variant="outline" onClick={() => navigate("/carteira/novo?path=oportunidade&step=cadastro")}>
-            <Lightbulb className="mr-2 h-4 w-4" />
-            Identifiquei uma oportunidade
-          </Button>
-          <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/carteira/novo?path=imovel&step=cadastro")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Cadastrar meu imóvel
-          </Button>
+
         </div>
       </div>
 
@@ -1251,6 +1244,10 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true }
         {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
       </div>
       {data?.dashboard && <PortfolioPatrimonyDashboard metrics={data.dashboard}
+        properties={data.imoveis} showAlliances={showAlliances} thesisAllocation={thesisAllocation}
+        onCreateProperty={() => navigate("/carteira/novo?path=imovel&step=cadastro")}
+        onViewProperties={() => document.getElementById("meus-imoveis")?.scrollIntoView({ behavior: "smooth" })}
+        onViewAlliances={onViewAlliances || (() => navigate("/?tab=carteira&view=bias"))}
         observations={historyQuery.data?.observations || []}
         historyLoading={historyQuery.isLoading || recordObservation.isPending}
         historyError={historyQuery.isError || recordObservation.isError ? "Não foi possível atualizar o histórico patrimonial." : historyQuery.data?.available === false ? "Histórico aguardando configuração." : undefined} />}
@@ -2341,8 +2338,8 @@ function DetailPage({ id }: { id: string }) {
                   <Button variant="outline" asChild><label className="cursor-pointer"><Mic className="mr-2 h-4 w-4" />Áudio<input type="file" className="hidden" accept="audio/*" onChange={(event) => void importPulseFile(event.target.files?.[0], true)} /></label></Button>
                   {importedLaunches.length > 0 && <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{importedLaunches.length} sugestão(ões) da IA</Badge>}
                 </div>
-                <div className="space-y-2"><Label>5. Seu objetivo continua o mesmo?</Label>
-                  <Select value={pulseForm.objetivo} onValueChange={(value) => setPulseForm({ ...pulseForm, objetivo: value })}><SelectTrigger><SelectValue placeholder={imovel.objetivo || "Selecione"} /></SelectTrigger><SelectContent><SelectItem value="renda">Gerar renda</SelectItem><SelectItem value="venda">Venda</SelectItem><SelectItem value="valorizacao">Valorização</SelectItem><SelectItem value="uso">Uso próprio</SelectItem><SelectItem value="reforma">Reforma</SelectItem><SelectItem value="construcao">Construção</SelectItem><SelectItem value="indefinido">Ainda não definido</SelectItem></SelectContent></Select>
+                <div className="space-y-2"><Label>5. Sua tese continua a mesma?</Label>
+                  <Select value={pulseForm.objetivo} onValueChange={(value) => setPulseForm({ ...pulseForm, objetivo: value })}><SelectTrigger><SelectValue placeholder={propertyThesisLabel(imovel.objetivo)} /></SelectTrigger><SelectContent>{propertyThesisOptions(pulseForm.objetivo || imovel.objetivo).map(([code, label]) => <SelectItem key={code} value={code}>{label}</SelectItem>)}</SelectContent></Select>
                 </div>
                 <div className="space-y-2"><Label>Período de referência</Label><Input type="date" value={pulseForm.data_referencia} onChange={(event) => setPulseForm({ ...pulseForm, data_referencia: event.target.value })} /></div>
                 <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={previewMutation.isPending} onClick={() => previewMutation.mutate()}>{previewMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Gerar prévia</Button>

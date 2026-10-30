@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "id": "2026-10-30-aura-warning-contrast",
+  "title": "Contraste da descrição do aviso de vínculo da Aura",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/pages/aura.tsx"
+  ],
+  "searchTerms": [
+    "Registro restrito a vínculos BUILT",
+    "text-amber-800/80"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Cor opaca com variante clara no tema escuro, somente descrição do aviso."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato visual localizado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação: aviso real conferido desktop e390x844; texto claro opaco. Contraste calculado pelas cores de tema:12.65:1 escuro,8.75:1 claro."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Alteração somente de classe de cor da descrição; sem mudança de dados, cálculos, APIs, permissões ou consumidores externos."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify:610 testes aprovados, tipos e build; conferência visual desktop/mobile, sem teste espelho de classe."
+    }
+  ],
+  "regressionTests": [
+    "server/aura-lexico.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

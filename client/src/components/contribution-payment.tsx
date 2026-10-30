@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { safeAsaasUrl } from '@shared/contribution-billing';
@@ -39,10 +39,17 @@ export function ContributionPaymentDetails({data}:{data:any}) {
 export function ContributionPaymentDialog({biaId,flowId,onClose}:{biaId:string;flowId:string|null;onClose:()=>void}) {
   const url=flowPaymentUrl(biaId,flowId || '');
   const query=useQuery<any>({queryKey:['contribution-payment',biaId,flowId],enabled:!!biaId&&!!flowId,queryFn:async()=>(await apiRequest('GET',url+'/pagamento')).json(),staleTime:0,refetchInterval:flowId?5000:false});
+  const [cancelChargeId,setCancelChargeId]=useState<string|null>(null);
+  useEffect(()=>{setCancelChargeId(null);cancel.reset();},[flowId]);
+  const cancel=useMutation({mutationFn:async()=>{await apiRequest('POST',url+'/cancelar',{confirm:true,chargeId:cancelChargeId});},onSuccess:async()=>{setCancelChargeId(null);await queryClient.invalidateQueries({queryKey:['/api/fluxo-caixa']});await query.refetch();}});
   const prepare=useMutation({mutationFn:()=>prepareFlowPayment(biaId,flowId!),onSuccess:()=>query.refetch()});
   return <Dialog open={!!flowId} onOpenChange={open=>{if(!open)onClose();}}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Pagamento do aporte · Pix e boleto</DialogTitle></DialogHeader>
     {query.isPending?<p role="status">Consultando cobrança…</p>:query.isError?<p role="alert">Não foi possível consultar a cobrança. <Button variant="outline" onClick={()=>query.refetch()}>Tentar novamente</Button></p>:<ContributionPaymentDetails data={query.data}/>}
     {query.data?.canPrepare&&<Button disabled={prepare.isPending} onClick={()=>prepare.mutate()}>{prepare.isPending?'Preparando…':'Emitir Pix e boleto para este aporte em dinheiro'}</Button>}
+    {query.data?.canCancel&&!cancelChargeId&&<Button variant="outline" disabled={prepare.isPending||cancel.isPending} onClick={()=>setCancelChargeId(query.data.chargeId)}>Cancelar cobrança para editar ou excluir</Button>}
+    {cancelChargeId&&<div className="space-y-3 rounded border p-3"><p>Cancelar o Pix e boleto desta cobrança? O lançamento será mantido. Depois você poderá editá-lo ou excluí-lo, respeitando os vínculos com despesas e parcelas.</p><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={cancel.isPending} onClick={()=>setCancelChargeId(null)}>Voltar</Button><Button variant="destructive" loading={cancel.isPending} loadingText="Cancelando…" onClick={()=>cancel.mutate()}>Confirmar cancelamento da cobrança</Button></div></div>}
+    {cancel.isSuccess&&<p role="status">Cobrança cancelada. Feche esta janela para editar ou excluir o lançamento. Após editar, você pode emitir uma nova cobrança.</p>}
+    {cancel.isError&&<p role="alert" className="text-sm text-destructive">{cancel.error.message}</p>}
     {prepare.isError&&<p role="alert" className="text-sm text-destructive">{prepare.error.message}</p>}
   </DialogContent></Dialog>;
 }

@@ -9,6 +9,17 @@ export type MemberCommunityInvitation = {
   criado_em?: unknown;
 };
 
+/** Presentation of confirmed links; an onboarding origin alone is not membership. */
+export function memberCommunityMembership(links: MemberCommunityLink[]) {
+  const memberships = new Map<string, { isPrimary: boolean }>();
+  for (const link of links) {
+    if (!["membro", "aliado", "ambos"].includes(link.papel || "")) continue;
+    const id = normalizedCommunityId(link.id);
+    if (id) memberships.set(id, { isPrimary: link.is_mae === true || memberships.get(id)?.isPrimary === true });
+  }
+  return memberships;
+}
+
 function normalizedCommunityId(value: unknown): string | null {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "object") {

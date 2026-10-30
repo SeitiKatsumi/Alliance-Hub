@@ -1,5 +1,12 @@
 # AI_HANDOFF.md
 
+## 31/10/2026 — publicação conjunta autorizada (envie tudo)
+
+- Revisadas as mudanças pendentes: contraste dos convites, filtros das comunidades junto à busca, quebra de textos da Gestão, edição econômica concentrada na BIA, Análises por tese e projeção do nome público da sessão. Google alinhado ao mesmo helper após revisão de consumidor; IDs, OAuth e permissões preservados. Inclui registros e contratos correspondentes.
+- Registro histórico de habilitação Asaas encerra a revisão da configuração já executada, sem atestar emissão/baixa: pagador com cadastro inválido continua bloqueado. Nenhuma chamada financeira ou configuração externa executada nesta publicação.
+- platform:verify final aprovado:624 testes/0 falhas, contratos, tipos e build. platform:review --staged aprovado para31 arquivos e consumidores; diff --check limpo. QA desktop/mobile anterior preservado nos registros; nenhuma nova autenticação Google real realizada. Base70b63461390dcb3d3f8beee1cae1cc10adb84e63.
+- Logs de execução, .BUILT-tmp, output e tmp/pdfs são artefatos locais e ficam fora do commit. Nenhuma promoção de banco de homologação, migração destrutiva ou cópia de dados foi executada.
+
 ## 30/10/2026 — categoria dos aportes e operador automático (itens 2 e 3 do vídeo)
 
 - Escopo aprovado: checkbox na edição aplica Categoria somente às entradas ligadas à mesma despesa; confirmação manual de entrada vinculada como paga fixa membro_responsavel no membro da sessão. Favorecido e snapshot do lote preservados. Sem ajustes de centavos, ação rápida, data automática ou recolhimento da lista.
@@ -7,6 +14,18 @@
 - UI compartilhada fluxo-caixa recebe checkbox opt-in e responsável somente leitura; invalida lançamentos, vínculos e histórico. Contrato capital-financeiro e relatório funcional atualizados. Sem migração nem operação bancária.
 - 7 testes novos aprovados; platform:verify final aprovado (623 testes, zero falhas, TypeScript e build). Primeira execução teve falha nativa do Node/JIT em bia-patrimony; passou isolado e na repetição completa. Impacto antes/depois e diff check concluídos. platform:review sobre base 9ac732184e6e223ed026a54174f9797e481f6cd9 executado; pendências globais de trabalhos paralelos, sem erro no registro deste trabalho. Não atestadas alterações paralelas. Sem commit/push.
 - QA localhost autenticado desktop e390x844: checkbox e troca visual de responsável ao selecionar Pago, favorecido inalterado; cancelado sem salvar. Capturas output/contribution-edit/desktop.png e mobile.png; viewport restaurado, aba de teste fechada.
+
+## 30/10/2026 — textos contidos nos atalhos de Gestão
+
+- Correção visual exclusiva aos três atalhos de painel.tsx: whitespace-normal sobrescreve nowrap do Button; min-w-0/flex-1/break-words deixam título e descrição dentro da grade. Sem mudar texto, navegação, condição premium ou Button global.
+- QA localhost3004 autenticado em1280,1024 e390px aprovado; capturas output/management-card-wrap/desktop.jpg e mobile.jpg. Viewport restaurado e aba temporária fechada.
+- platform:verify aprovado:616 testes/0 falhas, tipos e build. Impacto antes/depois e diff check executados. Revisão sobre base9ac732184e6e223ed026a54174f9797e481f6cd9 continua com pendências de trabalhos paralelos, não atestadas. Sem commit/push.
+
+## 30/10/2026 — filtros de comunidades junto à busca
+
+- Pedido limitado à disposição visual: Minhas comunidades/Todas movidos para junto da busca, abaixo do mapa. Desktop lado a lado, mobile abaixo com quebra dos botões. Mesmos handlers, contagens e seleção; entradas dedicadas/incorporadas compartilham a página, convitesOnly não renderiza o bloco.
+- QA autenticado localhost3004 em desktop e390x844; alternância de ambos os filtros confirmada. Capturas output/community-filter-layout/desktop.jpg e mobile.jpg; viewport restaurado e aba temporária fechada.
+- platform:verify aprovado; impacto antes/depois e platform:review sobre base9ac732184e6e223ed026a54174f9797e481f6cd9 executados. Revisão global tem pendências paralelas de contribuições/nomes de sessão; não atestadas. Sem commit/push.
 
 ## 30/10/2026 — nomes clicáveis sem sublinhado
 

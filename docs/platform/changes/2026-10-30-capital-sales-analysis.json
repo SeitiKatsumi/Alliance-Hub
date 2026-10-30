@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "id": "2026-10-30-capital-sales-analysis",
+  "title": "Exibir Análises apenas para teses de venda",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-sales-analysis.ts",
+    "shared/bia-business-type.ts",
+    "shared/strategic-cells.ts"
+  ],
+  "searchTerms": [
+    "biaHasSalesThesis"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-sales-analysis.ts",
+      "decision": "updated",
+      "reason": "Regra de apresentação por tese, propagação e regressões."
+    },
+    {
+      "path": "shared/bia-sales-analysis.test.ts",
+      "decision": "updated",
+      "reason": "Regra de apresentação por tese, propagação e regressões."
+    },
+    {
+      "path": "client/src/pages/capital-sales-analysis.test.ts",
+      "decision": "updated",
+      "reason": "Regra de apresentação por tese, propagação e regressões."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "updated",
+      "reason": "Regra de apresentação por tese, propagação e regressões."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Regra de apresentação por tese, propagação e regressões."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Regra de apresentação por tese, propagação e regressões."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; rotas e documentos não alterados pela visibilidade da aba Capital."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; rotas e documentos não alterados pela visibilidade da aba Capital."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; rotas e documentos não alterados pela visibilidade da aba Capital."
+    },
+    {
+      "path": "client/src/lib/mobile-layout.test.ts",
+      "decision": "updated",
+      "reason": "Grade responsiva acompanha quantidade real de abas permitidas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação atualizada; URL direta analises retornou banco e exibiu apenas Banco/Financeiro. Desktop e 390x844 conferidos; teste render cobre tese de venda e permissões."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET detalhe já retorna objetivo_alianca; nenhum endpoint alterado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração ou gravação; fonte é a tese salva da BIA."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Cálculos de Resultados preservados; apenas condição de montagem."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Não há envio nem consumidor alterado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Documentos e relatórios não alterados por esta condição local da aba."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem integrações externas ou tarefas novas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Filtro soma-se ao nível de acesso; autorização backend preservada."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Venda e códigos antigos explícitos reconhecidos; ambíguos ocultos, sem remapeamento de dados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: 616 testes, tipos e build; regressão de render cobre permissão, tese e URL direta."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-sales-analysis.test.ts",
+    "client/src/pages/capital-sales-analysis.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id": "retire-capital-dm-tab",
+      "description": "Edição econômica fica no editor da BIA; Capital não monta a calculadora duplicada.",
+      "terms": ["tab-capital-calculadora", "tab-bia-calculadora", "<BiasCalculadoraPage"],
+      "roots": ["client/src/pages/nucleo-capital.tsx", "client/src/pages/bia-detalhe.tsx"],
+      "regressionTests": ["client/src/pages/dm-map-navigation.test.ts"],
+      "exceptions": []
+    },
+    {
       "id": "asaas-exclusive-bia-account",
       "description": "Banco da BIA não aceita dashboard de conta compartilhada; servidor valida vínculo exclusivo antes do provedor.",
       "terms": ["company_account", "incluindo movimentações de outras BIAs vinculadas"],

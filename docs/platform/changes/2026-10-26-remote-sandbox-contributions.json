@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "id": "2026-10-26-remote-sandbox-contributions",
+  "title": "Habilitar aportes Sandbox no site publicado; emissão depende do cadastro do pagador",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "server/asaas/config.ts",
+    "server/contribution-billing-provider.ts"
+  ],
+  "searchTerms": [
+    "ASAAS_CONTRIBUTIONS_ENABLED"
+  ],
+  "consumers": [
+    {
+      "path": "server/asaas/config.ts",
+      "decision": "preserved",
+      "reason": "CapRover recebeu opt-in de cobranças true e bloqueio explícito de operações Produção false; Sandbox e segredos preservados."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "preserved",
+      "reason": "Conta aprovada, wallet validada por GET; CPF do pagador tem um dígito, erro PAYER_PENDING preservado sem inventar documento."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Fila tinha apenas um registro bloqueado PAYER_PENDING e nenhum external_id. Não preparada nova cobrança ou simulado pagamento."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "preserved",
+      "reason": "Webhook público recusou payload vazio sem token com401 e com token com400, sem evento financeiro fabricado."
+    },
+    {
+      "path": "server/asaas/accounts.ts",
+      "decision": "preserved",
+      "reason": "Subconta existente não tinha webhook. Criado retorno Sandbox para sete eventos PAYMENT existentes, com token do servidor e URL pública; GET confirmou ativo/não interrompido."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "preserved",
+      "reason": "UI publicada autenticada confirma Operações habilitadas e Cobranças habilitadas; sem mudanças visuais."
+    },
+    {
+      "path": ".BUILT-run-dev-3004.ps1",
+      "decision": "preserved",
+      "reason": "Configuração local não alterada."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "preserved",
+      "reason": "Regras de ambiente e permissões mantidas; executar verificações antes de encerrar."
+    },
+    {
+      "path": "scripts/directus-native-stage.py",
+      "decision": "preserved",
+      "reason": "Homologação da migração mantém ASAAS_CONTRIBUTIONS_ENABLED=false explicitamente; não herda a configuração externa já registrada e não é executada nesta publicação."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Teste assegura bloqueio de cobrança em Produção sem habilitação própria. Coberto pela suíte completa; nenhuma chamada ao Asaas real."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Site publicado, BIA868NEL6DXJ/Banco mostra conta aprovada e Cobranças habilitadas após restart."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET Asaas status200/APPROVED e wallets200/matching; receptor público401 sem token e400 para corpo inválido autenticado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração ou edição de cadastro. Fila tinha um bloqueio PAYER_PENDING; ausência de CPF válido confirmada por contagem, sem registrar documento."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Nenhuma fórmula ou saldo alterado."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Sem envio manual. Webhook utiliza e-mail operacional SMTP_FROM existente; habilitação mantém preferências e deduplicação de lembretes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Sem mudança de documentos, PDFs ou capacidade funcional do código."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "CapRover update completed; Sandbox true, cobrança true, operações Produção false. Webhook93718a75-b3af-44d1-b007-098cc0153def confirmado ativo na subconta exclusiva."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Sem alteração de papéis, credenciais ou autorização financeira. Nenhum pagamento confirmado."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Flags pré-existentes e cofre preservados. Ausência de webhook verificada antes de criar, sem duplicação."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:574 testes/0falhas, tipos/build; platform:review --base HEAD aprovado. Logs .BUILT-tmp/remote-contributions-verify.log e remote-contributions-review.log. UI real mostra Emitir Pix e boleto; captura output/remote-sandbox-emissao-habilitada.png. Emissão efetiva bloqueada por CPF inválido do favorecido; não é homologação de Pix/boleto ou baixa. Revisão de publicação31/10: configuração executada é o escopo deste registro histórico; a emissão com pagador inválido permanece explicitamente NÃO homologada. Bloqueio é a validação esperada, não autorização para inventar CPF ou emitir cobrança. Testes foundation/contribution-billing passaram na suíte623; nenhuma operação externa executada na publicação."
+    }
+  ],
+  "regressionTests": [
+    "server/asaas/foundation.test.ts",
+    "server/contribution-billing.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -1,0 +1,364 @@
+{
+  "version": 1,
+  "id": "2026-10-30-session-display-name",
+  "title": "Nome público do perfil no cabeçalho e saudação",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "shared/member-display-name.ts"
+  ],
+  "searchTerms": [
+    "nomePerfil",
+    "Nome_de_usuario",
+    "memberDisplayName",
+    "/api/me"
+  ],
+  "consumers": [
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Registra setupGoogleAuth; inicialização, configuração OAuth e montagem das rotas permanecem intactas. O helper novo altera somente a projeção do nome dentro do callback existente."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Corrigir e testar prioridade do nome público na sessão."
+    },
+    {
+      "path": "shared/member-display-name.ts",
+      "decision": "updated",
+      "reason": "Corrigir e testar prioridade do nome público na sessão."
+    },
+    {
+      "path": "shared/member-display-name.test.ts",
+      "decision": "updated",
+      "reason": "Corrigir e testar prioridade do nome público na sessão."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Corrigir e testar prioridade do nome público na sessão."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consome nome público da API ou invalida cache ao salvar; não requer alteração visual."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consome nome público da API ou invalida cache ao salvar; não requer alteração visual."
+    },
+    {
+      "path": "client/src/hooks/use-auth.ts",
+      "decision": "preserved",
+      "reason": "Consome nome público da API ou invalida cache ao salvar; não requer alteração visual."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Consome nome público da API ou invalida cache ao salvar; não requer alteração visual."
+    },
+    {
+      "path": "client/src/components/admin-commercial-policies.tsx",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.test.ts",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.tsx",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/components/initial-beneficiary-field.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/components/member-business-feed.tsx",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "client/src/lib/member-directory-query.test.ts",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/lib/member-directory-query.ts",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/lib/query-client.test.ts",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/lib/queryClient.ts",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/aguardando-aprovacao.tsx",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/dashboard.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/documentacao.tsx",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consome, define ou invalida /api/me sem recalcular nome; recebe a projeção atualizada. Estados de autenticação, cache e autorizações preservados."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "preserved",
+      "reason": "Referências revisadas pertencem ao diretório /api/membros ou aos nomes dos participantes selecionados, e não ao nome da sessão. IDs, cadastros, seletores e snapshots permanecem com seu contrato atual; cabeçalho global recebe user.nome por useAuth."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "preserved",
+      "reason": "Jornada consulta /api/me e valida vínculo/onboarding por ID; dados sintéticos de QA e chamadas de escrita não executados na publicação."
+    },
+    {
+      "path": "server/auth-google.ts",
+      "decision": "updated",
+      "reason": "Login Google passa a reutilizar memberDisplayName nas duas resoluções do perfil, sem mudar OAuth, credenciais, IDs ou permissões."
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Nome aqui identifica participante na prévia/snapshot de rateio, não o operador. Snapshot histórico e identidade por ID preservados."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Nome aqui identifica participante na prévia/snapshot de rateio, não o operador. Snapshot histórico e identidade por ID preservados."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "Retorna campos do beneficiário por ID; não projeta o nome do operador autenticado. Histórico e destinatários preservados."
+    },
+    {
+      "path": "server/migration-inbox.test.ts",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Lembrete já prioriza contact.nome; destinatário usa IDs/contato financeiro e não o nome da sessão. Sem envio nesta revisão."
+    },
+    {
+      "path": "server/user-preferences.ts",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "shared/initial-onboarding.test.ts",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    },
+    {
+      "path": "shared/initial-onboarding.ts",
+      "decision": "preserved",
+      "reason": "Ocorrência de /api/me é prefixo de outro endpoint (preferências, convites, documentos, negócios ou guarda de onboarding/manutenção). Não calcula nome da sessão; contrato preservado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Cabeçalho e saudação usam user.nome de /api/me, e Meu Perfil invalida a consulta ao salvar. QA autenticado desktop/mobile anterior exibiu o nome da conta (output/management-card-wrap e output/contribution-edit); helper testado com nome diferente de username e alteração de nome. Nenhum login Google real executado: projeção e uso do helper cobertos por regressão."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Login Directus, Google e /api/me reutilizam o helper. Exceção de funcionário preservada; contratos de identidade e permissões não mudam. Teste de integração de fontes impede prioridade divergente."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente leitura/projeção e nome em sessão; nenhuma migração, escrita de cadastro ou alteração de username."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Nenhum cálculo ou agregação depende da escolha de nome da sessão."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Destinatários e templates intactos; futuras ações que registram session.nome recebem nome público corrigido."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Evidências assinadas e nomes formais preservados. Nenhum histórico é reescrito; ações futuras que usam session.nome herdam nome público."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Adaptadores Directus/PostgreSQL consultam mesmos campos. Sem alteração de integração, cron ou cobrança."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "IDs, roles, permissões, resolução de membro e exceção companyEmployee preservados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Sem nome público válido usa Nome_de_usuario e depois sessão; vazio/espaços e null cobertos."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado em31/10:624 testes, zero falhas, tipos e build, incluindo regressão do uso comum no Google/Directus. platform:review --staged aprovado para publicação conjunta."
+    }
+  ],
+  "regressionTests": [
+    "shared/member-display-name.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

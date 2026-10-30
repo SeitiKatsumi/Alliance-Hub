@@ -538,9 +538,13 @@ export default function BiaDetalhePage() {
   const search = useSearch();
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("capital") === "calculadora" && window.location.hash === "#aportes-iniciais") {
-      params.set("tab", "capital"); params.set("capital", "financeiro"); params.set("financeiro", "aportes");
-      navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+    if (params.get("capital") === "calculadora") {
+      if (window.location.hash === "#aportes-iniciais") {
+        params.set("tab", "capital"); params.set("capital", "financeiro"); params.set("financeiro", "aportes");
+        navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+      } else {
+        navigate(`${window.location.pathname}/editar?section=equipe`, { replace: true });
+      }
     }
   }, [search, navigate]);
   const { toast } = useToast();
@@ -1224,6 +1228,7 @@ export default function BiaDetalhePage() {
               {allowedNucleoTabs.some((tab) => tab.value === "capital") && (
               <TabsContent value="capital" className="space-y-4">
                 <NucleoCapitalPage
+                  bia={bia}
                   initialBiaId={bia.id}
                   embedded
                   activeTab={new URLSearchParams(window.location.search).get("capital") || undefined}
@@ -1283,7 +1288,6 @@ export default function BiaDetalhePage() {
                   <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-3">
                     <TabsTrigger value="financeiro" data-testid="tab-bia-financeiro">Financeiro</TabsTrigger>
                     <TabsTrigger value="analises" data-testid="tab-bia-analises">Análises</TabsTrigger>
-                    <TabsTrigger value="calculadora" data-testid="tab-bia-calculadora">DM</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="financeiro" className="space-y-4">
@@ -1322,28 +1326,7 @@ export default function BiaDetalhePage() {
                     <StatBox label="Lucro previsto" value={formatMoney(lucro, bia.moeda || "BRL")} />
                   </TabsContent>
 
-                  <TabsContent value="calculadora" className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <StatBox label="Valor origem" value={formatMoney(n(bia.valor_origem), bia.moeda || "BRL")} />
-                      <StatBox label="Custo origem" value={formatMoney(dmSummary.custoOrigem, bia.moeda || "BRL")} />
-                      <StatBox label="Divisor / multiplicador" value={String(dmSummary.divisor)} />
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-                      <SectionTitle icon={Layers}>Distribuição CPP</SectionTitle>
-                      {cpp.length === 0 ?(
-                        <p className="text-sm text-muted-foreground">Nenhuma distribuição CPP configurada para esta BIA.</p>
-                      ) : (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {cpp.map((row) => (
-                            <div key={row.label} className="flex items-center justify-between rounded-md bg-background px-3 py-2">
-                              <BiaMemberLink memberId={row.memberId} name={row.label} members={membrosRaw} className="min-w-0 break-words text-sm text-muted-foreground" />
-                              <span className="text-sm font-semibold">{pct(row.perc)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
+
                 </Tabs>
               </CardContent>
             </Card>

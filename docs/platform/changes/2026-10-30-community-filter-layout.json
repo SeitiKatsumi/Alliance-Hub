@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "2026-10-30-community-filter-layout",
+  "title": "Agrupar filtros de comunidades junto à busca",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": ["client/src/pages/comunidade.tsx"],
+  "searchTerms": ["community-search-filters", "filter-my-communities", "filter-all-communities"],
+  "consumers": [
+    {"path":"client/src/pages/comunidade.tsx","decision":"updated","reason":"Escopo explicitamente visual: mover botões para junto da busca com disposição responsiva; handlers e seleção intactos."},
+    {"path":"docs/platform/modules/perfil-rede-empresa.md","decision":"updated","reason":"Documentar disposição dos filtros, preservando outras alterações presentes."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Rota dedicada reutiliza a página, sem alteração de acesso."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Consumidor transitivo; inicialização intacta."},
+    {"path":"client/src/pages/area-aliancas.tsx","decision":"preserved","reason":"Entradas incorporadas reutilizam ComunidadePage e recebem o mesmo layout."},
+    {"path":"client/src/pages/convites.tsx","decision":"preserved","reason":"convitesOnly não renderiza este bloco."},
+    {"path":"client/src/pages/agenda-alertas.tsx","decision":"preserved","reason":"Consumidor transitivo de convitesOnly, fora do bloco visual alterado."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"QA autenticado localhost3004 desktop e390x844: filtros lado a lado com busca no desktop, abaixo no mobile; alternância Todas/Minhas mantém aria-pressed. Capturas output/community-filter-layout."},
+    {"area":"api","status":"not-applicable","evidence":"Somente posição do JSX; requisições e contratos intactos."},
+    {"area":"dados","status":"not-applicable","evidence":"Sem escrita, migração ou mudança de cache."},
+    {"area":"calculos-graficos","status":"verified","evidence":"Mapa continua recebendo filtered; contadores e regras de seleção não foram modificados."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Nenhum evento novo; telas convitesOnly não entram no bloco alterado."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Disposição de controles locais não alimenta PDF, exportação ou relatório."},
+    {"area":"integracoes-tarefas","status":"not-applicable","evidence":"Sem alteração de serviço externo, webhook ou tarefa."},
+    {"area":"permissoes","status":"not-applicable","evidence":"Mesmas condições de renderização, ações e guardas."},
+    {"area":"legado","status":"not-applicable","evidence":"Nenhum conceito, dado ou identificador removido/renomeado."},
+    {"area":"testes","status":"verified","evidence":"QA visual e alternância concluídos; platform:verify aprovado com testes, TypeScript e build. Reutilizados testes de vínculos; nenhum teste novo para mera disposição visual. Revisão global executada, com pendências de trabalhos paralelos não atestados nesta tarefa."}
+  ],
+  "regressionTests": ["shared/member-community.test.ts"],
+  "deprecationRuleIds": []
+}

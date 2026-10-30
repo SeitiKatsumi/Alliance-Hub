@@ -29,12 +29,15 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 ## Dados e fontes de verdade
 
+- Filtros Minhas comunidades/Todas ficam junto à busca, abaixo do mapa: lado a lado em telas grandes e abaixo do campo em telas menores. Alteração de disposição compartilhada pelas entradas de ComunidadePage; seleção, contagens, mapa e vínculos mantêm a mesma regra.
+
 - Lista de Comunidades abre em Minhas comunidades, com alternativa Todas. Mapa e busca seguem o mesmo filtro; cartões de vínculos confirmados mostram Você participa e, quando is_mae, Comunidade principal. A consulta existente `/api/membros/:id/comunidades?incluir_origem=1` usa a identidade do usuário atual, sem herdar a empresa. `memberCommunityMembership` considera todos os vínculos membro/aliado/ambos e normaliza IDs; origem, convite e pendência não concedem participação. Falha mostra nova tentativa, sem afirmar ausência de vínculo. Filtro visual não altera cadastro, autorizações, convites ou aceites.
 
 - Seletores telefônicos compartilham `PhoneInput`: país por extenso e DDI (Brasil (+55), África do Sul (+27)), com nome acessível País e código internacional. Seletor ocupa uma linha própria para não cortar nomes nem comprimir o número em telas estreitas. Mudança somente visual; catálogo, valores enviados e números existentes permanecem iguais, sem novo campo obrigatório de DDD.
 
 - Directus `cadastro_geral`: perfil de pessoa/empresa.
 - Identidade do membro: `nome` e o nome publico exibido no perfil; `nome_completo` e `cpf` sao dados restritos de formalizacao. Registros legados sem `nome_completo` podem usar `nome` apenas como fallback de leitura em documentos.
+- Login Directus, login Google e `/api/me` usam `memberDisplayName`: nome público salvo, depois nome de usuário, depois nome anterior da sessão. Cabeçalho e saudação recebem o mesmo nome por `useAuth`; salvar Meu Perfil invalida `/api/me`. Funcionários mantêm a identidade própria definida pelo fluxo empresarial. Sem renomear login, migrar registros ou reescrever evidências históricas.
 - PostgreSQL `user_account_purposes`: finalidades escolhidas e suas intencoes; Meu Perfil usa a mesma taxonomia de `shared/initial-onboarding.ts`.
 - PostgreSQL `strategic_cell_types`, `strategic_cell_preferences`, `strategic_cells`, `strategic_cell_memberships` e `strategic_cell_events`: tipos canonicos, preferencias do usuario, instancias por Comunidade, participacao e auditoria. `strategic_cell_markets` permanece apenas como armazenamento legado dos `BusinessType` durante a migracao compativel.
 - Classificacao profissional oficial: `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas`; onboarding e edicao de perfil escrevem nesses mesmos campos.

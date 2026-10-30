@@ -3,16 +3,17 @@ import { useLocation, useSearch } from "wouter";
 import { confirmDiscardChanges } from "@/hooks/use-unsaved-changes";
 import { InitialContributions } from "@/components/initial-contributions";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Banknote, Calculator, Landmark, Wallet } from "lucide-react";
+import { BarChart3, Banknote, Landmark, Wallet } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AliancaDocsPageConfig } from "./alianca-docs-page";
 import FluxoCaixaPage from "./fluxo-caixa";
 import ResultadosPage from "./resultados";
-import BiasCalculadoraPage, { useInitialMapSnapshot } from "./bias-calculadora";
+import { useInitialMapSnapshot } from "./bias-calculadora";
 import type { BiaAccessLevel } from "@shared/bia-access";
 import { BiaAsaasStatus } from "@/components/asaas-status";
+import { biaHasSalesThesis } from "@shared/bia-sales-analysis";
 
 export const NUCLEO_CAPITAL_DOCS_CONFIG: AliancaDocsPageConfig = {
   modulo: "capital",
@@ -64,7 +65,7 @@ export const NUCLEO_CAPITAL_DOCS_CONFIG: AliancaDocsPageConfig = {
   ],
 };
 
-const CAPITAL_TABS = new Set(["banco", "financeiro", "analises", "calculadora"]);
+const CAPITAL_TABS = new Set(["banco", "financeiro", "analises"]);
 
 function normalizeCapitalTab(value?: string | null) {
   return value && CAPITAL_TABS.has(value) ? value : "banco";
@@ -96,20 +97,22 @@ export default function NucleoCapitalPage({
   activeTab: controlledActiveTab,
   onTabChange,
   access,
+  bia,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
   activeTab?: string;
   onTabChange?: (value: string) => void;
   access?: Partial<Record<"banco" | "financeiro" | "analises" | "calculadora", BiaAccessLevel>>;
+  bia?: { business_type_code?: unknown; objetivo_alianca?: unknown };
 } = {}) {
   const tabDefinitions = [
     { key: "banco", label: "Banco", icon: Banknote, testId: "tab-capital-banco" },
     { key: "financeiro", label: "Financeiro", icon: Wallet, testId: "tab-capital-financeiro" },
     { key: "analises", label: "Análises", icon: BarChart3, testId: "tab-capital-analises" },
-    { key: "calculadora", label: "DM", icon: Calculator, testId: "tab-capital-calculadora" },
   ] as const;
   const allowedTabs = tabDefinitions.filter((tab) => {
+    if (tab.key === "analises" && !biaHasSalesThesis(bia)) return false;
     const level = access?.[tab.key] || (access ? "none" : "edit");
     return level === "view" || level === "edit";
   });
@@ -147,12 +150,12 @@ export default function NucleoCapitalPage({
           Núcleo de Capital
         </h1>
         <p className="text-sm text-muted-foreground">
-          Banco, financeiro, análises e DM em uma visão única.
+          Banco, financeiro e análises em uma visão única.
         </p>
       </div>}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
-        <TabsList className="grid h-auto w-full min-w-0 grid-cols-2 gap-1 bg-muted/60 p-1 sm:grid-cols-4">
+        <TabsList className={`grid h-auto w-full min-w-0 gap-1 bg-muted/60 p-1 ${allowedTabs.length === 3 ? "grid-cols-2 sm:grid-cols-3" : allowedTabs.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
           {allowedTabs.some((tab) => tab.key === "banco") && <TabsTrigger value="banco" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-banco">
             <Banknote className="h-4 w-4" />
             Banco
@@ -165,10 +168,6 @@ export default function NucleoCapitalPage({
             <BarChart3 className="h-4 w-4" />
             Análises
           </TabsTrigger>}
-          {allowedTabs.some((tab) => tab.key === "calculadora") && <TabsTrigger value="calculadora" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-calculadora">
-            <Calculator className="h-4 w-4" />
-            DM
-          </TabsTrigger>}
         </TabsList>
 
         <TabsContent value="banco" className="[&>div]:p-0 [&>div]:max-w-none">
@@ -178,10 +177,7 @@ export default function NucleoCapitalPage({
           {activeTab === "financeiro" && <FinanceiroBia initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.financeiro === "view"} />}
         </TabsContent>
         <TabsContent value="analises" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "analises" && <ResultadosPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.analises === "view"} />}
-        </TabsContent>
-        <TabsContent value="calculadora" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "calculadora" && <BiasCalculadoraPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.calculadora === "view"} />}
+          {activeTab === "analises" && allowedTabs.some(tab => tab.key === "analises") && <ResultadosPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.analises === "view"} />}
         </TabsContent>
       </Tabs>
     </div>

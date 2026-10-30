@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "id": "2026-10-30-retire-capital-dm-tab",
+  "title": "Concentrar edição do DM em Capitalização e direitos econômicos",
+  "status": "complete",
+  "kind": "remove",
+  "sourceOfTruth": [
+    "client/src/pages/nucleo-capital.tsx",
+    "client/src/pages/bia-editar.tsx"
+  ],
+  "searchTerms": [
+    "tab-capital-calculadora",
+    "tab-bia-calculadora",
+    "BiasCalculadoraPage",
+    "initialSection"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "client/src/pages/dm-map-navigation.test.ts",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Remoção da aba e compatibilidade de navegação documentadas e testadas."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "preserved",
+      "reason": "Editor e consumidores compartilhados mantidos; nenhuma alteração de fórmula, persistência ou autorização."
+    },
+    {
+      "reason": "Expectativa atualizada para três abas e único resumo CPP após retirar painel oculto duplicado.",
+      "decision": "updated",
+      "path": "client/src/components/bia-member-link.test.ts"
+    },
+    {
+      "reason": "Expectativa atualizada para três abas e único resumo CPP após retirar painel oculto duplicado.",
+      "decision": "updated",
+      "path": "client/src/lib/mobile-layout.test.ts"
+    },
+    {
+      "reason": "Consumidor transitivo do catálogo/componente; contratos de dados e permissões preservados, suíte completa cobre regressões.",
+      "decision": "preserved",
+      "path": "client/src/data/platform-functional-report.test.ts"
+    },
+    {
+      "reason": "Consumidor transitivo do catálogo/componente; contratos de dados e permissões preservados, suíte completa cobre regressões.",
+      "decision": "preserved",
+      "path": "client/src/pages/bia-documentos.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do catálogo/componente; contratos de dados e permissões preservados, suíte completa cobre regressões.",
+      "decision": "preserved",
+      "path": "client/src/pages/relatorio-funcionalidades.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do catálogo/componente; contratos de dados e permissões preservados, suíte completa cobre regressões.",
+      "decision": "preserved",
+      "path": "scripts/platform-impact.ts"
+    },
+    {
+      "reason": "Consumidor transitivo do catálogo/componente; contratos de dados e permissões preservados, suíte completa cobre regressões.",
+      "decision": "preserved",
+      "path": "scripts/platform-verify.ts"
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.test.ts",
+      "reason": "Atalho de ativos mantém initialSection=ativos e inicialização existente.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/components/member-business-feed.tsx",
+      "reason": "initialSection homônimo do feed de negócios, independente do editor da BIA; não alterado.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "reason": "initialSection homônimo do feed de negócios, independente do editor da BIA; não alterado.",
+      "decision": "preserved"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação autenticada: link capital=calculadora abriu /editar?section=equipe com composição carregada; conta de consulta continuou somente leitura. Capital exibe Banco/Financeiro/Análises, conferido desktop e390x844 sem salvar. Screenshot capital-sem-aba-dm.png."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Nenhum endpoint modificado; editor existente mantém revisão, conflitos e autorização."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Nenhum cadastro, MAP, percentual ou valor migrado; modelos legados preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Nenhuma fórmula alterada. Legado usava campos da BIA; editor usa snapshot oficial versionado. Relatórios/saldos intactos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Sem mensagens; links antigos mantêm destino compatível. Nenhum convite ou aceite gerado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional atualizado no item de navegação. PDFs, revisões assinadas e permissões descritas como DM permanecem."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem alteração de backend, integração, sincronizador ou tarefa."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "capital_calculadora continua autorizando composição. Editor ainda exige configuracao_bia/view e edit; redirecionamento não amplia direitos."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Fallback da calculadora no arquivo compartilhado preservado, mas sem montagem no Capital. BiaMapZero e MAP Atual permanecem. Nenhuma conversão automática."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado:613 testes/0 falhas, contratos, tipos e build. Links legados, ausência da aba, inicialização da equipe, layout de três abas e único resumo CPP cobertos."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/dm-map-navigation.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "retire-capital-dm-tab"
+  ]
+}

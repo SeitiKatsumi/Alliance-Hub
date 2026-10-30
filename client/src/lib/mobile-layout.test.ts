@@ -33,7 +33,7 @@ test('mobile navigation and summary do not center overflowing content', () => {
   assert.match(read('../components/app-sidebar.tsx'), /closest\('a, button'\)\) setOpenMobile\(false\)/);
   assert.match(read('../pages/agenda-alertas.tsx'), /grid min-w-0 grid-cols-1 gap-6/);
   assert.match(read('../pages/agenda-alertas.tsx'), /flex flex-wrap items-center justify-between/);
-  assert.match(read('../pages/nucleo-capital.tsx'), /grid-cols-2 gap-1 bg-muted\/60 p-1 sm:grid-cols-4/);
+  assert.match(read('../pages/nucleo-capital.tsx'), /allowedTabs.length === 3 \? "grid-cols-2 sm:grid-cols-3" : allowedTabs.length === 2 \? "grid-cols-2" : "grid-cols-1"/);
   assert.match(read('../pages/bias.tsx'), /left-4 right-28/);
 });
 

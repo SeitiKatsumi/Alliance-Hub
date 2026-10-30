@@ -15,5 +15,7 @@ export default function BiaEditarPage() {
   if(bia.isError || access.isError)return <div role="alert" className="space-y-4 p-8"><p>Não foi possível carregar a BIA ou suas permissões.</p><Button onClick={()=>{void bia.refetch();void access.refetch();}}>Tentar novamente</Button></div>;
   const permissions=access.data?.current.permissions || EMPTY_BIA_ACCESS;
   if(!hasBiaAccess(permissions,"configuracao_bia","view"))return <p role="alert" className="p-8">Sem permissão para consultar a configuração desta BIA.</p>;
-  return <BiaFormSheet key={bia.data.id} page open initialSection={new URLSearchParams(window.location.search).get('section')==='ativos'?'ativos':'geral'} bia={bia.data} membros={members.data || []} isLoading={members.isPending} access={permissions} readOnly={!hasBiaAccess(permissions,"configuracao_bia","edit")} onClose={()=>navigate(`/bias/${id}`)}/>;
+  const requestedSection = new URLSearchParams(window.location.search).get('section');
+  const initialSection = requestedSection === 'ativos' || requestedSection === 'equipe' ? requestedSection : 'geral';
+  return <BiaFormSheet key={bia.data.id} page open initialSection={initialSection} bia={bia.data} membros={members.data || []} isLoading={members.isPending} access={permissions} readOnly={!hasBiaAccess(permissions,"configuracao_bia","edit")} onClose={()=>navigate(`/bias/${id}`)}/>;
 }

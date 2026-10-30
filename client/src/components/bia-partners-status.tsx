@@ -33,13 +33,13 @@ export function BiaPartnersStatus({ biaId }: { biaId: string }) {
 export function BiaPartnersStatusList({ data, biaId, onRefresh }: { data: BiaPartnersStatusData; biaId?: string; onRefresh?: () => void }) {
   return <div className="space-y-3 text-sm">
     <p role="status">{data.socios.length} participante(s) vinculado(s) ou convidado(s) · {data.convitesPendentes} convite(s) pendente(s).</p>
-    {data.convitesPendentes > 0 && <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">As pessoas destacadas abaixo ainda precisam aceitar os convites. Esses convites pendentes impedem a ativação da BIA.</p>}
+    {data.convitesPendentes > 0 && <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">As pessoas destacadas abaixo ainda precisam aceitar os convites. Esses convites pendentes impedem a ativação da BIA.</p>}
     {data.socios.length === 0 ? <p className="text-muted-foreground">Nenhum participante vinculado ou convite pendente nesta BIA.</p> :
-      <ul className="space-y-2">{data.socios.map((socio) => <li key={socio.membroId} className={`min-w-0 rounded-md border p-3 ${socio.convitesPendentes.length ? "border-amber-200 bg-amber-50/60" : ""}`}>
+      <ul className="space-y-2">{data.socios.map((socio) => <li key={socio.membroId} className={`min-w-0 rounded-md border p-3 ${socio.convitesPendentes.length ? "border-amber-200 bg-amber-50/60 dark:border-amber-500/40 dark:bg-amber-950/30" : ""}`}>
         <p className="break-words font-medium">{socio.nome}</p>
         {socio.papeis.map((papel) => <p key={papel} className="mt-1 text-muted-foreground">{papel} — Vinculado</p>)}
         {socio.convitesPendentes.map((papel, index) => <div key={`${papel}-${index}`} className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="font-medium text-amber-800">{papel} — Convite pendente de aceite</p>
+          <p className="font-medium text-amber-800 dark:text-amber-200">{papel} — Convite pendente de aceite</p>
           {data.canReenviar && biaId && socio.convites?.[index] && <div className="flex flex-wrap gap-2">
             <ResendBiaInvite biaId={biaId} invite={socio.convites[index]} name={socio.nome} onRefresh={onRefresh}/>
             <CancelBiaInvite biaId={biaId} invite={socio.convites[index]} name={socio.nome} role={papel} onRefresh={onRefresh}/>
@@ -59,7 +59,7 @@ function CancelBiaInvite({biaId, invite, name, role, onRefresh}: {biaId:string; 
     onError: (error:Error) => {toast({title:"Não foi possível cancelar",description:error.message,variant:"destructive"}); onRefresh?.();},
   });
   return <AlertDialog open={open} onOpenChange={(value)=>{if(!cancel.isPending)setOpen(value);}}>
-    <AlertDialogTrigger asChild><Button type="button" size="sm" variant="outline" className="text-destructive" aria-label={`Cancelar convite de ${name} para ${role}`}>Cancelar convite</Button></AlertDialogTrigger>
+    <AlertDialogTrigger asChild><Button type="button" size="sm" variant="outline" className="text-destructive dark:text-red-300 dark:hover:text-red-200" aria-label={`Cancelar convite de ${name} para ${role}`}>Cancelar convite</Button></AlertDialogTrigger>
     <AlertDialogContent>
       <AlertDialogHeader><AlertDialogTitle>Cancelar convite?</AlertDialogTitle><AlertDialogDescription>Cancelar o convite de {name} para {role}? Ele deixará de ficar pendente e não poderá mais ser aceito. A conta da pessoa, outros vínculos e a composição econômica serão preservados.</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter>

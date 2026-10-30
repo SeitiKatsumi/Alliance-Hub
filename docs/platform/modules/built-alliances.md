@@ -304,3 +304,4 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - Fonte da BEI: rascunho e snapshot PostgreSQL (`estrutura_economica`, migração aditiva `20260923_bia_economic_structure.sql`). Identificação da BIA continua no Directus. Revisão esperada, autorização e recuperação permanecem no fluxo existente.
 - Prévia/MAP e documentos novos usam o cálculo compartilhado. CPPs são somente leitura no MAP; correções usam a composição versionada, respeitando os bloqueios existentes.
 - Testes: `shared/bia-model-five.test.ts`, `server/bia-map-creation.test.ts`, `server/bia-map-api.test.ts`, `client/src/pages/dm-map-navigation.test.ts` e suíte de rascunhos.
+- 30/10/2026: participantes com convites pendentes usam fundo âmbar escuro, borda e textos claros no tema escuro; cancelar usa vermelho claro. Tema claro, contagens, regras de ativação e ações de convite preservados.

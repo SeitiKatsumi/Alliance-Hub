@@ -1,5 +1,7 @@
 # Inicio e Gestao
 
+- 30/10/2026: os três atalhos da aba Gestão permitem quebra de linha em títulos e descrições e encolhimento do conteúdo dentro da grade, mantendo ícones e altura ajustada ao texto. Correção visual nas rotas `/` e `/painel`; destinos e acesso premium preservados.
+
 ## Feedback de salvamento transversal (26/10/2026)
 
 - `client/src/components/ui/button.tsx` centraliza `loading`/`loadingText`: um indicador animado e “Salvando…”, `aria-busy`, status acessível e bloqueio de interação enquanto a operação real está pendente. Respeita redução de movimento. Ao concluir/falhar, o estado da tela restaura a ação; o componente não inventa sucesso, não chama API nem altera tratamento de erro.

@@ -2044,20 +2044,15 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
 
       {!convitesOnly && activeTab === "comunidades" && (
         <>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar comunidades">
-        <Button variant={communityScope === "mine" ? "default" : "outline"} aria-pressed={communityScope === "mine"} onClick={() => setCommunityScope("mine")} data-testid="filter-my-communities">
-          Minhas comunidades{!membershipLoading && !memberCommunityQuery.isError ? ` (${myCommunityCount})` : ""}
-        </Button>
-        <Button variant={communityScope === "all" ? "default" : "outline"} aria-pressed={communityScope === "all"} onClick={() => setCommunityScope("all")} data-testid="filter-all-communities">Todas ({comunidades.length})</Button>
-      </div>
       {memberCommunityQuery.isError && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         Não foi possível identificar suas comunidades.
         <Button variant="outline" size="sm" onClick={() => memberCommunityQuery.refetch()}>Tentar novamente</Button>
       </div>}
       <ComunidadesMapHeader comunidades={filtered} />
 
-      {/* Search */}
-      <div className="relative max-w-md">
+      {/* Search and community scope */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center" data-testid="community-search-filters">
+      <div className="relative w-full lg:max-w-md lg:flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(215,187,125,0.5)" }} />
         <Input
           value={search}
@@ -2071,6 +2066,13 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
           }}
           data-testid="input-busca-comunidade"
         />
+      </div>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar comunidades">
+        <Button variant={communityScope === "mine" ? "default" : "outline"} aria-pressed={communityScope === "mine"} onClick={() => setCommunityScope("mine")} data-testid="filter-my-communities">
+          Minhas comunidades{!membershipLoading && !memberCommunityQuery.isError ? ` (${myCommunityCount})` : ""}
+        </Button>
+        <Button variant={communityScope === "all" ? "default" : "outline"} aria-pressed={communityScope === "all"} onClick={() => setCommunityScope("all")} data-testid="filter-all-communities">Todas ({comunidades.length})</Button>
+      </div>
       </div>
 
       {/* List */}

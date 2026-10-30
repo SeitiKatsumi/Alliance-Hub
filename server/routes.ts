@@ -1,3 +1,4 @@
+import { memberDisplayName } from "../shared/member-display-name";
 import { validatePropertyGoal, propertyThesisLabel, propertyThesisCode, PROPERTY_THESIS_OPTIONS } from "../shared/property-thesis";
 import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
 import { isolatedStage } from './isolated-stage';
@@ -23979,7 +23980,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           if (membros.length > 0) {
             membroId = membros[0].id;
             const m = membros[0];
-            nome = m.Nome_de_usuario || m.nome || nome;
+            nome = memberDisplayName(m, nome);
           } else {
             // Fallback: fetch all and find by email match (case-insensitive)
             console.log("[login] no direct match, trying full scan fallback");
@@ -23993,7 +23994,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
               );
               if (match) {
                 membroId = match.id;
-                nome = match.Nome_de_usuario || match.nome || nome;
+                nome = memberDisplayName(match, nome);
                 console.log("[login] fallback found member:", membroId, nome);
               }
             }
@@ -24185,7 +24186,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       try {
         const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil,na_vitrine,em_membros_built,em_built_capital,vitrine_termo_aceito_em,vitrine_termo_versao,area_aliancas_termo_aceito_em,area_aliancas_termo_versao,built_capital_termo_aceito_em,built_capital_termo_versao");
         if (membro) {
-          if (!companyEmployee) nomePerfil = membro.Nome_de_usuario || membro.nome || nomePerfil;
+          if (!companyEmployee) nomePerfil = memberDisplayName(membro, nomePerfil);
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
           Outras_redes_as_quais_pertenco = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
           fotoPerfil = membro.foto_perfil || null;

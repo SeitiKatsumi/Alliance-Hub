@@ -77,15 +77,24 @@ test("somente 404 explicitamente legado habilita calculadora antiga", async () =
   }
 });
 
-test("atalho antigo de aportes vai ao Financeiro; DM comum não é redirecionado", () => {
+test("atalho antigo de aportes vai ao Financeiro; DM vai à composição econômica", () => {
   const source = read("./bia-detalhe.tsx");
   const redirect = expression(source, (n, f) => ts.isArrowFunction(n) && n.getText(f).includes('window.location.hash === "#aportes-iniciais"'));
   for (const hash of ["", "#aportes-iniciais"]) {
     const urls: string[] = [];
     evaluate(redirect, { URLSearchParams, window: { location: { search: "?tab=capital&capital=calculadora", pathname: "/bias/BIA", hash } }, navigate: (url: string) => urls.push(url) })();
-    assert.deepEqual(urls, hash ? ["/bias/BIA?tab=capital&capital=financeiro&financeiro=aportes"] : []);
+    assert.deepEqual(urls, hash ? ["/bias/BIA?tab=capital&capital=financeiro&financeiro=aportes"] : ["/bias/BIA/editar?section=equipe"]);
   }
   assert.match(read("./fluxo-caixa.tsx"), /capital=financeiro&financeiro=aportes/);
+});
+
+test("capital não oferece editor DM duplicado e edição aceita atalho da equipe", () => {
+  const capital = read("./nucleo-capital.tsx");
+  assert.doesNotMatch(capital, /<BiasCalculadoraPage|tab-capital-calculadora/);
+  assert.doesNotMatch(read("./bia-detalhe.tsx"), /tab-bia-calculadora/);
+  assert.match(read("./bia-editar.tsx"), /requestedSection === 'equipe'/);
+  assert.match(read("./bias.tsx"), /\[economicOpened,setEconomicOpened\]=useState\(initialSection==='equipe'\)/);
+  assert.match(read("./bia-editar.tsx"), /hasBiaAccess\(permissions,"configuracao_bia","view"\)/);
 });
 
 test("cada área tem seu componente único, MAP Atual padrão e links persistentes", () => {

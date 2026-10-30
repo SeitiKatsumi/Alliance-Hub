@@ -308,7 +308,7 @@ export const BIA_FUNCTIONAL_PHASES: BiaFunctionalPhase[] = [
     operation: "automatica",
     purpose: "Executar a implantação da aliança, integralizar aportes e operar os núcleos autorizados.",
     available: [
-      "Banco da BIA, Financeiro, Análises e DM conforme papel e matriz individual de acesso.",
+      "Banco da BIA, Financeiro e Análises conforme papel e matriz individual de acesso. A composição do DM é editada em Editar BIA → Capitalização e direitos econômicos, com as permissões existentes.",
       "Aportes, parcelas, cobranças habilitadas, lançamentos, comprovantes e acompanhamento patrimonial.",
       "Documentos dos núcleos Técnico, Obra, Comercial e Capital conforme a diretoria responsável.",
       "Demandas, OBAs, Agenda, alertas, Governança e histórico da BIA.",

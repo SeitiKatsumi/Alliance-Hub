@@ -1742,7 +1742,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   onRequestDelete?: (bia: BiasProjeto) => void;
   readOnly?: boolean;
   page?: boolean;
-  initialSection?: 'geral'|'ativos';
+  initialSection?: 'geral'|'ativos'|'equipe';
   access?: BiaAccessMatrix;
 }) {
   const { toast } = useToast();
@@ -1775,7 +1775,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const [activeTab, setActiveTab] = useState<string>(initialSection);
   const [savedIdentity,setSavedIdentity]=useState("");
   const submittedIdentity=useRef<{snapshot:string;anexos:AnexoFile[]}|null>(null);
-  const [economicOpened,setEconomicOpened]=useState(false);
+  const [economicOpened,setEconomicOpened]=useState(initialSection==='equipe');
   const [setupOpened,setSetupOpened]=useState(initialSection==='ativos');
   const [setupActionContainer,setSetupActionContainer]=useState<HTMLSpanElement|null>(null);
   const [mapValorOrigem, setMapValorOrigem] = useState(0);

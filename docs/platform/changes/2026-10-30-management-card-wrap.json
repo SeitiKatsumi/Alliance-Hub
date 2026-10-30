@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "2026-10-30-management-card-wrap",
+  "title": "Conter títulos e descrições dos atalhos de Gestão nos cartões",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": ["client/src/pages/painel.tsx"],
+  "searchTerms": ["Acesse sua comunidade e rodadas de oportunidade", "Encontre membros da rede BUILT", "Consulte os ativos compartilhados"],
+  "consumers": [
+    {"path":"client/src/pages/painel.tsx","decision":"updated","reason":"Escopo visual localizado aos três atalhos de Gestão. Sobrescreve whitespace-nowrap herdado do Button; min-w-0 e break-words contêm texto sem cortar conteúdo."},
+    {"path":"docs/platform/modules/inicio-gestao.md","decision":"updated","reason":"Documenta quebra de linha nos atalhos."},
+    {"path":"client/src/components/ui/button.tsx","decision":"preserved","reason":"Componente global mantém padrão; correção é exclusiva dos três cartões com descrição."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Rotas / e /painel compartilham o painel; nenhum destino ou guarda muda."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Consumidor transitivo sem mudança de inicialização."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"QA autenticado localhost3004 em1280,1024 e390px: títulos e descrições quebram dentro dos três cartões. Capturas output/management-card-wrap. Nenhuma gravação de dados."},
+    {"area":"api","status":"not-applicable","evidence":"Só classes CSS locais; endpoints e handlers inalterados."},
+    {"area":"dados","status":"not-applicable","evidence":"Nenhuma leitura/escrita, cache ou migração alterada."},
+    {"area":"calculos-graficos","status":"not-applicable","evidence":"Atalhos estáticos sem cálculo ou gráfico."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Texto dos atalhos e eventos mantidos; não gera notificações."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Sem alteração funcional no catálogo nem conteúdo de PDF/exportação."},
+    {"area":"integracoes-tarefas","status":"not-applicable","evidence":"Layout local sem integração ou tarefa."},
+    {"area":"permissoes","status":"verified","evidence":"Condição canUsePremium e três destinos de navigate intactos."},
+    {"area":"legado","status":"not-applicable","evidence":"Sem renomear ou remover conceitos e dados."},
+    {"area":"testes","status":"verified","evidence":"QA visual em1280,1024 e390px; platform:verify passou (616 testes,0 falhas, tipos e build); diff check passou. Sem teste novo para classes de apresentação. platform:review executado na base9ac732184e6e223ed026a54174f9797e481f6cd9; pendências de trabalhos paralelos não atestadas."}
+  ],
+  "regressionTests": ["client/src/lib/dashboard-navigation.test.ts"],
+  "deprecationRuleIds": []
+}

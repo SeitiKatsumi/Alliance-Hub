@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "id": "2026-10-30-bia-invite-dark-colors",
+  "title": "Contraste dos cartões de participantes pendentes no modo escuro",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/components/bia-partners-status.tsx"
+  ],
+  "searchTerms": [
+    "BiaPartnersStatusList",
+    "bg-amber-50/60",
+    "Convite pendente de aceite"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-partners-status.tsx",
+      "decision": "updated",
+      "reason": "Variantes escuras de fundo, borda e texto dos pendentes e cancelar; tema claro e handlers preservados."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registrar escopo visual."
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/components/bia-partners-status.test.ts"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/components/bia-data-dialog.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/main.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/pages/area-aliancas.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/pages/bia-detalhe.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/pages/bia-editar.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/pages/bia-nova.tsx"
+    },
+    {
+      "reason": "Consumidor transitivo do componente compartilhado; cores herdadas sem alterar propriedades, handlers, dados ou permissões.",
+      "decision": "preserved",
+      "path": "client/src/pages/bias.tsx"
+    },
+    {
+      "reason": "Rotas carregam as páginas consumidoras do componente; nenhuma mudança no roteamento, identidade ou autorização.",
+      "decision": "preserved",
+      "path": "client/src/App.tsx"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação localhost3018 BIA YL9VAMR5A2 conferida autenticada desktop e390x844: fundo escuro, nomes claros, pendências amarelas e cancelar vermelho claro. Sem reenviar/cancelar convites. Screenshot convites-modo-escuro.png no workspace."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Alteração apenas de classes de cor no componente compartilhado. Sem mudança de convites, participantes, permissões, APIs, dados, mensagens, documentos, cálculos ou tarefas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify:612 testes aprovados, tipos e build. Testes existentes de participantes preservam renderização, acesso e ações; QA visual desktop/mobile."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-partners-status.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

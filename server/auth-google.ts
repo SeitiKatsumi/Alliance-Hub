@@ -3,13 +3,10 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import type { Express, NextFunction, Request, Response } from "express";
 import { storage } from "./storage";
+import { memberDisplayName } from "../shared/member-display-name";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://databases.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
-
-function getMembroDisplayName(membro: any): string | null {
-  return membro?.Nome_de_usuario || membro?.nome || null;
-}
 
 function getCallbackURL(req?: Request): string {
   if (req) {
@@ -122,7 +119,7 @@ export function setupGoogleAuth(app: Express) {
                 if (m) {
                   await storage.updateUser(user.id, { membro_directus_id: m.id } as any);
                   user = { ...user, membro_directus_id: m.id };
-                  nomeSessao = getMembroDisplayName(m) || nomeSessao;
+                  nomeSessao = memberDisplayName(m, nomeSessao);
                   console.log(`[google-auth] Linked existing Directus member ${m.id} to user ${user.id}`);
                 }
               }
@@ -141,7 +138,7 @@ export function setupGoogleAuth(app: Express) {
             });
             if (r.ok) {
               const d = await r.json();
-              nomeSessao = getMembroDisplayName(d.data) || nomeSessao;
+              nomeSessao = memberDisplayName(d.data, nomeSessao);
             }
           } catch (e) {
             console.warn("[google-auth] Failed to fetch linked Directus member name:", e);

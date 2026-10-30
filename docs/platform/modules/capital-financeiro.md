@@ -1,5 +1,12 @@
 # Capital e Financeiro da BIA
 
+## Categoria compartilhada e operador do recebimento — 30/10/2026
+
+- Na edição de um aporte vinculado, a opção Aplicar categoria a todos os aportes desta despesa aplica a categoria selecionada (ou nenhuma) somente às entradas da mesma origem. Lotes espelhados respeitam despesa_origem_id; outras despesas, valores, participantes, CPPs e pagamentos dos demais aportes não são copiados.
+- Ao passar um aporte vinculado para Pago, membro_responsavel é derivado do membro da sessão no servidor. Favorecido continua sendo o participante econômico; edição posterior não reatribui o responsável. A interface apresenta o operador automaticamente, sem seleção manual. Não modifica autoria histórica, confirmações por webhook, data de pagamento ou regras de centavos.
+- PATCH existente autoriza cada destino novamente sob o bloqueio financeiro da BIA, valida fase/categoria global ou da mesma BIA e executa guardas de parcelas/lotes. Escrita conjunta usa um PATCH transacional no armazenamento; motor MAP continua sendo acionado. Intenções e snapshots anteriores são registrados antes da escrita externa, seguidos do evento de sucesso. Resposta perdida não é tratada como confirmação; repetição aplica a mesma categoria sem novos lançamentos. Snapshot original do lote permanece imutável.
+- Fontes: shared/contribution-edit.ts, server/contribution-edit.ts, fluxo_caixa e bia_despesa_aportes; ator da sessão e fluxo_caixa_historico. Consumidores: formulário compartilhado de Financeiro (/fluxo-caixa e BIA), vínculos/histórico e resumos que consultam os mesmos lançamentos. Sem nova tabela, disparo de cobrança, e-mail ou notificação.
+
 ## Aportes de saída existente — 28/10/2026, somente homologação
 
 - Menu e edição oferecem Gerar aportes para saídas em dinheiro pendentes, agendadas ou vencidas, inclusive parcelas legadas de Valor de Origem. Pago/parcial/cancelado ficam fora. Edição com alterações locais exige salvar primeiro; depois do lote, a ação torna-se Ver aportes.

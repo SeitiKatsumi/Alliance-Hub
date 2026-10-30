@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "id": "2026-10-30-contribution-category-operator",
+  "title": "Categoria dos aportes da mesma despesa e operador automático de confirmação",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "shared/contribution-edit.ts",
+    "server/contribution-edit.ts"
+  ],
+  "searchTerms": [
+    "editLinkedContribution",
+    "relatedContributionIds",
+    "aplicar_categoria_aos_aportes",
+    "confirmsContributionReceipt"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Valida IDs, contagens, fases e perfis do relatório; atualização da descrição não altera essa estrutura. Testes aprovados na verificação completa."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Renderiza e pesquisa descrições diretamente da fonte compartilhada, recebendo o texto novo sem duplicação."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Pesquisa o catálogo funcional importado, incluindo a descrição atualizada; algoritmo e contratos não mudam."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Compara IDs e existência dos consumidores do catálogo; descrição não altera os IDs, módulos nem prefixos verificados."
+    },
+    {
+      "path": "shared/contribution-edit.ts",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "server/contribution-edit.ts",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "server/contribution-edit.test.ts",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Alteração limitada aos itens 2 e 3: categoria opcional por despesa, operador da sessão na confirmação e evidências associadas; alterações paralelas fora deste escopo não atestadas."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Vínculos e proteção originais reutilizados; snapshot e participante preservados."
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Criação e vínculo por despesa intactos; edição consome os mesmos lotes."
+    },
+    {
+      "path": "server/native-data-transport.ts",
+      "decision": "preserved",
+      "reason": "PATCH de array segue transação única já existente."
+    },
+    {
+      "path": "server/native-data-store.ts",
+      "decision": "preserved",
+      "reason": "Persistência e relações de categoria existentes reutilizadas."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Mesma página e autorização de rota."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Inicialização intacta."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Reutiliza página financeira, sem alteração específica deste trabalho."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; documentos e aceites preservados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "MAP continua derivado do fluxo financeiro pela guarda existente."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Reutiliza FluxoCaixa; sem mudança específica deste trabalho."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Inicialização intacta neste trabalho; alterações paralelas não atestadas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticado desktop e390x844: checkbox opcional, responsável da sessão ao selecionar Pago e favorecido preservado. Formulário cancelado sem gravar pagamento. Capturas output/contribution-edit."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "PATCH existente passa pela sessão, guardas e autorização por alvo; flag booleana explícita; testes contribuição."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração; lote original imutável. Categoria em uma atualização em lote; transporte nativo transacional. Cache de lançamentos, vínculos e histórico invalidado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Atualização simples e lote envolvidos por mapFinancialWrite; irmãos recebem somente Categoria; valores/status/datas dos demais preservados em teste."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Sem criação de cobranças, novos avisos ou disparos; estados de pagamento existentes preservados, lembretes continuam lendo status do lançamento."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional e contrato atualizados; histórico registra intenção e sucesso com ator; snapshots e documentos anteriores preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem operação bancária ou mudança de webhook. Transporte de dados existente; testes simulam falha remota preservando intenção sem sucesso falso."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Autorização de edição de cada aporte sob lock, mesma BIA, fase e categoria válidas; operador vem da sessão. Testes de rejeição antes de gravar."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Lotes espelhados agrupados por despesa_origem_id e antigos por lote; edições de pagos não reatribuem operador; fluxo sem lote segue rota anterior."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "7 testes específicos aprovados e QA visual. Primeira verificação global interrompida por falha nativa do Node em bia-patrimony; seis testes desse arquivo passaram isoladamente. Verificação global final aprovada:623 testes, zero falhas, TypeScript e build. Revisão global executada com pendências paralelas não atestadas, sem erro neste registro."
+    }
+  ],
+  "regressionTests": [
+    "server/contribution-edit.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

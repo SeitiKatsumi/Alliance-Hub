@@ -1,5 +1,13 @@
 # AI_HANDOFF.md
 
+## 30/10/2026 — categoria dos aportes e operador automático (itens 2 e 3 do vídeo)
+
+- Escopo aprovado: checkbox na edição aplica Categoria somente às entradas ligadas à mesma despesa; confirmação manual de entrada vinculada como paga fixa membro_responsavel no membro da sessão. Favorecido e snapshot do lote preservados. Sem ajustes de centavos, ação rápida, data automática ou recolhimento da lista.
+- Domínio em shared/contribution-edit.ts e server/contribution-edit.ts; PATCH existente com autorização de cada alvo sob lock, fase, guardas de aporte e mapFinancialWrite tanto simples quanto em lote. Batch transacional pelo transporte existente. Histórico registra intenção antes da escrita e sucesso após; repetição de aporte já pago preserva o operador anterior.
+- UI compartilhada fluxo-caixa recebe checkbox opt-in e responsável somente leitura; invalida lançamentos, vínculos e histórico. Contrato capital-financeiro e relatório funcional atualizados. Sem migração nem operação bancária.
+- 7 testes novos aprovados; platform:verify final aprovado (623 testes, zero falhas, TypeScript e build). Primeira execução teve falha nativa do Node/JIT em bia-patrimony; passou isolado e na repetição completa. Impacto antes/depois e diff check concluídos. platform:review sobre base 9ac732184e6e223ed026a54174f9797e481f6cd9 executado; pendências globais de trabalhos paralelos, sem erro no registro deste trabalho. Não atestadas alterações paralelas. Sem commit/push.
+- QA localhost autenticado desktop e390x844: checkbox e troca visual de responsável ao selecionar Pago, favorecido inalterado; cancelado sem salvar. Capturas output/contribution-edit/desktop.png e mobile.png; viewport restaurado, aba de teste fechada.
+
 ## 30/10/2026 — nomes clicáveis sem sublinhado
 
 - Pedido visual: BiaMemberLink agora usa no-underline; nomes de Governança e CPP continuam links canônicos, com hover/foco preservados. Sem mudança de identidade ou permissão.

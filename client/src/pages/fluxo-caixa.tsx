@@ -1,5 +1,7 @@
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
+import { confirmsContributionReceipt } from "@shared/contribution-edit";
+import type { ReactNode } from "react";
 import { ContributionPaymentDialog, prepareFlowPayment } from '@/components/contribution-payment';
 import {ContributionReminderFields,ContributionReminderDialog,saveContributionReminders} from '@/components/contribution-reminders';
 import {defaultContributionReminders} from '@shared/contribution-reminders';
@@ -1027,6 +1029,8 @@ function LancamentoFormFields({
   isCreate,
   onCreateFavorecido,
   singleExpense = false,
+  categoryScope,
+  automaticResponsible,
 }: {
   formTipo: "entrada" | "saida";
   setFormTipo: (v: "entrada" | "saida") => void;
@@ -1070,6 +1074,8 @@ function LancamentoFormFields({
   uploading: boolean;
   isCreate?: boolean;
   singleExpense?: boolean;
+  categoryScope?: ReactNode;
+  automaticResponsible?: string;
   onCreateFavorecido?: (nome: string, papel: PapelFavorecidoBia) => Promise<Membro | null>;
 }) {
   const favorecidosOptions = favorecidos ?? membros;
@@ -1235,6 +1241,7 @@ function LancamentoFormFields({
           biaId={selectedBiaId}
           prefix={prefix}
         />
+        {categoryScope}
       </div>
 
       <div className="space-y-2">
@@ -1242,13 +1249,13 @@ function LancamentoFormFields({
           Responsável pelo Lançamento
           {formTipo === "entrada" && <span className="text-red-500 text-xs">*obrigatório</span>}
         </Label>
-        <SearchableMembroSelect
+        {automaticResponsible !== undefined ? <Input value={automaticResponsible} readOnly aria-label="Responsável pelo lançamento" data-testid={`${prefix}-responsavel-automatico`} /> : <SearchableMembroSelect
           membros={membros}
           value={formMembro}
           onValueChange={setFormMembro}
           placeholder="Selecione um membro..."
           testId={`${prefix}-select-membro`}
-        />
+        />}
       </div>
 
       <div className="space-y-2">
@@ -1572,6 +1579,11 @@ export default function FluxoCaixaPage({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [applyCategoryToRelated, setApplyCategoryToRelated] = useState(false);
+  const editLinks = useQuery<any>({
+    queryKey: ["expense-links", editingItemId], enabled: editDialogOpen && !!editingItemId,
+    queryFn: async () => (await apiRequest("GET", `/api/fluxo-caixa/${encodeURIComponent(editingItemId!)}/vinculos`)).json(),
+  });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [selectedLancamentoIds, setSelectedLancamentoIds] = useState<string[]>([]);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
@@ -2514,6 +2526,13 @@ export default function FluxoCaixaPage({
     return payload;
   }
 
+  const editingEntry = allFluxo.find(item => item.id === editingItemId);
+  const isLinkedContribution = formTipo === "entrada" && editLinks.data?.movimentos?.some((item: any) => item.id === editingItemId && item.tipo === "entrada");
+  const confirmingLinkedReceipt = isLinkedContribution && editingEntry && confirmsContributionReceipt(editingEntry, { status: formStatus });
+  const automaticResponsibleId = confirmingLinkedReceipt ? currentUser?.membro_directus_id : getRelId(editingEntry?.membro_responsavel as any);
+  const automaticResponsibleMember = membros.find(member => member.id === automaticResponsibleId);
+  const automaticResponsibleName = automaticResponsibleMember ? getMembroNome(automaticResponsibleMember) : confirmingLinkedReceipt ? (currentUser?.nome || "Usuário conectado") : "Responsável registrado";
+
   function getRateioValorFinal(item: RateioItem) {
     const rawValue = parseBRLToNumber(item.valor);
     const valorTotal = parseBRLToNumber(formValor);
@@ -2623,6 +2642,10 @@ export default function FluxoCaixaPage({
       try {
         const newFileIds = await uploadFiles(pendingFiles);
         const payload = buildPayload(newFileIds);
+        if (isLinkedContribution) {
+          payload.aplicar_categoria_aos_aportes = applyCategoryToRelated;
+          delete payload.membro_responsavel;
+        }
         const basePayload = { ...payload };
         delete payload.bia;
         if (rateioTipo === "grupo" && rateioItems.length > 0) {
@@ -2652,7 +2675,9 @@ export default function FluxoCaixaPage({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
-      toast({ title: "Lançamento atualizado com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["expense-links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa/historico"] });
+      toast({ title: applyCategoryToRelated ? "Lançamento salvo e categoria aplicada aos aportes da despesa" : "Lançamento atualizado com sucesso" });
       resetForm();
       setEditDialogOpen(false);
       setEditingItemId(null);
@@ -2738,6 +2763,7 @@ export default function FluxoCaixaPage({
   }
 
   function resetForm() {
+    setApplyCategoryToRelated(false);
     setReminderSettings(defaultContributionReminders);
     setGenerateFunding(false);
     setExpenseFunding(emptyExpenseFunding());
@@ -2797,6 +2823,7 @@ export default function FluxoCaixaPage({
   }
 
   function openEditDialog(item: FluxoCaixaItem) {
+    setApplyCategoryToRelated(false);
     setEditingItemId(item.id);
     setFormTipo(item.tipo);
     const numVal = parseFloat(String(item.valor)) || 0;
@@ -2893,7 +2920,11 @@ export default function FluxoCaixaPage({
       toast({ title: "Informe uma descrição", variant: "destructive" });
       return;
     }
-    if (formTipo === "entrada" && !formMembro) {
+    if (confirmingLinkedReceipt && !currentUser?.membro_directus_id) {
+      toast({ title: "Seu usuário precisa estar vinculado a um membro para confirmar este aporte.", variant: "destructive" });
+      return;
+    }
+    if (formTipo === "entrada" && !formMembro && !isLinkedContribution) {
       toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
       return;
     }
@@ -4402,6 +4433,11 @@ export default function FluxoCaixaPage({
                 categorias={categoriasFormulario}
                 selectedBiaId={selectedBiaId}
                 prefix="edit"
+                automaticResponsible={isLinkedContribution ? automaticResponsibleName : undefined}
+                categoryScope={isLinkedContribution && editLinks.data.movimentos.filter((item: any) => item.tipo === "entrada").length > 1 ? <label className="flex items-start gap-2 text-sm">
+                  <Checkbox checked={applyCategoryToRelated} onCheckedChange={checked => setApplyCategoryToRelated(checked === true)} data-testid="edit-apply-category-related" />
+                  Aplicar categoria a todos os aportes desta despesa
+                </label> : undefined}
                 pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
                 existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
                 uploading={uploading}

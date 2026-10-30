@@ -10,7 +10,8 @@ import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } f
 import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
-import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry } from "./expense-contributions";
+import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry, expenseLinks } from "./expense-contributions";
+import { editLinkedContribution } from "./contribution-edit";
 import { linkedExpenseMovementIds } from './existing-expense-contributions';
 import { initialExpenseDistribution } from '@shared/existing-expense-contributions';
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
@@ -13385,6 +13386,30 @@ ${textContent}`;
         data.Anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
       }
 
+      if (body.aplicar_categoria_aos_aportes !== undefined && typeof body.aplicar_categoria_aos_aportes !== "boolean") {
+        return res.status(400).json({ error: "Opção de categoria inválida." });
+      }
+      const linkedEdit = await editLinkedContribution(req.params.id, data, body.aplicar_categoria_aos_aportes === true, (req.session as any).membroId || null, {
+        lot: id => expenseLinks(db, id),
+        lock: (bia, work) => withMapLock(bia, async () => work()),
+        access: async id => (await requireFluxoAccess(req, res, id, "edit"))?.snapshot,
+        phase: assertBiaFinancialPhase,
+        category: id => directusFetchOne("Categorias", id, "fields=*"),
+        member: id => directusFetchOne("cadastro_geral", id, "fields=id"),
+        protect: async (id, change) => { await protectInitialEntry(id, change); await protectExpenseEntry(db, id, change); },
+        update: (id, change) => mapFinancialWrite!("fluxo_caixa", id, change, () => directusUpdate("fluxo_caixa", id, change)),
+        batch: (id, change, rows) => mapFinancialWrite!("fluxo_caixa", id, change, async () => {
+          // updateBatch commits all category relations and the edited entry together.
+          const response = await fetch(`${DIRECTUS_URL}/items/fluxo_caixa`, {
+            method: "PATCH", headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify(rows), signal: AbortSignal.timeout(45000),
+          });
+          if (!response.ok) throw new Error("Não foi possível confirmar a atualização dos aportes. Consulte os lançamentos antes de tentar novamente.");
+          return response.status === 204 ? rows : (await response.json()).data;
+        }),
+        audit: (id, action, before, after, details) => registrarFluxoHistorico({ fluxoId: id, biaId: flowAccess.biaId, acao: action, req, antes: before, depois: after, payload: details }),
+      });
+      if (linkedEdit) return res.json(linkedEdit.item || { id: req.params.id });
       const item = await directusUpdate("fluxo_caixa", req.params.id, data);
       const depois = await fetchFluxoSnapshot(req.params.id).catch(() => item);
       await registrarFluxoHistorico({
@@ -13397,6 +13422,7 @@ ${textContent}`;
       });
       res.json(item);
     } catch (error: any) {
+      if (res.headersSent) return;
       res.status(error.statusCode || 500).json({ error: error.message });
     }
   });

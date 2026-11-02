@@ -1,5 +1,6 @@
 # Capital e Financeiro da BIA
 
+- 02/11/2026: campos de arquivo e seletores de anexos do Financeiro, inclusive comprovantes por IA, importação, rateio individual/grupo e cronograma, aceitam arrastar e soltar por `FileDropTarget`. Mantêm seleção por clique, formatos/quantidades, limites e envio/confirmacão existentes. Regra compartilhada documentada em pagamentos-integracoes.
 
 ## Localizar lançamento pelo comprovante — 02/11/2026
 

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { buildComparableMarketAnalysis } from "./market-comparables";
+import { BUILT_VALUATION_VERSION, PROPERTY_AREA_FIELDS, propertyValuationReadiness } from "../shared/property-valuation";
 
-export const PROPERTY_MARKET_VERSION = "estimativas-imoveis-v5";
+export const PROPERTY_MARKET_VERSION = "estimativas-imoveis-v6";
 export const MARKET_SUCCESS_TTL = 30 * 24 * 60 * 60 * 1000;
 export const INDICATIVE_MARKET_METHOD = "estimativa_indicativa_ia";
 export function marketRetryDelay(outcome: any) {
@@ -47,15 +48,11 @@ export function calculateIndicativeMarketValue(property: any, references: unknow
     calculo: { versao: INDICATIVE_CALCULATION_VERSION, area_m2: area, referencia_m2_min: low, referencia_m2_max: high, margem_indicativa: 0.25, referencias: accepted } };
 }
 
-/** Old ungrounded indicative totals must not re-enter through cache or endpoint reuse. Strict legacy comparables remain compatible. */
-export function reusableMarketAnalysis(property: any, row: any) {
-  if (!row) return false;
-  const result = row.resultado || {};
-  if (row.versao_regra === "estimativas-imoveis-v4" && (result.metodo === INDICATIVE_MARKET_METHOD || result.status !== "atualizada")) return false;
-  if (result.metodo !== INDICATIVE_MARKET_METHOD) return true;
-  if (row.versao_regra !== PROPERTY_MARKET_VERSION || result.calculo?.versao !== INDICATIVE_CALCULATION_VERSION) return false;
-  const expected = calculateIndicativeMarketValue(property, result.calculo.referencias, result.fontes_contextuais);
-  return !!expected && ["valor_minimo", "valor_estimado", "valor_maximo"].every(key => result[key] === (expected as any)[key]);
+/** Only the versioned BUILT pipeline may feed the current portfolio; old evidence remains historical. */
+export function reusableMarketAnalysis(_property: any, row: any) {
+  return row?.versao_regra === PROPERTY_MARKET_VERSION
+    && row?.resultado?.versao_metodo === BUILT_VALUATION_VERSION
+    && row?.resultado?.metodo !== INDICATIVE_MARKET_METHOD;
 }
 
 /** Approximation is a separate method, never fabricated comparable evidence or a manual-price fallback. */
@@ -130,8 +127,10 @@ export function confirmedMarketEvidence(property: any, row: any) {
 }
 export function propertyMarketFingerprint(property: any) {
   const keys = ["tipo", "area_m2", "moeda", "endereco", "numero", "bairro", "cidade", "estado", "pais", "cep", "padrao_imovel", "ano_construcao", "estado_conservacao", "quartos", "banheiros", "vagas"];
-  return createHash("sha256").update(JSON.stringify(keys.map(key => property[key] ?? null))).digest("hex");
+  return createHash("sha256").update(JSON.stringify([BUILT_VALUATION_VERSION, ...keys.concat([...PROPERTY_AREA_FIELDS, "area_avaliacao_tipo", "areas_fonte"]).map(key => property[key] ?? null)])).digest("hex");
 }
+
+export { BUILT_VALUATION_VERSION, propertyValuationReadiness };
 function sourceUrl(value: unknown) {
   try { const u = new URL(String(value)); if (!["https:", "http:"].includes(u.protocol)) return ""; u.hash = ""; u.search = ""; return u.toString().replace(/\/$/, ""); } catch { return ""; }
 }

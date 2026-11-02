@@ -1,11 +1,12 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { FileDropTarget } from "@/components/file-drop-target"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
     // h-9 to match icon buttons and default buttons.
-    return (
+    const input = (
       <input
         type={type}
         className={cn(
@@ -16,6 +17,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         {...props}
       />
     )
+    return type === "file" ? <FileDropTarget disabled={props.disabled}>{input}</FileDropTarget> : input
   }
 )
 Input.displayName = "Input"

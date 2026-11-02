@@ -1,3 +1,4 @@
+import { BUILT_VALUATION_VERSION, propertyValuationReadiness, sanitizeValuationAreas } from "../shared/property-valuation";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { groundedMarketComparables, propertyMarketFingerprint, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD } from "./property-market-evidence";
@@ -25,20 +26,20 @@ test("consulta SQL real limita imóveis autorizados e cache antigo/alterado não
   const pg = new PGlite();
   try {
     await pg.exec("CREATE TABLE carteira_analises(imovel_id text, tipo text, versao_regra text, entrada jsonb, resultado jsonb, criado_em timestamptz DEFAULT now())");
-    const property = { id: "mine", area_m2: 100, valor_atual: 999 };
+    const property = { id: "mine", tipo: "Casa", cidade: "Vitória", estado: "ES", endereco: "Rua A", area_construida_m2: 100, area_avaliacao_tipo: "construida" as const, areas_fonte: "Medição", area_m2: 100, valor_atual: 999 };
     const db = drizzle(pg), fingerprint = propertyMarketFingerprint(property);
-    for (const id of ["mine", "foreign"]) await pg.query("INSERT INTO carteira_analises(imovel_id,tipo,versao_regra,entrada,resultado) VALUES($1,'avaliacao_mercado_sugerida',$2,$3,$4)", [id, PROPERTY_MARKET_VERSION, JSON.stringify({ fingerprint }), JSON.stringify({ status: "atualizada", valor_estimado: 1400, valor_minimo: 1200, valor_maximo: 1600 })]);
+    for (const id of ["mine", "foreign"]) await pg.query("INSERT INTO carteira_analises(imovel_id,tipo,versao_regra,entrada,resultado) VALUES($1,'avaliacao_mercado_sugerida',$2,$3,$4)", [id, PROPERTY_MARKET_VERSION, JSON.stringify({ fingerprint }), JSON.stringify({ versao_metodo: BUILT_VALUATION_VERSION, status: "atualizada", valor_estimado: 1400, valor_minimo: 1200, valor_maximo: 1600 })]);
     const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
     const begin = source.indexOf("  const MARKET_ESTIMATE_MAX_AGE_MS");
     const code = source.slice(begin, source.indexOf("  const propertyInviteHash", begin));
-    const scope = { db, sql, PROPERTY_MARKET_VERSION, propertyMarketFingerprint, confirmedMarketEvidence, marketRetryDelay, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis, parseMarketValueServer: Number, MARKET_RADIUS_KM: 10 };
+    const scope = { db, sql, propertyValuationReadiness, PROPERTY_MARKET_VERSION, propertyMarketFingerprint, confirmedMarketEvidence, marketRetryDelay, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis, parseMarketValueServer: Number, MARKET_RADIUS_KM: 10 };
     const functions = new Function(...Object.keys(scope), transformSync(code, { loader: "ts" }).code + "; return {loadPortfolioMarketAnalyses,portfolioMarketEstimate};")(...Object.values(scope));
     assert.equal((await functions.loadPortfolioMarketAnalyses([])).size, 0);
     const states = await functions.loadPortfolioMarketAnalyses(["mine"]); assert.equal(states.size, 1); assert.equal(states.has("foreign"), false);
     assert.equal(functions.portfolioMarketEstimate(property, states.get("mine")).valor_minimo, 1200);
     await pg.query("INSERT INTO carteira_analises(imovel_id,tipo,versao_regra,entrada,resultado,criado_em) VALUES('mine','avaliacao_mercado_sugerida','estimativas-imoveis-v4',$1,$2,now() + interval '2 seconds')", [JSON.stringify({ fingerprint }), JSON.stringify({ status: "atualizada", metodo: INDICATIVE_MARKET_METHOD, valor_estimado: 15000000, valor_minimo: 10000000, valor_maximo: 20000000 })]);
     assert.equal(functions.portfolioMarketEstimate(property, (await functions.loadPortfolioMarketAnalyses(["mine"])).get("mine")).valor_minimo, 1200);
-    await pg.query("INSERT INTO carteira_analises(imovel_id,tipo,versao_regra,entrada,resultado,criado_em) VALUES('mine','avaliacao_mercado_sugerida',$1,$2,$3,now() + interval '1 second')", [PROPERTY_MARKET_VERSION, JSON.stringify({ fingerprint }), JSON.stringify({ status: "sem_amostra" })]);
+    await pg.query("INSERT INTO carteira_analises(imovel_id,tipo,versao_regra,entrada,resultado,criado_em) VALUES('mine','avaliacao_mercado_sugerida',$1,$2,$3,now() + interval '1 second')", [PROPERTY_MARKET_VERSION, JSON.stringify({ fingerprint }), JSON.stringify({ versao_metodo: BUILT_VALUATION_VERSION, status: "sem_amostra" })]);
     const withFailure = await functions.loadPortfolioMarketAnalyses(["mine"]);
     assert.equal(functions.portfolioMarketEstimate(property, withFailure.get("mine")).valor_minimo, 1200);
     assert.equal(functions.portfolioMarketEstimate(property, withFailure.get("mine")).precisa_atualizar, false);
@@ -55,9 +56,9 @@ test("pesquisa real exige administração, cache não repete provedor e revisão
   const code = source.slice(begin, source.indexOf('  app.post("/api/carteira/imoveis/:id/avaliacao/confirmar"', begin));
   let handler: any, allowed = false, cached = true, changed = false, legacy = false, checks = 0, providers = 0, persisted = 0, status = 200;
   const property = { area_m2: 100 };
-  const scope = { app: { post: (_path: string, fn: any) => { handler = fn; } }, marketResearchLimit: (fn: any) => fn(), sql, PROPERTY_MARKET_VERSION, propertyMarketFingerprint, reusableMarketAnalysis, MARKET_RADIUS_KM: 10,
+  const scope = { app: { post: (_path: string, fn: any) => { handler = fn; } }, marketResearchLimit: (fn: any) => fn(), sql, sanitizeValuationAreas, PROPERTY_MARKET_VERSION, propertyMarketFingerprint, reusableMarketAnalysis, MARKET_RADIUS_KM: 10,
     requireCarteiraActor: () => ({ userId: "owner" }), requireCarteiraAccess: async (_id: string, _actor: any, level: string) => { assert.equal(level, "administracao"); if (!allowed) throw Object.assign(new Error("negado"), { status: 403 }); checks++; return { imovel: changed && checks > 2 ? { ...property, quartos: 3 } : property }; },
-    db: { transaction: (fn: any) => fn({ execute: async () => ({ rows: cached ? [{ versao_regra: legacy ? "estimativas-imoveis-v4" : PROPERTY_MARKET_VERSION, resultado: { status: "atualizada", ...(legacy ? { metodo: INDICATIVE_MARKET_METHOD, indicativa_avaliada: true } : {}) } }] : [] }) }) },
+    db: { transaction: (fn: any) => fn({ execute: async () => ({ rows: cached ? [{ versao_regra: legacy ? "estimativas-imoveis-v4" : PROPERTY_MARKET_VERSION, resultado: { versao_metodo: BUILT_VALUATION_VERSION, status: "atualizada", ...(legacy ? { metodo: INDICATIVE_MARKET_METHOD, indicativa_avaliada: true } : {}) } }] : [] }) }) },
     loadPortfolioMarketAnalyses: async () => new Map(), portfolioMarketEstimate: () => ({ status: "sem_dados" }),
     researchPropertyMarketValue: async () => { providers++; return {}; }, persistCarteiraAnalysis: async () => { persisted++; return {}; } };
   new Function(...Object.keys(scope), transformSync(code, { loader: "ts" }).code)(...Object.values(scope));
@@ -128,7 +129,7 @@ test("Casa 447m²: custo de construção não vira venda e nenhum adicional de m
   assert.equal(calculation?.valor_estimado, 670500); // 450000 / 300 * 447; no fabricated land addition.
   assert.equal(calculation?.valor_minimo, 502875); assert.equal(calculation?.valor_maximo, 838125);
   const row = { versao_regra: PROPERTY_MARKET_VERSION, resultado: { status: "atualizada", metodo: INDICATIVE_MARKET_METHOD, fontes_contextuais: [reference], ...calculation } };
-  assert.equal(reusableMarketAnalysis(property, row), true);
+  assert.equal(reusableMarketAnalysis(property, row), false); // Indicative evidence cannot become a BUILT evaluation.
   for (const key of ["valor_minimo", "valor_estimado", "valor_maximo"]) assert.equal(reusableMarketAnalysis(property, { ...row, resultado: { ...row.resultado, [key]: 15000000 } }), false);
   assert.equal(reusableMarketAnalysis({ ...property, area_m2: 500 }, row), false);
   assert.equal(reusableMarketAnalysis(property, { ...row, versao_regra: "estimativas-imoveis-v4" }), false);
@@ -144,19 +145,17 @@ test("Casa 447m²: custo de construção não vira venda e nenhum adicional de m
   assert.deepEqual(calculateIndicativeMarketValue(property, [reference, reference], [reference]), calculation);
 });
 
-test("fluxo real preserva comparáveis suficientes e usa IA indicativa para tentativa antiga sem amostra", async () => {
+test("BUILT não inventa avaliação quando faltam áreas ou comparáveis e não chama fallback indicativo", async () => {
   const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
   const begin = source.indexOf("  async function researchPropertyMarketValue(");
   const code = source.slice(begin, source.indexOf("  async function buildCarteiraResumo", begin));
-  let strictCalls = 0, indicativeCalls = 0, sufficient = true;
-  const scope = { researchComparablePropertyMarketValue: async () => { strictCalls++; return { status: sufficient ? "atualizada" : "sem_amostra" }; },
-    researchIndicativePropertyValue: async () => { indicativeCalls++; return { status: "atualizada", metodo: INDICATIVE_MARKET_METHOD }; },
-    getOpenAI: () => ({}), parseAreaM2Server: Number };
+  let calls = 0, sufficient = true;
+  const scope = { propertyValuationReadiness, BUILT_VALUATION_VERSION,
+    researchComparablePropertyMarketValue: async () => { calls++; return { status: sufficient ? "atualizada" : "sem_amostra" }; } };
   const run = new Function(...Object.keys(scope), transformSync(code, { loader: "ts" }).code + "; return researchPropertyMarketValue;")(...Object.values(scope));
-  await run({ area_m2: 80 }); assert.equal(strictCalls, 1); assert.equal(indicativeCalls, 0);
+  assert.equal((await run({ area_m2: 80 })).status, "dados_pendentes"); assert.equal(calls, 0);
+  const property = { tipo: "Apartamento", endereco: "Rua A", cidade: "Rio", estado: "RJ", area_privativa_m2: 80, area_avaliacao_tipo: "privativa", areas_fonte: "Planta" };
+  assert.equal((await run(property)).status, "atualizada"); assert.equal(calls, 1);
   sufficient = false;
-  assert.equal((await run({ area_m2: 80 })).metodo, INDICATIVE_MARKET_METHOD);
-  assert.equal(indicativeCalls, 1);
-  await run({ area_m2: 80 }, { status: "sem_amostra" });
-  assert.equal(strictCalls, 2); assert.equal(indicativeCalls, 2);
+  const pending = await run(property); assert.equal(pending.status, "sem_amostra"); assert.equal(pending.versao_metodo, BUILT_VALUATION_VERSION); assert.equal(calls, 2);
 });

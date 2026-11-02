@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link, useLocation, useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1286,6 +1287,7 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
                       <p className="text-sm text-blue-700/80">Envie IPTU, recibo, boleto, nota ou áudio; a IA gera uma prévia editável.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <FileDropTarget disabled={importMutation.isPending} className="border-0 p-0">
                       <Button variant="outline" disabled={importMutation.isPending} asChild>
                         <label className="cursor-pointer">
                           {importMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Paperclip className="mr-2 h-4 w-4" />}
@@ -1293,6 +1295,8 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
                           <input type="file" className="hidden" accept=".pdf,.csv,.txt,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(e) => e.target.files?.[0] && importMutation.mutate({ file: e.target.files[0] })} />
                         </label>
                       </Button>
+                      </FileDropTarget>
+                      <FileDropTarget disabled={importMutation.isPending} className="border-0 p-0">
                       <Button variant="outline" disabled={importMutation.isPending} asChild>
                         <label className="cursor-pointer">
                           <Upload className="mr-2 h-4 w-4" />
@@ -1300,6 +1304,7 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
                           <input type="file" className="hidden" accept="audio/*" onChange={(e) => e.target.files?.[0] && importMutation.mutate({ file: e.target.files[0], audio: true })} />
                         </label>
                       </Button>
+                      </FileDropTarget>
                     </div>
                   </div>
                 </div>

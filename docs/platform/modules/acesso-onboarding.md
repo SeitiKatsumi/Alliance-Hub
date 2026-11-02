@@ -24,7 +24,8 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 - `/api/minha-conta/finalidades`: leitura e gravacao atomica das finalidades e respectivas intencoes.
 - `/api/convites/*`, `/api/meu-convite`, `/api/convite-publico/*`.
 - `/api/me/documentos-aceitos/*` e endpoints de aceite associados ao cadastro ou convite.
-- Sessao persistida pelo Express; polling de `/api/me` mantem identidade e permissoes atualizadas.
+- Sessão persistida pelo Express; `live-account-access` revalida a conta local antes de cada API e atualiza papel/permissões sem novo login. Conta exata tem prioridade; identidade Directus só associa a conta local por vínculo único de membro/e-mail, sem escolher a primeira de contas duplicadas. Falha de consulta não reutiliza privilégio antigo. Conta inativa é rejeitada; funcionário continua limitado pelo vínculo empresarial e recuperação mantém Superadmin.
+- `/api/me` usa a conta local resolvida para finalidades e benefícios, responde sem cache HTTP e inclui revisão opaca dos cargos/matrizes das BIAs. Polling de10s e foco/visibilidade atualizam a interface; mudança de acesso cancela consultas antigas e limpa os dados anteriores antes de refazer as consultas ativas. Não altera cálculos, documentos ou vínculos para simular um perfil.
 
 ## Dados e fontes de verdade
 
@@ -39,7 +40,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 
 ## Papeis e permissoes
 
-- A entrada no ambiente Alliances reconhece também Aliado e os selos oficiais BUILT_ALLIANCE_PARTNER/BUILT_FOUNDING_MEMBER, antes de existir a primeira BIA. Participação efetiva continua válida. Preferências de área/finalidade sozinhas não concedem autorização; funcionários continuam limitados pelas permissões empresariais. Isso não concede acesso administrativo nem acesso a BIAs/comunidades de terceiros. `/api/me` já recarrega papel e selos; o cliente consulta a cada 30 segundos.
+- A entrada no ambiente Alliances reconhece também Aliado e os selos oficiais BUILT_ALLIANCE_PARTNER/BUILT_FOUNDING_MEMBER, antes de existir a primeira BIA. Participação efetiva continua válida. Preferências de área/finalidade sozinhas não concedem autorização; funcionários continuam limitados pelas permissões empresariais. Isso não concede acesso administrativo nem acesso a BIAs/comunidades de terceiros. `/api/me` recarrega papel e selos; o cliente consulta a cada10 segundos e ao voltar à janela.
 
 - Rotas de autenticacao e convite possuem trechos publicos estritamente limitados.
 - Dados completos do perfil exigem sessao e autorizacao.

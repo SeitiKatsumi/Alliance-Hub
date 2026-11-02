@@ -38,6 +38,9 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 
 ## Invariantes
 
+- Os cinco controles de informação da Matriz de Aplicabilidade abrem por toque/clique/teclado e permanecem abertos até novo acionamento, clique externo ou Escape, com conteúdo contido na largura móvel. Rotas própria e de outro membro compartilham a mesma tela.
+- Compatibilidade Cultural mantém a regra existente: média aritmética das convergências T/R/C com evidência; Alta >=70%, Média >=50% e <70%, Baixa <50%. O texto de ajuda mostra os valores usados e esclarece que recorrência de termos não é uma medição direta de valores pessoais. A correção de ajuda não muda score, faixas, avaliações persistidas ou permissões.
+
 - A explicacao do modulo usa um controle de informacao acionavel no cabecalho da pagina, sem poluir as abas ou o menu lateral.
 - Aura nao aparece como modulo separado no menu lateral; Inicio e Meu Perfil fornecem os acessos contextuais.
 - Um par avaliador/avaliado respeita a unicidade definida no dominio.

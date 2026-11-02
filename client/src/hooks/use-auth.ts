@@ -18,6 +18,7 @@ export interface AppUser {
   em_membros_built?: boolean | null;
   em_built_capital?: boolean | null;
   has_alliance_participation?: boolean;
+  access_revision?: string;
   membership?: {
     condition: "registered" | "member";
     active: boolean;
@@ -54,13 +55,14 @@ export function useAuth() {
     queryKey: ["/api/me"],
     queryFn: async () => {
       const res = await fetch("/api/me", { credentials: "include" });
-      if (res.status === 401) return null;
-      if (!res.ok) return null;
+      if (res.status === 401 || res.status === 403) return null;
+      if (!res.ok) throw new Error('Não foi possível atualizar a sessão.');
       return res.json();
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
-    refetchInterval: 30 * 1000,
+    refetchInterval: 10 * 1000,
+    refetchOnWindowFocus: 'always',
   });
 
   const loginMutation = useMutation({

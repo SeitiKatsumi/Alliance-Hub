@@ -9,19 +9,24 @@
 - Descrição reduzida a uma frase por pedido do usuário. Sem mudança funcional. Atualizado e conferido na homologação3018, sem upload/criação. Captura comprovante-texto-curto.png. platform:verify675 testes0 falhas, tipos/build aprovados; registro2026-11-02-receipt-short-copy.json. Sem commit/push/produção.
 
 
-
 ## 02/11/2026 — prévia financeira editável e junção manual
 - ImportPreviewEditor permite editar tipo, valor, descrição, datas, status, categoria e CPP antes de criar. Seleção junta itens compatíveis com soma em centavos, limpa classificações divergentes e permite desfazer. shared/import-preview valida antes do upload. FinancialCategoryOptions reutilizado para preservar taxonomia/IDs.
 - UI autenticada:3 itens9,68+18,45+16,77 viraram44,90; descrição editada, valor0 bloqueado, desfazer restaura3. Modal390px sem overflow; cancelado sem criar, lista segue15. Captura previa-juntar-lancamentos.png. Backend/permissões/dados existentes preservados.
 - platform:verify final675 testes0 falhas, tipos/build; log .BUILT-tmp/import-preview-final-verify.log. Apenas homologação3018 atualizada com backup; sem commit/push/produção. Registro2026-11-02-import-preview-editor.json; revisão global não atesta alterações paralelas.
 
 
+## 02/11/2026 — todos os perfis da conta e atualização dos acessos sem novo login
+
+- Seletor compartilhado inclui comum, profissional, investidor, membro, aliado, coproprietário, gestor e Superadmin (`admin` canônico). Funcionário é mostrado como contextual ao Plano Empresa. Painel lista os dez cargos canônicos da BIA e preserva edição oficial na Equipe. Conta de recuperação não pode ser rebaixada/desativada pelo seletor. Troca exige Aplicar/Salvar; não cria vínculos, anuidade ou cargos fictícios.
+- `live-account-access` revalida a conta persistida antes das APIs, atualiza papel/permissões vazias inclusive em revogação e mantém vínculo empresarial/restrições de coproprietário. Identidade exata e vínculo único de membro/e-mail evitam misturar duplicados. `/api/me` usa o mesmo ator local para finalidades/benefícios e inclui revisão opaca dos cargos/matrizes da BIA. Consulta falha com503 em vez de manter autorização antiga.
+- Cliente consulta a cada10s e ao voltar à janela; mudanças salvas avisam as abas da mesma origem. Mudança no acesso cancela/limpa consultas antigas e refaz as ativas, mantendo a identidade nova. Prévia fictícia confirmou o menu Administração aparecer/remover na mesma sessão e o menu específico do coproprietário, além do formulário em390x844. Nenhuma conta real teve cargo alterado em QA.
+- Verificado: platform:verify final aprovado com672 testes/0 falhas, tipos, contrato e build. A primeira rodada sofreu falha nativa de V8/PGlite; o teste afetado passou isolado e as duas rodadas seguintes passaram. Revisão do escopo via checkChangeReview aprovada (.BUILT-tmp/live-access-scoped-review.log). Revisão global do worktree ainda inclui pendências paralelas e de cobertura de consumidores do registro anterior de anexos; não representa publicação autorizada. Registro:docs/platform/changes/2026-11-02-live-account-profiles.json. Logs:.BUILT-tmp/live-access-complete.log. Servidor local reiniciado e respondendo na3004 (401 esperado em /api/me sem sessão; a sessão de desenvolvimento anterior foi encerrada). Sem cargo real alterado, commit/push ou deploy.
+- Sobreposição: preservados trabalho de anexos, comprovantes, avaliação patrimonial, filtros e editor de membros já existente. Este registro atesta somente perfis/sessão; demais alterações mantêm seus registros próprios.
 
 ## 02/11/2026 — importação de lançamentos por IA habilitada na homologação
 - Pedido adicional do usuário: importar-anexos ainda procurava chave global. Agora usa relay interno com operação financial-import e prompt compartilhado; produção preservada. Suporta imagem real validada e texto extraído de PDF/planilhas, listas/normalização existentes mantidas. Sem liberar demais integrações.
 - Relay e backend privado atualizados, backup do backend anterior preservado. Nenhum commit/push/produção. Chave existente mantida no relay.
 - QA autenticado com JPEG fictício: prévia saída987654,32 em02/11/2026, Pago; cancelado, lista continua15. Desktop/mobile390 sem overflow do modal. Captura importacao-ia-teste.png. platform:verify670 testes0 falhas, tipos/build aprovados; log .BUILT-tmp/financial-import-ai-verify.log. Revisão própria2026-11-02-financial-import-ai-stage.json; outras alterações da árvore não atestadas.
-
 
 
 ## 02/11/2026 — leitura de comprovantes na homologação
@@ -31,6 +36,11 @@
 - Fluxo completo na BIA de testes868NEL6DXJ leu PDF fictício987654,32 e partes ZZZ SYNTHETIC, sem correspondência nem alteração de lançamentos. Uma análise temporária de QA é o único registro novo. Screenshot comprovante-ia-teste.png; viewport390 sem overflow do modal. Testes finais em .BUILT-tmp/receipt-ai-verified.log; revisão própria em2026-11-02-receipt-ai-stage.json. Sem commit/push.
 
 
+## 02/11/2026 — arrastar e soltar nos campos de anexo
+
+- `FileDropTarget` + helper file-drop compartilham arraste para Input type=file e seletores próprios de anexos (Financeiro/rateios, documentos/núcleos, Carteira, oportunidades, cronograma e Aura). Dispara change no input original; formatos, arquivo único/múltiplos, fieldset/disabled e seleção anterior são respeitados. Sem endpoint/envio novo, alteração de dinheiro ou leitura automática adicional.
+- Mudanças paralelas de acesso de membros, Carteira/Aura e comprovantes preservadas. Fotos de perfil com seletor específico não foram redesenhadas.
+- Verificado: platform:verify aprovado com 662 testes/0 falhas, contrato, consistência, tooling, TypeScript e build. Dois testes novos cobrem formatos, quantidade, change nativo e campos bloqueados. No navegador, componentes reais em prévia isolada confirmam arraste válido/inválido, seleção múltipla, preservação da seleção, clique no seletor, bloqueio e destaque. Modal real de comprovantes conferido em desktop e viewport390x844; sem upload ou leitura de comprovante real. Log:.BUILT-tmp/file-drop-verify.log. Registro:docs/platform/changes/2026-11-02-file-drop.json. Sem commit/push/publicação.
 
 ## 02/11/2026 — correspondência tolerante de comprovantes
 
@@ -39,7 +49,20 @@
 - Sobreposição limitada ao helper/testes de receipt-matching, prompt do extrator, componente, catálogo funcional e documentação; mudanças paralelas de Carteira, Aura, routes e demais fluxos financeiros preservadas.
 - Verificado:10 testes específicos de domínio/API/renderização,6 do catálogo funcional e platform:verify com651 testes/0 falhas, TypeScript/contrato/consistência/build aprovados. Testes usam extrator e armazenamento simulados; SSR confirma diferenças antes/depois da anexação. Não enviado comprovante real, feito pagamento, commit ou push. Log:.BUILT-tmp/receipt-tolerance-verify.log.
 
+## 02/11/2026 — ajuda da Aura no celular e origem da compatibilidade
 
+- Os cinco controles de informação da Matriz usam Popover por clique/toque/teclado em vez de Tooltip por hover; área de acionamento40px, conteúdo limitado à largura/altura móvel. Regra e score preservados.
+- Ajuda cultural explica média e entradas reais. Rodrigo conferido via consulta autorizada: T58,33/R52,78/C64,29, média58,47, faixaMédia (50 a menos de70). É recorrência de termos, não medição direta de valores pessoais. Nenhuma avaliação enviada/modificada.
+- QA autenticado desktop/viewport390x844: ajuda persistente, segundo clique/Escape fecham e Enter abre. Sem teste em aparelho físico. Capturas output/aura-touch. platform:verify aprovado640 testes/0 falhas, tipos e build. Registro docs/platform/changes/2026-11-02-aura-touch-help.json; base53c7c3d889f0df12e94df13a2ed7aeee95f4e2c4. Sem commit/push, trabalho anterior de avaliação imobiliária preservado.
+
+## 02/11/2026 — primeira etapa de avaliação residencial pelo Manual BUILT
+
+- Áreas privativa/construída/terreno/total e fonte adicionadas ao JSON existente, com escolha explícita da base de avaliação. Cadastro manual e assistente compartilham validação; área legada não é presumida privativa ou construída.
+- Pesquisa automática residencial para Casa/Apartamento no Brasil exige cadastro elegível e comparáveis com a mesma natureza de área. Cálculo no servidor pela mediana; sem fallback indicativo no total atual. Versão v6/fingerprint novo, histórico antigo preservado e série patrimonial separada por versão.
+- Análise mostra cálculo, referências, limitações e histórico autorizado por imóvel. Carteira detalha aquisição/avaliação por participação; cartões e mapa regional usam a mesma fonte canônica. Preço informado permanece separado; BIA/CPP/publicações e contratos não são reavaliados silenciosamente.
+- QA com componentes reais e dados fictícios em desktop/390px; conta autenticada conferida em Análise, edição (cancelada), detalhamento, cartões e mapa. Dois imóveis de teste da conta atual precisam da natureza e fonte da área; não houve preenchimento por suposição nem pesquisa externa real. Capturas em output/built-valuation.
+- platform:verify final aprovado: 640 testes/0 falhas, contrato, consistência, tooling, TypeScript e build. Registro de consumidores: docs/platform/changes/2026-11-02-built-property-valuation.json. Base 53c7c3d889f0df12e94df13a2ed7aeee95f4e2c4. Sem migração, commit ou push; localhost3004 ativo.
+- Etapas futuras: reforma/locação, demais tipologias e métodos, calibração de acurácia e laudo profissional. Não apresentar esta primeira etapa como implementação integral do manual.
 
 ## 31/10/2026 — aviso do MOU abre a leitura diretamente
 
@@ -796,3 +819,10 @@ Aura: descrição do aviso de vínculo passa de text-amber-800/80 para text-ambe
 
 ## 2026-10-30 — Revisão para commit de todas as alterações
 QA de comunidades concluído em sessão autenticada privada: filtros1/23, mapa e card com participação/principal, desktop/mobile. Incluídos ajustes de carteira/teses/CPPs, cobrança, links de perfis, comunidades e Aura. Logs, outputs temporários e rascunho histórico remote-sandbox-contributions permanecem locais, sem atestar operação externa pendente. Verificação geral vigente:610 testes/tipos/build aprovados.
+
+## 2026-11-02 — Comprovantes por IA nos lançamentos da BIA
+Ação Anexar comprovante com IA no Financeiro compartilhado. PDF/JPG/PNG/WebP até 10 MB; fatos extraídos, busca determinística na própria BIA, autoanexo somente com correspondência forte e única; ambiguidade exige escolha. Após anexar: editar ou preparar Pago no formulário existente, sem salvar automaticamente. Reconsulta o lançamento para preservar anexos e controles atuais.
+Tabela auxiliar fluxo_comprovante_analises criada aditivamente no bootstrap do localhost, sem backfill. Autorização edit, fase, dono, trava, fingerprint SHA256, deduplicação por BIA/hash e recuperação de vínculo após resposta perdida. Anexo não muda campos financeiros, gera histórico e não emite cobrança/pagamento/e-mail. Logs omitem fatos extraídos. Contrato capital-financeiro registra limites e consumidores.
+platform:verify final aprovado: 646 testes/0 falhas, tipos/contratos/build. Cinco testes novos com Express/PGlite e integrações simuladas. Componente real conferido desktop/390x844 com respostas fictícias, inclusive editar/preparar pagamento; provas em output/receipt-ai. Não testada extração no provedor com comprovante real nem executado pagamento. Localhost3004 reiniciado e disponível; sessão voltou ao login, solicitada entrada para conferência final autenticada. Sem commit/push/deploy. Alterações paralelas de seleção patrimonial não são atestadas por este registro.
+Revisão final de comprovantes: git diff --check passou. platform:review contra 53c7c3d aponta apenas duas pendências do registro paralelo 2026-11-02-portfolio-item-filters (status e interface), sem pendência do trabalho de comprovantes. Não atestada nem modificada a revisão paralela. Preview de QA3016 encerrado; aplicativo3004 mantido ativo.
+QA autenticada posterior: usuário entrou novamente. Na BIA868NEL6DXJ, Capital > Financeiro > Lançamentos, confirmado botão Anexar comprovante com IA e diálogo real com formatos/limite e análise desabilitada sem arquivo. Prova output/receipt-ai/live-dialog.png. Não enviado arquivo real nem alterado lançamento; extração real permanece não validada.

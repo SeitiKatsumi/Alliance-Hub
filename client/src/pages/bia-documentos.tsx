@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -313,6 +314,7 @@ function DocumentoSheet({
             </div>
           )}
 
+          <FileDropTarget disabled={saveMutation.isPending} className="border-0 p-0">
           <input
             ref={fileRef}
             type="file"
@@ -326,6 +328,7 @@ function DocumentoSheet({
           <Button type="button" variant="outline" className="w-full gap-2 border-dashed" onClick={() => fileRef.current?.click()}>
             <Upload className="h-4 w-4" /> Selecionar arquivos
           </Button>
+          </FileDropTarget>
         </div>
 
         <div className="flex justify-end gap-3 border-t bg-background px-6 py-4">

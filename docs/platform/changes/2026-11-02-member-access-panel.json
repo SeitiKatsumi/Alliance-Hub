@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "id": "2026-11-02-member-access-panel",
+  "title": "Perfis, acessos salvos e edição contextual por usuário",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/environment-access.ts",
+    "shared/bia-access.ts",
+    "shared/member-access-summary.ts"
+  ],
+  "searchTerms": [
+    "memberAccessSummary",
+    "MemberAccessPanel",
+    "registerAdminMemberAccess"
+  ],
+  "consumers": [
+    {
+      "path": "shared/member-access-summary.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "shared/member-access-summary.test.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "server/admin-member-access.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "server/admin-member-access.test.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "client/src/components/member-access-panel.tsx",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Somente alterações desta tarefa: consulta administrativa e controles de acesso usam fontes oficiais; outras alterações preservadas."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "shared/environment-access.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "shared/company-access.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    },
+    {
+      "path": "client/src/hooks/use-auth.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo ou fonte existente revisada; mantém autorização, sessão, schema e regras. Sem alteração deste trabalho."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação 3018: status Membro BUILT Sim e três controles acumuláveis conferidos na conta do exemplo, sem salvar dados reais. Desktop captura perfis-membro.png; viewport390px região293px e controles até233px, sem corte. SSR confirma seleção inicial. Ferramenta recuperada após reset."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET autorizado e PUT profissional validados por testes HTTP: 401/403, conta inativa, funcionário, revogação, 404 e entrada inválida. BIA usa endpoints existentes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Fonte oficial users/cadastro_geral/user_account_purposes/bia_user_permissions; sem migração. Finalidade com auditoria transacional; intenção de alteração de conta antes da escrita."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Sem mudança monetária ou gráfica. Matrizes resolvidas pelo helper compartilhado de BIA com pisos e bypass declarados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Não envia mensagens ou convites. Nenhum consumidor de notificações alterado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; documentos assinados e PDFs não modificados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem alteração de cobrança/provedor/cron. Directus/native lidos pelos adaptadores existentes e original preservado."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Consulta e escrita administrativa revalidam conta ativa e papel persistido, sem empresa. Edição BIA mantém autorização, pisos e autoria existentes; não atribui cargo fictício nem anuidade."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Contas, selos e regras anteriores preservados. Salvar outros dados não sobrescreve permissões se o perfil não foi tocado. Sem impersonação e sem apagar vínculos. Administrador deixa de criar automaticamente selos de membro/aliado/capital; selos manuais (incluindo fundador) preservados. Flags e selos de perfis sincronizados ao selecionar/remover."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:659 testes,0 falhas, TypeScript e build. Remover/reincluir Membro preserva administrador e selo manual, sincroniza flags e reabertura; anuidade independente. Log .BUILT-tmp/member-profile-verify.log."
+    }
+  ],
+  "regressionTests": [
+    "shared/member-access-summary.test.ts",
+    "server/admin-member-access.test.ts",
+    "client/src/pages/membros-permissions.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -3437,6 +3438,8 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                       )}
                       Enviar áudio
                     </Button>
+                    <FileDropTarget disabled={extrairAuraArquivoMutation.isPending || transcreverAuraAudioMutation.isPending || auraRecording}>
+                    <p className="text-xs">Documento para leitura</p>
                     <input
                       ref={auraFileInputRef}
                       type="file"
@@ -3451,6 +3454,9 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                         e.target.value = "";
                       }}
                     />
+                    </FileDropTarget>
+                    <FileDropTarget disabled={extrairAuraArquivoMutation.isPending || transcreverAuraAudioMutation.isPending || auraRecording}>
+                    <p className="text-xs">Arquivo de áudio</p>
                     <input
                       ref={auraAudioFileInputRef}
                       type="file"
@@ -3476,6 +3482,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                         e.target.value = "";
                       }}
                     />
+                    </FileDropTarget>
                   </div>
                 </div>
 

@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "id": "2026-11-02-aura-touch-help",
+  "title": "Ajuda da matriz da Aura persistente ao toque e explicação da compatibilidade",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/aura.tsx"
+  ],
+  "searchTerms": [
+    "client/src/pages/aura.tsx",
+    "Compatibilidade Cultural"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Cinco ajudas usam Popover acionável, área de toque maior; descrição cultural explica a média existente sem alterar a regra."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato de interação e limites semânticos da compatibilidade documentados."
+    },
+    {
+      "path": "client/src/components/ui/popover.tsx",
+      "decision": "preserved",
+      "reason": "Primitiva existente de abertura por clique, fechamento externo/Escape e portal, sem alteração global."
+    },
+    {
+      "path": "client/src/components/ui/tooltip.tsx",
+      "decision": "preserved",
+      "reason": "Tooltips de outros contextos preservados; o problema relatado é a matriz da Aura."
+    },
+    {
+      "path": "server/aura-lexico.ts",
+      "decision": "preserved",
+      "reason": "Convergência por dimensão = min(100, pontos positivos / (termos canônicos positivos distintos * 2) * 100); não alterada."
+    },
+    {
+      "path": "server/aura-lexico.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões existentes de convergência/score executadas na suíte geral."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas própria e de terceiro carregam a mesma página Aura atualizada."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Providers e bootstrap preservados."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Entradas e invariantes do módulo permanecem válidas."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-global-save-loading.json",
+      "decision": "preserved",
+      "reason": "Registro histórico de outras alterações na página, não reescrito."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-onboarding-phone.json",
+      "decision": "preserved",
+      "reason": "Registro histórico de outras alterações na página, não reescrito."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-30-aura-warning-contrast.json",
+      "decision": "preserved",
+      "reason": "Registro histórico de outras alterações na página, não reescrito."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-30-session-display-name.json",
+      "decision": "preserved",
+      "reason": "Registro histórico de outras alterações na página, não reescrito."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Conferência autenticada em desktop e viewport390x844: compatibilidade de Rodrigo abre e permanece visível, fecha no segundo clique e Escape; ajuda Horizonte abre por Enter. Capturas output/aura-touch. Não houve teste em aparelho físico."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Nenhuma chamada ou resposta alterada."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Nenhuma avaliação ou dado cadastral alterado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Regra existente de média/limiares preservada; ajuda mostra entradas já recebidas, sem nova pontuação."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Ajuda local não envia mensagens nem muda seus templates."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Nenhum PDF, exportação ou relatório depende do componente de ajuda."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Nenhuma integração ou tarefa alterada."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Tela mantém os mesmos controles e consultas de acesso."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Nomes/faixas/valores anteriores preservados; mudança limitada à interação e explicação."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:640 testes/0 falhas, contrato, consistência, tipos e build. Mudança de interação validada no navegador, sem teste que apenas espelha JSX."
+    }
+  ],
+  "regressionTests": [
+    "server/aura-lexico.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

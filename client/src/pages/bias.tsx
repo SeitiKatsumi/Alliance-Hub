@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -2891,6 +2892,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 )}
 
                 {/* File picker button */}
+                <FileDropTarget disabled={uploading || saveMutation.isPending} className="border-0 p-0">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -2916,6 +2918,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   <Upload className="w-4 h-4" />
                   {uploading ?"Enviando..." : "Adicionar arquivos"}
                 </button>
+                </FileDropTarget>
               </div>
             </TabsContent>
 

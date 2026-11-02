@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -1391,6 +1392,7 @@ export function OpaFormDialog({
               </div>
             )}
 
+            <FileDropTarget disabled={uploading || saveMutation.isPending} className="border-0 p-0">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -1414,6 +1416,7 @@ export function OpaFormDialog({
               }}
               data-testid="input-opa-file"
             />
+            </FileDropTarget>
           </div>
         </div>
         <DialogFooter className="gap-2 sm:justify-between">

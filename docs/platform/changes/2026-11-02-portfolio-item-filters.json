@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "id": "2026-11-02-portfolio-item-filters",
+  "title": "Filtros individuais de imóveis e alianças e cores patrimoniais consistentes",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/portfolio-selection.ts",
+    "shared/portfolio-dashboard.ts",
+    "server/portfolio-history.ts"
+  ],
+  "searchTerms": [
+    "selectPortfolio"
+  ],
+  "consumers": [
+    {
+      "path": "shared/portfolio-selection.ts",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "shared/portfolio-selection.test.ts",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "server/portfolio-history.test.ts",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Recorte autorizado de dados, métricas, cache, histórico e cores; somente hunks deste trabalho. Outras mudanças locais preservadas."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo: mantém montagem/rotas e autorização; filtro aplicado no painel e endpoint existentes."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo: mantém montagem/rotas e autorização; filtro aplicado no painel e endpoint existentes."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo: mantém montagem/rotas e autorização; filtro aplicado no painel e endpoint existentes."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo: mantém montagem/rotas e autorização; filtro aplicado no painel e endpoint existentes."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada no localhost:3018 em 02/11/2026, desktop e viewport 390x844: filtros Todos/individual de imóveis e alianças selecionáveis; Pinheiros mantém aquisição100 e Copacabana0, composição passa de2 para1; CPPs e legenda azul/verde exibidas. Recorte sem observações mostra ausência explicitamente. Nenhum cadastro ou pagamento alterado. Um erro transitório inicial de resumo recuperou no carregamento seguinte; não reproduzido na seleção."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Seleção somente no resumo autorizado, rejeição 404/400, conta/membro/scope já isolados."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Histórico agregado preservado; novos scopes de itens, sem reconstrução retroativa ou migração."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Helper existente recalcula métricas após recorte; azul/verde idênticos na legenda e SVG."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhuma mudança neste consumidor: filtro visual/consulta patrimonial não envia mensagens, altera pagamentos, documentos ou tarefas."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Nenhuma mudança neste consumidor: filtro visual/consulta patrimonial não envia mensagens, altera pagamentos, documentos ou tarefas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Nenhuma mudança neste consumidor: filtro visual/consulta patrimonial não envia mensagens, altera pagamentos, documentos ou tarefas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Seleção somente no resumo autorizado, rejeição 404/400, conta/membro/scope já isolados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Histórico agregado preservado; novos scopes de itens, sem reconstrução retroativa ou migração."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "npm run platform:verify: 646 testes passaram, verificação de tipos e build concluídos; testes de seleção, autorização e cores incluídos."
+    }
+  ],
+  "regressionTests": [
+    "shared/portfolio-selection.test.ts",
+    "server/portfolio-history.test.ts",
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

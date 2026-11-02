@@ -7,14 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip as UiTooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -1002,7 +998,9 @@ export default function AuraPage() {
       label: "Compatibilidade Cultural",
       value: compatibilidadeCultural,
       color: "#22C55E",
-      description: "Mostra o nível de convergência entre as percepções recebidas e os valores de colaboração da rede BUILT.",
+      description: convergenciasComEvidencia.length
+        ? `Este indicador usa a média da convergência das dimensões com evidência: ${dimensoesAura.filter((d) => !d.semEvidencia).map((d) => `${d.label} ${d.convergencia.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`).join("; ")}. Média: ${convergenciaMedia.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%. Baixa: abaixo de 50%; Média: de 50% a menos de 70%; Alta: a partir de 70%. A convergência reflete a recorrência dos termos positivos nas avaliações. Não é uma medição direta dos valores pessoais nem a nota geral da Aura.`
+        : "Ainda não há dimensões com evidência para explicar a compatibilidade. Este indicador deriva da convergência dos termos recebidos, não de uma medição direta dos valores pessoais.",
     },
     {
       icon: Target,
@@ -1378,7 +1376,6 @@ export default function AuraPage() {
                 Matriz de Aplicabilidade
               </CardTitle>
             </CardHeader>
-            <TooltipProvider delayDuration={150}>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {matrizAplicabilidade.map(item => {
                   const Icon = item.icon;
@@ -1386,21 +1383,22 @@ export default function AuraPage() {
                     <div key={item.label} className="rounded-xl border border-border/50 p-3 bg-background/40">
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <Icon className="h-4 w-4 shrink-0" style={{ color: item.color }} />
-                        <UiTooltip>
-                          <TooltipTrigger asChild>
+                        <Popover>
+                          <PopoverTrigger asChild>
                             <button
                               type="button"
-                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               aria-label={`O que significa ${item.label}`}
                               data-testid={`info-matriz-${item.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-")}`}
                             >
                               <Info className="h-3.5 w-3.5" />
                             </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
-                            {item.description}
-                          </TooltipContent>
-                        </UiTooltip>
+                          </PopoverTrigger>
+                          <PopoverContent side="top" align="end" aria-label={`Sobre ${item.label}`} className="w-80 max-w-[calc(100vw-2rem)] max-h-[70dvh] overflow-y-auto text-sm leading-relaxed">
+                            <p className="font-semibold">{item.label}</p>
+                            <p className="mt-2">{item.description}</p>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <p className="text-[11px] text-muted-foreground">{item.label}</p>
                       <p className="text-sm font-semibold" style={{ color: item.color }}>{item.value}</p>
@@ -1408,7 +1406,6 @@ export default function AuraPage() {
                   );
                 })}
               </CardContent>
-            </TooltipProvider>
           </Card>
 
           <Card className="border border-border/60 xl:col-span-4">
@@ -1742,6 +1739,8 @@ export default function AuraPage() {
                           {transcreverAudioMutation.isPending ? "Processando..." : "Enviar áudio"}
                         </Button>
                       </div>
+                      <FileDropTarget disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending || audioRecording}>
+                      <p className="text-xs">Documento para leitura</p>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -1757,6 +1756,9 @@ export default function AuraPage() {
                           e.target.value = "";
                         }}
                       />
+                      </FileDropTarget>
+                      <FileDropTarget disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending || audioRecording}>
+                      <p className="text-xs">Arquivo de áudio</p>
                       <input
                         ref={audioFileInputRef}
                         type="file"
@@ -1772,6 +1774,7 @@ export default function AuraPage() {
                           e.target.value = "";
                         }}
                       />
+                      </FileDropTarget>
                     </div>
 
                     {audioRecording && (

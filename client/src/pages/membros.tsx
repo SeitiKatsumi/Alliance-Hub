@@ -39,6 +39,11 @@ import {
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { PhoneInput } from "@/components/phone-input";
+import { MemberAccessPanel } from '@/components/member-access-panel';
+import { ACCOUNT_ROLE_LABELS, accountProfiles } from '@shared/member-access-summary';
+import { accountAccessPreset, normalizeAccountRole, type AccountAccessPreset } from '@shared/account-access-profiles';
+import { AccountProfilePicker } from '@/components/account-profile-picker';
+import { notifyAccessChanged } from '@/lib/access-session';
 import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
 
 const DIRECTUS_URL = "https://databases.builtalliances.com";
@@ -290,30 +295,27 @@ function hashColor(str: string): string {
 
 // ---- Membro Edit Page ----
 const ROLE_OPTIONS = [
-  { value: "user", label: "BUILT Vitrine", desc: "Acesso ao ambiente de vitrine", color: "#facc15" },
-  { value: "membro", label: "BUILT Alliances", desc: "Acesso ao ambiente de alianças", color: "#22c55e" },
+  { value: "user", label: "BUILT Vitrine", desc: "Usuário comum · não publica o perfil automaticamente", color: "#facc15" },
+  { value: "membro", label: "Membro BUILT", desc: "Perfil de membro e acesso a alianças", color: "#22c55e" },
   { value: "investidor", label: "BUILT Capital", desc: "Acesso ao ambiente de capital", color: "#2563eb" },
-  { value: "aliado", label: "Aliado", desc: "Acesso de parceiro de alianças", color: "#a855f7" },
-  { value: "admin", label: "Super Admin", desc: "Acesso total à plataforma", color: "#D7BB7D" },
+  { value: "aliado", label: "Aliado licenciado", desc: "Papel global; cargos em BIAs são definidos na equipe", color: "#a855f7" },
+  { value: "coproprietario", label: "Coproprietário", desc: "Consulta dos imóveis e alianças compartilhados", color: "#0891b2" },
+  { value: "manager", label: "Gestor da plataforma", desc: "Acesso operacional da plataforma", color: "#f97316" },
+  { value: "admin", label: "Superadmin", desc: "Administração completa da plataforma", color: "#D7BB7D" },
 ];
 
 const ROLE_AUTO_SELOS: Record<string, string[]> = {
   membro: ["BUILT_PROUD_MEMBER"],
   investidor: ["BUILT_CAPITAL_PARTNER"],
   aliado: ["BUILT_ALLIANCE_PARTNER"],
-  admin: [
-    "BUILT_PROUD_MEMBER",
-    "BUILT_FOUNDING_MEMBER",
-    "BUILT_ALLIANCE_PARTNER",
-    "BUILT_CAPITAL_PARTNER",
-  ],
+  admin: [],
 };
 
 const ROLE_MANAGED_SELOS = new Set(
   Object.values(ROLE_AUTO_SELOS).flat(),
 );
 
-const ROLE_PRIORITY = ["admin", "aliado", "membro", "investidor", "user"];
+const ROLE_PRIORITY = ["superadmin", "master", "admin", "manager", "aliado", "membro", "investidor", "coproprietario", "user"];
 const TERM_ACCEPTANCE_FIELDS = [
   {
     key: "codigo_etica",
@@ -532,6 +534,8 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
   const requestedCorrectionField = new URLSearchParams(window.location.search).get('campo');
   const [activeEditorTab, setActiveEditorTab] = useState<MemberEditorTab>("dados");
+  const [professionalAccess,setProfessionalAccess]=useState<boolean|null>(null);
+  const [accessProfileTouched,setAccessProfileTouched]=useState(false);
   useEffect(() => {
     const targets: Record<string, string> = {nome:'input-edit-nome',cpf:'input-edit-cpf',cnpj:'input-edit-cnpj-empresa'};
     const targetId = targets[requestedCorrectionField || ''];
@@ -706,7 +710,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
     if (!linkedUser) return;
     if (selectedRole === null) {
       const selos: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
-      const initialRoles = new Set<string>([linkedUser.role || "user"]);
+      const initialRoles = new Set<string>([linkedUser.role || "user", ...accountProfiles(linkedUser.role || "user", form)]);
       if (linkedUser.permissions?.vitrine === "view") initialRoles.add("user");
       if (linkedUser.permissions?.vitrine === "none") initialRoles.delete("user");
       if (selos.includes("BUILT_PROUD_MEMBER")) initialRoles.add("membro");
@@ -787,7 +791,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   }
 
   function getPrimaryRole(roles: string[]) {
-    return ROLE_PRIORITY.find(role => roles.includes(role)) || "user";
+    return normalizeAccountRole(ROLE_PRIORITY.find(role => roles.includes(role)) || "user");
   }
 
   function mergeRolePermissions(roles: string[], rolePerms: Record<string, Record<string, string>>) {
@@ -807,6 +811,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   }
 
   function applyRoleSelection(role: string) {
+    setAccessProfileTouched(true);
     const nextRoles = selectedRoles.includes(role)
       ? selectedRoles.filter(item => item !== role)
       : [...selectedRoles, role];
@@ -819,9 +824,24 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
       const manualSelos = current.filter(selo => !ROLE_MANAGED_SELOS.has(selo));
       return {
         ...f,
+        em_membros_built: normalizedRoles.includes("membro"),
+        em_built_capital: normalizedRoles.includes("investidor"),
         Outras_redes_as_quais_pertenco: Array.from(new Set([...manualSelos, ...automaticSelos])),
       };
     });
+  }
+
+  function selectAccountProfile(profile: AccountAccessPreset) {
+    const preset=accountAccessPreset(profile);
+    if(!preset) return;
+    setAccessProfileTouched(true);
+    const role=preset.role;
+    setSelectedRoles([role]);
+    setSelectedRole(role);
+    setProfessionalAccess(profile==='professional');
+    setForm(f=>({...f,em_membros_built:role==='membro',em_built_capital:role==='investidor',
+      Outras_redes_as_quais_pertenco:[...((f as any).Outras_redes_as_quais_pertenco||[]).filter((s:string)=>!ROLE_MANAGED_SELOS.has(s)),...(ROLE_AUTO_SELOS[role]||[])],
+    }));
   }
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -895,7 +915,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         tipo_alianca: tiposAlianca[0] || null,
         nucleos_alianca: nucleosAlianca,
         nucleo_alianca: nucleosAlianca[0] || form.nucleo_alianca || null,
-        em_built_capital: hasAporteFinanceiro(tiposAlianca) ? true : !!form.em_built_capital,
+        em_built_capital: accessProfileTouched ? !!form.em_built_capital : hasAporteFinanceiro(tiposAlianca) ? true : !!form.em_built_capital,
         idiomas: form.idiomas || [],
       };
 
@@ -923,6 +943,8 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
 
       const rolePerms: Record<string, Record<string, string>> = {
         admin: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
+        manager: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
+        coproprietario: { aura: "none", bias: "view", admin: "none", painel: "none", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
         membro: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "view" },
         investidor: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "view", oportunidades: "view", cadastro_geral: "view" },
         aliado: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "edit", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
@@ -934,7 +956,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         const roleUpdate: Record<string, any> = {};
         const rolesToSave = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser.role || "user"];
         const primaryRole = getPrimaryRole(rolesToSave);
-        if (selectedRole || selectedRoles.length > 0) {
+        if (accessProfileTouched) {
           roleUpdate.role = primaryRole;
           roleUpdate.permissions = mergeRolePermissions(rolesToSave, rolePerms);
         }
@@ -946,9 +968,13 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         if (changePassword.length >= 4) {
           roleUpdate.password = changePassword;
         }
+        // Save the purpose before a self-demotion removes administrative access.
+        if(professionalAccess!==null) await apiRequest('PUT',`/api/admin/member-access/${linkedUser.id}/professional`,{enabled:professionalAccess});
         if (Object.keys(roleUpdate).length > 0) {
           await apiRequest("PATCH", `/api/users/${linkedUser.id}`, roleUpdate);
         }
+        notifyAccessChanged();
+        queryClient.invalidateQueries({queryKey:['/api/admin/member-access',linkedUser.id]});
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
         refetchLinkedUser();
       } else if (newAccEmail && newAccPassword.length >= 4) {
@@ -1002,7 +1028,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   const accessNeedsReview = accountLookupUnavailable || !linkedUser;
   const effectiveRoles = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser?.role || "user"];
   const primaryRole = getPrimaryRole(effectiveRoles);
-  const primaryRoleLabel = ROLE_OPTIONS.find(option => option.value === primaryRole)?.label || "Membro";
+  const primaryRoleLabel = ACCOUNT_ROLE_LABELS[primaryRole] || primaryRole;
   const networkBadges = [
     form.na_vitrine ? "Vitrine" : null,
     form.em_membros_built ? "Alliances" : null,
@@ -1752,11 +1778,18 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
               </div>
             </div>
 
+            {activeEditorTab === 'acessos' && linkedUser && <div className={editorSectionClass('acessos')}><MemberAccessPanel userId={linkedUser.id} profileControls={<div className="mt-4 space-y-3 border-t border-border pt-4">
+                <p className="font-medium">Adicionar ou remover perfis</p>
+                <div className="flex flex-wrap gap-3">{['membro','aliado','investidor'].map(role=><label key={role} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-sm"><input type="checkbox" checked={selectedRoles.includes(role)} disabled={saveMutation.isPending} onChange={()=>applyRoleSelection(role)}/>{ACCOUNT_ROLE_LABELS[role]}</label>)}</div>
+                <p className="text-sm text-muted-foreground">Os perfis podem ser acumulados. A anuidade é administrada separadamente.</p>
+                {accessProfileTouched && <p className="text-sm text-amber-700 dark:text-amber-300">Alterações de perfil ainda não salvas.</p>}
+                <Button type="button" loading={saveMutation.isPending} disabled={!accessProfileTouched} onClick={()=>saveMutation.mutate()}>Salvar alterações</Button>
+              </div>}/> </div>}
             {/* Permissões da Plataforma */}
             <div className={editorSectionClass("acessos")}>
               <div className="flex items-center gap-2 mb-3">
                 <Shield className="w-3.5 h-3.5 text-brand-gold/50" />
-                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Permissões da Plataforma</span>
+                <span className="text-sm font-semibold">Alterar perfil e acesso da conta</span>
               </div>
               {linkedUser ?(
                 <div className="space-y-3">
@@ -1802,6 +1835,8 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                     </div>
                   </div>
 
+                  <p className="text-sm text-muted-foreground">Selecione os perfis que deseja conceder e salve. Isso não muda cargos nas BIAs nem ativa uma anuidade.</p>
+                  <AccountProfilePicker value={accessProfileTouched&&selectedRoles.length===1?(professionalAccess?'professional':selectedRole||''):''} dirty={accessProfileTouched} saving={saveMutation.isPending} onSelect={selectAccountProfile} onApply={()=>saveMutation.mutate()}/>
                   {/* Role selector */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     {ROLE_OPTIONS.map(opt => {
@@ -1813,24 +1848,25 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                           type="button"
                           onClick={() => applyRoleSelection(opt.value)}
                           data-testid={`btn-role-${opt.value}`}
+                          aria-pressed={isSelected}
                           className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
                           style={{
-                            borderColor: isSelected ?opt.color : "rgba(255,255,255,0.07)",
-                            background: isSelected ?`${opt.color}12` : "rgba(255,255,255,0.02)",
+                            borderColor: isSelected ?opt.color : "hsl(var(--border))",
+                            background: isSelected ?`${opt.color}12` : "hsl(var(--background))",
                           }}
                         >
                           <div className="flex items-center gap-1.5">
                             <div className="w-2 h-2 rounded-full" style={{ background: isSelected ?opt.color : "rgba(255,255,255,0.15)" }} />
-                            <span className="text-xs font-semibold font-mono" style={{ color: isSelected ?opt.color : "rgba(255,255,255,0.5)" }}>
+                            <span className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))" }}>
                               {opt.label}
                             </span>
                           </div>
-                          <span className="text-[10px] text-white/25 pl-3.5">{opt.desc}</span>
+                          <span className="text-xs text-muted-foreground pl-3.5">{opt.desc}</span>
                         </button>
                       );
                     })}
                   </div>
-                  {((selectedRoles.length > 0 && (selectedRole !== linkedUser.role || selectedRoles.length > 1)) || changePassword.length >= 4) && (
+                  {(accessProfileTouched || professionalAccess!==null || changePassword.length >= 4) && (
                     <div className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/5 px-3 py-2">
                       <Shield className="w-3 h-3 text-brand-gold/60 shrink-0" />
                       <span className="text-xs text-brand-gold/70">Alterações serão aplicadas ao salvar</span>
@@ -2036,11 +2072,11 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
               </div>
 
               <div className="mt-5 border-t border-slate-200 pt-4">
-                <p className="text-xs font-semibold text-slate-600">Ambientes e selos</p>
+                <p className="text-xs font-semibold text-slate-600">Presença publicada na rede</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {networkBadges.length ? networkBadges.map(badge => (
                     <span key={badge} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{badge}</span>
-                  )) : <span className="text-xs text-slate-400">Nenhum ambiente ativo</span>}
+                  )) : <span className="text-xs text-slate-400">Nenhuma publicação ativa</span>}
                 </div>
               </div>
 

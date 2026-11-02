@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+test("BUILT rejeita comparáveis cuja natureza de área esteja ausente ou diferente", () => {
+  const rows = [1, 2, 3].map(i => ({ tipo: "Casa", area_m2: 100, preco_total: 500000 + i * 1000, moeda: "BRL", distancia_km: i, area_tipo: "construida", url: `https://example.org/casa/${i}`, cidade: "Vitória" }));
+  const target = { tipo: "Casa", areaM2: 100, moeda: "BRL", areaTipo: "construida", exigirDistancia: true };
+  assert.equal(buildComparableMarketAnalysis(rows, target).amostra_suficiente, true);
+  for (const area_tipo of [undefined, "privativa", "terreno", "total"]) assert.equal(buildComparableMarketAnalysis(rows.map(row => ({ ...row, area_tipo })), target).amostra_suficiente, false);
+});
 import { buildComparableMarketAnalysis, marketDistanceKm, marketLocationCandidates, MARKET_RADIUS_KM } from "./market-comparables";
 
 const target = {

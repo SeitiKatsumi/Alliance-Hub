@@ -19,11 +19,12 @@ test("ausência, parcial, zero e perda não se confundem; sem usar valor cadastr
   assert.equal(result.cppContributed.value,null); assert.equal(result.cppRemaining.value,null);
 });
 
-test("estimativa indicativa entra proporcionalmente no total com sua origem, sem alterar a aquisição", () => {
+test("estimativa indicativa anterior não entra como avaliação BUILT nem altera aquisição", () => {
   const result = portfolioDashboard([{ id: "a", participacao_percentual: 50, valor_aquisicao_brl: 300,
     estimativa_dashboard: { min: 800, value: 900, max: 1000, indicative: true } }], []);
-  assert.equal(result.propertyEstimate.value, 450); assert.equal(result.propertyEstimate.min, 400);
-  assert.equal(result.propertyEstimate.indicative, true); assert.equal(result.acquisition.value, 150);
+  assert.equal(result.propertyEstimate.value, null); assert.equal(result.propertyEstimate.min, null);
+  assert.equal(result.propertyEstimate.partial, true);
+  assert.equal(result.propertyEstimate.indicative, false); assert.equal(result.acquisition.value, 150);
 });
 
 test("aquisição não declarada soma zero, mas falha de conversão continua incompleta", () => {

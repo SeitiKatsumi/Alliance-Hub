@@ -1,3 +1,6 @@
+import { PropertyValuationAreaFields } from "@/components/property-valuation-areas";
+import { PropertyValuation } from "@/components/property-valuation";
+import type { PropertyValuationAreas } from "@shared/property-valuation";
 import { propertyThesisOptions, propertyThesisLabel } from "@shared/property-thesis";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -52,6 +55,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,7 +69,8 @@ import { ModuleInfo } from "@/components/module-info";
 import { DemandResolutionSelect, type DemandResolutionMode } from "@/components/demand-resolution-select";
 import { SearchableNameSelect } from "@/components/searchable-name-select";
 import { PortfolioPatrimonyDashboard } from "@/components/portfolio-patrimony-dashboard";
-import { portfolioDashboardFromApi, type PortfolioDashboard, type PortfolioObservation } from "@shared/portfolio-dashboard";
+import { portfolioPropertyBreakdown, portfolioPropertyRegions, portfolioDashboardFromApi, type PortfolioDashboard, type PortfolioObservation } from "@shared/portfolio-dashboard";
+import { selectPortfolio } from "@shared/portfolio-selection";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
@@ -99,12 +104,13 @@ interface CarteiraDiagnostico {
   };
 }
 
-interface CarteiraImovel {
+interface CarteiraImovel extends PropertyValuationAreas {
   consolidado_via_bia?: boolean;
   id: string;
   nome: string;
   tipo: string;
   area_m2: string | number;
+  estimativa_dashboard?: import("@shared/portfolio-dashboard").PortfolioProperty["estimativa_dashboard"];
   padrao_imovel?: "economico" | "medio" | "alto" | "luxo" | null;
   ano_construcao?: number | null;
   estado_conservacao?: "novo" | "reformado" | "bom" | "regular" | "reformar" | null;
@@ -743,6 +749,7 @@ function PropertyFormDialog({
               </SelectContent>
             </Select>
           </div>
+          <PropertyValuationAreaFields value={form} onChange={patch => setForm({ ...form, ...patch })} />
           <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
             <div><p className="font-medium">Características para avaliação de mercado</p><p className="text-xs text-muted-foreground">Opcionais, mas deixam os comparáveis mais próximos do imóvel real.</p></div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -770,7 +777,7 @@ function PropertyFormDialog({
             <Input inputMode="decimal" value={String(form.valor_pago || "")} onChange={(event) => setForm({ ...form, valor_pago: event.target.value })} />
           </div>
           <div className="space-y-2">
-            <Label>Valor atual estimado</Label>
+            <Label>Valor de referência informado</Label>
             <Input inputMode="decimal" value={String(form.valor_atual || "")} onChange={(event) => setForm({ ...form, valor_atual: event.target.value })} />
           </div>
           <div className="space-y-2">
@@ -942,10 +949,11 @@ function PropertyCard({
   const hasActions = Boolean(onEdit || onDelete);
   const photoUrl = carteiraPhotoUrl(item.foto);
   const ownership = Math.min(100, Math.max(0, Number(item.map_percentual_usuario ?? item.participacao_percentual ?? 100)));
-  const ownedValue = parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * ownership / 100;
-  const portfolioShare = !item.consolidado_via_bia && portfolioTotal > 0 ? Math.max(0, ownedValue) / portfolioTotal * 100 : 0;
+  const valuation = portfolioPropertyBreakdown([item])[0];
+  const ownedValue = valuation?.estimate ?? null;
+  const portfolioShare = !item.consolidado_via_bia && portfolioTotal > 0 ? Math.max(0, ownedValue ?? 0) / portfolioTotal * 100 : 0;
   const acquisition = parseNumber(item.valor_aquisicao_brl ?? item.valor_pago) * ownership / 100;
-  const evolution = acquisition > 0 ? (ownedValue - acquisition) / acquisition * 100 : null;
+  const evolution = acquisition > 0 && ownedValue != null ? (ownedValue - acquisition) / acquisition * 100 : null;
   return (
     <Card className="relative overflow-hidden border-border/70 transition-colors hover:border-blue-300">
       <CardContent className="p-0">
@@ -1007,8 +1015,8 @@ function PropertyCard({
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3 text-sm">
             <div>
-              <p className="text-[11px] text-muted-foreground">Sua fração do valor atual ({ownership.toFixed(2)}%)</p>
-              <p className="font-semibold tabular-nums">{money(ownedValue)}</p>
+              <p className="text-[11px] text-muted-foreground">Sua fração da avaliação ({ownership.toFixed(2)}%)</p>
+              <p className="font-semibold tabular-nums">{ownedValue == null ? "Sem avaliação" : money(ownedValue)}</p>
             </div>
             <div>
               <p className="text-[11px] text-muted-foreground">Resultado registrado</p>
@@ -1017,7 +1025,7 @@ function PropertyCard({
               </p>
             </div>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">{item.consolidado_via_bia?"Contabilizado pela participação na BIA":`${portfolioShare.toFixed(1)}% do patrimônio total`} · {money(item.contas_a_pagar || 0, item.moeda)} a pagar{evolution == null ? "" : ` · evolução ${evolution.toFixed(1)}%`}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{item.consolidado_via_bia?"Contabilizado pela participação na BIA":ownedValue == null ? "Avaliação pendente" : `${portfolioShare.toFixed(1)}% das avaliações disponíveis`} · {money(item.contas_a_pagar || 0, item.moeda)} a pagar{evolution == null ? "" : ` · diferença sobre aquisição ${evolution.toFixed(1)}%`}</p>
           <div className="mt-3 space-y-1 text-xs">
             <p><span className="font-medium text-foreground">Oportunidade:</span> <span className="text-muted-foreground">{diagnostic?.oportunidade || "Complete os dados do imóvel."}</span></p>
             <p><span className="font-medium text-foreground">Próxima ação:</span> <span className="text-blue-700">{diagnostic?.proxima_acao || "Realizar Pulso Patrimonial"}</span></p>
@@ -1036,6 +1044,8 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("todos");
   const [period, setPeriod] = useState<"12m" | "all">("12m");
+  const [propertyFilter, setPropertyFilter] = useState("");
+  const [allianceFilter, setAllianceFilter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CarteiraImovel | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CarteiraImovel | null>(null);
@@ -1111,22 +1121,27 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
       if (changed) queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     })();
   }, [data, alliancesOnly]);
+  const propertyId = !alliancesOnly && data?.imoveis.some(p => p.id === propertyFilter) ? propertyFilter : "";
+  const allianceId = showAlliances && data?.aliancas.some(b => b.id === allianceFilter) ? allianceFilter : "";
+  const selectedPortfolio = data ? selectPortfolio(data.imoveis, data.aliancas, propertyId, allianceId) : null;
+  const selectedMetrics = selectedPortfolio ? portfolioDashboardFromApi(selectedPortfolio.imoveis, selectedPortfolio.aliancas) : undefined;
+  const historyParams = new URLSearchParams({period, propertyId, allianceId}).toString();
   const historyQuery = useQuery<{ available: boolean; observations: PortfolioObservation[] }>({
-    queryKey: ["/api/carteira/evolucao", period, data?.imoveis.map(p => `${p.id}:${p.participacao_percentual}`).join(","), data?.aliancas.map(b => `${b.id}:${b.map_percent}`).join(",")],
+    queryKey: ["/api/carteira/evolucao", period, propertyId, allianceId, data?.imoveis.map(p => `${p.id}:${p.participacao_percentual}`).join(","), data?.aliancas.map(b => `${b.id}:${b.map_percent}`).join(",")],
     enabled: !!data, staleTime: 60000, refetchOnWindowFocus: true,
-    queryFn: async () => (await apiRequest("GET", `/api/carteira/evolucao?period=${period}`)).json(),
+    queryFn: async () => (await apiRequest("GET", `/api/carteira/evolucao?${historyParams}`)).json(),
   });
   const recordObservation = useMutation({
-    mutationFn: async () => (await apiRequest("POST", `/api/carteira/evolucao/registrar?period=${period}`)).json(),
+    mutationFn: async () => (await apiRequest("POST", `/api/carteira/evolucao/registrar?${historyParams}`)).json(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/carteira/evolucao"] }),
   });
   useEffect(() => {
     if (!data?.dashboard || isError) return;
-    const key = JSON.stringify([new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), data.dashboard, data.imoveis.map(p => [p.id, p.participacao_percentual]), data.aliancas.map(b => [b.id, b.map_percent])]);
+    const key = JSON.stringify([propertyId, allianceId, new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), data.dashboard, data.imoveis.map(p => [p.id, p.participacao_percentual]), data.aliancas.map(b => [b.id, b.map_percent])]);
     if (observationKey.current === key) return;
     observationKey.current = key;
     recordObservation.mutate();
-  }, [data, isError]);
+  }, [data, isError, propertyId, allianceId]);
   useEffect(() => {
     if (alliancesOnly || isError || !data || document.visibilityState === "hidden") return;
     for (const property of data.imoveis) {
@@ -1198,28 +1213,21 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
   }, [data?.imoveis, group, search]);
   const totals = data?.totais;
   const excludedCurrencies = data?.cambio?.moedas_excluidas || [];
-  const portfolioRegions = useMemo(() => {
-    const groups = new Map<string, { assets: number; value: number }>();
-    for (const item of data?.imoveis || []) {
-      if(item.consolidado_via_bia)continue;
-      const key = [item.bairro, item.cidade].filter(Boolean).join(", ") || "Localização não informada";
-      const current = groups.get(key) || { assets: 0, value: 0 };
-      const share = Math.min(100, Math.max(0, Number(item.map_percentual_usuario ?? item.participacao_percentual ?? 100))) / 100;
-      current.assets += 1;
-      current.value += parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * share;
-      groups.set(key, current);
-    }
-    return Array.from(groups.entries()).sort((a, b) => b[1].value - a[1].value);
-  }, [data?.imoveis]);
-  const maxRegionValue = Math.max(1, ...portfolioRegions.map(([, summary]) => Math.max(0, summary.value)));
+  const portfolioRegions = useMemo(() => portfolioPropertyRegions(data?.imoveis || []), [data?.imoveis]);
+  const maxRegionValue = Math.max(1, ...portfolioRegions.map(summary => summary.value || 0));
 
   if(isLoading)return <div role="status" className="rounded-md border p-4 text-sm text-muted-foreground">Calculando patrimônio…</div>;
   if(isError)return <div role="alert" className="rounded-md border p-4">Não foi possível atualizar o patrimônio. <Button variant="outline" onClick={()=>refetch()}>Tentar novamente</Button></div>;
 
+  const portfolioFilters = <div className="flex flex-wrap gap-3">
+    {!alliancesOnly && <label className="flex min-w-0 flex-col gap-1 text-sm">Imóvel<select aria-label="Filtrar por imóvel" className="h-10 max-w-full rounded-md border bg-background px-3 sm:w-64" value={propertyId} onChange={e => setPropertyFilter(e.target.value)}><option value="">Todos os imóveis</option>{data?.imoveis.map(p => <option key={p.id} value={p.id}>{p.nome || "Imóvel"}</option>)}</select></label>}
+    {showAlliances && <label className="flex min-w-0 flex-col gap-1 text-sm">Aliança<select aria-label="Filtrar por aliança" className="h-10 max-w-full rounded-md border bg-background px-3 sm:w-64" value={allianceId} onChange={e => setAllianceFilter(e.target.value)}><option value="">Todas as alianças</option>{data?.aliancas.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}</select></label>}
+  </div>;
   if (alliancesOnly) return <div className="space-y-4" data-testid="alliance-cpp-dashboard">
+    {portfolioFilters}
     <div className="flex justify-end"><Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40" aria-label="Período das CPPs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select></div>
     {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
-    {data?.dashboard && <PortfolioPatrimonyDashboard metrics={data.dashboard} showProperties={false} showTheses={false}
+    {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics} showProperties={false} showTheses={false}
       observations={historyQuery.data?.observations || []} historyLoading={historyQuery.isLoading || recordObservation.isPending}
       historyError={historyQuery.isError || recordObservation.isError ? "Não foi possível atualizar o histórico patrimonial." : historyQuery.data?.available === false ? "Histórico aguardando configuração." : undefined} />}
   </div>;
@@ -1243,8 +1251,9 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
       <div className="flex flex-wrap items-center gap-3">
         {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
       </div>
-      {data?.dashboard && <PortfolioPatrimonyDashboard metrics={data.dashboard}
-        properties={data.imoveis} showAlliances={showAlliances} thesisAllocation={thesisAllocation}
+      {portfolioFilters}
+      {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics}
+        properties={selectedPortfolio?.imoveis || []} showAlliances={showAlliances} showTheses={!allianceId} thesisAllocation={thesisAllocation}
         onCreateProperty={() => navigate("/carteira/novo?path=imovel&step=cadastro")}
         onViewProperties={() => document.getElementById("meus-imoveis")?.scrollIntoView({ behavior: "smooth" })}
         onViewAlliances={onViewAlliances || (() => navigate("/?tab=carteira&view=bias"))}
@@ -1293,7 +1302,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
             <PropertyCard
               key={item.id}
               item={item}
-              portfolioTotal={totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0}
+              portfolioTotal={data?.dashboard.propertyEstimate.value ?? 0}
               onOpen={() => navigate(`/carteira/${item.id}`)}
               onEdit={canAccess(item.access_level, "administracao") ? () => {
                 setEditingItem(item);
@@ -1342,7 +1351,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
       </section>}
       {portfolioRegions.length > 0 && <section className="space-y-3 border-t pt-5">
         <div><h3 className="text-lg font-semibold">Mapa de calor patrimonial por região</h3><p className="text-sm text-muted-foreground">Quanto mais intensa a cor, maior o patrimônio estimado da Carteira naquela região. Endereços privados não são exibidos.</p></div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{portfolioRegions.map(([region, summary]) => <div key={region} className="rounded-md border p-3" style={{ backgroundColor: `rgba(37, 99, 235, ${0.08 + 0.42 * Math.max(0, summary.value) / maxRegionValue})` }}><p className="font-medium">{region}</p><p className="text-xs text-slate-700">{summary.assets} ativo(s) · {money(summary.value)}</p></div>)}</div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{portfolioRegions.map(summary => <div key={summary.region} className="rounded-md border p-3" style={{ backgroundColor: `rgba(37, 99, 235, ${0.08 + 0.42 * Math.max(0, summary.value ?? 0) / maxRegionValue})` }}><p className="font-medium">{summary.region}</p><p className="text-xs text-slate-700">{summary.assets} ativo(s) · {summary.value == null ? "Avaliação incompleta" : money(summary.value)}</p></div>)}</div>
       </section>}
       <Dialog open={Boolean(aporteTarget)} onOpenChange={(open) => !open && setAporteTarget(null)}>
         <DialogContent>
@@ -1495,12 +1504,16 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved, launch }: { op
             <p className="mt-1 text-sm text-muted-foreground">Envie comprovante, planilha, PDF, imagem, texto ou áudio. Revise antes de salvar.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
+            <FileDropTarget disabled={importMutation.isPending} className="border-0 p-0">
             <Button variant="outline" asChild disabled={importMutation.isPending}>
               <label className="cursor-pointer"><Paperclip className="mr-2 h-4 w-4" />Arquivo ou imagem<input type="file" className="hidden" disabled={importMutation.isPending} accept=".pdf,.csv,.txt,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) importMutation.mutate({ file }); event.currentTarget.value = ""; }} /></label>
             </Button>
+            </FileDropTarget>
+            <FileDropTarget disabled={importMutation.isPending} className="border-0 p-0">
             <Button variant="outline" asChild disabled={importMutation.isPending}>
               <label className="cursor-pointer"><Mic className="mr-2 h-4 w-4" />Áudio<input type="file" className="hidden" disabled={importMutation.isPending} accept="audio/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) importMutation.mutate({ file, audio: true }); event.currentTarget.value = ""; }} /></label>
             </Button>
+            </FileDropTarget>
             {importMutation.isPending && <span className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analisando...</span>}
           </div>
         </section>}
@@ -1778,34 +1791,8 @@ function DetailPage({ id }: { id: string }) {
     navigate(`${window.location.pathname}?${params.toString()}`);
   };
 
-  const marketQuery = useQuery<MarketM2Analysis>({
-    queryKey: ["/api/ai/preco-m2", "carteira", id, imovel?.valor_atual, imovel?.area_m2, imovel?.tipo, imovel?.endereco, imovel?.numero, imovel?.bairro, imovel?.cidade, imovel?.estado, imovel?.pais, imovel?.cep, imovel?.padrao_imovel, imovel?.ano_construcao, imovel?.estado_conservacao, imovel?.quartos, imovel?.banheiros, imovel?.vagas],
-    enabled: Boolean(activeDetailTab === "analise" && imovel && parseNumber(imovel.valor_atual) > 0 && parseNumber(imovel.area_m2) > 0 && (imovel.endereco || imovel.bairro || imovel.cidade || imovel.cep)),
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => (await apiRequest("POST", "/api/ai/preco-m2", {
-      origem: "carteira",
-      nome: imovel?.nome,
-      tipo: imovel?.tipo,
-      valor: parseNumber(imovel?.valor_atual),
-      area_m2: parseNumber(imovel?.area_m2),
-      moeda: imovel?.moeda,
-      cep: imovel?.cep,
-      endereco: imovel?.endereco,
-      numero: imovel?.numero,
-      bairro: imovel?.bairro,
-      cidade: imovel?.cidade,
-      estado: imovel?.estado,
-      pais: imovel?.pais,
-      padrao_imovel: imovel?.padrao_imovel,
-      ano_construcao: imovel?.ano_construcao,
-      estado_conservacao: imovel?.estado_conservacao,
-      quartos: imovel?.quartos,
-      banheiros: imovel?.banheiros,
-      vagas: imovel?.vagas,
-    })).json(),
-  });
-
   function invalidateAll() {
+    queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "avaliacao"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/lancamentos", id] });
@@ -1940,21 +1927,6 @@ function DetailPage({ id }: { id: string }) {
     mutationFn: () => apiRequest("POST", `/api/carteira/imoveis/${id}/financiamento/${financingPreview!.preview_id}/confirmar`, { parcelas: financingPreview!.parcelas }),
     onSuccess: () => { setFinancingFile(null); setFinancingPreview(null); queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "documentos"] }); invalidateAll(); toast({ title: "Financiamento importado" }); },
     onError: (error: any) => toast({ title: "Não foi possível confirmar o financiamento", description: error?.message, variant: "destructive" }),
-  });
-  const confirmMarketMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/carteira/imoveis/${id}/avaliacao/confirmar`, {
-      valor_atual: Number(marketQuery.data?.valor_sugerido || 0),
-      data_base: new Date().toISOString().slice(0, 10),
-      fontes: marketQuery.data?.fontes || [],
-      amostra: marketQuery.data?.quantidade_comparaveis || 0,
-      regiao: [imovel?.bairro, imovel?.cidade, imovel?.estado].filter(Boolean).join(", "),
-      confianca: marketQuery.data?.confianca || "baixa",
-      metodo: marketQuery.data?.metodo || "mediana",
-      fatores: marketQuery.data?.fatores || [],
-      cobertura_caracteristicas_percentual: marketQuery.data?.cobertura_caracteristicas_percentual || 0,
-    }),
-    onSuccess: () => { invalidateAll(); toast({ title: "Valor de mercado confirmado", description: "O histórico e a data-base foram preservados." }); },
-    onError: (error: any) => toast({ title: "Não foi possível confirmar o valor", description: error?.message, variant: "destructive" }),
   });
   const deleteDocumentMutation = useMutation({
     mutationFn: (documentId: string) => apiRequest("DELETE", `/api/carteira/imoveis/${id}/documentos/${documentId}`),
@@ -2196,7 +2168,7 @@ function DetailPage({ id }: { id: string }) {
       </section>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Valor atual estimado" value={money(imovel.valor_atual, imovel.moeda)} icon={Home} helper={`Data-base: ${shortDate(imovel.valor_data_base)} · origem ${imovel.valor_origem || "declarada"}`} />
+        <Metric label="Valor de referência informado" value={money(imovel.valor_atual, imovel.moeda)} icon={Home} helper={`Data-base: ${shortDate(imovel.valor_data_base)} · origem ${imovel.valor_origem || "declarada"}`} />
         <Metric label="Receitas registradas" value={money(diagnostic?.indicadores?.receitas || 0, imovel.moeda)} icon={TrendingUp} tone="text-emerald-700" />
         <Metric label="Despesas registradas" value={money(diagnostic?.indicadores?.despesas || 0, imovel.moeda)} icon={TrendingDown} tone="text-red-700" />
         <Metric label="Resultado líquido" value={money(diagnostic?.indicadores?.resultado_liquido || 0, imovel.moeda)} icon={Wallet} tone={metricTone(diagnostic?.indicadores?.resultado_liquido || 0)} />
@@ -2334,8 +2306,8 @@ function DetailPage({ id }: { id: string }) {
                 </div>
                 <div className="space-y-2"><Label>4. Ocorreu reforma, problema, proposta ou mudança relevante?</Label><Textarea rows={5} value={pulseForm.acontecimento} onChange={(event) => setPulseForm({ ...pulseForm, acontecimento: event.target.value })} placeholder="Descreva com suas palavras..." /></div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" asChild><label className="cursor-pointer"><Paperclip className="mr-2 h-4 w-4" />Arquivo ou imagem<input type="file" className="hidden" accept=".pdf,.csv,.txt,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(event) => void importPulseFile(event.target.files?.[0])} /></label></Button>
-                  <Button variant="outline" asChild><label className="cursor-pointer"><Mic className="mr-2 h-4 w-4" />Áudio<input type="file" className="hidden" accept="audio/*" onChange={(event) => void importPulseFile(event.target.files?.[0], true)} /></label></Button>
+                  <FileDropTarget className="border-0 p-0"><Button variant="outline" asChild><label className="cursor-pointer"><Paperclip className="mr-2 h-4 w-4" />Arquivo ou imagem<input type="file" className="hidden" accept=".pdf,.csv,.txt,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(event) => void importPulseFile(event.target.files?.[0])} /></label></Button></FileDropTarget>
+                  <FileDropTarget className="border-0 p-0"><Button variant="outline" asChild><label className="cursor-pointer"><Mic className="mr-2 h-4 w-4" />Áudio<input type="file" className="hidden" accept="audio/*" onChange={(event) => void importPulseFile(event.target.files?.[0], true)} /></label></Button></FileDropTarget>
                   {importedLaunches.length > 0 && <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{importedLaunches.length} sugestão(ões) da IA</Badge>}
                 </div>
                 <div className="space-y-2"><Label>5. Sua tese continua a mesma?</Label>
@@ -2451,22 +2423,7 @@ function DetailPage({ id }: { id: string }) {
               <div className="border-y py-4 md:col-span-2"><p className="text-xs text-muted-foreground">Dados que podem alterar a conclusão</p><div className="mt-2 flex flex-wrap gap-2">{diagnostic?.dados_faltantes?.length ? diagnostic.dados_faltantes.map((item) => <Badge key={item} variant="outline">{item}</Badge>) : <span className="text-sm text-emerald-700">Nenhuma lacuna essencial identificada.</span>}</div></div>
             </div>
           </section>
-          <section className="border-y border-blue-100 bg-slate-50 py-5">
-            <div className="px-4">
-              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">IA de preço por m²</h3></div>{marketQuery.data?.confianca && <Badge variant="outline">Confiança da estimativa: {marketQuery.data.confianca === "media" ? "média" : marketQuery.data.confianca}</Badge>}</div>
-              {marketQuery.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Pesquisando imóveis comparáveis...</p> : marketQuery.data?.amostra_suficiente ? (
-                <div className="mt-3 space-y-4">
-                  <p className="text-sm text-blue-800">{marketQuery.data.resumo} Faixa de área: {marketQuery.data.area_min} a {marketQuery.data.area_max} m²; raio aplicado: até {marketQuery.data.raio_km || 10} km.</p>
-                  <div className="grid gap-3 sm:grid-cols-3"><div className="border-y py-3"><p className="text-xs text-muted-foreground">Valor atual informado</p><p className="font-bold">{money(marketQuery.data.preco_m2_informado, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Referência mediana</p><p className="font-bold">{money(marketQuery.data.referencia_m2_media, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Faixa dos comparáveis usados</p><p className="font-bold">{money(marketQuery.data.referencia_m2_min, imovel.moeda)} – {money(marketQuery.data.referencia_m2_max, imovel.moeda)}</p></div></div>
-                  {!!marketQuery.data.comparaveis?.length && <div className="grid gap-2 sm:grid-cols-2">{marketQuery.data.comparaveis.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="rounded-md border bg-white p-3 text-sm hover:border-blue-300"><p className="truncate font-medium text-blue-700">Comparável {index + 1}: {item.titulo}</p><p className="mt-1 text-xs text-muted-foreground">{item.area_m2.toLocaleString("pt-BR")} m² · {money(item.preco_m2, imovel.moeda)}/m²{item.distancia_km != null ? ` · ${item.distancia_km.toLocaleString("pt-BR")} km` : ""}</p><p className="mt-1 text-xs text-muted-foreground">{[item.padrao, item.ano_construcao, item.estado_conservacao, item.quartos != null ? `${item.quartos} quarto(s)` : null, item.vagas != null ? `${item.vagas} vaga(s)` : null].filter(Boolean).join(" · ") || "Características não publicadas no anúncio"}</p></a>)}</div>}
-                  {!!marketQuery.data.fatores?.length && <div><p className="text-xs font-medium">Critérios aplicados</p><div className="mt-2 flex flex-wrap gap-1">{marketQuery.data.fatores.map((factor) => <Badge key={factor} variant="outline" className="font-normal">{factor}</Badge>)}</div></div>}
-                  {!!marketQuery.data.lacunas?.length && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><span>Para aumentar a confiança, informe: {marketQuery.data.lacunas.join(", ")}.</span>{canManage && <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>Completar características</Button>}</div>}
-                  {canManage && Number(marketQuery.data.valor_sugerido || 0) > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-white p-3"><div><p className="text-xs text-muted-foreground">Sugestão separada do valor oficial</p><p className="font-bold">{money(marketQuery.data.valor_sugerido, imovel.moeda)}</p><p className="text-xs text-muted-foreground">Só entra na Carteira se você aceitar.</p></div><Button disabled={confirmMarketMutation.isPending} onClick={() => confirmMarketMutation.mutate()}>{confirmMarketMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Aceitar como valor atual</Button></div>}
-                  {marketQuery.data.observacao && <p className="text-xs text-muted-foreground">{marketQuery.data.observacao}</p>}
-                </div>
-              ) : <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{marketQuery.data?.resumo || "Ainda não há comparáveis suficientes para calcular uma referência."}</p>{canManage && !!marketQuery.data?.lacunas?.length && <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>Completar características</Button>}</div>}
-            </div>
-          </section>
+          <PropertyValuation id={id!} canManage={canManage} onEdit={() => setEditOpen(true)} />
           <section>
             <div><h2 className="text-lg font-semibold">O que fazer com este imóvel?</h2><p className="mt-1 text-sm text-muted-foreground">Compare caminhos pela aderência ao seu objetivo, sem promessa de resultado.</p></div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -2632,12 +2589,14 @@ function DetailPage({ id }: { id: string }) {
                           <Plus className="h-4 w-4" /><span className="sr-only">Adicionar proposta</span>
                         </Button>
                       </div>
+                      <FileDropTarget className="border-0 p-0">
                       <Button variant="outline" asChild>
                         <label className="cursor-pointer">
                           <Paperclip className="mr-2 h-4 w-4" />Anexar documento
                           <input type="file" className="hidden" onChange={(event) => void attachDemandDocument(demand, event.target.files?.[0])} />
                         </label>
                       </Button>
+                      </FileDropTarget>
                     </div>
                   )}
                   {!!demand.documentos?.length && <p className="ml-8 text-xs text-muted-foreground">{demand.documentos.length} documento(s) vinculado(s)</p>}

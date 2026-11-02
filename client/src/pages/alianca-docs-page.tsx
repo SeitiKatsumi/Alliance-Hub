@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LucideIcon, Plus, Pencil, Trash2, FileText, Upload, X, Paperclip, ExternalLink } from "lucide-react";
@@ -183,10 +184,12 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose, lockBia = fa
             </div>
           )}
 
+          <FileDropTarget disabled={uploading || mutation.isPending} className="border-0 p-0">
           <input ref={fileRef} type="file" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files || []); setPendingFiles(p => [...p, ...files]); e.target.value = ""; }} />
           <button onClick={() => fileRef.current?.click()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed text-sm transition-colors" style={{ borderColor: `${accentColor}30`, color: `${accentColor}80` }} data-testid="btn-upload-arquivo">
             <Upload className="w-3.5 h-3.5" /> Anexar arquivo(s)
           </button>
+          </FileDropTarget>
         </div>
 
         <div className="px-6 py-4 border-t border-white/5 flex gap-3 shrink-0">

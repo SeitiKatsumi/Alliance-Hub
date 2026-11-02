@@ -5,6 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
 import { portfolioDashboard } from "../shared/portfolio-dashboard";
+import { selectPortfolio } from "../shared/portfolio-selection";
 import { transformSync } from "esbuild";
 
 test("histórico SQL isola conta, membro e escopo, atualiza só o dia observado e GET não escreve", async () => {
@@ -61,10 +62,14 @@ test("rotas reais do histórico autorizam antes das fontes e ignoram valores env
   const scope = { app: { get: (_p: string, fn: any) => handlers.set("get", fn), post: (_p: string, fn: any) => handlers.set("post", fn) },
     requireCarteiraActor: () => { if (!allowed) throw Object.assign(new Error("não autenticado"), { status: 401 }); return { userId: "owner", membroId: "member" }; },
     buildCarteiraResumo: async () => { reads++; return { imoveis: [], aliancas: [], dashboard: metrics }; },
-    portfolioHistoryScope, db: {}, portfolioHistory: async (_db: any, _actor: any, _scope: string, _since: any, recorded: any) => { if (recorded) { writes++; assert.deepEqual(recorded, metrics); } return { available: true, observations: [] }; } };
+    selectPortfolio, portfolioDashboard, portfolioHistoryScope, db: {}, portfolioHistory: async (_db: any, _actor: any, _scope: string, _since: any, recorded: any) => { if (recorded) { writes++; assert.deepEqual(recorded, metrics); } return { available: true, observations: [] }; } };
   new Function(...Object.keys(scope), transformSync(code, { loader: "ts" }).code)(...Object.values(scope));
   const req = { query: {}, body: { metrics: { acquisition: 999999 } } }, res: any = { status: (value: number) => { status = value; return res; }, json: () => {} };
   await handlers.get("post")(req, res); assert.equal(status, 401); assert.equal(reads, 0); assert.equal(writes, 0);
   allowed = true; await handlers.get("get")(req, res); assert.equal(writes, 0);
   await handlers.get("post")(req, res); assert.equal(writes, 1);
+  await handlers.get("post")({...req,query:{propertyId:"foreign"}}, res);
+  assert.equal(status,404);assert.equal(writes,1);
+  await handlers.get("get")({...req,query:{allianceId:"foreign"}}, res);
+  assert.equal(status,404);assert.equal(writes,1);
 });

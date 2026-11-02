@@ -10,7 +10,7 @@ test("dois blocos patrimoniais separam CPP aportada do saldo e mantêm dois grá
   const source = readFileSync(new URL("./portfolio-patrimony-dashboard.tsx", import.meta.url), "utf8");
   const code = source.replace(/^import .*;\r?\n/gm, "").replace(/export function/g, "function");
   const passthrough = ({children}:any) => React.createElement(React.Fragment,null,children);
-  const Component = new Function("React","Button","PortfolioComposition","Info","Popover","PopoverTrigger","PopoverContent", transformSync(code, { loader: "tsx" }).code + "; return PortfolioPatrimonyDashboard;")(React,passthrough,()=>null,()=>React.createElement("svg"),passthrough,passthrough,passthrough);
+  const Component = new Function("React","Button","PortfolioValuationBreakdown","PortfolioComposition","Info","Popover","PopoverTrigger","PopoverContent", transformSync(code, { loader: "tsx" }).code + "; return PortfolioPatrimonyDashboard;")(React,passthrough,()=>null,()=>null,()=>React.createElement("svg"),passthrough,passthrough,passthrough);
   const metrics = portfolioDashboard([{ id: "p", valor_aquisicao_brl: 100, estimativa_dashboard: { min: 200, max: 300, value: 250 } }], [{ id: "b", cpp_base_brl: 50, cpp_contributed_brl: 20, cpp_remaining_brl: 30, valor_participacao_brl: -10 }]);
   const render = (props = {}) => renderToStaticMarkup(React.createElement(Component, { metrics, observations: [{ day: "2026-10-22", observedAt: "2026-10-22T00:00:00Z", metrics }], ...props }));
   const propertiesOnly = render({showAlliances:false,onViewAlliances:()=>{}});
@@ -23,6 +23,11 @@ test("dois blocos patrimoniais separam CPP aportada do saldo e mantêm dois grá
   assert.doesNotMatch(cppOnly, /Meus imóveis|Evolução dos imóveis|Teses das alianças|lg:grid-cols-2/);
   assert.equal((cppOnly.match(/role="img"/g) || []).length, 1);
   const html = render();
+  assert.match(html, /stroke="#60a5fa" fill="#60a5fa"/);
+  assert.match(html, /stroke="#34d399" fill="#34d399"/);
+  assert.match(html, /style="color:#60a5fa"/);
+  assert.match(html, /style="color:#34d399"/);
+  assert.doesNotMatch(html, /#8b5cf6|#c4b5fd|#22d3ee/);
   assert.match(html, /Meus imóveis/); assert.match(html, /Valor total de CPPs em alianças/); assert.match(html, /Aportado/); assert.match(html, /A aportar/); assert.match(html, /10 km/);
   assert.match(html,/R\$\s*20,00/);assert.match(html,/R\$\s*30,00/);assert.doesNotMatch(html,/R\$\s*200,00 a R\$\s*300,00/);
   assert.equal((html.match(/role="img"/g) || []).length, 2); assert.match(html, /Primeira observação/);

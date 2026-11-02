@@ -27,7 +27,9 @@ import { biaAllowsFinance } from "@shared/bia-phase";
 import { loadBiaPatrimony } from "./bia-patrimony";
 import { dashboardAcquisitionValue, portfolioDashboard } from "../shared/portfolio-dashboard";
 import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
+import { selectPortfolio } from "../shared/portfolio-selection";
 import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis } from "./property-market-evidence";
+import { BUILT_VALUATION_VERSION, sanitizeValuationAreas, propertyValuationReadiness, valuationObservationReason } from "../shared/property-valuation";
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { agendaTaskHref, agendaTaskTitle, matchesMouRevision, MOU_REVIEW_LABEL } from "../shared/agenda-action";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
@@ -40,6 +42,9 @@ import { createServer, type Server } from "http";
 import type { Response } from "express";
 import { hashInviteToken, storage } from "./storage";
 import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaAprovacoes, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
+import { registerAdminMemberAccess } from './admin-member-access';
+import { registerLiveAccountAccess } from './live-account-access';
+import { memberAccessSummary } from '@shared/member-access-summary';
 import OpenAI from "openai";
 import pLimit from "p-limit";
 import multer from "multer";
@@ -4305,6 +4310,12 @@ export async function registerRoutes(
     )
   `).catch((err: any) => console.warn("[usage] Tabela nao sincronizada:", err?.message || err));
 
+  registerLiveAccountAccess(app, {
+    getUser:id=>storage.getUser(id),getUsersByEmail:email=>storage.getUsersByEmail(email),
+    getEmployee:getCompanyEmployeeByUserId,applyEmployee:applyCompanyEmployeeSession,
+    bootstrap:isBootstrapSuperAdmin,adminPermissions:FULL_ADMIN_PERMISSIONS,
+  });
+
   app.use("/api", async (req: any, res, next) => {
     const userId = req.session?.directusUserId || req.session?.userId;
     if (!userId || req.session?.role === "coproprietario" || isInitialOnboardingApiAllowed(req.originalUrl)) return next();
@@ -6025,17 +6036,7 @@ export async function registerRoutes(
   // ========== MEMBROS (from Directus: cadastro_geral) ==========
   // Helper: resolve effective role by checking session + local users DB
   async function getEffectiveRole(req: any): Promise<string> {
-    const sessionRole = (req.session as any).role || "user";
-    const email = (req.session as any).email || "";
-    if (isBootstrapSuperAdmin(email)) return "admin";
-    if (sessionRole === "admin" || sessionRole === "manager") return sessionRole;
-    if (email) {
-      try {
-        const localUser = await storage.getUserByEmail(email);
-        if (localUser && localUser.ativo) return localUser.role || sessionRole;
-      } catch (_) {}
-    }
-    return sessionRole;
+    return (req.session as any).role || "user";
   }
 
   // Helper: check if the session role allows full Cadastro Geral access (Super Admin only)
@@ -15304,6 +15305,7 @@ export async function registerRoutes(
       nome: String(body.nome || body.qualificacao || "Imóvel").slice(0, 180),
       tipo: String(body.tipo || "").slice(0, 80),
       area_m2: body.area_m2 || body.area || "",
+      ...sanitizeValuationAreas(body),
       padrao_imovel: ["economico", "medio", "alto", "luxo"].includes(String(body.padrao_imovel || "")) ? body.padrao_imovel : null,
       ano_construcao: constructionYear >= 1800 && constructionYear <= now.getFullYear() + 2 ? constructionYear : null,
       estado_conservacao: ["novo", "reformado", "bom", "regular", "reformar"].includes(String(body.estado_conservacao || "")) ? body.estado_conservacao : null,
@@ -15996,7 +15998,8 @@ export async function registerRoutes(
         messages: [{
           role: "user",
           content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados ou estime valor de mercado. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
-{"draft":{"nome":null,"tipo":null,"area_m2":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
+Áreas: extraia separadamente privativa, construída, terreno e total SOMENTE quando a natureza estiver explícita no documento. Não copie area_m2 para essas medidas por inferência. area_avaliacao_tipo permanece null para escolha pelo usuário; areas_fonte identifica o trecho/documento de origem, sem afirmar validação profissional.
+{"draft":{"nome":null,"tipo":null,"area_m2":null,"area_privativa_m2":null,"area_construida_m2":null,"area_terreno_m2":null,"area_total_m2":null,"area_avaliacao_tipo":null,"areas_fonte":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
 
 CONTEÚDO:
 ${inputText.slice(0, 18000)}`,
@@ -16324,7 +16327,7 @@ ${inputText.slice(0, 18000)}`,
     const fingerprint = propertyMarketFingerprint(imovel);
     if (state?.rows) {
       const eligible = state.rows.map(row => row.tipo === 'avaliacao_confirmada' ? confirmedMarketEvidence(imovel, row) : row)
-        .filter(row => row?.entrada?.fingerprint === fingerprint && reusableMarketAnalysis(imovel, row));
+        .filter(row => row?.versao_regra === PROPERTY_MARKET_VERSION && row?.entrada?.fingerprint === fingerprint && reusableMarketAnalysis(imovel, row));
       state = { latestAttempt: eligible[0], latestSuccess: eligible.find(row => row.resultado?.status === 'atualizada' && Number(row.resultado?.valor_estimado) > 0) };
     }
     if (state?.latestAttempt?.entrada?.fingerprint !== fingerprint || !reusableMarketAnalysis(imovel, state?.latestAttempt)) state = undefined;
@@ -16335,6 +16338,7 @@ ${inputText.slice(0, 18000)}`,
     const successAge = success?.criado_em ? Date.now() - new Date(success.criado_em).getTime() : Number.POSITIVE_INFINITY;
     const successResult = (success?.resultado || {}) as any;
     const attemptResult = (attempt?.resultado || {}) as any;
+    const readiness = propertyValuationReadiness(imovel);
     const suggestedValue = Number(successResult.valor_estimado || 0);
     const fallbackValue = parseMarketValueServer(imovel.valor_atual);
     const status = suggestedValue > 0 && successAge < MARKET_ESTIMATE_MAX_AGE_MS ? "atualizada"
@@ -16345,6 +16349,12 @@ ${inputText.slice(0, 18000)}`,
       valor_minimo: status === "atualizada" ? successResult.valor_minimo ?? null : null,
       valor_maximo: status === "atualizada" ? successResult.valor_maximo ?? null : null,
       fontes: successResult.fontes || [],
+      pendencias: readiness.pending,
+      metodo: successResult.versao_metodo || null,
+      area_avaliacao: readiness.area,
+      area_avaliacao_tipo: readiness.basis,
+      referencia_m2: successResult.referencia_m2_media || null,
+      limitacoes: successResult.observacao || attemptResult.resumo || null,
       moeda: String(imovel.moeda || "BRL").toUpperCase(),
       data_base: imovel.valor_data_base || null,
       sugestao_data_base: successResult.data_base || null,
@@ -16355,7 +16365,7 @@ ${inputText.slice(0, 18000)}`,
       fonte: String(imovel.valor_origem || "declarada"),
       sugestao_fonte: suggestedValue > 0 ? (successResult.metodo === INDICATIVE_MARKET_METHOD ? INDICATIVE_MARKET_METHOD : "comparaveis_mercado") : null,
       pesquisa_chave: fingerprint,
-      precisa_atualizar: !(suggestedValue > 0 && successAge < MARKET_ESTIMATE_MAX_AGE_MS) && (attemptResult.indicativa_avaliada !== true || attemptAge >= marketRetryDelay(attemptResult)),
+      precisa_atualizar: readiness.ready && !(suggestedValue > 0 && successAge < MARKET_ESTIMATE_MAX_AGE_MS) && (!attempt || attemptAge >= marketRetryDelay(attemptResult)),
       valor_fallback: fallbackValue,
     };
   }
@@ -16682,14 +16692,16 @@ ${inputText.slice(0, 18000)}`,
   }
 
   async function researchComparablePropertyMarketValue(imovel: any) {
-    const areaM2 = parseAreaM2Server(imovel.area_m2);
-    const referenceValue = parseMarketValueServer(imovel.valor_atual) || parseMarketValueServer(imovel.valor_pago);
+    const readiness = propertyValuationReadiness(imovel);
+    const areaM2 = readiness.area || 0;
+    const referenceValue = 0;
     if (!(areaM2 > 0)) throw Object.assign(new Error("Informe a área do imóvel antes da pesquisa de mercado."), { status: 422 });
     const location = [imovel.endereco, imovel.numero, imovel.bairro, imovel.cidade, imovel.estado, imovel.pais, imovel.cep ? `CEP ${imovel.cep}` : ""]
       .filter(Boolean).join(", ");
     if (!location) throw Object.assign(new Error(`Informe o endereço do imóvel para validar o raio de ${MARKET_RADIUS_KM} km.`), { status: 422 });
     const parsed = await analyzeM2WithWebSearch({
       origem: "carteira",
+      areaTipo: readiness.basis || undefined,
       nome: "Imóvel de referência",
       tipo: String(imovel.tipo || "Não informado"),
       location,
@@ -16709,6 +16721,7 @@ ${inputText.slice(0, 18000)}`,
     const verified = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, imovel);
     if (!verified) throw Object.assign(new Error("Não foi possível validar a localização do imóvel para a pesquisa."), { status: 422 });
     const analysis = buildComparableMarketAnalysis(verified, {
+      areaTipo: readiness.basis || undefined,
       tipo: String(imovel.tipo || "Não informado"),
       bairro: String(imovel.bairro || ""),
       cidade: String(imovel.cidade || ""),
@@ -16741,6 +16754,9 @@ ${inputText.slice(0, 18000)}`,
   }
 
   async function researchPropertyMarketValue(imovel: any, previousAttempt?: any) {
+    const readiness = propertyValuationReadiness(imovel);
+    const metadata = { versao_metodo: BUILT_VALUATION_VERSION, area_avaliacao: readiness.area, area_avaliacao_tipo: readiness.basis, areas_fonte: imovel.areas_fonte, classificacao_entrada: "informada_pelo_usuario", indicativa_avaliada: true };
+    if (!readiness.ready) return { ...metadata, status: "dados_pendentes", pendencias: readiness.pending, valor_estimado: null };
     let comparable = previousAttempt;
     if (!comparable) {
       try { comparable = await researchComparablePropertyMarketValue(imovel); }
@@ -16749,9 +16765,7 @@ ${inputText.slice(0, 18000)}`,
         comparable = { status: "sem_amostra", quantidade_comparaveis: 0, amostra_suficiente: false };
       }
     }
-    if (comparable.status === "atualizada") return comparable;
-    const indicative = await researchIndicativePropertyValue(getOpenAI(), { ...imovel, area_m2: parseAreaM2Server(imovel.area_m2) });
-    return indicative || { ...comparable, indicativa_avaliada: true };
+    return { ...comparable, ...metadata };
   }
 
   async function buildCarteiraResumo(req: Request) {
@@ -16893,9 +16907,10 @@ ${inputText.slice(0, 18000)}`,
     try {
       const actor = requireCarteiraActor(req);
       const summary = await buildCarteiraResumo(req);
-      const scope = portfolioHistoryScope(summary.imoveis, summary.aliancas);
+      const selected = selectPortfolio(summary.imoveis, summary.aliancas, req.query.propertyId ?? "", req.query.allianceId ?? "");
+      const scope = portfolioHistoryScope(selected.imoveis, selected.aliancas);
       const since = req.query.period === "all" ? null : new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
-      const history = await portfolioHistory(db, actor, scope, since, record ? summary.dashboard : undefined);
+      const history = await portfolioHistory(db, actor, scope, since, record ? portfolioDashboard(selected.imoveis, selected.aliancas) : undefined);
       if (record && !history.available) return res.status(503).json({ error: "Histórico patrimonial aguardando migração." });
       res.json(history);
     } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
@@ -17294,6 +17309,24 @@ ${inputText.slice(0, 18000)}`,
   });
 
   const marketResearchLimit = pLimit(2);
+  app.get("/api/carteira/imoveis/:id/avaliacao", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const states = await loadPortfolioMarketAnalyses([req.params.id]);
+      const history = await db.execute(sql`SELECT criado_em, versao_regra, entrada, resultado FROM carteira_analises
+        WHERE imovel_id = ${req.params.id} AND tipo IN ('avaliacao_mercado_sugerida', 'avaliacao_confirmada') ORDER BY criado_em DESC LIMIT 20`);
+      res.json({ ...portfolioMarketEstimate(access.imovel, states.get(req.params.id)),
+        versao_metodo: BUILT_VALUATION_VERSION,
+        historico: (history.rows || []).map((row: any, index: number) => ({ data: row.criado_em, versao: row.versao_regra,
+          motivo: valuationObservationReason(row, history.rows?.[index + 1] as any),
+          valor: row.resultado?.valor_estimado ?? row.resultado?.valor_atual ?? null,
+          status: row.resultado?.status || "informado", fingerprint: row.entrada?.fingerprint || null,
+          metodo: row.resultado?.versao_metodo || "Método anterior", area: row.resultado?.area_avaliacao || null,
+          fontes: row.resultado?.fontes || [], moeda: row.resultado?.moeda || null,
+        })) });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
   app.post("/api/carteira/imoveis/:id/avaliacao/pesquisar", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -17328,6 +17361,7 @@ ${inputText.slice(0, 18000)}`,
           fingerprint,
           valor_referencia: access.imovel.valor_atual || access.imovel.valor_pago || null,
           area_m2: access.imovel.area_m2 || null,
+          areas: sanitizeValuationAreas(access.imovel),
           moeda: access.imovel.moeda || "BRL",
           raio_km: MARKET_RADIUS_KM,
           padrao_imovel: access.imovel.padrao_imovel || null,
@@ -17357,7 +17391,7 @@ ${inputText.slice(0, 18000)}`,
       const baseDate = String(req.body?.data_base || new Date().toISOString().slice(0, 10));
       if (!(value > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) return res.status(400).json({ error: "Informe valor e data-base válidos." });
       const result = await db.transaction(async (tx) => {
-        const data = { ...access.imovel, valor_atual: value, valor_origem: "comparaveis_confirmados", valor_data_base: baseDate, updatedAt: new Date().toISOString() };
+        const data = { ...access.imovel, valor_atual: value, valor_origem: "declarada", valor_data_base: baseDate, updatedAt: new Date().toISOString() };
         await tx.execute(sql`UPDATE inventario_imoveis SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${req.params.id}`);
         const analysis = await tx.execute(sql`
           INSERT INTO carteira_analises (imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id)
@@ -17365,7 +17399,7 @@ ${inputText.slice(0, 18000)}`,
         `);
         return { imovel: data, analise: analysis.rows?.[0] };
       });
-      await recordCarteiraEvent(req.params.id, actor, "avaliacao_confirmada", "Avaliação por comparáveis confirmada", { valor_atual: value, data_base: baseDate });
+      await recordCarteiraEvent(req.params.id, actor, "avaliacao_confirmada", "Valor informado atualizado", { valor_atual: value, data_base: baseDate });
       res.json(result);
     } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
   });
@@ -22572,6 +22606,7 @@ ${textContent.slice(0, 16000)}`;
   }
 
   async function analyzeM2WithWebSearch(params: {
+    areaTipo?: string;
     origem: string;
     nome: string;
     tipo: string;
@@ -22602,6 +22637,7 @@ Dados do ativo:
 - Raio máximo: ${MARKET_RADIUS_KM} km do endereço do ativo
 - Valor total informado: ${Number(params.valor) > 0 ? `${Number(params.valor).toFixed(2)} ${params.moeda}` : "não informado"}
 - Área: ${params.areaM2.toFixed(2)} m²
+- Natureza da área: ${params.areaTipo || "não especificada"}. Quando especificada, retorne somente medidas da MESMA natureza, explicitamente descritas no anúncio. Não substitua terreno, construída, privativa ou total entre si. Preencha area_tipo com privativa, construida ou null conforme evidência.
 - Faixa de área permitida: ${areaMin.toFixed(2)} a ${areaMax.toFixed(2)} m², inclusive
 - Padrão: ${params.padrao || "não informado"}
 - Ano de construção: ${params.anoConstrucao || "não informado"}
@@ -22621,7 +22657,7 @@ Instruções:
 - Não calcule média, faixa, diferença, confiança ou classificação; o servidor fará esses cálculos.
 - Não invente anúncios, URLs, preços, áreas ou características. Quando padrão, ano, conservação ou configuração não estiverem explícitos, use null.
 - Responda SOMENTE JSON minificado neste formato:
-{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","endereco":"endereço público se disponível","bairro":"bairro","cidade":"cidade","estado":"estado","pais":"país","localizacao":"bairro, cidade, estado","area_m2":0,"preco_total":0,"moeda":"BRL","padrao":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"trecho":"preço, área e características encontrados na fonte"}]}`;
+{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","endereco":"endereço público se disponível","bairro":"bairro","cidade":"cidade","estado":"estado","pais":"país","localizacao":"bairro, cidade, estado","area_m2":0,"area_tipo":null,"preco_total":0,"moeda":"BRL","padrao":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"trecho":"preço, área e características encontrados na fonte"}]}`;
 
     const client = getOpenAI() as any;
     if (!client.responses?.create) {
@@ -22660,7 +22696,9 @@ Instruções:
         if (!body.bia_id) return res.status(400).json({ error: "bia_id e obrigatorio para analisar uma BIA." });
         if (!await requireBiaModuleAccess(req, res, String(body.bia_id), "capital_analises", "edit")) return;
       }
-      const areaM2 = parseAreaM2Server(body.area_m2);
+      const typedArea = ["carteira", "carteira_assistente"].includes(origem) ? propertyValuationReadiness(body) : null;
+      if (typedArea && !typedArea.ready) return res.status(422).json({ error: typedArea.pending.join(" ") });
+      const areaM2 = typedArea?.area || parseAreaM2Server(body.area_m2);
       const valor = parseMarketValueServer(body.valor);
       const assistantWithoutValue = origem === "carteira_assistente" && valor <= 0;
       if (areaM2 <= 0) {
@@ -22683,6 +22721,7 @@ Instruções:
 
       const parsed = await analyzeM2WithWebSearch({
         origem: String(body.origem || "ativo"),
+        areaTipo: typedArea?.basis || undefined,
         nome: String(body.nome || "Não informado"),
         tipo: String(body.tipo || body.qualificacao || "Não informado"),
         location,
@@ -22702,6 +22741,7 @@ Instruções:
       const verifiedComparables = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, body);
       if (!verifiedComparables) return res.status(422).json({ error: `Não foi possível validar a localização para aplicar o raio de ${MARKET_RADIUS_KM} km.` });
       const analysis = buildComparableMarketAnalysis(verifiedComparables, {
+        areaTipo: typedArea?.basis || undefined,
         tipo: String(body.tipo || body.qualificacao || "Não informado"),
         bairro: String(body.bairro || ""),
         cidade: String(body.cidade || ""),
@@ -24123,7 +24163,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.get("/api/me", async (req, res) => {
     const directusUserId = (req.session as any).directusUserId;
     if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
-    const companyEmployee = await getCompanyEmployeeByUserId(String(directusUserId)).catch(() => null);
+    const matchedLocalUser = (req as any).currentAccessUser || null;
+    const accountUserId = String(matchedLocalUser?.id || directusUserId);
+    const companyEmployee = await getCompanyEmployeeByUserId(accountUserId).catch(() => null);
     if (companyEmployee && (companyEmployee.status !== "ativo" || companyEmployee.employee_ativo === false)) {
       return res.status(403).json({
         error: "Este acesso de funcionário está suspenso. Fale com o responsável da empresa.",
@@ -24136,24 +24178,6 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     let role = (req.session as any).role || "user";
     let permissions = (req.session as any).permissions || {};
     const email = (req.session as any).email || "";
-    // Always re-check local users table to ensure correct role without mixing duplicate e-mails.
-    let matchedLocalUser: any | null = null;
-    try {
-      if (email) {
-        const localUsers = await storage.getUsersByEmail(email);
-        const sessionMembroId = (req.session as any).membroId;
-        matchedLocalUser = localUsers.find((u: any) => String(u.id) === String(directusUserId))
-          || (sessionMembroId ? localUsers.find((u: any) => String(u.membro_directus_id || "") === String(sessionMembroId)) : null)
-          || localUsers[0]
-          || null;
-        if (matchedLocalUser && matchedLocalUser.ativo && !companyEmployee) {
-          role = matchedLocalUser.role || role;
-          if ((matchedLocalUser.permissions as any) && Object.keys(matchedLocalUser.permissions as any).length > 0) {
-            permissions = matchedLocalUser.permissions as Record<string, string>;
-          }
-        }
-      }
-    } catch (_) {}
     if (isBootstrapSuperAdmin(email)) {
       role = "admin";
       permissions = FULL_ADMIN_PERMISSIONS;
@@ -24222,7 +24246,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const PENDING_ADESAO_STATUSES = ["termos_pendentes", "termos_aceitos", "pagamento_pendente", "aguardando_avaliacao_aura", "candidato"];
     if (role === "user" && email) {
       try {
-        const localUser = await storage.getUserByEmail(email);
+        const localUser = matchedLocalUser;
         if (localUser?.membro_directus_id) {
           const vitrineConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "vitrine");
           const capitalConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "capital");
@@ -24245,7 +24269,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const accountPurposeRows = await db.execute(sql`
       SELECT purpose, objectives
       FROM user_account_purposes
-      WHERE user_id = ${String(directusUserId)} AND active = true
+      WHERE user_id = ${accountUserId} AND active = true
       ORDER BY selected_at
     `).then((result: any) => result.rows || []).catch(() => []);
     const accountPurposes = normalizeAccountPurposes(accountPurposeRows.map((row: any) => row.purpose));
@@ -24253,16 +24277,26 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       Object.fromEntries(accountPurposeRows.map((row: any) => [row.purpose, row.objectives])),
       accountPurposes,
     );
-    const membership = await membershipSummary(membroId, String(directusUserId), Boolean(emMembrosBuilt), !onboardingRequired).catch((error: any) => {
+    const membership = await membershipSummary(membroId, accountUserId, Boolean(emMembrosBuilt), !onboardingRequired).catch((error: any) => {
       console.warn("[membership] Resumo indisponivel:", error?.message || error);
       return { condition: "registered", active: false, status: null, starts_at: null, ends_at: null, communities: [], requirements: { onboarding: !onboardingRequired, aura: false, annual_fee: false, community: false }, permissions: {} };
     });
-    const hasAllianceParticipation = Boolean(membroId && await directusFetchScoped(
+    const allianceRoles = membroId ? await directusFetchScoped(
       "bias_projetos",
       "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
-    ).then((items: any[]) => items.some((bia) => isUserLinkedToBia(bia, membroId))).catch(() => false));
+    ).then((items: any[]) => items.flatMap(bia=>{
+      const roles=collectBiaParticipantRoles(bia).get(String(membroId))||[];
+      return roles.length?[{id:String(bia.id),roles:[...roles].sort()}]:[];
+    })).catch(() => []) : [];
+    const hasAllianceParticipation = allianceRoles.length > 0;
+    const allianceOverrides = membroId ? await db.select({bia_id:biaUserPermissions.bia_id,permissions:biaUserPermissions.permissions})
+      .from(biaUserPermissions).where(eq(biaUserPermissions.membro_id,String(membroId))) : [];
+    const accessRevision = createHash('sha256').update(JSON.stringify({
+      roles:allianceRoles.sort((a,b)=>a.id.localeCompare(b.id)),
+      overrides:allianceOverrides.filter(row=>allianceRoles.some(bia=>bia.id===String(row.bia_id))).sort((a,b)=>String(a.bia_id).localeCompare(String(b.bia_id))),
+    })).digest('hex');
 
-    res.json({
+    res.set('Cache-Control','no-store').json({
       id: directusUserId,
       nome: nomePerfil,
       email,
@@ -24278,6 +24312,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       em_built_capital: emBuiltCapital,
       membership,
       has_alliance_participation: hasAllianceParticipation,
+      access_revision: accessRevision,
       foto_perfil: assetApiUrl(fotoPerfil),
       vitrine_termo_aceito_em: vitrineTermoAceitoEm,
       vitrine_termo_versao: vitrineTermoVersao,
@@ -25353,6 +25388,38 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  registerAdminMemberAccess(app, {
+    actor: async (req:any) => {
+      const id=req.session?.directusUserId || req.session?.userId;
+      if(!id) return null;
+      const actor=req.currentAccessUser || await storage.getUser(String(id));
+      if(!actor) return null;
+      return {id:actor.id,active:actor.ativo,role:isBootstrapSuperAdmin(actor.email)?'admin':actor.role,employee:!!await getCompanyEmployeeByUserId(String(actor.id))};
+    },
+    summary: async (id:string) => {
+      const user=await storage.getUser(id);
+      if(!user) return null;
+      const memberId=user.membro_directus_id;
+      const [member,biases,overrides,entitlement,employee,purposes]=await Promise.all([
+        memberId?directusFetchOne('cadastro_geral',memberId):Promise.resolve({}),
+        memberId?directusFetch('bias_projetos','limit=-1&fields=id,nome_bia,codigo_publico,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros'):Promise.resolve([]),
+        memberId?db.select().from(biaUserPermissions).where(eq(biaUserPermissions.membro_id,memberId)):Promise.resolve([]),
+        hasActiveMemberEntitlementFor(user.id,memberId),getCompanyEmployeeByUserId(user.id),
+        db.execute(sql`SELECT purpose FROM user_account_purposes WHERE user_id = ${user.id} AND active = true`),
+      ]);
+      return memberAccessSummary({user,member:{...member,account_purposes:purposes.rows.map((r:any)=>r.purpose)},biases,overrides,entitlement,employee,bootstrap:isBootstrapSuperAdmin(user.email)});
+    },
+    professional:async(id,enabled,actor)=>{
+      const target=await storage.getUser(id);
+      if(!target) return false;
+      await db.transaction(async tx=>{
+        await tx.execute(sql`INSERT INTO user_account_purposes (user_id,membro_id,purpose,source,active) VALUES (${id},${target.membro_directus_id},'profissional','admin',${enabled}) ON CONFLICT(user_id,purpose) DO UPDATE SET active=EXCLUDED.active,source='admin',updated_at=now()`);
+        await tx.insert(userUsageEvents).values({user_id:actor.id,event_type:'admin_professional_access_changed',label:'Perfil profissional alterado',metadata:{target_user_id:id,enabled}});
+      });
+      return true;
+    },
+  });
+
   app.get("/api/users", async (req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
@@ -25696,6 +25763,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (parsed.membro_directus_id === "") updateData.membro_directus_id = null;
       if (parsed.password === "") delete updateData.password;
 
+      if (updateData.role !== undefined || updateData.permissions !== undefined || updateData.ativo !== undefined) {
+        const before = await storage.getUser(req.params.id);
+        if (!before) return res.status(404).json({ error: 'Conta não encontrada.' });
+        if (isBootstrapSuperAdmin(before.email) && ((updateData.role !== undefined && updateData.role !== 'admin') || updateData.ativo === false)) {
+          return res.status(400).json({error:'A conta de recuperação mantém o acesso Superadmin. Use outra conta para testar os demais perfis.'});
+        }
+        await db.insert(userUsageEvents).values({user_id:(req as any).memberAccessActor.id,event_type:'admin_access_change_requested',path:'/api/users/:id',label:'Alteração administrativa de acesso solicitada',metadata:{target_user_id:req.params.id,before:{role:before.role,permissions:before.permissions,active:before.ativo},requested:{role:updateData.role,permissions:updateData.permissions,active:updateData.ativo}}});
+      }
       const user = await storage.updateUser(req.params.id, updateData);
       if (!user) return res.status(404).json({ error: "UsuÃ¡rio nÃ£o encontrado" });
       const { password, ...safe } = user;

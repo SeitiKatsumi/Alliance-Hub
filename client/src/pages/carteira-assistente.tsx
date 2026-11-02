@@ -1,3 +1,5 @@
+import { PropertyValuationAreaFields } from "@/components/property-valuation-areas";
+import { propertyValuationReadiness, PROPERTY_AREA_FIELDS } from "@shared/property-valuation";
 import { propertyThesisOptions, propertyThesisLabel } from "@shared/property-thesis";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -25,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -156,7 +159,7 @@ function parseDraftNumber(value: unknown): number {
 
 function marketInputKey(draft: Record<string, any>) {
   return JSON.stringify([
-    draft.tipo, draft.area_m2, draft.moeda, draft.cep, draft.endereco, draft.numero, draft.bairro,
+    ...PROPERTY_AREA_FIELDS.map(key => draft[key]), draft.area_avaliacao_tipo, draft.areas_fonte, draft.tipo, draft.area_m2, draft.moeda, draft.cep, draft.endereco, draft.numero, draft.bairro,
     draft.cidade, draft.estado, draft.pais, draft.padrao_imovel, draft.ano_construcao,
     draft.estado_conservacao, draft.quartos, draft.banheiros, draft.vagas,
   ]);
@@ -452,6 +455,8 @@ export default function CarteiraAssistentePage() {
           nome: draft.nome,
           tipo: draft.tipo,
           area_m2: draft.area_m2,
+          ...Object.fromEntries(PROPERTY_AREA_FIELDS.map(key => [key, draft[key]])),
+          area_avaliacao_tipo: draft.area_avaliacao_tipo, areas_fonte: draft.areas_fonte,
           moeda: draft.moeda || "BRL",
           cep: draft.cep,
           endereco: draft.endereco,
@@ -567,7 +572,7 @@ export default function CarteiraAssistentePage() {
   const currentMarketEstimate = marketEstimate?.entrada_chave === currentMarketInputKey ? marketEstimate : undefined;
   const estimateCandidate = draft.estimativa_sugerida ?? currentMarketEstimate?.valor_sugerido ?? draft.valor_atual ?? "";
   const hasMarketLocation = Boolean(draft.cep || draft.endereco || draft.bairro || draft.cidade);
-  const canResearchMarket = path === "imovel" && Boolean(String(draft.tipo || "").trim()) && parseDraftNumber(draft.area_m2) > 0 && hasMarketLocation;
+  const canResearchMarket = propertyValuationReadiness(draft).ready && path === "imovel" && Boolean(String(draft.tipo || "").trim()) && hasMarketLocation;
   const conflicts = suggestions.conflitos && typeof suggestions.conflitos === "object" ? suggestions.conflitos : {};
   const visibleSources = (session?.sources || []).filter((source, index, items) => items.findIndex((item) => item.tipo === source.tipo && item.nome.trim().toLocaleLowerCase("pt-BR") === source.nome.trim().toLocaleLowerCase("pt-BR")) === index);
   const recommendations = recommendationsQuery.data?.recomendacoes || [];
@@ -721,6 +726,7 @@ export default function CarteiraAssistentePage() {
                     <p className="mt-1 text-sm text-slate-600">{METHODS.find((item) => item.id === method)?.description}</p>
                   </div>
                   {method === "conversa" && <Textarea value={sourceText} onChange={(event) => setSourceText(event.target.value)} rows={7} placeholder="Ex.: Tenho um terreno em Campinas com aproximadamente 800 m²..." />}
+                  <FileDropTarget disabled={recording || analyzeMutation.isPending}>
                   <input
                     ref={fileRef}
                     className="hidden"
@@ -788,6 +794,7 @@ export default function CarteiraAssistentePage() {
                       <Upload className="mr-2 h-4 w-4" />{file ? file.name : "Escolher arquivo"}
                     </Button>
                   )}
+                  </FileDropTarget>
                   <Button type="button" disabled={!isAnalyzable || analyzeMutation.isPending} onClick={() => analyzeMutation.mutate()} className="w-full bg-blue-600 text-white hover:bg-blue-700">{analyzeMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Gerar prévia editável</Button>
                   <p className="text-xs leading-5 text-slate-500">A extração preenche apenas campos vazios. Qualquer divergência será apresentada para sua escolha.</p>
                 </>
@@ -814,6 +821,7 @@ export default function CarteiraAssistentePage() {
               <div className="sm:col-span-2"><Label>Nome ou identificação *</Label><Input className="mt-1" value={draft.nome || ""} onChange={(event) => setDraft({ ...draft, nome: event.target.value })} placeholder={path === "imovel" ? "Apartamento Jardim..." : "Prédio comercial identificado..."} /></div>
               <div><Label>Tipo</Label><Input className="mt-1" value={draft.tipo || ""} onChange={(event) => setDraft({ ...draft, tipo: event.target.value })} placeholder="Terreno, casa, galpão..." /></div>
               <div><Label>Área (m²)</Label><Input className="mt-1" inputMode="decimal" value={draft.area_m2 || ""} onChange={(event) => setDraft({ ...draft, area_m2: event.target.value })} /></div>
+              <PropertyValuationAreaFields value={draft} onChange={patch => setDraft({ ...draft, ...patch })} />
               <div className="sm:col-span-2"><Label>CEP</Label><div className="relative mt-1"><Input value={draft.cep || ""} inputMode="numeric" autoComplete="postal-code" aria-busy={cepLoading} onChange={(event) => void updateCep(event.target.value)} />{cepLoading && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-slate-400" />}</div>{cepError && <p className="mt-1 text-xs text-amber-700">{cepError}</p>}</div>
               <div className="sm:col-span-2"><Label>Endereço</Label><Input className="mt-1" value={draft.endereco || ""} autoComplete="street-address" onChange={(event) => setDraft({ ...draft, endereco: event.target.value })} /></div>
               <div><Label>Número</Label><Input className="mt-1" value={draft.numero || ""} onChange={(event) => setDraft({ ...draft, numero: event.target.value })} /></div>

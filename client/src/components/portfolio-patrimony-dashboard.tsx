@@ -1,5 +1,6 @@
 import type { PortfolioDashboard, PortfolioMetric, PortfolioObservation } from "@shared/portfolio-dashboard";
 import { PortfolioComposition } from "./portfolio-composition";
+import { PortfolioValuationBreakdown } from "./portfolio-valuation-breakdown";
 import { Button } from "@/components/ui/button";
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -34,14 +35,15 @@ export function PatrimonyChart({ observations, kind }: { observations: Portfolio
   const date = (day: string) => day.split("-").reverse().join("/");
   const baseLabel = kind === "properties" ? "Aquisição" : "Aportado";
   const secondaryLabel = kind === "properties" ? "Estimativa central" : "A aportar";
+  const colors = ["#60a5fa", "#34d399"] as const;
   return <section className="min-w-0 rounded-xl border bg-card p-4">
     <h3 className="font-semibold">{title}</h3>
     {!values.length ? <p className="mt-5 text-sm text-muted-foreground">Sem observações registradas.</p> : <>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs"><span className={kind === "cpps" ? "text-violet-700 dark:text-violet-400" : "text-blue-700 dark:text-blue-300"}>● {baseLabel}</span><span className={kind === "cpps" ? "text-violet-500 dark:text-violet-200" : "text-cyan-700 dark:text-cyan-300"}>● {secondaryLabel}</span></div>
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs"><span className="text-foreground"><span style={{color:colors[0]}}>●</span> {baseLabel}</span><span className="text-foreground"><span style={{color:colors[1]}}>●</span> {secondaryLabel}</span></div>
       <div className="mt-3 flex justify-between gap-3 text-xs text-muted-foreground"><span>{brl(high)}</span><span>{values.length === 1 ? "Primeira observação" : `${values.length} observações`}</span></div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 w-full text-border" role="img" aria-label={`${title}. Valores detalhados na tabela abaixo.`}>
         {[0, 0.25, 0.5, 0.75, 1].map(tick => <line key={tick} x1="0" x2={width} y1={y(low + (high - low) * tick)} y2={y(low + (high - low) * tick)} stroke="currentColor" strokeDasharray="3 4" />)}
-        {(["base", "secondary"] as const).map((key, k) => <g key={key} stroke={kind === "cpps" ? (k === 0 ? "#8b5cf6" : "#c4b5fd") : (k === 0 ? "#60a5fa" : "#22d3ee")} fill={k === 0 ? "#60a5fa" : "#34d399"}>
+        {(["base", "secondary"] as const).map((key, k) => <g key={key} stroke={colors[k]} fill={colors[k]}>
           {values.map((value, i) => {
             const amount = value[key].value, previous = values[i - 1];
             if (amount == null) return null;
@@ -65,7 +67,7 @@ export function PatrimonyChart({ observations, kind }: { observations: Portfolio
 
 export function PortfolioPatrimonyDashboard({ metrics, observations, historyError, historyLoading, properties = [], showAlliances = true, showProperties = true, showTheses = true, thesisAllocation, onCreateProperty, onViewProperties, onViewAlliances }: {
   metrics: PortfolioDashboard; observations: PortfolioObservation[]; historyError?: string; historyLoading?: boolean;
-  properties?: { id: string; tipo?: string; ocupacao?: string; consolidado_via_bia?: boolean }[];
+  properties?: import("@shared/portfolio-dashboard").PortfolioProperty[];
   showAlliances?: boolean; showProperties?: boolean; showTheses?: boolean;
   thesisAllocation?: { name: string; value: number; percent: number }[];
   onCreateProperty?: () => void; onViewProperties?: () => void; onViewAlliances?: () => void;
@@ -79,9 +81,10 @@ export function PortfolioPatrimonyDashboard({ metrics, observations, historyErro
       {showProperties && <section aria-label="Meus imóveis" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card/50 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-xl font-semibold">Meus imóveis</h3>{onCreateProperty && <Button onClick={onCreateProperty}>Cadastrar imóvel</Button>}</div>
         <div className="grid min-w-0 grid-cols-2 gap-3">
-          <MetricLine label="Valor total estimado dos imóveis próprios" displayLabel="Valor estimado" metric={metrics.propertyEstimate} incompleteLabel="Estimativa incompleta" help="Estimativa do valor patrimonial dos imóveis próprios baseada em pesquisa feita por IA comparando imóveis semelhantes em um raio de 10 km, com desvio padrão de 10% para mais ou para menos. O valor corresponde à soma das estimativas de cada imóvel da carteira; por isso, mantenha os imóveis e suas estimativas atualizados." />
+          <MetricLine label="Valor total estimado dos imóveis próprios" displayLabel="Valor estimado" metric={metrics.propertyEstimate} incompleteLabel="Estimativa incompleta" help="Soma das avaliações atuais dos imóveis, proporcional à sua propriedade. Método comparativo BUILT: mesma natureza de área e referências de anúncios em até 10 km. Valores informados e simulações não substituem avaliações ausentes. A faixa de anúncios não é um intervalo estatístico de confiança." />
           <MetricLine label="Valor total de aquisição" displayLabel="Valor de aquisição" metric={metrics.acquisition} help="Somatório dos valores de aquisição dos imóveis de sua propriedade que foram declarados por você no momento do cadastro." />
         </div>
+        <PortfolioValuationBreakdown properties={properties} />
         {chart("properties")}
         <PortfolioComposition properties={properties} />
         {onViewProperties && <Button variant="ghost" className="mt-auto justify-start border-t pt-5 text-sky-600 dark:text-sky-300" onClick={onViewProperties}>Ver meus imóveis →</Button>}

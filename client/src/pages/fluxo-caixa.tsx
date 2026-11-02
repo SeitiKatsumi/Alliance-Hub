@@ -4,6 +4,7 @@ import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
 import { confirmsContributionReceipt } from "@shared/contribution-edit";
 import { ReceiptMatching } from "@/components/receipt-matching";
+import { FileDropTarget } from "@/components/file-drop-target";
 import type { ReactNode } from "react";
 import { ContributionPaymentDialog, prepareFlowPayment } from '@/components/contribution-payment';
 import {ContributionReminderFields,ContributionReminderDialog,saveContributionReminders} from '@/components/contribution-reminders';
@@ -928,7 +929,7 @@ function FilePickerButton({
   }
 
   return (
-    <div>
+    <FileDropTarget disabled={uploading} className="border-0 p-0">
       <input
         ref={inputRef}
         type="file"
@@ -950,7 +951,7 @@ function FilePickerButton({
         <Upload className="w-4 h-4" />
         {uploading ?"Enviando..." : "Selecionar arquivos"}
       </button>
-    </div>
+    </FileDropTarget>
   );
 }
 
@@ -975,7 +976,7 @@ function InlineFilePickerButton({
   }
 
   return (
-    <>
+    <FileDropTarget disabled={uploading} compact className="inline-flex shrink-0 border-0 p-0">
       <input
         ref={inputRef}
         type="file"
@@ -1002,7 +1003,7 @@ function InlineFilePickerButton({
         <Paperclip className="w-4 h-4" />
         {count > 0 && <span className="ml-0.5 text-[10px] font-semibold">{count}</span>}
       </button>
-    </>
+    </FileDropTarget>
   );
 }
 

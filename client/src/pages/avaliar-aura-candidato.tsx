@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, Search, Bot, Paperclip, Mic, StopCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 import {
   createAuraMediaRecorder,
@@ -526,6 +527,8 @@ export default function AvaliarAuraCandidatoPage() {
                 <span className="tabular-nums">{formatAuraRecordingTime(recordingSeconds)}</span>
               </div>
             )}
+            <FileDropTarget disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending}>
+            <p className="text-xs">Documento para leitura</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -539,6 +542,9 @@ export default function AvaliarAuraCandidatoPage() {
                 extrairArquivoMutation.mutate(file);
               }}
             />
+            </FileDropTarget>
+            <FileDropTarget disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending}>
+            <p className="text-xs">Arquivo de áudio</p>
             <input
               ref={audioFileInputRef}
               type="file"
@@ -552,6 +558,7 @@ export default function AvaliarAuraCandidatoPage() {
                 transcreverAudioMutation.mutate({ blob: file, filename: file.name });
               }}
             />
+            </FileDropTarget>
             {arquivoNome && (
               <div className="text-[11px] font-mono text-brand-gold/80 border border-brand-gold/20 rounded-lg px-3 py-2 truncate">
                 {arquivoNome}

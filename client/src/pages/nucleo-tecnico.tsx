@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -263,6 +264,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose, lockBia = false }: D
           )}
 
           {/* Upload button */}
+          <FileDropTarget disabled={uploading || mutation.isPending} className="border-0 p-0">
           <input ref={fileRef} type="file" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files || []); setPendingFiles(p => [...p, ...files]); e.target.value = ""; }} />
           <button
             onClick={() => fileRef.current?.click()}
@@ -273,6 +275,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose, lockBia = false }: D
             <Upload className="w-3.5 h-3.5" />
             Anexar arquivo(s)
           </button>
+          </FileDropTarget>
         </div>
 
         <div className="px-6 py-4 border-t border-white/5 flex gap-3 shrink-0">

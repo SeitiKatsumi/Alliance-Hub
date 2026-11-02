@@ -1,0 +1,404 @@
+{
+  "version": 1,
+  "id": "2026-11-02-file-drop",
+  "title": "Campos de anexo aceitam arrastar e soltar pelo mesmo fluxo da seleção por clique",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/file-drop-target.tsx",
+    "client/src/lib/file-drop.ts"
+  ],
+  "searchTerms": [
+    "FileDropTarget",
+    "applyDroppedFiles",
+    "type=\"file\""
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/file-drop-target.tsx",
+      "decision": "updated",
+      "reason": "Área de arraste compartilhada, destaque, erros e respeito ao bloqueio do seletor original."
+    },
+    {
+      "path": "client/src/lib/file-drop.ts",
+      "decision": "updated",
+      "reason": "Valida quantidade/formato, mantém seleção em erro e dispara change nativo no input original."
+    },
+    {
+      "path": "client/src/lib/file-drop.test.ts",
+      "decision": "updated",
+      "reason": "Testa formatos, quantidades, seleção anterior, evento e bloqueio direto/fieldset."
+    },
+    {
+      "path": "client/src/components/ui/input.tsx",
+      "decision": "updated",
+      "reason": "Aplica o comportamento somente ao tipo file; refs, callbacks e demais tipos preservados."
+    },
+    {
+      "path": "client/src/components/PagamentoModal.tsx",
+      "decision": "updated",
+      "reason": "Seletor próprio do cronograma reutiliza leitura existente."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Seletores próprios geral/individual reutilizam uploads, múltiplos e estados existentes."
+    },
+    {
+      "path": "client/src/pages/alianca-docs-page.tsx",
+      "decision": "updated",
+      "reason": "Arraste para anexos pendentes sem mudar confirmação de salvamento."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "updated",
+      "reason": "Arraste para o seletor próprio de documentos da BIA."
+    },
+    {
+      "path": "client/src/pages/nucleo-tecnico.tsx",
+      "decision": "updated",
+      "reason": "Arraste para anexos do núcleo pelo mesmo estado de seleção."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Envolve somente seletor próprio de anexos; demais alterações paralelas preservadas."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "updated",
+      "reason": "Seletor próprio de anexos reutiliza seu callback."
+    },
+    {
+      "path": "client/src/pages/oportunidades-imobiliarias.tsx",
+      "decision": "updated",
+      "reason": "Documento disponível aceita arraste mantendo seleção e confirmação existentes."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "updated",
+      "reason": "Importação de arquivos/imagens e áudio aceita arraste nos controles existentes."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Envolve importação, Pulso e documentos de demandas; demais campos file usam Input compartilhado."
+    },
+    {
+      "path": "client/src/pages/carteira-assistente.tsx",
+      "decision": "updated",
+      "reason": "Área de seleção de fonte aceita arraste e respeita análise/gravação em curso."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Alvos separados para documento e áudio; regras de avaliação preservadas."
+    },
+    {
+      "path": "client/src/pages/avaliar-aura-candidato.tsx",
+      "decision": "updated",
+      "reason": "Documento e áudio usam o mesmo seletor e processamento existentes."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "updated",
+      "reason": "Documento/áudio da avaliação de Aura reutilizam handlers existentes."
+    },
+    {
+      "path": "client/src/components/receipt-matching.tsx",
+      "decision": "preserved",
+      "reason": "Recebe área de arraste pelo Input compartilhado, preservando disponibilidade e correspondência em evolução paralela."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "preserved",
+      "reason": "Campos file recebem arraste pelo Input; upload e autorização existentes preservados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Catálogo de armazenamento documenta arraste, destaque e validação de seleção."
+    },
+    {
+      "path": "docs/platform/modules/pagamentos-integracoes.md",
+      "decision": "updated",
+      "reason": "Documenta escopo compartilhado e limites dos arquivos sem novo fluxo de envio."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Documenta arraste no Financeiro, incluindo comprovante por IA."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Input file da capa e anexos herda arraste; accept, multiple e callbacks upload originais preservados, inclusive envio já existente no change."
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "decision": "preserved",
+      "reason": "Seletores nativos de foto/logo hidden ou sr-only mantidos fora do wrapper; Input de texto e outros tipos mantém o mesmo elemento, ref e handlers."
+    },
+    {
+      "path": "client/src/pages/land-bank-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Seletores nativos de foto/logo hidden ou sr-only mantidos fora do wrapper; Input de texto e outros tipos mantém o mesmo elemento, ref e handlers."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "preserved",
+      "reason": "Seletores nativos de foto/logo hidden ou sr-only mantidos fora do wrapper; Input de texto e outros tipos mantém o mesmo elemento, ref e handlers."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Seletores nativos de foto/logo hidden ou sr-only mantidos fora do wrapper; Input de texto e outros tipos mantém o mesmo elemento, ref e handlers."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Seletores nativos de foto/logo hidden ou sr-only mantidos fora do wrapper; Input de texto e outros tipos mantém o mesmo elemento, ref e handlers."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "preserved",
+      "reason": "Seletores nativos de foto/logo hidden ou sr-only mantidos fora do wrapper; Input de texto e outros tipos mantém o mesmo elemento, ref e handlers."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/components/admin-commercial-policies.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/asaas-status.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/components/bia-phase-controls.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/existing-expense-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/import-preview-editor.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/initial-beneficiary-field.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/member-business-feed.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/opportunity-close-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/phone-input.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/components/ui/sidebar.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/convite-imovel.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/convite.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/economic-opportunity-detail.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/nova-demanda.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/nucleo-comercial.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/pages/nucleo-obra.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo dos formulários/Input: não introduz seletor file próprio. Imports, montagem e contratos de renderização preservados; regressões executadas na suíte geral."
+    },
+    {
+      "path": "client/src/pages/portal-localhosts.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "decision": "preserved",
+      "reason": "Inspecionados usos de Input: texto/número/data/hora/telefone/senha, sem tipo file. A condição estrita type=file mantém markup, props, refs e eventos desses campos."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Prévia isolada com componentes reais: arraste, formatos, múltiplos, clique, bloqueio e destaque. Modal autenticado conferido desktop/390x844 sem upload real; sem teste em aparelho físico."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Sem endpoint ou chamada nova; change aciona os mesmos callbacks existentes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem esquema/migração; seleção local reutiliza upload ou confirmação do consumidor."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Mudança limitada à seleção de arquivos; não altera valores, cálculos, status ou critérios de correspondência."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhum envio novo; comportamento após seleção continua no fluxo original."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Quantidade e accept respeitados, seleção inválida preserva anterior; validação final, prévias e confirmação do consumidor mantidas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Nenhum provedor/dependência novo; não executada leitura ou upload real em QA."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Respeita disabled e fieldset; autorização e validação do servidor continuam existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Ref e onChange originais mantidos; seletores personalizados de fotos de perfil não redesenhados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:662 testes/0 falhas, contrato, consistência, tooling, TypeScript e build. Dois testes específicos de arraste; log .BUILT-tmp/file-drop-verify.log."
+    }
+  ],
+  "regressionTests": [
+    "client/src/lib/file-drop.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

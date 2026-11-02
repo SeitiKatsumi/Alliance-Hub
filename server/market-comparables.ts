@@ -10,6 +10,7 @@ export function marketAreaRange(areaM2: number) {
 }
 
 export interface MarketComparable {
+  area_tipo?: string;
   titulo: string;
   url: string;
   tipo: string;
@@ -31,6 +32,7 @@ export interface MarketComparable {
 }
 
 export interface MarketComparableTarget {
+  areaTipo?: string;
   tipo: string;
   bairro?: string;
   cidade?: string;
@@ -239,6 +241,7 @@ function normalizeComparable(
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
   const url = canonicalUrl(row.url || row.link);
+  if (target.areaTipo && row.area_tipo !== target.areaTipo) return null;
   const tipo = String(row.tipo || row.qualificacao || row.property_type || "").trim();
   const areaM2 = parsePositiveNumber(row.area_m2 || row.area);
   const precoTotal = parsePositiveNumber(row.preco_total || row.valor || row.preco || row.price);
@@ -266,6 +269,7 @@ function normalizeComparable(
 
   return {
     titulo: String(row.titulo || row.title || row.nome || "Imóvel comparável").trim().slice(0, 180),
+    area_tipo: target.areaTipo,
     url,
     tipo: tipo.slice(0, 120),
     bairro: String(row.bairro || row.neighborhood || "").trim().slice(0, 120),

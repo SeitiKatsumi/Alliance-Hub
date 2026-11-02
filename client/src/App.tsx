@@ -63,6 +63,7 @@ import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
 import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth, type AppUser } from "@/hooks/use-auth";
+import { AccessSessionSync } from '@/components/access-session-sync';
 import { Briefcase, CheckCircle2, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, ScrollText, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast";
@@ -1552,6 +1553,7 @@ function ProtectedApp() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AccessSessionSync />
       <TooltipProvider>
         <Switch>
           <Route path="/convite/:token" component={ConvitePage} />

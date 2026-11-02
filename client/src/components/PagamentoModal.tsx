@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropTarget } from "@/components/file-drop-target";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -171,6 +172,7 @@ export function PagamentoModal({
             <p className="text-xs text-muted-foreground">
               Envie um PDF, Excel ou CSV com o cronograma de parcelas e a IA preencherá as datas automaticamente.
             </p>
+            <FileDropTarget disabled={aiLoading} className="border-0 p-0">
             <input ref={fileInputRef} type="file" accept=".pdf,.xlsx,.xls,.csv,.txt" className="hidden" onChange={handleAiParse} />
             <Button
               type="button" variant="outline" size="sm"
@@ -181,6 +183,7 @@ export function PagamentoModal({
             >
               {aiLoading ?<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Lendo arquivo...</> : <><Upload className="w-4 h-4 mr-2" /> Enviar arquivo</>}
             </Button>
+            </FileDropTarget>
             {aiObs && <p className="text-xs text-brand-gold/80 italic">IA: {aiObs}</p>}
           </div>
 

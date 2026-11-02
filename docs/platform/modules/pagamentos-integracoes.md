@@ -1,5 +1,13 @@
 # Pagamentos e Integracoes Externas
 
+## Seleção de anexos por arraste — 02/11/2026
+
+- `Input type=file` oferece área de arraste compartilhada em `FileDropTarget`; seletores próprios de anexos também a utilizam em Financeiro (incluindo rateio individual), documentos da BIA/núcleos, Carteira, oportunidades, cronogramas e arquivos/áudios da Aura. Fotos de perfil com controles próprios continuam fora deste ajuste de anexos.
+- Arrastar ou selecionar por clique dispara o mesmo `change` nativo no input original, mantendo refs, campos, prévias e o momento de confirmação/envio de cada fluxo. Não cria upload ou análise paralela. Campos comuns de texto/número não são envolvidos.
+- A área destaca o arraste e impede navegação ao soltar arquivos sobre ela. Antes de chamar o consumidor, valida quantidade pelo `multiple` e formatos pelo `accept` (extensão/MIME/wildcard). Seleção inválida é rejeitada integralmente e mantém os arquivos anteriores. Campos bloqueados, inclusive por fieldset, não recebem arquivos.
+- MIME ausente é delegado à validação existente do endpoint; assinatura real, propriedade, tamanho e autorização permanecem no servidor. Os limites de tamanho específicos continuam nos consumidores atuais. Não muda endpoints, armazenamento, pagamentos, MAP/CPP, dados ou permissões.
+- Regressões em `client/src/lib/file-drop.test.ts`; QA do componente real usa arquivos sintéticos em prévia isolada sem upload, incluindo arquivo único, múltiplos e erro de formato/quantidade.
+
 - 28/10/2026: preparação da retirada do Directus documentada em [DIRECTUS_MIGRATION](../DIRECTUS_MIGRATION.md). Ferramentas de inventário/backup são de operador e não entram no runtime. Backup/restauração isolada executados; substituição funcional e homologação navegável ainda pendentes. Produção, APIs, credenciais e pagamentos não foram redirecionados. Originais e backups preservados sem exclusão automática.
 
 ## Orientação de falhas de emissão — 26/10/2026

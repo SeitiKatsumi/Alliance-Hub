@@ -9,7 +9,7 @@ export function portfolioHistoryScope(properties: any[], alliances: any[]) {
     ...properties.map(p => `p:${p.id}:${p.participacao_percentual}:${p.access_level}:${p.moeda}:${!!p.consolidado_via_bia}`),
     ...alliances.map(b => `b:${b.id}:${b.map_percent}:${b.moeda}`),
   ].sort();
-  return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+  return createHash("sha256").update(JSON.stringify([PROPERTY_ESTIMATE_VALIDATION_VERSION, ...rows])).digest("hex");
 }
 export async function portfolioHistory(db: any, actor: { userId: string | null; membroId: string | null }, scope: string, since: string | null, metrics?: PortfolioDashboard) {
   if (!actor.userId && !actor.membroId) throw Object.assign(new Error("Não autenticado"), { status: 401 });

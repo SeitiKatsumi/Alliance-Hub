@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "id": "2026-11-02-built-property-valuation",
+  "title": "Primeira etapa residencial do Manual BUILT: áreas, comparáveis, relatório e composição patrimonial",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/property-valuation.ts",
+    "shared/portfolio-dashboard.ts",
+    "server/property-market-evidence.ts"
+  ],
+  "searchTerms": [
+    "propertyValuationReadiness",
+    "area_avaliacao_tipo",
+    "BUILT_VALUATION_VERSION",
+    "portfolioPropertyBreakdown"
+  ],
+  "consumers": [
+    {
+      "path": "shared/property-valuation.ts",
+      "decision": "updated",
+      "reason": "Validação das áreas, elegibilidade residencial e motivo do histórico em helper único."
+    },
+    {
+      "path": "shared/property-valuation.test.ts",
+      "decision": "updated",
+      "reason": "Regressões de áreas ambíguas, cadastro legado, valores proporcionais e origem da mudança."
+    },
+    {
+      "path": "shared/portfolio-dashboard.ts",
+      "decision": "updated",
+      "reason": "Agregação e detalhamento compartilham fração, arredondamento, exclusões e rejeição de indicativas."
+    },
+    {
+      "path": "shared/portfolio-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Prova que indicativa anterior não vira avaliação atual nem altera aquisição."
+    },
+    {
+      "path": "server/property-market-evidence.ts",
+      "decision": "updated",
+      "reason": "Versão v6 e fingerprint das áreas/fonte; helpers históricos preservados sem alimentar o novo total."
+    },
+    {
+      "path": "server/property-market-evidence.test.ts",
+      "decision": "updated",
+      "reason": "Cache, autorização, concorrência, SQL e falta de amostra exercitados com a nova política."
+    },
+    {
+      "path": "server/market-comparables.ts",
+      "decision": "updated",
+      "reason": "Exige mesma natureza de área quando o alvo a especifica; consumidores BIA sem área tipada mantidos."
+    },
+    {
+      "path": "server/market-comparables.test.ts",
+      "decision": "updated",
+      "reason": "Rejeita natureza ausente/diferente, preserva deduplicação, raio e filtros existentes."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Cadastro JSON aditivo, pesquisa atual versionada e relatório autorizado; confirmação antiga continua valor informado."
+    },
+    {
+      "path": "server/property-valuation-api.test.ts",
+      "decision": "updated",
+      "reason": "Handlers reais transformados testam isolamento de relatório e sanitização de cadastro/edição."
+    },
+    {
+      "path": "server/portfolio-history.ts",
+      "decision": "updated",
+      "reason": "Versão de validação compõe escopo da série, sem regravar histórico."
+    },
+    {
+      "path": "client/src/components/property-valuation-areas.tsx",
+      "decision": "updated",
+      "reason": "Campos reutilizados no cadastro manual e assistente, sem inferência da área legada."
+    },
+    {
+      "path": "client/src/components/property-valuation.tsx",
+      "decision": "updated",
+      "reason": "Análise lê resultado canônico, pesquisa automática autorizada, fontes e histórico."
+    },
+    {
+      "path": "client/src/components/portfolio-valuation-breakdown.tsx",
+      "decision": "updated",
+      "reason": "Detalhamento proporcional com links por imóvel e ausência explícita."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Inclui detalhamento e corrige alegação de desvio padrão; mesmo componente no Início e Carteira."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "SSR dos blocos/gráficos preservado com novo componente filho."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Cadastro/edição e Análise usam componentes compartilhados; cartões e mapa regional usam a mesma avaliação proporcional do total, sem fallback para valor informado."
+    },
+    {
+      "path": "client/src/pages/carteira-assistente.tsx",
+      "decision": "updated",
+      "reason": "Áreas tipadas na pesquisa de rascunho e chave de invalidação; revisão do usuário preservada."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Catálogo descreve primeira etapa e limitações, sem prometer fallback antigo."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Contrato atual e consumidores históricos explicitados."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas atuais carteira/assistente preservadas; recebem componentes atualizados."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Entrada React e providers preservados; nenhum novo privilégio."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Monta CarteiraPage; mesmas métricas e detalhamento, sem fórmula concorrente."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Renderiza catálogo atualizado, sem duplicação de descrição."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Estrutura e identificadores do catálogo preservados."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo atualizado; varredura não foi alterada."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Contrato e identificação do módulo permanecem válidos."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Registra routes; sem alteração de inicialização ou novos jobs."
+    },
+    {
+      "path": "server/portfolio-history.test.ts",
+      "decision": "preserved",
+      "reason": "Testes SQL de escopo, upsert diário e isolamento existentes continuam aplicáveis."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "preserved",
+      "reason": "CPP segue valor declarado de ativos registrados; avaliação privada não altera patrimônio BIA por inferência."
+    },
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "preserved",
+      "reason": "Fonte econômica e frações MAP preservadas; mudança limitada à avaliação imobiliária privada residencial."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.tsx",
+      "decision": "preserved",
+      "reason": "Exibe referências patrimoniais registradas na BIA, sem receber classificação BUILT automática."
+    },
+    {
+      "path": "server/property-journey.ts",
+      "decision": "preserved",
+      "reason": "Valor inicial revisado no assistente permanece referência informada; não é aceito como nova avaliação v6."
+    },
+    {
+      "path": "server/property-journey.test.ts",
+      "decision": "preserved",
+      "reason": "Revisão e persistência legada do valor inicial continuam compatíveis."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Entradas existentes de carteira/routes cobrem as rotas aditivas, sem mudança de invariantes."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-23-market-estimate-validation.json",
+      "decision": "preserved",
+      "reason": "Registro histórico da política anterior, preservado como evidência do trabalho antigo."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "InventarioPanel legado sem uso/import em telas ativas (busca global); não alimenta avaliação atual da Carteira. Criação/edição por API mantém campos aditivos."
+    },
+    {
+      "path": "client/src/pages/land-bank-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consulta comercial de preço/m² de ativos publicados, origem Banco de Ativos; não é a nova avaliação privada nem alimenta total."
+    },
+    {
+      "path": "client/src/pages/resultados.tsx",
+      "decision": "preserved",
+      "reason": "Consulta de preço/m² de BIA mantém autorização capital_analises e valores negociais, sem exposição da avaliação privada."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componentes reais em prévia isolada com dados fictícios: desktop e390px, campos controlados, fontes e composição. Conta autenticada conferida no localhost: Análise explica áreas/fonte pendentes; edição desktop/mobile preserva área legada e foi cancelada sem salvar. Após recarga, cartões, mapa regional e detalhamento mostram ausência da mesma avaliação, sem usar preço declarado. Capturas output/built-valuation. Nenhuma pesquisa externa ou alteração de imóvel real realizada."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET autorizado antes de consulta, histórico filtrado por imóvel; POST mantém administração, lock e fingerprint. Testes de handler e SQL executados."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Campos adicionais dentro do JSON existente; nenhuma migração ou backfill, nenhum imóvel real modificado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Área de mesma natureza, mediana e três referências, sem fallback; participação, arredondamento e exclusões compartilhados com detalhamento. Nova versão inicia série separada."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhuma nova mensagem; pesquisa não chama mailer ou notificações. Alertas operacionais e lançamentos mantêm suas fontes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Extração no assistente preserva natureza explícita e revisão do usuário. Relatório em Análise e catálogo atualizados; PDFs/aceites antigos não são regravados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Pesquisa web e geocodificação existentes; sem cron novo. Execução ao acessar Carteira/Análise e espera de falhas. Sem consulta live a imóvel real ou validação externa de acurácia nesta entrega."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Leitura do relatório por acesso ao imóvel; pesquisa por administração. Valor de referência e compartilhamento não concedem novo acesso."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Campos area_m2 e valor_atual preservados; análise antiga apenas histórico. Helpers históricos não promovem números indicativos ao novo total. BIA/CPP/Vitrine continuam referências próprias."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado:640 testes/0 falhas, contrato, consistência, tooling, TypeScript e build. Regressões de autorização/cache/concorrência, áreas e totais; git diff --check aprovado."
+    }
+  ],
+  "regressionTests": [
+    "shared/property-valuation.test.ts",
+    "server/property-valuation-api.test.ts",
+    "server/market-comparables.test.ts",
+    "server/property-market-evidence.test.ts",
+    "shared/portfolio-dashboard.test.ts",
+    "server/portfolio-history.test.ts",
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

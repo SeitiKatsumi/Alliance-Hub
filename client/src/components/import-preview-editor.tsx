@@ -1,4 +1,4 @@
-import { financialCategoryOptions } from "@shared/financial-categories";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,8 @@ const statuses = { pendente: "Pendente", agendado: "Agendado", pago: "Pago", par
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 const selectClass = "h-10 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground";
 
-export function ImportPreviewEditor({ items, onChange, disabled, categories, cppTypes }: {
-  items: ImportPreviewItem[]; onChange: (items: ImportPreviewItem[]) => void; disabled: boolean; categories: Option[]; cppTypes: Option[];
+export function ImportPreviewEditor({ items, onChange, disabled, renderCategory, categoryLabel, cppTypes }: {
+  items: ImportPreviewItem[]; onChange: (items: ImportPreviewItem[]) => void; disabled: boolean; renderCategory: (item: ImportPreviewItem, index: number, onChange: (id: number | null) => void) => ReactNode; categoryLabel: (id: number | null) => string; cppTypes: Option[];
 }) {
   const [selected, setSelected] = useState<number[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
@@ -36,7 +36,7 @@ export function ImportPreviewEditor({ items, onChange, disabled, categories, cpp
           <div className="min-w-0 flex-1">
             <p className="break-words font-medium">{item.descricao || "Sem descrição"}</p>
             <p className="text-sm">{item.tipo === "saida" ? "Saída" : "Entrada"} · {money(item.valor)} · {statuses[item.status]}</p>
-            <p className="text-xs text-muted-foreground">{(item.data_vencimento || item.data).split("-").reverse().join("/")} · {item.categoria_nome || "Sem categoria"}</p>
+            <p className="text-xs text-muted-foreground">{(item.data_vencimento || item.data).split("-").reverse().join("/")} · {categoryLabel(item.categoria_id) || "Sem categoria"}</p>
           </div>
           <Button type="button" size="sm" variant="outline" aria-label={`Editar lançamento ${index + 1}`} onClick={() => setEditing(editing === index ? null : index)}>{editing === index ? "Concluir" : "Editar"}</Button>
         </div>
@@ -46,7 +46,7 @@ export function ImportPreviewEditor({ items, onChange, disabled, categories, cpp
           <label className="space-y-1 text-sm">Tipo<select className={selectClass} value={item.tipo} onChange={e => update(index, { tipo: e.target.value as ImportPreviewItem["tipo"] })}><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
           <label className="space-y-1 text-sm">Status<select className={selectClass} value={item.status} onChange={e => update(index, { status: e.target.value as ImportPreviewItem["status"], ...(e.target.value !== "pago" && e.target.value !== "parcial" ? { data_pagamento: null } : {}) })}>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           {([['data','Data do lançamento *'],['data_vencimento','Vencimento'],['data_pagamento','Data do pagamento']] as const).map(([key, label]) => <label key={key} className="space-y-1 text-sm">{label}<Input type="date" value={item[key] || ""} disabled={key === "data_pagamento" && !["pago", "parcial"].includes(item.status)} onChange={e => update(index, { [key]: e.target.value || (key === "data" ? "" : null) })} /></label>)}
-          <label className="space-y-1 text-sm">Categoria<select className={selectClass} value={item.categoria_id ?? ""} onChange={e => { const option = categories.find(c => String(c.id) === e.target.value); update(index, { categoria_id: option?.id ?? null, categoria_nome: option?.nome ?? null }); }}><option value="">Nenhuma</option>{financialCategoryOptions(categories.map(c => ({...c, Nome_da_categoria:c.nome})), item.categoria_id).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
+          <div className="space-y-1 text-sm"><span>Categoria</span>{renderCategory(item, index, id => update(index, { categoria_id: id, categoria_nome: categoryLabel(id) || null }))}</div>
           <label className="space-y-1 text-sm">Tipo de CPP<select className={selectClass} value={item.tipo_cpp_id ?? ""} onChange={e => { const option = cppTypes.find(c => String(c.id) === e.target.value); update(index, { tipo_cpp_id: option?.id ?? null, tipo_cpp_nome: option?.nome ?? null }); }}><option value="">Nenhum</option>{cppTypes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
         </div>}
       </div>)}

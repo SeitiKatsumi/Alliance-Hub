@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "id": "2026-11-02-import-category-picker",
+  "title": "Mesma seleção de categoria na importação IA e lançamento manual",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/fluxo-caixa.tsx"
+  ],
+  "searchTerms": [
+    "ImportPreviewEditor"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/import-preview-editor.tsx",
+      "decision": "updated",
+      "reason": "Prévia recebe o próprio CategoriaCombobox do formulário manual, catálogo completo, tipo, BIA e formatter; sem seletor concorrente."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Prévia recebe o próprio CategoriaCombobox do formulário manual, catálogo completo, tipo, BIA e formatter; sem seletor concorrente."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Prévia recebe o próprio CategoriaCombobox do formulário manual, catálogo completo, tipo, BIA e formatter; sem seletor concorrente."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro; mesmas rotas, catálogo e confirmação de criação."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro; mesmas rotas, catálogo e confirmação de criação."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro; mesmas rotas, catálogo e confirmação de criação."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro; mesmas rotas, catálogo e confirmação de criação."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do Financeiro; mesmas rotas, catálogo e confirmação de criação."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Montagem transitiva do Financeiro/detalhe da BIA. Props readOnly, embedded, initialBiaId e cotasOnly não mudam; nenhuma alteração em documentos, cotas ou autorização."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Montagem transitiva do Financeiro/detalhe da BIA. Props readOnly, embedded, initialBiaId e cotasOnly não mudam; nenhuma alteração em documentos, cotas ou autorização."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Montagem transitiva do Financeiro/detalhe da BIA. Props readOnly, embedded, initialBiaId e cotasOnly não mudam; nenhuma alteração em documentos, cotas ou autorização."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Montagem transitiva do Financeiro/detalhe da BIA. Props readOnly, embedded, initialBiaId e cotasOnly não mudam; nenhuma alteração em documentos, cotas ou autorização."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Prévia isolada com ImportPreviewEditor real e CategoriaCombobox extraído sem alterações: busca Serviços mostra somente Serviços de obra e seleção atualiza cartão; Saída mostra OBRAS, Entrada mostra ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO. Nomes sem códigos, viewport desktop e390x844 conferidos. Nenhum registro criado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Escopo de apresentação na prévia; preserva IDs, persistência, autorização, validação de junção, API, integrações, documentos e valores. Regressões existentes de import-preview e financial-categories executadas."
+    }
+  ],
+  "regressionTests": [
+    "shared/import-preview.test.ts",
+    "shared/financial-categories.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -277,3 +277,5 @@ A aba Análises no Núcleo de Capital depende de `biaHasSalesThesis`, além das 
 
 ## Sugestões na importação financeira — 02/11/2026
 A IA deve sugerir descrição factual (objeto/finalidade e fornecedor presentes) e categoria pelo catálogo com nome, tipo e descrição. Normalização retorna o nome oficial pelo ID ou nome exato não ambíguo; categoria inexistente continua vazia. Pré-leitura que preserva mais parcelas recebe sugestões apenas em correspondência única por tipo, valor e vencimento, sem mudar valores/status/datas ou perder número da parcela. Editor e criação usam a mesma prévia editável. Sem gravação automática ou migração.
+
+Prévia IA usa o próprio CategoriaCombobox do lançamento manual, injetado pelo Financeiro: mesmo catálogo, busca, grupos, filtro entrada/saída e criação contextual de categoria. O cartão usa stripPlanoContaCode, preservando o ID original. Sem mudança no servidor ou na persistência.

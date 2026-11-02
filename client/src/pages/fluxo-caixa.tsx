@@ -4346,7 +4346,11 @@ export default function FluxoCaixaPage({
                 {importedLancamentos.length > 0 && <ImportPreviewEditor
                   items={importedLancamentos} onChange={setImportedLancamentos}
                   disabled={analyzeImportMutation.isPending || createImportedMutation.isPending}
-                  categories={categorias.map(c => ({...c, nome: c.Nome_da_categoria}))}
+                  categoryLabel={id => stripPlanoContaCode(categorias.find(c => c.id === id)?.Nome_da_categoria)}
+                  renderCategory={(item, index, onValueChange) => <CategoriaCombobox
+                    categorias={categorias} value={item.categoria_id} onValueChange={onValueChange}
+                    formTipo={item.tipo} biaId={selectedBiaId} prefix={`import-${index}`}
+                  />}
                   cppTypes={tiposCpp.map(c => ({id: c.id, nome: c.Nome}))}
                 />}
               </div>

@@ -17,7 +17,11 @@ Regras:
 - "data_vencimento" é a data de vencimento; se não existir, null.
 - "data_pagamento" só deve existir quando o arquivo indicar pagamento realizado.
 - Se já está pago/quitado/baixado/realizado, status "pago"; se vencimento é futuro e não pago, "pendente" ou "agendado"; se vencimento anterior a ${today} e não pago, "vencido".
-- Use categoria_id/tipo_cpp_id somente quando houver correspondência clara nas listas abaixo; caso contrário null.
+- Preencha sempre descricao com um resumo útil e curto do fato: produto/serviço ou finalidade e fornecedor quando constarem no arquivo. Não use apenas "compra", "pagamento", códigos ou o nome do arquivo. Preserve o número da parcela. Não invente fornecedor ou finalidade.
+- Sugira categoria_id e categoria_nome a partir da natureza da operação, usando SOMENTE as categorias disponíveis abaixo. Considere nome, descrição e tipo da categoria; não classifique pela modalidade de pagamento (Pix/boleto). Copie o ID e o nome exatos da categoria escolhida.
+- Exemplo: alimentos de uma confeitaria não são condomínio, IPTU ou seguros. Se não existir categoria compatível, retorne null e explique brevemente em observacao que é necessário escolher uma categoria.
+- Preencha descricao e categoria também para cada parcela da pré-leitura determinística, preservando seu valor, datas e número. Não deixe a classificação apenas na observação geral.
+- Use tipo_cpp_id somente quando houver correspondência clara na lista; caso contrário null.
 - Limite máximo: 80 lançamentos.
 
 Pré-leitura determinística de parcelas encontrada no arquivo.

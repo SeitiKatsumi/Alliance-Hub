@@ -274,3 +274,6 @@ A aba Análises no Núcleo de Capital depende de `biaHasSalesThesis`, além das 
 ## Edição e junção da prévia de importação — 02/11/2026
 - Antes da criação, permite editar descrição, tipo, valor, datas, status, categoria e CPP. Seleção junta dois ou mais itens com mesmo tipo/status/datas, somando centavos. Categorias/CPP divergentes são limpos, nunca presumidos. Desfazer restaura a prévia anterior à junção.
 - Helper shared/import-preview valida valores/descrição/datas antes do upload. Fonte da confirmação passa a ser a prévia editada; anexação do arquivo continua única por lançamento criado. UI desktop/mobile em cartões. API, permissões, persistência, cobranças, tarefas e dashboards preservados; nenhum lançamento existente é editado por essa ação.
+
+## Sugestões na importação financeira — 02/11/2026
+A IA deve sugerir descrição factual (objeto/finalidade e fornecedor presentes) e categoria pelo catálogo com nome, tipo e descrição. Normalização retorna o nome oficial pelo ID ou nome exato não ambíguo; categoria inexistente continua vazia. Pré-leitura que preserva mais parcelas recebe sugestões apenas em correspondência única por tipo, valor e vencimento, sem mudar valores/status/datas ou perder número da parcela. Editor e criação usam a mesma prévia editável. Sem gravação automática ou migração.

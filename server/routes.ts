@@ -1,3 +1,4 @@
+import {financialImportLabels, financialImportRows} from './financial-import-labels';
 import {financialImportPrompt} from './financial-import-prompt';
 import {receiptStageConfig,readStageReceipt,readStageFinancialImport} from './receipt-ai-stage';
 import { memberDisplayName } from "../shared/member-display-name";
@@ -13223,7 +13224,7 @@ export async function registerRoutes(
         directusFetch("Tipos_CPP").catch(() => []),
       ]);
       const categoriaOptions = (categoriasRaw || [])
-        .map((c: any) => ({ id: c.id, nome: c.Nome_da_categoria, tipo: c.Tipo_de_categoria || null }))
+        .map((c: any) => ({ id: c.id, nome: c.Nome_da_categoria, tipo: c.Tipo_de_categoria || null, descricao: c.Descricao_das_categorias || null }))
         .filter((c: any) => c.id && c.nome)
         .slice(0, 140);
       const tipoCppOptions = (tiposCppRaw || [])
@@ -13263,12 +13264,9 @@ export async function registerRoutes(
       }
 
       const validStatuses = new Set(["pendente", "agendado", "pago", "parcial", "vencido", "cancelado"]);
-      const validCategoryIds = new Set(categoriaOptions.map((c: any) => String(c.id)));
       const validTipoCppIds = new Set(tipoCppOptions.map((c: any) => String(c.id)));
       const aiLancamentos = Array.isArray(parsed?.lancamentos) ? parsed.lancamentos : [];
-      const sourceLancamentos = deterministicLancamentos.length > aiLancamentos.length
-        ? deterministicLancamentos
-        : aiLancamentos.length > 0 ? aiLancamentos : deterministicLancamentos;
+      const sourceLancamentos = financialImportRows(deterministicLancamentos, aiLancamentos);
       const lancamentos = sourceLancamentos
         .slice(0, 80)
         .map((item: any) => {
@@ -13276,7 +13274,6 @@ export async function registerRoutes(
           const tipo = item.tipo === "entrada" || item.tipo === "saida"
             ? item.tipo
             : rawValue < 0 ? "saida" : "entrada";
-          const categoriaId = item.categoria_id != null && validCategoryIds.has(String(item.categoria_id)) ? item.categoria_id : null;
           const tipoCppId = item.tipo_cpp_id != null && validTipoCppIds.has(String(item.tipo_cpp_id)) ? item.tipo_cpp_id : null;
           const status = validStatuses.has(String(item.status || "")) ? String(item.status) : "pendente";
           const dataVencimento = /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_vencimento || "")) ? item.data_vencimento : null;
@@ -13289,9 +13286,7 @@ export async function registerRoutes(
             data_vencimento: dataVencimento,
             data_pagamento: dataPagamento,
             status,
-            descricao: String(item.descricao || "Lançamento importado por IA").slice(0, 180),
-            categoria_id: categoriaId,
-            categoria_nome: item.categoria_nome || null,
+            ...financialImportLabels(item, categoriaOptions),
             tipo_cpp_id: tipoCppId,
             tipo_cpp_nome: item.tipo_cpp_nome || null,
             observacao: item.observacao ? String(item.observacao).slice(0, 180) : null,

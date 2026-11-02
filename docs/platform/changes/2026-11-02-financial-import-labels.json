@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "id": "2026-11-02-financial-import-labels",
+  "title": "Sugestões de descrição e categoria preservadas na prévia financeira",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/financial-import-prompt.ts",
+    "server/financial-import-labels.ts"
+  ],
+  "searchTerms": [
+    "financialImportLabels",
+    "financialImportRows",
+    "financialImportPrompt"
+  ],
+  "consumers": [
+    {
+      "path": "server/financial-import-prompt.ts",
+      "decision": "updated",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "server/receipt-ai-stage.ts",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "server/receipt-ai-relay.ts",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "server/receipt-ai-relay.test.ts",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "scripts/receipt-ai-relay.ts",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Revisado fluxo da prévia: mantém autorização, leitura, confirmação e criação separadas; prompt e normalização sugerem descrição/categoria sem gravar lançamentos."
+    },
+    {
+      "path": "server/financial-import-labels.ts",
+      "decision": "updated",
+      "reason": "Normaliza categorias do catálogo e enriquece parcelas correspondentes sem mudar fatos financeiros; regressões com dados sintéticos."
+    },
+    {
+      "path": "server/financial-import-labels.test.ts",
+      "decision": "updated",
+      "reason": "Normaliza categorias do catálogo e enriquece parcelas correspondentes sem mudar fatos financeiros; regressões com dados sintéticos."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Montagem transitiva das rotas; autorização e bootstrap preservados. Nenhum endpoint ou configuração adicional."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Mesmo contrato consumido por ImportPreviewEditor: descricao e categoria_nome no cartão, categoria_id selecionado na edição; nenhum markup alterado. Edição/junção e confirmação existentes preservadas."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Somente homologação localhost3018 atualizada. Relay recompilado com dependências incluídas, reiniciado e validado com texto sintético. Configuração, credenciais, pagamentos e e-mails preservados; produção não alterada."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Revisão limitada à sugestão na prévia: catálogo existente, sem novo campo persistido, migração, alteração de valor/status, permissão, pagamento, e-mail, PDF ou tarefa. Produção e relay compartilham prompt fixo."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:678 testes,0 falhas, tipos e build. Relay real com documento textual sintético retornou descrição Compra de materiais de construção na Loja Ficticia e categoria Materiais de construção id1. Nenhum lançamento criado."
+    }
+  ],
+  "regressionTests": [
+    "server/financial-import-labels.test.ts",
+    "server/receipt-ai-relay.test.ts",
+    "shared/import-preview.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

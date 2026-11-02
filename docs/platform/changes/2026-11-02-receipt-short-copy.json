@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "id": "2026-11-02-receipt-short-copy",
+  "title": "Encurtar instrução do modal de comprovante",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/receipt-matching.tsx"
+  ],
+  "searchTerms": [
+    "Envie o comprovante para localizar"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/receipt-matching.tsx",
+      "decision": "updated",
+      "reason": "Somente descrição do modal encurtada por solicitação do usuário; comportamento preservado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Alteração exclusiva de texto na descrição do modal. Sem alteração de eventos, API, autorização, matcher, anexos, status, banco, integração ou demais consumidores."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify675 testes0 falhas, tipos/build aprovados. UI autenticada localhost3018 confirma frase curta; sem envio de arquivo. Log .BUILT-tmp/receipt-short-verify.log; captura comprovante-texto-curto.png."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/receipt-matching.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

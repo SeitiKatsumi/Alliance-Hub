@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "id": "2026-11-02-receipt-ai-stage",
+  "title": "Leitura real de comprovantes isolada na homologação",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/receipt-ai-stage.ts",
+    "server/receipt-ai-relay.ts",
+    "server/isolated-stage.ts"
+  ],
+  "searchTerms": [
+    "receiptStageConfig",
+    "receiptRelay",
+    "comprovantes/disponibilidade"
+  ],
+  "consumers": [
+    {
+      "path": "server/receipt-ai-stage.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/receipt-ai-relay.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/receipt-ai-relay.test.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "scripts/receipt-ai-relay.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/receipt-matching.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/receipt-matching.test.ts",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/components/receipt-matching.tsx",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Leitura autorizada apenas de comprovantes; demais mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/isolated-stage.ts",
+      "decision": "preserved",
+      "reason": "Sem chave global nem liberação de integrações no app isolado."
+    },
+    {
+      "path": "server/native-data-transport.ts",
+      "decision": "preserved",
+      "reason": "Trava global de saída externa preservada; leitor usa relay interno autenticado dedicado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA real localhost3018: PDF fictício lido com valor987654,32, data e partes corretas, botão liberado e nenhum candidato; captura comprovante-ia-teste.png. Viewport390: clientWidth=scrollWidth373. Erro anterior não persiste durante nova análise."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Disponibilidade autenticada e guarda antes do upload; teste relay401, formato inválido, rota arbitrária404. Consulta real de lançamentos corrigida de400 natureza inexistente para200; metadata oficial preservada."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração; somente análise temporária de PDF fictício gravada. Nenhum lançamento ou pagamento alterado. Directus original e backups preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Matcher, valores, totais e gráficos preservados; adaptação da consulta mantém initialEntryMetadata."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhum envio. App mantém SMTP ausente e guardas de homologação."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Somente arquivo fictício gerado para teste. Documentos reais não reenviados; prompt fixo ignora instruções no documento."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Relay exclusivo na rede privada com saída própria para OpenAI. App continua rede interna e sem chave global; SMTP/Asaas ausentes. Chave existente reutilizada após autorização; sem arquivo de chave criado. Desativação: remover /app/receipt-ai.json e parar built-receipt-ai."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Sessão e permissão de edição da BIA mantidas antes de analisar/anexar. Relay exige token forte; endpoint fixo, sem proxy, sem banco e sem segredo na resposta/log."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Campo natureza não consultado como coluna inexistente; permanece derivado por metadata oficial. Cache, hash e anexos existentes preservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado664 testes0 falhas, TypeScript/build. Reteste isolado das falhas anteriores aprovado; consulta nativa real200 e PDF fictício pela UI concluído. Logs .BUILT-tmp/receipt-ai-verified.log e captura comprovante-ia-teste.png. Nenhum pagamento/e-mail."
+    }
+  ],
+  "regressionTests": [
+    "server/receipt-ai-relay.test.ts",
+    "server/receipt-matching.test.ts",
+    "client/src/components/receipt-matching.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

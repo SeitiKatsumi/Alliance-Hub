@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "id": "2026-11-02-financial-import-ai-stage",
+  "title": "Importação financeira por IA na homologação",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/financial-import-prompt.ts",
+    "server/receipt-ai-stage.ts"
+  ],
+  "searchTerms": [
+    "financialImportPrompt",
+    "readStageFinancialImport",
+    "importar-anexos"
+  ],
+  "consumers": [
+    {
+      "path": "server/financial-import-prompt.ts",
+      "decision": "updated",
+      "reason": "Habilitar somente a extração para prévia financeira no relay interno; demais operações preservadas."
+    },
+    {
+      "path": "server/receipt-ai-stage.ts",
+      "decision": "updated",
+      "reason": "Habilitar somente a extração para prévia financeira no relay interno; demais operações preservadas."
+    },
+    {
+      "path": "server/receipt-ai-relay.ts",
+      "decision": "updated",
+      "reason": "Habilitar somente a extração para prévia financeira no relay interno; demais operações preservadas."
+    },
+    {
+      "path": "server/receipt-ai-relay.test.ts",
+      "decision": "updated",
+      "reason": "Habilitar somente a extração para prévia financeira no relay interno; demais operações preservadas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Habilitar somente a extração para prévia financeira no relay interno; demais operações preservadas."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Habilitar somente a extração para prévia financeira no relay interno; demais operações preservadas."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo contrato da prévia; confirmação Criar lançamentos continua separada e não foi acionada."
+    },
+    {
+      "path": "scripts/receipt-ai-relay.ts",
+      "decision": "preserved",
+      "reason": "Entrypoint recompilado manualmente para incorporar novo modo; mesmas credenciais e rede."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo da página financeira; não altera chamada de análise, contrato da prévia ou confirmação de criação."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo da página financeira; não altera chamada de análise, contrato da prévia ou confirmação de criação."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Imagem JPEG fictícia pela UI autenticada localhost3018 gera prévia com saída987654,32, data02/11/2026 e statusPago. Cancelado sem criar; lista permaneceu15 lançamentos. Desktop e viewport390 conferidos, modal373px sem overflow. Captura importacao-ia-teste.png."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Endpoint mantém sessão/permissão de edição da BIA e normalização de IDs/status. Produção usa mesmo prompt extraído; stage usa operação financial-import autenticada e limitada a texto/imagem, sem URL/modelo/prompt arbitrários. App permanece sem chave global, SMTP ou Asaas."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Escopo: leitura para prévia, sem criação de lançamentos, alteração de dados, cálculos ou tarefas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Escopo: leitura para prévia, sem criação de lançamentos, alteração de dados, cálculos ou tarefas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Escopo: leitura para prévia, sem criação de lançamentos, alteração de dados, cálculos ou tarefas."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Escopo: leitura para prévia, sem criação de lançamentos, alteração de dados, cálculos ou tarefas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Endpoint mantém sessão/permissão de edição da BIA e normalização de IDs/status. Produção usa mesmo prompt extraído; stage usa operação financial-import autenticada e limitada a texto/imagem, sem URL/modelo/prompt arbitrários. App permanece sem chave global, SMTP ou Asaas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Endpoint mantém sessão/permissão de edição da BIA e normalização de IDs/status. Produção usa mesmo prompt extraído; stage usa operação financial-import autenticada e limitada a texto/imagem, sem URL/modelo/prompt arbitrários. App permanece sem chave global, SMTP ou Asaas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Endpoint mantém sessão/permissão de edição da BIA e normalização de IDs/status. Produção usa mesmo prompt extraído; stage usa operação financial-import autenticada e limitada a texto/imagem, sem URL/modelo/prompt arbitrários. App permanece sem chave global, SMTP ou Asaas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado670 testes0 falhas, TypeScript e build. Relay testa autenticação, imagem, texto financeiro, operação desconhecida e tamanho excessivo. QA real JPEG até a prévia. Log .BUILT-tmp/financial-import-ai-verify.log."
+    }
+  ],
+  "regressionTests": [
+    "server/receipt-ai-relay.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

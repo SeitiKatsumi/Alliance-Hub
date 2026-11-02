@@ -136,7 +136,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)/i.test(path)) {
+      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)|\/fluxo-caixa\/comprovantes(?:\/|$)/i.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

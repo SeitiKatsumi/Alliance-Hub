@@ -1,0 +1,312 @@
+{
+  "version": 1,
+  "id": "2026-11-02-receipt-matching",
+  "title": "Comprovante por IA sugere lançamentos da BIA com dados parciais e diferenças para conferência",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/receipt-matching.ts",
+    "server/receipt-matching.ts"
+  ],
+  "searchTerms": [
+    "client/src/pages/fluxo-caixa.tsx",
+    "shared/receipt-matching.ts",
+    "server/receipt-matching.ts",
+    "fluxo_comprovante_analises"
+  ],
+  "consumers": [
+    {
+      "path": "shared/receipt-matching.ts",
+      "decision": "updated",
+      "reason": "Normaliza fatos não confiáveis e concentra correspondência com margem de até R$5/2%, nomes parciais/iniciais e datas do mesmo tipo em até3 dias. Sugestões podem usar somente valor ou parte do nome; nome diferente ou valor ausente/divergente gera pontos de conferência. Sinais fortes compensam ausências; conflitos e candidatos próximos concorrentes exigem escolha."
+    },
+    {
+      "path": "shared/receipt-matching.test.ts",
+      "decision": "updated",
+      "reason": "Regressões de escopo, limites de valor, abreviações, campos ausentes, ordenação, ambiguidade entre valores próximos, datas, moeda e normalização."
+    },
+    {
+      "path": "server/receipt-matching.ts",
+      "decision": "updated",
+      "reason": "Upload privado, análise temporária, deduplicação, revalidação e vínculo sem mudar campos financeiros."
+    },
+    {
+      "path": "server/receipt-matching.test.ts",
+      "decision": "updated",
+      "reason": "Rotas reais com Express/PGlite e extrator/storage simulados: autorização, concorrência, repetição e recuperação."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Conecta às permissões, trava da BIA, leitura de arquivo, anexos e histórico existentes; demais mudanças de avaliação pertencem ao registro próprio."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "updated",
+      "reason": "Suprime corpo das respostas de comprovantes nos logs para preservar dados extraídos."
+    },
+    {
+      "path": "migrations/20261102_receipt_matching.sql",
+      "decision": "updated",
+      "reason": "Tabela aditiva de análises, sem backfill ou alteração de lançamentos."
+    },
+    {
+      "path": "client/src/components/receipt-matching.tsx",
+      "decision": "updated",
+      "reason": "Upload, contagem de possíveis lançamentos sem seleção inicial, escolha quando ambíguo, coincidências/pontos de conferência legíveis na sugestão e após anexação, opções editar/preparar pagamento. Campo avisos opcional preserva leitura de análises anteriores."
+    },
+    {
+      "path": "client/src/components/receipt-matching.test.ts",
+      "decision": "updated",
+      "reason": "Componente real renderizado com correspondência aproximada para confirmar diferenças de valor, nome e data antes e após anexação, além de duas possibilidades por valor com nome diferente e nenhuma opção previamente selecionada."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Monta ação no componente compartilhado e consulta versão atual antes de abrir edição com anexos preservados."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Contrato e limites da associação documentados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Distingue localizar/anexar de criar lançamentos via importação; outras edições pertencem ao registro de avaliação."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas existentes consomem o mesmo componente de lançamentos."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Providers existentes de consulta, sessão e diálogos preservados."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Financeiro da BIA recebe o botão pela página compartilhada."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; não altera documentos nem assinaturas."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo; regra de cotas não participa do anexo."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Montagem compartilhada recebe a ação conforme permissão."
+    },
+    {
+      "path": "client/src/components/expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Regressão de edição/rateio preservada e executada na suíte."
+    },
+    {
+      "path": "server/contribution-edit.test.ts",
+      "decision": "preserved",
+      "reason": "Guardas de edição de aporte continuam no salvamento existente."
+    },
+    {
+      "path": "shared/financial-categories.test.ts",
+      "decision": "preserved",
+      "reason": "Categorias não são inferidas nem alteradas pela análise de comprovante."
+    },
+    {
+      "path": "docs/audit/PLATFORM_AUDIT_2026-08-17.md",
+      "decision": "preserved",
+      "reason": "Auditoria histórica preservada."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Módulo e rotas-base existentes continuam válidos; detalhe novo documentado no contrato textual."
+    },
+    {
+      "path": "server/native-data-store.ts",
+      "decision": "preserved",
+      "reason": "Deep create de Anexos adiciona relação sem substituir anexos anteriores."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Pagamento vinculado a cobrança conserva as guardas atuais; anexo não confirma cobrança."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Proteção de despesa permanece no update existente."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "Proteção de aporte inicial preservada."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Lançamentos pessoais têm fluxo separado, fora desta ação de BIA; alterações paralelas não são atestadas aqui."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "preserved",
+      "reason": "Não envia e-mail por leitura ou vinculação de comprovante."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Lembretes continuam dependendo do status oficial salvo."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "preserved",
+      "reason": "Não há transferência nem emissão/confirmação bancária pela nova análise."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-23-portfolio-cpp-integralization.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-contribution-payment.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-contribution-reminders.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-expense-contributions.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-financial-categories.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-global-save-loading.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-26-payment-correction-guidance.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-28-existing-expense-contributions.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-29-contribution-cancellation.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-29-expense-initial-map.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-30-contribution-category-operator.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-30-session-display-name.json",
+      "decision": "preserved",
+      "reason": "Registro histórico preservado; não representa aprovação desta nova implementação."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo funcional: IDs, estrutura, status e agregações mantidos; apenas descrição da função financeira atualizada. Testes do catálogo, contrato e impacto executados sem alterar ferramentas."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo funcional: IDs, estrutura, status e agregações mantidos; apenas descrição da função financeira atualizada. Testes do catálogo, contrato e impacto executados sem alterar ferramentas."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo funcional: IDs, estrutura, status e agregações mantidos; apenas descrição da função financeira atualizada. Testes do catálogo, contrato e impacto executados sem alterar ferramentas."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo funcional: IDs, estrutura, status e agregações mantidos; apenas descrição da função financeira atualizada. Testes do catálogo, contrato e impacto executados sem alterar ferramentas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real conferido em desktop e 390x844 com respostas controladas: upload, escolha, anexo, editar e preparar pagamento. Após novo login, confirmado na conta real o botão Anexar comprovante com IA e abertura do diálogo na BIA868NEL6DXJ, com análise desabilitada sem arquivo. Ajustes validados por SSR do componente real: diferença de R$1, nome abreviado e data próxima visíveis antes/depois da anexação, além de contagem de duas possibilidades de nomes diferentes e nenhuma seleção prévia. Não enviado comprovante real."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Duas rotas POST privadas; seleção restrita aos candidatos calculados no servidor, versão SHA256, nova autorização antes de anexar e retorno sem bytes/owner."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Tabela aditiva idempotente no bootstrap e migração SQL equivalente. Arquivo temporário expira em 24h com limpeza na próxima análise; anexo permanente usa armazenamento existente. Relação deep create preserva demais anexos."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Anexar não altera valor/status/categoria/CPP; cálculos e gráficos continuam usando lançamento oficial. Marcar pago exige edição e Save existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Sem mensagem ou notificação nova. Status só muda no salvamento explícito já existente e preserva consumidores atuais."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "PDF/imagem são entrada de análise e anexo; sem alteração em MOU/contratos assinados. Relatório funcional atualizado."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Reutiliza extrator multimodal e upload existentes. IA só extrai fatos; candidatos não são enviados ao modelo. Sem operação Asaas/worker novo. Leitura real pelo provedor não executada em QA."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Exige sessão e capital_financeiro edit na BIA, fase válida, proprietário da análise e reautorização do lançamento após trava. Testes cobrem visualizador, outra BIA, outro dono e permissão revogada."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Anexos anteriores preservados; valores iguais ou próximos repetidos não causam vínculo automático, itens cancelados/não caixa/agregado legado excluídos. Repetição e resposta perdida não duplicam vínculo; eventual arquivo órfão no storage não é removido automaticamente."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado na etapa de tolerância:651 testes, zero falhas. Após refinamento das sugestões por primeiro nome/valor independente:11 testes específicos de domínio/API/renderização e6 do catálogo aprovados, além de TypeScript, contrato e build. Limites R$5/2%, nomes abreviados, campos ausentes, datas próximas, ambiguidade, escolha do segundo candidato e fingerprint revalidados com PGlite e extrator simulado. QA desktop/mobile original com dados fictícios e SSR da apresentação ajustada. Não efetuado pagamento nem alteração em lançamento real."
+    }
+  ],
+  "regressionTests": [
+    "shared/receipt-matching.test.ts",
+    "server/receipt-matching.test.ts",
+    "client/src/components/receipt-matching.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

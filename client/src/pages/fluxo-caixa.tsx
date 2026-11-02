@@ -1,6 +1,9 @@
+import { ImportPreviewEditor } from "@/components/import-preview-editor";
+import { importPreviewError } from "@shared/import-preview";
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
 import { confirmsContributionReceipt } from "@shared/contribution-edit";
+import { ReceiptMatching } from "@/components/receipt-matching";
 import type { ReactNode } from "react";
 import { ContributionPaymentDialog, prepareFlowPayment } from '@/components/contribution-payment';
 import {ContributionReminderFields,ContributionReminderDialog,saveContributionReminders} from '@/components/contribution-reminders';
@@ -2415,6 +2418,8 @@ export default function FluxoCaixaPage({
     mutationFn: async () => {
       if (!selectedBiaId) throw new Error("Selecione uma BIA");
       if (!importedLancamentos.length) throw new Error("Nenhum lançamento para criar");
+      const previewError = importPreviewError(importedLancamentos);
+      if (previewError) throw new Error(previewError);
       const fileIds = importFile ? await uploadFiles([importFile]) : [];
       for (const item of importedLancamentos) {
         await apiRequest("POST", "/api/fluxo-caixa", {
@@ -3837,12 +3842,24 @@ export default function FluxoCaixaPage({
           <>
           <Card data-testid="panel-lancamentos">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="w-5 h-5 text-brand-gold" />
                   Lançamentos — {selectedBia?.nome_bia}
                 </CardTitle>
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  {!readOnly && <ReceiptMatching key={selectedBiaId} biaId={selectedBiaId} onEdit={async (id, paid, paymentDate) => {
+                    const response = await apiRequest("GET", `/api/fluxo-caixa?bia_id=${encodeURIComponent(selectedBiaId)}`);
+                    const rows: FluxoCaixaItem[] = await response.json();
+                    const current = rows.find(row => String(row.id) === id);
+                    if (!current) throw new Error("Lançamento indisponível. Atualize a lista.");
+                    queryClient.setQueryData(["/api/fluxo-caixa", selectedBiaId], rows);
+                    openEditDialog(current);
+                    if (paid && current.status !== "pago") {
+                      setFormStatus("pago");
+                      if (paymentDate) setFormDataPagamento(paymentDate);
+                    }
+                  }} />}
                   <Button
                     type="button"
                     variant="outline"
@@ -4325,57 +4342,12 @@ export default function FluxoCaixaPage({
                   </div>
                 )}
 
-                {importedLancamentos.length > 0 && (
-                  <div className="rounded-md border border-border">
-                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                      <div>
-                        <p className="text-sm font-semibold text-brand-navy">Prévia dos lançamentos</p>
-                        <p className="text-xs text-muted-foreground">
-                          {importedLancamentos.length} lançamento{importedLancamentos.length === 1 ? "" : "s"} será{importedLancamentos.length === 1 ? "" : "ão"} criado{importedLancamentos.length === 1 ? "" : "s"} com o arquivo anexado.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="max-h-80 overflow-auto">
-                      <table className="w-full min-w-[760px] text-sm">
-                        <thead className="sticky top-0 bg-background">
-                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                            <th className="px-3 py-2">Tipo</th>
-                            <th className="px-3 py-2 text-right">Valor</th>
-                            <th className="px-3 py-2">Vencimento</th>
-                            <th className="px-3 py-2">Status</th>
-                            <th className="px-3 py-2">Categoria</th>
-                            <th className="px-3 py-2">Descrição</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importedLancamentos.map((item, index) => {
-                            const statusInfo = getStatusConfig(item.status);
-                            return (
-                              <tr key={`${item.descricao}-${index}`} className="border-b border-border/60">
-                                <td className="px-3 py-2">
-                                  <Badge variant="outline" className={item.tipo === "entrada" ? "text-green-700 bg-green-50" : "text-red-700 bg-red-50"}>
-                                    {item.tipo === "entrada" ? "Entrada" : "Saída"}
-                                  </Badge>
-                                </td>
-                                <td className={`px-3 py-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
-                                  {formatBRL(item.valor)}
-                                </td>
-                                <td className="px-3 py-2">{item.data_vencimento ? formatDate(item.data_vencimento) : formatDate(item.data)}</td>
-                                <td className="px-3 py-2">
-                                  <Badge variant="outline" className={statusInfo.color}>
-                                    {statusInfo.label}
-                                  </Badge>
-                                </td>
-                                <td className="px-3 py-2 text-muted-foreground">{item.categoria_nome || "-"}</td>
-                                <td className="px-3 py-2">{item.descricao}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                {importedLancamentos.length > 0 && <ImportPreviewEditor
+                  items={importedLancamentos} onChange={setImportedLancamentos}
+                  disabled={analyzeImportMutation.isPending || createImportedMutation.isPending}
+                  categories={categorias.map(c => ({...c, nome: c.Nome_da_categoria}))}
+                  cppTypes={tiposCpp.map(c => ({id: c.id, nome: c.Nome}))}
+                />}
               </div>
 
               <DialogFooter>
@@ -4390,7 +4362,9 @@ export default function FluxoCaixaPage({
                 <Button
                   type="button"
                   onClick={() => createImportedMutation.mutate()}
-                  disabled={!importedLancamentos.length || createImportedMutation.isPending || analyzeImportMutation.isPending}
+                  disabled={!!importPreviewError(importedLancamentos) || createImportedMutation.isPending || analyzeImportMutation.isPending}
+                  loading={createImportedMutation.isPending}
+                  loadingText="Criando lançamentos…"
                   className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                   data-testid="button-criar-lancamentos-ia"
                 >

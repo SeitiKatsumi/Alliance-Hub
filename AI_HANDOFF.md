@@ -1,5 +1,46 @@
 # AI_HANDOFF.md
 
+## 02/11/2026 — commit isolado da IA financeira
+- Publicação solicitada pelo usuário: somente comprovantes por IA, importação financeira, edição/junção da prévia e texto curto.26 arquivos selecionados; mudanças paralelas de Carteira, Aura, acessos e arrastar arquivos permanecem locais. Logs, segredos e saídas de QA excluídos.
+- Snapshot do índice em .BUILT-tmp/receipt-publish-check validado independentemente:649 testes0 falhas e tipos. Comparação do SQL no teste normaliza CRLF/LF sem mudar a migração. Revisão staged aprovada; sem migração do banco Directus ou alteração de credenciais.
+
+
+## 02/11/2026 — texto curto no modal de comprovante
+- Descrição reduzida a uma frase por pedido do usuário. Sem mudança funcional. Atualizado e conferido na homologação3018, sem upload/criação. Captura comprovante-texto-curto.png. platform:verify675 testes0 falhas, tipos/build aprovados; registro2026-11-02-receipt-short-copy.json. Sem commit/push/produção.
+
+
+
+## 02/11/2026 — prévia financeira editável e junção manual
+- ImportPreviewEditor permite editar tipo, valor, descrição, datas, status, categoria e CPP antes de criar. Seleção junta itens compatíveis com soma em centavos, limpa classificações divergentes e permite desfazer. shared/import-preview valida antes do upload. FinancialCategoryOptions reutilizado para preservar taxonomia/IDs.
+- UI autenticada:3 itens9,68+18,45+16,77 viraram44,90; descrição editada, valor0 bloqueado, desfazer restaura3. Modal390px sem overflow; cancelado sem criar, lista segue15. Captura previa-juntar-lancamentos.png. Backend/permissões/dados existentes preservados.
+- platform:verify final675 testes0 falhas, tipos/build; log .BUILT-tmp/import-preview-final-verify.log. Apenas homologação3018 atualizada com backup; sem commit/push/produção. Registro2026-11-02-import-preview-editor.json; revisão global não atesta alterações paralelas.
+
+
+
+## 02/11/2026 — importação de lançamentos por IA habilitada na homologação
+- Pedido adicional do usuário: importar-anexos ainda procurava chave global. Agora usa relay interno com operação financial-import e prompt compartilhado; produção preservada. Suporta imagem real validada e texto extraído de PDF/planilhas, listas/normalização existentes mantidas. Sem liberar demais integrações.
+- Relay e backend privado atualizados, backup do backend anterior preservado. Nenhum commit/push/produção. Chave existente mantida no relay.
+- QA autenticado com JPEG fictício: prévia saída987654,32 em02/11/2026, Pago; cancelado, lista continua15. Desktop/mobile390 sem overflow do modal. Captura importacao-ia-teste.png. platform:verify670 testes0 falhas, tipos/build aprovados; log .BUILT-tmp/financial-import-ai-verify.log. Revisão própria2026-11-02-financial-import-ai-stage.json; outras alterações da árvore não atestadas.
+
+
+
+## 02/11/2026 — leitura de comprovantes na homologação
+
+- Usuário autorizou IA real somente para comprovantes e reutilização da chave existente. Relay built-receipt-ai (porta interna3025, token, prompt/modelo fixos, MIME real10MB) conectado à rede privada e saída própria; aplicação continua rede interna, sem chave global/SMTP/Asaas. Configuração interna /app/receipt-ai.json; desligar removendo essa configuração e parando o relay. Nenhum arquivo de chave criado; sem alteração de produção/Directus.
+- Segundo erro reproduzido pela UI: consulta pedia natureza como coluna física de fluxo_caixa. Removida dessa projeção; initialEntryMetadata continua responsável pelo campo derivado. Consulta nativa real agora200.
+- Fluxo completo na BIA de testes868NEL6DXJ leu PDF fictício987654,32 e partes ZZZ SYNTHETIC, sem correspondência nem alteração de lançamentos. Uma análise temporária de QA é o único registro novo. Screenshot comprovante-ia-teste.png; viewport390 sem overflow do modal. Testes finais em .BUILT-tmp/receipt-ai-verified.log; revisão própria em2026-11-02-receipt-ai-stage.json. Sem commit/push.
+
+
+
+## 02/11/2026 — correspondência tolerante de comprovantes
+
+- Ajuste solicitado sobre o fluxo de comprovantes já presente no worktree: tolerância de até R$5 limitada a2%, nomes parciais/iniciais e datas da mesma natureza em até3 dias. Sinais ponderados permitem campos ausentes; candidatos próximos concorrentes ou conflitos exigem escolha. Motivos/diferenças aparecem também após anexação automática. Valores e status oficiais não são ajustados.
+- Refinamento do pedido: sugestões também podem vir de primeiro nome isolado, mesmo sem valor ou com valor divergente; nome de outra pessoa não elimina candidato por valor. `avisos` opcional apresenta ausências/divergências e a tela conta os possíveis lançamentos, sem selecionar nenhum. Esses casos fracos exigem escolha; critérios automáticos permanecem fortes.11 testes específicos aprovados, incluindo API com escolha de segundo candidato de nome diferente e valor próximo, e SSR das duas opções. TypeScript, contrato, build e6 testes do catálogo aprovados após este refinamento; log:.BUILT-tmp/receipt-possible-check.log. Sem reenvio real, pagamento, commit ou publicação.
+- Sobreposição limitada ao helper/testes de receipt-matching, prompt do extrator, componente, catálogo funcional e documentação; mudanças paralelas de Carteira, Aura, routes e demais fluxos financeiros preservadas.
+- Verificado:10 testes específicos de domínio/API/renderização,6 do catálogo funcional e platform:verify com651 testes/0 falhas, TypeScript/contrato/consistência/build aprovados. Testes usam extrator e armazenamento simulados; SSR confirma diferenças antes/depois da anexação. Não enviado comprovante real, feito pagamento, commit ou push. Log:.BUILT-tmp/receipt-tolerance-verify.log.
+
+
+
 ## 31/10/2026 — aviso do MOU abre a leitura diretamente
 
 - Pedido pelo áudio: aviso de Rafael Fabri levava à Agenda; agora `Ler e aceitar MOU` abre a revisão identificada na origem. Helper shared/agenda-action.ts aplicado a Alertas, resumo, Próximas ações e calendário; tarefas comuns conservam edição por ID e aportes abrem o fluxo existente. Lista mantém Editar.

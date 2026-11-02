@@ -1,3 +1,5 @@
+import {financialImportPrompt} from './financial-import-prompt';
+import {receiptStageConfig,readStageReceipt,readStageFinancialImport} from './receipt-ai-stage';
 import { memberDisplayName } from "../shared/member-display-name";
 import { validatePropertyGoal, propertyThesisLabel, propertyThesisCode, PROPERTY_THESIS_OPTIONS } from "../shared/property-thesis";
 import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
@@ -13,6 +15,7 @@ import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-port
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry, expenseLinks } from "./expense-contributions";
 import { editLinkedContribution } from "./contribution-edit";
+import { registerReceiptMatching } from "./receipt-matching";
 import { linkedExpenseMovementIds } from './existing-expense-contributions';
 import { initialExpenseDistribution } from '@shared/existing-expense-contributions';
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
@@ -13011,6 +13014,30 @@ export async function registerRoutes(
     return authorization ? { snapshot, biaId, authorization } : null;
   }
 
+  await registerReceiptMatching(app, {
+    db,
+    availability: () => isolatedStage()
+      ? (receiptStageConfig() ? null : "A leitura por IA ainda não está habilitada neste ambiente.")
+      : (process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? null : "A leitura por IA ainda não está configurada no servidor."),
+    authorize: (req, res, biaId) => requireBiaModuleAccess(req, res, biaId, "capital_financeiro", "edit"),
+    accessFlow: (req, res, id) => requireFluxoAccess(req, res, id, "edit"),
+    phase: async biaId => {
+      await assertBiaFinancialPhase(biaId);
+      const bia = await directusFetchOne("bias_projetos", biaId, "fields=id,moeda");
+      if (String(bia?.moeda || "BRL").toUpperCase() !== "BRL") throw Object.assign(new Error("A leitura de comprovantes está disponível para lançamentos em reais."), { statusCode: 400 });
+    },
+    lock: (biaId, work) => withMapLock(biaId, tx => work(tx)),
+    flows: biaId => directusFetchScoped("fluxo_caixa", `fields=id,bia,tipo,valor,descricao,status,data_pagamento,data_vencimento,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario,favorecido_id.razao_social&filter[bia][_eq]=${encodeURIComponent(biaId)}`),
+    extract: (file, prompt) => isolatedStage() ? readStageReceipt(file) : extractInventarioFileText(file, prompt, true),
+    upload: uploadBufferToDirectus,
+    // Deep create appends one relation; never replace existing attachments or touch payment fields.
+    append: (id, fileId) => directusUpdate("fluxo_caixa", id, { Anexos: { create: [{ directus_files_id: fileId }] } }),
+    audit: (req, row, before, fileId) => registrarFluxoHistorico({ req, fluxoId: row.flow_id, biaId: row.bia_id,
+      acao: "comprovante_anexado", origem: row.automatic ? "ia:correspondencia" : "ia:confirmacao",
+      payload: { analise_id: row.id, arquivo_id: fileId, automatico: row.automatic },
+      antes: { valor: before.valor, status: before.status, Anexos: before.Anexos || [] }, depois: { valor: before.valor, status: before.status, Anexos: [...(before.Anexos || []), { directus_files_id: fileId }] } }),
+  });
+
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
@@ -13204,39 +13231,8 @@ export async function registerRoutes(
         .slice(0, 80);
 
       const today = new Date().toISOString().split("T")[0];
-      const prompt = `Você é um assistente financeiro da BUILT Alliances.
-Analise o arquivo e extraia lançamentos financeiros para o fluxo de caixa de uma BIA.
-Retorne SOMENTE JSON válido, sem markdown, neste formato:
-{"lancamentos":[{"tipo":"entrada|saida","valor":123.45,"data":"YYYY-MM-DD","data_vencimento":"YYYY-MM-DD|null","data_pagamento":"YYYY-MM-DD|null","status":"pendente|agendado|pago|parcial|vencido|cancelado","descricao":"texto curto","categoria_id":123|null,"categoria_nome":"texto|null","tipo_cpp_id":123|null,"tipo_cpp_nome":"texto|null","observacao":"texto curto|null"}],"observacao":"texto curto"}
-
-Regras:
-- Crie um lançamento para cada linha, parcela, nota, boleto, recibo ou item financeiro claro.
-- Em arquivos de amortização, boleto parcelado, simulação, carnê ou cronograma, cada linha/parcela é um lançamento separado.
-- Todo lançamento parcelado deve ter número da parcela na descrição, por exemplo "Parcela 15/49".
-- Toda linha com parcela deve preencher data_vencimento com a data de vencimento/amortização da própria linha.
-- Quando houver coluna ou texto de status, identifique se está pago, quitado, baixado, liquidado, realizado, agendado/programado ou pendente.
-- Se o arquivo for apenas cronograma futuro/simulação sem indicação de pagamento, use status "agendado" para parcelas futuras e "vencido" para parcelas passadas.
-- Valor sempre positivo, com até 2 casas decimais. Use tipo "saida" para despesa/pagamento/custo e "entrada" para receita/aporte/reembolso recebido.
-- Se o documento tiver valor negativo, converta para valor positivo e ajuste o tipo.
-- "data" deve ser a data da parcela/vencimento quando o arquivo for cronograma de parcelas; se não existir, use "${today}".
-- "data_vencimento" é a data de vencimento; se não existir, null.
-- "data_pagamento" só deve existir quando o arquivo indicar pagamento realizado.
-- Se já está pago/quitado/baixado/realizado, status "pago"; se vencimento é futuro e não pago, "pendente" ou "agendado"; se vencimento anterior a ${today} e não pago, "vencido".
-- Use categoria_id/tipo_cpp_id somente quando houver correspondência clara nas listas abaixo; caso contrário null.
-- Limite máximo: 80 lançamentos.
-
-Pré-leitura determinística de parcelas encontrada no arquivo.
-Use estes itens como base quando fizerem sentido; não descarte parcelas claras com data e valor:
-${JSON.stringify(deterministicLancamentos)}
-
-Categorias disponíveis:
-${JSON.stringify(categoriaOptions)}
-
-Tipos CPP disponíveis:
-${JSON.stringify(tipoCppOptions)}
-
-ARQUIVO:
-${textContent}`;
+      const importContext = {today, deterministicLancamentos, categoriaOptions, tipoCppOptions, textContent};
+      const prompt = financialImportPrompt(importContext);
 
       const userContent: any = isImageFile
         ? [
@@ -13250,14 +13246,13 @@ ${textContent}`;
           ]
         : prompt;
 
-      const response = await getOpenAI().chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: userContent }],
-        temperature: 0,
-        max_tokens: 6000,
-      });
+      const raw = (isolatedStage()
+        ? await readStageFinancialImport(isImageFile ? file : null, importContext)
+        : (await getOpenAI().chat.completions.create({
+            model: "gpt-4o", messages: [{ role: "user", content: userContent }],
+            temperature: 0, max_tokens: 6000,
+          })).choices[0]?.message?.content || "").trim();
 
-      const raw = (response.choices[0]?.message?.content || "").trim();
       const jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
       let parsed: any;
       try {

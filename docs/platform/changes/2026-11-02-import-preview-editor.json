@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "id": "2026-11-02-import-preview-editor",
+  "title": "Editar e juntar lançamentos na prévia da IA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/import-preview.ts"
+  ],
+  "searchTerms": [
+    "ImportPreviewEditor",
+    "mergeImportPreview",
+    "importPreviewError"
+  ],
+  "consumers": [
+    {
+      "path": "shared/import-preview.ts",
+      "decision": "updated",
+      "reason": "Prévia editável e junção manual antes do upload/criação; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/import-preview.test.ts",
+      "decision": "updated",
+      "reason": "Prévia editável e junção manual antes do upload/criação; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/components/import-preview-editor.tsx",
+      "decision": "updated",
+      "reason": "Prévia editável e junção manual antes do upload/criação; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Prévia editável e junção manual antes do upload/criação; mudanças paralelas preservadas."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Prévia editável e junção manual antes do upload/criação; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/financial-categories.ts",
+      "decision": "preserved",
+      "reason": "Helper oficial reutilizado no seletor, mantendo contexto e ID selecionado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticado localhost3018:3 itens9,68+18,45+16,77 juntados em44,90, descrição editada, valor0 bloqueia Criar, desfazer retorna3 itens. Desktop e390px sem overflow (373=373). Cancelar conserva15 lançamentos. Captura previa-juntar-lancamentos.png."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Criação usa a lista editada no estado, validada antes de upload. Mesmo payload e autorização existentes, anexo do arquivo preservado. Nenhum endpoint novo."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Mudança limitada à prévia ainda não persistida. API, banco, totais, notificações, documentos assinados, cobrança e tarefas preservados; nenhuma criação executada no teste."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Soma em centavos no helper, seleção parcial conserva itens não selecionados; proíbe misturar tipo/status/datas. Gráficos só seguem criação normal posterior."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Mudança limitada à prévia ainda não persistida. API, banco, totais, notificações, documentos assinados, cobrança e tarefas preservados; nenhuma criação executada no teste."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Mudança limitada à prévia ainda não persistida. API, banco, totais, notificações, documentos assinados, cobrança e tarefas preservados; nenhuma criação executada no teste."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Mudança limitada à prévia ainda não persistida. API, banco, totais, notificações, documentos assinados, cobrança e tarefas preservados; nenhuma criação executada no teste."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mudança limitada à prévia ainda não persistida. API, banco, totais, notificações, documentos assinados, cobrança e tarefas preservados; nenhuma criação executada no teste."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Sem migração ou edição de lançamentos anteriores; categorias usam financialCategoryOptions com contexto/ID selecionado, sem apagar relações legadas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado675 testes0 falhas, TypeScript/build; testes do helper cobrem centavos, seleção parcial, conflitos, datas e valores inválidos. UI autenticada confirmou editar/juntar/desfazer/validação e mobile. Logs .BUILT-tmp/import-preview-final-verify.log."
+    }
+  ],
+  "regressionTests": [
+    "shared/import-preview.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

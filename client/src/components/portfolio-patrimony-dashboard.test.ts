@@ -5,12 +5,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { transformSync } from "esbuild";
 import { dashboardAcquisitionValue, portfolioDashboard } from "../../../shared/portfolio-dashboard";
+import { DASHBOARD_CHART_COLORS } from "../lib/dashboard-chart-colors";
 
 test("dois blocos patrimoniais separam CPP aportada do saldo e mantêm dois gráficos reais", () => {
   const source = readFileSync(new URL("./portfolio-patrimony-dashboard.tsx", import.meta.url), "utf8");
   const code = source.replace(/^import .*;\r?\n/gm, "").replace(/export function/g, "function");
   const passthrough = ({children}:any) => React.createElement(React.Fragment,null,children);
-  const Component = new Function("React","Button","PortfolioValuationBreakdown","PortfolioComposition","Info","Popover","PopoverTrigger","PopoverContent", transformSync(code, { loader: "tsx" }).code + "; return PortfolioPatrimonyDashboard;")(React,passthrough,()=>null,()=>null,()=>React.createElement("svg"),passthrough,passthrough,passthrough);
+  const Component = new Function("React","Button","PortfolioValuationBreakdown","PortfolioComposition","Info","Popover","PopoverTrigger","PopoverContent","DASHBOARD_CHART_COLORS", transformSync(code, { loader: "tsx" }).code + "; return PortfolioPatrimonyDashboard;")(React,passthrough,()=>null,()=>null,()=>React.createElement("svg"),passthrough,passthrough,passthrough,DASHBOARD_CHART_COLORS);
   const metrics = portfolioDashboard([{ id: "p", valor_aquisicao_brl: 100, estimativa_dashboard: { min: 200, max: 300, value: 250 } }], [{ id: "b", cpp_base_brl: 50, cpp_contributed_brl: 20, cpp_remaining_brl: 30, valor_participacao_brl: -10 }]);
   const render = (props = {}) => renderToStaticMarkup(React.createElement(Component, { metrics, observations: [{ day: "2026-10-22", observedAt: "2026-10-22T00:00:00Z", metrics }], ...props }));
   const propertiesOnly = render({showAlliances:false,onViewAlliances:()=>{}});
@@ -46,4 +47,17 @@ test("dois blocos patrimoniais separam CPP aportada do saldo e mantêm dois grá
   assert.match(allocated,/Locação de longo prazo/);assert.match(allocated,/value="100"/);assert.match(allocated,/Cadastrar imóvel/);assert.match(allocated,/Ver minhas alianças/);
   assert.ok(allocated.indexOf('aria-label="Meus imóveis"') < allocated.indexOf('aria-label="Minhas alianças"'));
   assert.match(html,/Somatório dos valores de aquisição/);assert.match(html,/percentual efetivamente aportado/);
+  const propertyFilter = { value: "p", items: [{ id: "p", nome: "Casa do Centro" }, { id: "p2", nome: "Outro imóvel" }], onChange: () => {} };
+  const allianceFilter = { value: "b", items: [{ id: "b", nome: "Aliança Centro" }], onChange: () => {} };
+  const filtered = render({propertyFilter,allianceFilter});
+  assert.match(filtered, /<select[^>]+aria-label="Filtrar por imóvel"/);
+  assert.match(filtered, /<option value="p" selected="">Casa do Centro/);
+  assert.match(filtered, /Evolução do imóvel: Casa do Centro/);
+  assert.match(filtered, /Evolução das CPPs: Aliança Centro/);
+  assert.ok(filtered.indexOf('aria-label="Meus imóveis"') < filtered.indexOf('aria-label="Filtrar por imóvel"'));
+  assert.ok(filtered.indexOf('aria-label="Minhas alianças"') < filtered.indexOf('aria-label="Filtrar por aliança"'));
+  assert.match(render({propertyFilter,historyLoading:true}), /aria-label="Filtrar por imóvel"/);
+  assert.match(render({allianceFilter,historyError:"Falha"}), /aria-label="Filtrar por aliança"/);
+  assert.doesNotMatch(render({propertyFilter,allianceFilter,showProperties:false}), /Filtrar por imóvel/);
+  assert.doesNotMatch(render({propertyFilter,allianceFilter,showAlliances:false}), /Filtrar por aliança/);
 });

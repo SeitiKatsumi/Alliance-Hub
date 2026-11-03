@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "id": "2026-11-03-bia-tracking",
+  "title": "Campos por tese em Dados da BIA com persistência e indicadores reais",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-tracking.ts",
+    "shared/bia-card-indicators.ts",
+    "server/bia-tracking.ts"
+  ],
+  "searchTerms": [
+    "BiaTrackingFields",
+    "bia_acompanhamento_versoes",
+    "withBiaTracking",
+    "biaCardIndicators"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-tracking.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "shared/bia-tracking.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "shared/bia-card-indicators.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "client/src/components/bia-tracking-fields.tsx",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "server/bia-tracking.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "server/bia-tracking.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "migrations/20261103_bia_tracking.sql",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Implementação, contrato ou verificação do acompanhamento por tese descrito nas dez áreas; apenas este escopo em arquivos compartilhados, preservando alterações paralelas."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "shared/bia-card-indicators.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "shared/bia-business-type.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "shared/strategic-cells.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "shared/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor/taxonomia/permissão existente revisado: mantém integração e fonte oficial; o novo acompanhamento não substitui outros domínios."
+    },
+    {
+      "path": "server/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Extensão deste trabalho em2026-11-03-bia-auto-indicators: regressão das novas fontes automáticas e remoção de entradas duplicadas. Teste executado em platform:verify714, sem atestar mudanças paralelas."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Extensão deste trabalho em2026-11-03-bia-auto-indicators: regressão das novas fontes automáticas e remoção de entradas duplicadas. Teste executado em platform:verify714, sem atestar mudanças paralelas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação3018, BIA sintética6ae053b2-354d-4b6f-8a01-b767117be914: ocupadas40/disponíveis30 rejeitadas;18/30 salvas e reabertura preserva18. Troca temporada→flipping→valorização→flipping conserva os dados. Salvamento real mostraSalvando e bloqueia repetição. Desktop salvaAcabamento/vendas125005; mobile390×844 salvaConcluída e não extravasa. Lista mostraConcluída/R$125.005,00. Capturas acompanhamento-desktop.png e acompanhamento-mobile.png em Documents/ChatGPT/BUILT/indicadores-bia."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "PUT acompanhamento autoriza configuração:edit antes da leitura e novamente sob lock; revisão/thesis/enum/valores validados. GET lista, detalhe e dashboard hidratam a fonte comum, após escopo autorizado. PGlite/Express exercitam API real."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração aditiva cria bia_acompanhamento_versoes; snapshots de todas as teses com revisão, autor e data. Merge preserva dados não enviados. Directus/legados/backups preservados; sem alteração dos lançamentos. Vendas mantêm os dois campos oficiais da BIA."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Ocupação = ocupadas/disponíveis×100; valorização = (atual/referência−1)×100. Bases zero não geram percentuais. Etapas são seleções, não percentuais de fase. Mês/data exibidos; resultado aceita negativo. Testes cobrem zero, ausência, limite, período e alternância de tese."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Não há consumidor de acompanhamento em notificações/e-mails. Novo endpoint só grava versão PostgreSQL; não importa envio, Asaas ou lembretes. Sem envio real nos testes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional atualizado. MOU, resumo econômico e snapshots assinados não consomem acompanhamento e permanecem intactos. Não representa avaliação patrimonial oficial."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem coleta automática, webhooks ou cron para estes dados manuais. Campos financeiros usam PATCH existente; acompanhamento usa exclusivamente PG. Identidade e acompanhamento não têm transação distribuída: erro parcial preserva tela e permite repetir sem duplicar revisão."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Exige configuração:edit (inclusive empresa); campos de venda exigem capital_analises:edit no PATCH existente. Listas retornam só tese ativa; dados de outras teses no detalhe exigem configuração:view. Não concede papéis ou acesso."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Objetivos antigos ambíguos não são mapeados. Ausência de tabela/valores não vira zero. Mudar tese preserva snapshots e não converte dados financeiros/econômicos. Instalação sem migração recebe503 ao salvar acompanhamento."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:701 testes/0falhas, tipos, contrato, build (.BUILT-tmp/tracking-verify.log).12 testes focados com SQL/Express/PGlite e helper. PostgreSQL real da homologação:13teses salvas/reabertas, mesma saída no detalhe/lista/dashboard,13conjuntos preservados, retry após resposta perdida retorna mesma revisão, conteúdo divergente retorna409. Fixturef2638021-08be-406b-aa1f-f3146c8c1067 códigoM35X6CDHSA; zero lançamentos criados. Encontrada/corrigida dependência indevida da ordem das chavesJSONB, com regressão específica. Produção intocada."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-tracking.test.ts",
+    "shared/bia-card-indicators.test.ts",
+    "server/bia-tracking.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

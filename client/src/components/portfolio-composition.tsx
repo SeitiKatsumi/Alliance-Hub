@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { portfolioComposition, type CompositionProperty, type CompositionSlice } from "@shared/portfolio-composition";
-const colors = ["#22d3ee", "#3b82f6", "#8b5cf6", "#64748b", "#f59e0b", "#10b981", "#ec4899", "#94a3b8"];
+import { DASHBOARD_CHART_COLORS as colors } from "@/lib/dashboard-chart-colors";
 function CompositionChart({ title, slices, total }: { title: string; slices: CompositionSlice[]; total: number }) {
   return <section className="min-w-0 rounded-xl border bg-card p-4" aria-label={title}>
     <h3 className="font-semibold">{title}</h3>

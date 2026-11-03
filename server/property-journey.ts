@@ -1,4 +1,5 @@
 import { propertyThesisCode, propertyThesisGroup } from "../shared/property-thesis";
+import { normalizePropertyCib } from '../shared/property-cib';
 export const ACCOUNT_PURPOSES = ["imoveis", "profissional", "capital"] as const;
 export type AccountPurpose = typeof ACCOUNT_PURPOSES[number];
 
@@ -205,14 +206,18 @@ export function mergePropertyExtraction(
   const draft = { ...currentDraft };
   const conflicts: Record<string, PropertyExtractionConflict> = {};
 
-  for (const [field, extracted] of Object.entries(extractedDraft || {})) {
+  for (const [field, rawExtracted] of Object.entries(extractedDraft || {})) {
+    let extracted=rawExtracted;
+    if(field==='cib') {try{extracted=normalizePropertyCib(extracted);}catch{continue;}}
     if (isEmptyPropertyValue(extracted)) continue;
     const current = draft[field];
     if (isEmptyPropertyValue(current)) {
       draft[field] = extracted;
       continue;
     }
-    if (comparablePropertyValue(current) !== comparablePropertyValue(extracted)) {
+    let comparableCurrent=current;
+    if(field==='cib') {try{comparableCurrent=normalizePropertyCib(current);}catch{/* Keep the declared value for review. */}}
+    if (comparablePropertyValue(comparableCurrent) !== comparablePropertyValue(extracted)) {
       conflicts[field] = { atual: current, extraido: extracted, fonte: source || null };
     }
   }

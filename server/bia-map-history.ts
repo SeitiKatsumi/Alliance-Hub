@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { isBiaPlatformAdminRole } from "../shared/bia-access";
+import { normalizeAccountRole } from "../shared/account-access-profiles";
 
 export type MapHistoryRow = { memberId: string; name: string; value: number; percent: number; group?: string };
 export type MapHistoryActor = { userId?: string | null; memberId?: string | null; name?: string | null };
@@ -63,9 +65,21 @@ export function mapBaseContent(base: any) {
     participantes: base.participantes || [], ...(Number(base.modelo_calculo) === 5 ? { modelo_calculo: 5, estrutura_economica: base.estrutura_economica } : {}) };
 }
 
-export function canCorrectMapBase(bia: any, memberId: unknown): boolean {
+export function isMapCompositionAdmin(role: unknown): boolean {
+  return isBiaPlatformAdminRole(normalizeAccountRole(typeof role === "string" ? role : undefined));
+}
+
+export function canCorrectMapBase(bia: any, memberId: unknown, role?: unknown): boolean {
+  if (isMapCompositionAdmin(role)) return true;
   const id = (v: any) => String(v?.id || v || "");
   return !!memberId && [id(bia.diretor_alianca), id(bia.aliado_built)].includes(String(memberId));
+}
+
+/** Same decision for the editor projection and the locked write, modern or legacy. */
+export function canEditMapComposition(bia: any, memberId: unknown, role: unknown, active: boolean, canConfigure = false): boolean {
+  if (isMapCompositionAdmin(role)) return true;
+  if (bia.situacao === "encerrada") return false;
+  return active ? canCorrectMapBase(bia, memberId, role) : canConfigure;
 }
 
 export function assertMapRevision(current: number, expected: unknown) {
@@ -75,7 +89,7 @@ export function assertMapRevision(current: number, expected: unknown) {
 }
 
 export function canReviewLegacyMapBase(bia: any, memberId: unknown, role: unknown): boolean {
-  return String(role || "").toLowerCase() === "superadmin" || canCorrectMapBase(bia, memberId);
+  return canCorrectMapBase(bia, memberId, role);
 }
 
 export async function appendMapVersion(tx: any, input: {

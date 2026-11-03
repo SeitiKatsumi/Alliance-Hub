@@ -1,4 +1,6 @@
 import { PropertyValuationAreaFields } from "@/components/property-valuation-areas";
+import { PropertyCibField } from '@/components/property-cib-field';
+import { normalizePropertyCib } from '@shared/property-cib';
 import { propertyValuationReadiness, PROPERTY_AREA_FIELDS } from "@shared/property-valuation";
 import { propertyThesisOptions, propertyThesisLabel } from "@shared/property-thesis";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -131,6 +133,7 @@ const FIELD_LABELS: Record<string, string> = {
   banheiros: "Banheiros",
   vagas: "Vagas",
   matricula: "Matrícula",
+  cib: "CIB",
   cartorio: "Cartório",
   descricao: "Descrição",
 };
@@ -401,7 +404,7 @@ export default function CarteiraAssistentePage() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: nextStep, draft, ...(payload || {}) }),
+        body: JSON.stringify({ step: nextStep, draft: {...draft,cib:normalizePropertyCib(draft.cib)}, ...(payload || {}) }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || "Não foi possível salvar a etapa.");
@@ -830,6 +833,7 @@ export default function CarteiraAssistentePage() {
               <div><Label>Cidade</Label><Input className="mt-1" value={draft.cidade || ""} onChange={(event) => setDraft({ ...draft, cidade: event.target.value })} /></div>
               <div><Label>Estado</Label><Input className="mt-1" value={draft.estado || ""} onChange={(event) => setDraft({ ...draft, estado: event.target.value })} /></div>
               <div><Label>País</Label><Input className="mt-1" value={draft.pais || "Brasil"} onChange={(event) => setDraft({ ...draft, pais: event.target.value })} /></div>
+              {path==='imovel'&&<div className="sm:col-span-2"><PropertyCibField value={draft.cib} onChange={cib=>setDraft(current=>({...current,cib}))} disabled={updateMutation.isPending}/></div>}
               {path === "imovel" && <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
                 <div><Label className="text-base">Características para estimativa</Label><p className="mt-1 text-xs text-muted-foreground">Opcionais, mas ajudam a comparar imóveis realmente semelhantes.</p></div>
                 <div className="grid gap-3 sm:grid-cols-3">

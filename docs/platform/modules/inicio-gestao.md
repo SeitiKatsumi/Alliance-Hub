@@ -1,5 +1,13 @@
 # Inicio e Gestao
 
+- 03/11/2026: filtros por imóvel e aliança aparecem dentro dos respectivos blocos da Carteira, acima dos valores e gráficos, também no modo compacto/mobile e durante carregamento/erro. Seleção individual segue o resumo autorizado e o histórico próprio; o gráfico exibe o nome do item. As listas abaixo preservam filtros independentes. A paleta compartilhada dashboard-chart-colors padroniza evolução, composição, distribuições e barras, com legendas correspondentes; nenhum valor financeiro ou vínculo é alterado.
+
+- 03/11/2026: a aba de imóveis dentro da Carteira do Início mostra `Meus Imóveis`, ao lado de `Minhas Alianças`. Alteração localizada de apresentação; mantém value=imoveis, querystring, listas, filtros e permissões existentes.
+
+- 03/11/2026 — Capital Total Alocado usa somente entradas em dinheiro com status `pago`, atribuídas ao membro da sessão nas suas BIAs. Pendentes, agendadas, vencidas, canceladas, status ausente, direitos não caixa, origem agregada, conciliação pendente e parcelas iniciais substituídas não entram. O percentual financeiro da BIA divide os aportes pagos do membro pelos aportes pagos de todos os participantes, sem usar o MAP como substituto. Valores somados em centavos e IDs repetidos não duplicam o total.
+- `shared/dashboard-capital.ts` centraliza a base paga de `/api/dashboard`; consulta oficial inclui `status`, filtra pago e não usa fallback de logs/projeção pública. O mesmo campo alimenta total, barras e distribuições por destinação/tese. Recebimentos do comparativo usam somente saídas pagas destinadas ao membro e não são descontados do aporte bruto. Falha da fonte retorna valores desconhecidos e `financeiro_disponivel=false`; a área financeira mostra erro recuperável, sem um zero presumido.
+- Capital financeiro e CPPs têm bases distintas. Capital Alocado é o nominal financeiro pago; CPPs aportadas são a posição do MAP multiplicada pelo percentual integralizado, podendo incluir direitos/origens aceitas e transferências. O bloco CPPs a aportar continua separado. A correção não altera valores/status oficiais, MAP, CPPs, aceites, histórico, documentos ou permissões. Regressões: shared/dashboard-capital.test.ts e server/dashboard-capital.test.ts.
+
 - 30/10/2026: os três atalhos da aba Gestão permitem quebra de linha em títulos e descrições e encolhimento do conteúdo dentro da grade, mantendo ícones e altura ajustada ao texto. Correção visual nas rotas `/` e `/painel`; destinos e acesso premium preservados.
 
 ## Feedback de salvamento transversal (26/10/2026)

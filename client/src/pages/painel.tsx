@@ -1,3 +1,4 @@
+import { BiaCardIndicators } from "@/components/bia-card-indicators";
 import { biaBusinessTypeLabel, buildBiaThesisAllocation } from "@shared/bia-business-type";
 import { agendaTaskHref, agendaTaskTitle } from "@shared/agenda-action";
 ﻿import { useQuery } from "@tanstack/react-query";
@@ -47,6 +48,7 @@ import {
   type DashboardTab,
 } from "@/lib/dashboard-navigation";
 import { CarteiraDashboardPanel } from "@/pages/carteira";
+import { DASHBOARD_CHART_COLORS as CHART_COLORS } from "@/lib/dashboard-chart-colors";
 import MemberBusinessFeed from "@/components/member-business-feed";
 import {
   Bar,
@@ -212,6 +214,7 @@ interface DashboardOpa {
 }
 
 interface DashboardData {
+  financeiro_disponivel?: boolean;
   bias: DashboardBia[];
   comunidades: DashboardComunidade[];
   opas: DashboardOpa[];
@@ -269,7 +272,6 @@ function normalizeText(value?: string | number | null): string {
     .toLowerCase();
 }
 
-const CHART_COLORS = ["#0B4EA2", "#0B63F6", "#12B981", "#38BDF8", "#22C55E", "#1E40AF", "#64748B"];
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -350,32 +352,12 @@ function groupCurrencyBy<T extends DashboardBia>(items: T[], key: keyof T) {
 
 function DashboardBiaCard({ bia }: { bia: DashboardBia }) {
   const [, navigate] = useLocation();
-  const vgv = n(bia.valor_geral_venda_vgv ?? bia.valor_origem);
-  const valorRealizado = n(bia.valor_realizado_venda);
-  const progresso = vgv > 0
-    ? Math.max(0, Math.min(100, Math.round((valorRealizado / vgv) * 100)))
-    : biaAllowsFinance(bia.situacao) ? 35 : 15;
   const situacaoLabel = biaPhaseLabel(bia.situacao);
   const situacaoClass = bia.situacao === "em_formacao"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-blue-200 bg-blue-50 text-blue-700";
   const imageUrl = versionAssetUrl(bia.imagem_directus_id);
-  const cppCount = [
-    bia.cpp_autor_opa,
-    bia.cpp_aliado_built,
-    bia.cpp_built,
-    bia.cpp_dir_alianca,
-    bia.cpp_dir_tecnico,
-    bia.cpp_dir_obras,
-    bia.cpp_dir_comercial,
-    bia.cpp_dir_capital,
-  ].filter(value => n(value) > 0).length;
-  const nucleosAtivos = [
-    bia.diretor_nucleo_tecnico,
-    bia.diretor_execucao,
-    bia.diretor_comercial,
-    bia.diretor_capital,
-  ].filter(Boolean).length;
+
 
   return (
     <Card
@@ -429,36 +411,7 @@ function DashboardBiaCard({ bia }: { bia: DashboardBia }) {
             </p>
           </div>
 
-          <div className="min-w-0 space-y-2 lg:max-w-[440px] lg:flex-[1.3] xl:max-w-[500px]">
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-                <span>Progresso geral</span>
-                <span className="font-semibold text-foreground">{progresso}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full rounded-full ${bia.situacao === "em_formacao" ? "bg-emerald-500" : "bg-blue-600"}`}
-                  style={{ width: `${progresso}%` }}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-[72px_minmax(130px,1fr)_72px] gap-4">
-              <div>
-                <p className="text-[9px] text-muted-foreground">CPPs distribuídas</p>
-                <p className="text-xs font-semibold text-foreground">{cppCount || "-"}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[9px] text-muted-foreground">VGV</p>
-                <p className="break-words text-xs font-semibold leading-tight text-foreground" data-testid={`dashboard-text-vgv-${bia.id}`}>
-                  {vgv > 0 ? fmt(vgv, bia.moeda || "BRL") : "-"}
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] text-muted-foreground">Núcleos</p>
-                <p className="text-xs font-semibold text-foreground">{nucleosAtivos || "-"}</p>
-              </div>
-            </div>
-          </div>
+          <BiaCardIndicators bia={bia} />
 
           <div className="flex items-center justify-end gap-2 lg:ml-auto lg:w-[220px] lg:shrink-0">
             <Button
@@ -634,8 +587,9 @@ export default function PainelPage() {
     window.history.replaceState(window.history.state, "", dashboardNavigationUrl({ tab: "negocios", carteiraView, businessSection: section }));
   }
 
-  const { data, isLoading } = useQuery<DashboardData>({
+  const { data, isLoading, refetch: refetchDashboard } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
+    refetchOnMount: "always", refetchOnWindowFocus: "always",
   });
 
   const { data: meuConvite } = useQuery<any>({
@@ -1523,7 +1477,7 @@ export default function PainelPage() {
             <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1">
               <TabsTrigger value="imoveis" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-imoveis">
                 <Landmark className="h-4 w-4 text-blue-600" />
-                Imóveis
+                Meus Imóveis
               </TabsTrigger>
               <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-bias">
                 <Briefcase className="h-4 w-4 text-amber-500" />
@@ -1586,7 +1540,8 @@ export default function PainelPage() {
             </Select>
           </div>
 
-          {!isLoading && (
+          {!isLoading && data?.financeiro_disponivel === false && <Card role="alert"><CardContent className="space-y-3 p-4"><p>Não foi possível consultar os aportes e recebimentos pagos.</p><Button type="button" variant="outline" onClick={()=>void refetchDashboard()}>Tentar novamente</Button></CardContent></Card>}
+          {!isLoading && data?.financeiro_disponivel !== false && (
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
               <Card className="border border-border/60 xl:col-span-1">
                 <CardContent className="p-4">
@@ -1597,7 +1552,7 @@ export default function PainelPage() {
                   <p className="mt-5 text-2xl font-bold tabular-nums text-foreground" data-testid="chart-total-investimento">
                     {fmt(totalInvestimentoUsuario)}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">capital alocado nas suas BIAs</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">aportes em dinheiro pagos nas suas BIAs</p>
                   <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-blue-600"
@@ -1623,8 +1578,8 @@ export default function PainelPage() {
                           <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                           <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value) / 1000}k`} />
                           <Tooltip formatter={(value: number) => fmt(Number(value))} />
-                          <Bar dataKey="investimento" name="Alocação" fill="#0B63F6" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="receita" name="Receita" fill="#12B981" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="investimento" name="Alocação" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="receita" name="Receita" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>

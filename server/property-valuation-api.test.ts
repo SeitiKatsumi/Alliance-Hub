@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { transformSync } from "esbuild";
 import { sql } from "drizzle-orm";
 import { BUILT_VALUATION_VERSION, sanitizeValuationAreas, valuationObservationReason } from "../shared/property-valuation";
+import { normalizePropertyCib } from '../shared/property-cib';
 test("relatório autoriza leitura antes de consultar histórico e não expõe atores ou dados privados da entrada", async () => {
   const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
   const a = source.indexOf('  app.get("/api/carteira/imoveis/:id/avaliacao"');
@@ -25,7 +26,7 @@ test("sanitizador usado por criação, edição e assistente mantém medidas dis
   const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
   const a = source.indexOf("  function sanitizeInventarioImovel(");
   const code = source.slice(a, source.indexOf("  function sanitizeInventarioLancamento", a));
-  const run = new Function("sanitizeValuationAreas", "validatePropertyGoal", transformSync(code, { loader: "ts" }).code + ";return sanitizeInventarioImovel;")(sanitizeValuationAreas, (s: string) => s);
+  const run = new Function("sanitizeValuationAreas", "validatePropertyGoal", "normalizePropertyCib", transformSync(code, { loader: "ts" }).code + ";return sanitizeInventarioImovel;")(sanitizeValuationAreas, (s: string) => s, normalizePropertyCib);
   const old = run({ area_m2: 900 }, {}, "a"); assert.equal(old.area_m2, 900); assert.equal(old.area_construida_m2, null);
   const saved = run({ ...old, area_construida_m2: "120,5", area_terreno_m2: 900, area_avaliacao_tipo: "construida", areas_fonte: "Planta" }, {}, "a");
   assert.equal(saved.area_construida_m2, 120.5); assert.equal(saved.area_terreno_m2, 900); assert.equal(saved.area_m2, 900);

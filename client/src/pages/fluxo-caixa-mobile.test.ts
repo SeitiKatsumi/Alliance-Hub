@@ -18,7 +18,7 @@ test("MAP não invalida em loop enquanto fontes estão carregando", () => {
   const effect = source.match(/useEffect\(\(\) => \{ if \(selectedBiaId && \(fluxoUpdatedAt[\s\S]*?\);/);
   assert.ok(effect);
   assert.match(source, /\[fluxoUpdatedAt, transferenciasUpdatedAt, selectedBiaId\]/);
-  let requests = 0;
+  const requests: string[] = [];
   let previous: unknown[] = [];
   const useEffect = (callback: () => void, deps: unknown[]) => {
     if (deps.some((value, i) => value !== previous[i])) callback();
@@ -27,8 +27,10 @@ test("MAP não invalida em loop enquanto fontes estão carregando", () => {
   // Execute the actual effect, including its dependency array.
   const fullEffect = source.slice(effect.index!, source.indexOf("\n", effect.index!));
   const render = new Function("selectedBiaId", "fluxoUpdatedAt", "transferenciasUpdatedAt", "queryClient", "useEffect", fullEffect);
-  for (const [fluxo, transfer] of [[0,0],[0,0],[1,0],[1,0],[1,2],[1,2]]) render("bia", fluxo, transfer, {invalidateQueries: () => requests++}, useEffect);
-  assert.equal(requests, 2);
+  for (const [fluxo, transfer] of [[0,0],[0,0],[1,0],[1,0],[1,2],[1,2]]) render("bia", fluxo, transfer, {invalidateQueries: ({queryKey}:any) => requests.push(queryKey.join('/'))}, useEffect);
+  assert.equal(requests.filter(k=>k==='/api/bias').length, 2);
+  assert.equal(requests.filter(k=>k==='/api/dashboard').length, 2);
+  assert.equal(requests.length, 4); // Two consumers, only when the underlying source revision changes.
 });
 
 test("lançamentos financeiros viram cartões legíveis no celular", () => {

@@ -1,5 +1,10 @@
 # Administracao
 
+## 03/11/2026 — edição administrativa da composição das BIAs
+
+- Superadmin (`admin` canônico, aliases `superadmin`/`master`) pode editar a composição moderna e legada de qualquer BIA autorizada, sem estar na Equipe, em estruturação/captação/ativa/suspensa/encerrada. A projeção canEdit e o salvamento sob lock usam o mesmo helper de domínio em server/bia-map-history.ts. Perfil `manager`, Diretor de Capital e sócios isolados não ganham esse direito; Diretor da Aliança/Aliado mantêm suas permissões anteriores e leitura na encerrada.
+- Pedido contextual à edição da composição: demais módulos e permissões administrativas existentes preservados. A mudança não altera papéis reais, matriz de outra conta, fase da BIA ou movimentos financeiros. Motivo, revisão esperada, validações econômicas, autoria, notificações vigentes e documentos/versões anteriores permanecem. Sem migração ou publicação automática.
+
 ## 02/11/2026 — Consulta e edição dos acessos de uma conta
 
 - Cadastro Geral > Acessos consulta `/api/admin/member-access/:userId`: conta, anuidade/plano ativo, publicação, entrada em ambientes, cargos múltiplos e matriz por BIA. Usa `memberAccessSummary`, `environment-access`, `bia-access` e as tabelas oficiais; não deduz cargo de selo nem confunde publicação com acesso.

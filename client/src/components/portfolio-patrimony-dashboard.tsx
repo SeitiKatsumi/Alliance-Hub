@@ -4,6 +4,24 @@ import { PortfolioValuationBreakdown } from "./portfolio-valuation-breakdown";
 import { Button } from "@/components/ui/button";
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DASHBOARD_CHART_COLORS } from "@/lib/dashboard-chart-colors";
+
+export type PortfolioChartFilter = {
+  value: string;
+  items: { id: string; nome?: string | null }[];
+  onChange: (id: string) => void;
+};
+
+function PortfolioItemFilter({ kind, filter }: { kind: "properties" | "cpps"; filter?: PortfolioChartFilter }) {
+  if (!filter) return null;
+  const label = kind === "properties" ? "Filtrar por imóvel" : "Filtrar por aliança";
+  return <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">{label}
+    <select aria-label={label} className="h-11 w-full min-w-0 rounded-md border bg-background px-3 text-foreground sm:max-w-sm" value={filter.value} onChange={e => filter.onChange(e.target.value)}>
+      <option value="">{kind === "properties" ? "Todos os imóveis" : "Todas as alianças"}</option>
+      {filter.items.map(item => <option key={item.id} value={item.id}>{item.nome || (kind === "properties" ? "Imóvel" : "Aliança")}</option>)}
+    </select>
+  </label>;
+}
 
 const brl = (value: number | null) => value == null ? "Dados insuficientes" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const compactBrl = (value: number | null) => value == null ? "Dados insuficientes" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 2 }).format(value);
@@ -21,8 +39,8 @@ function MetricLine({ label, displayLabel, metric, help, incompleteLabel = "Dado
   </div>;
 }
 
-export function PatrimonyChart({ observations, kind }: { observations: PortfolioObservation[]; kind: "properties" | "cpps" }) {
-  const title = kind === "properties" ? "Evolução dos imóveis próprios" : "Evolução das CPPs";
+export function PatrimonyChart({ observations, kind, itemName }: { observations: PortfolioObservation[]; kind: "properties" | "cpps"; itemName?: string | null }) {
+  const title = kind === "properties" ? (itemName ? "Evolução do imóvel" : "Evolução dos imóveis próprios") : "Evolução das CPPs";
   const values = observations.map(o => ({ day: o.day, base: kind === "properties" ? o.metrics.acquisition : o.metrics.cppContributed || unavailableMetric(o.metrics.cppBase?.total),
     secondary: kind === "properties" ? o.metrics.propertyEstimate : o.metrics.cppRemaining || unavailableMetric(o.metrics.cppBase?.total) }));
   const numbers = values.flatMap(v => [v.base.value, v.secondary.value]).filter((v): v is number => v != null && Number.isFinite(v));
@@ -35,13 +53,14 @@ export function PatrimonyChart({ observations, kind }: { observations: Portfolio
   const date = (day: string) => day.split("-").reverse().join("/");
   const baseLabel = kind === "properties" ? "Aquisição" : "Aportado";
   const secondaryLabel = kind === "properties" ? "Estimativa central" : "A aportar";
-  const colors = ["#60a5fa", "#34d399"] as const;
+  const colors = DASHBOARD_CHART_COLORS;
   return <section className="min-w-0 rounded-xl border bg-card p-4">
     <h3 className="font-semibold">{title}</h3>
+    {itemName && <p className="mt-1 break-words text-sm text-muted-foreground">{itemName}</p>}
     {!values.length ? <p className="mt-5 text-sm text-muted-foreground">Sem observações registradas.</p> : <>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs"><span className="text-foreground"><span style={{color:colors[0]}}>●</span> {baseLabel}</span><span className="text-foreground"><span style={{color:colors[1]}}>●</span> {secondaryLabel}</span></div>
       <div className="mt-3 flex justify-between gap-3 text-xs text-muted-foreground"><span>{brl(high)}</span><span>{values.length === 1 ? "Primeira observação" : `${values.length} observações`}</span></div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 w-full text-border" role="img" aria-label={`${title}. Valores detalhados na tabela abaixo.`}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 w-full text-border" role="img" aria-label={`${title}${itemName ? `: ${itemName}` : ""}. Valores detalhados na tabela abaixo.`}>
         {[0, 0.25, 0.5, 0.75, 1].map(tick => <line key={tick} x1="0" x2={width} y1={y(low + (high - low) * tick)} y2={y(low + (high - low) * tick)} stroke="currentColor" strokeDasharray="3 4" />)}
         {(["base", "secondary"] as const).map((key, k) => <g key={key} stroke={colors[k]} fill={colors[k]}>
           {values.map((value, i) => {
@@ -65,21 +84,27 @@ export function PatrimonyChart({ observations, kind }: { observations: Portfolio
   </section>;
 }
 
-export function PortfolioPatrimonyDashboard({ metrics, observations, historyError, historyLoading, properties = [], showAlliances = true, showProperties = true, showTheses = true, thesisAllocation, onCreateProperty, onViewProperties, onViewAlliances }: {
+export function PortfolioPatrimonyDashboard({ metrics, observations, historyError, historyLoading, properties = [], propertyFilter, allianceFilter, showAlliances = true, showProperties = true, showTheses = true, thesisAllocation, onCreateProperty, onViewProperties, onViewAlliances }: {
   metrics: PortfolioDashboard; observations: PortfolioObservation[]; historyError?: string; historyLoading?: boolean;
   properties?: import("@shared/portfolio-dashboard").PortfolioProperty[];
+  propertyFilter?: PortfolioChartFilter; allianceFilter?: PortfolioChartFilter;
   showAlliances?: boolean; showProperties?: boolean; showTheses?: boolean;
   thesisAllocation?: { name: string; value: number; percent: number }[];
   onCreateProperty?: () => void; onViewProperties?: () => void; onViewAlliances?: () => void;
 }) {
-  const chart = (kind: "properties" | "cpps") => historyError
-    ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{historyError}</p>
-    : historyLoading ? <p role="status" className="rounded-lg border p-4 text-sm text-muted-foreground">Carregando evolução…</p>
-    : <PatrimonyChart observations={observations} kind={kind} />;
+  const chart = (kind: "properties" | "cpps") => {
+    const filter = kind === "properties" ? propertyFilter : allianceFilter;
+    const itemName = filter?.items.find(item => item.id === filter.value)?.nome;
+    return historyError
+      ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{historyError}</p>
+      : historyLoading ? <p role="status" className="rounded-lg border p-4 text-sm text-muted-foreground">Carregando evolução…</p>
+      : <PatrimonyChart observations={observations} kind={kind} itemName={itemName} />;
+  };
   return <div className="space-y-4" data-testid="portfolio-patrimony-dashboard">
     <div className={`grid items-stretch gap-5 ${showAlliances && showProperties ? "lg:grid-cols-2" : ""}`}>
       {showProperties && <section aria-label="Meus imóveis" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card/50 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-xl font-semibold">Meus imóveis</h3>{onCreateProperty && <Button onClick={onCreateProperty}>Cadastrar imóvel</Button>}</div>
+        <PortfolioItemFilter kind="properties" filter={propertyFilter} />
         <div className="grid min-w-0 grid-cols-2 gap-3">
           <MetricLine label="Valor total estimado dos imóveis próprios" displayLabel="Valor estimado" metric={metrics.propertyEstimate} incompleteLabel="Estimativa incompleta" help="Soma das avaliações atuais dos imóveis, proporcional à sua propriedade. Método comparativo BUILT: mesma natureza de área e referências de anúncios em até 10 km. Valores informados e simulações não substituem avaliações ausentes. A faixa de anúncios não é um intervalo estatístico de confiança." />
           <MetricLine label="Valor total de aquisição" displayLabel="Valor de aquisição" metric={metrics.acquisition} help="Somatório dos valores de aquisição dos imóveis de sua propriedade que foram declarados por você no momento do cadastro." />
@@ -91,6 +116,7 @@ export function PortfolioPatrimonyDashboard({ metrics, observations, historyErro
       </section>}
       {showAlliances && <section aria-label="Minhas alianças" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card/50 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-xl font-semibold">{showProperties ? "Minhas alianças" : "Valor total de CPPs em alianças"}</h3>{onViewAlliances && <Button onClick={onViewAlliances}>Ver alianças</Button>}</div>
+        <PortfolioItemFilter kind="cpps" filter={allianceFilter} />
         <div className="grid min-w-0 grid-cols-2 gap-3" aria-label="Valor total de CPPs em alianças">
           <MetricLine label="Aportado" displayLabel="CPPs aportadas" metric={metrics.cppContributed} help="Soma das CPPs de cada aliança multiplicada pelo percentual efetivamente aportado e conciliado nessa aliança." />
           <MetricLine label="A aportar" displayLabel="CPPs a aportar" metric={metrics.cppRemaining} help="Saldo das CPPs ainda não integralizado: valor total das CPPs menos a parcela já aportada." />
@@ -99,7 +125,7 @@ export function PortfolioPatrimonyDashboard({ metrics, observations, historyErro
         {showTheses && <section className="min-w-0 rounded-xl border bg-card p-4"><h3 className="font-semibold">Teses das alianças</h3><p className="mt-1 text-xs text-muted-foreground">Distribuição do valor investido</p>
           {!thesisAllocation?.length ? <p className="py-6 text-sm text-muted-foreground">{thesisAllocation ? "Sem investimentos informados para distribuir." : "Consulte a distribuição na lista de alianças."}</p> : <ul className="mt-5 space-y-4">{thesisAllocation.map(item => <li key={item.name}>
             <div className="mb-2 flex justify-between gap-3 text-sm"><span className="min-w-0 break-words">{item.name}</span><span className="shrink-0 tabular-nums">{item.percent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span></div>
-            <progress className="h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-violet-500 [&::-moz-progress-bar]:bg-violet-500" max={100} value={item.percent} aria-label={item.name} />
+            <progress className="h-2 w-full overflow-hidden rounded-full accent-[var(--series-color)] [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-[var(--series-color)] [&::-moz-progress-bar]:bg-[var(--series-color)]" style={{ "--series-color": DASHBOARD_CHART_COLORS[0] } as import("react").CSSProperties} max={100} value={item.percent} aria-label={item.name} />
             <p className="mt-1 text-xs text-muted-foreground">{brl(item.value)}</p>
           </li>)}</ul>}
         </section>}

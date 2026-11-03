@@ -1,0 +1,31 @@
+{
+  "version":1,
+  "id":"2026-11-03-my-properties-tab",
+  "title":"Aba da Carteira no Início exibe Meus Imóveis",
+  "status":"complete",
+  "kind":"behavior",
+  "sourceOfTruth":["client/src/pages/painel.tsx"],
+  "searchTerms":["tab-carteira-imoveis"],
+  "consumers":[
+    {"path":"client/src/pages/painel.tsx","decision":"updated","reason":"Somente o rótulo da aba indicada muda para Meus Imóveis; edições paralelas do painel preservadas."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Início e /painel usam o mesmo componente, sem mudar rotas."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Bootstrap existente sem alteração."},
+    {"path":"client/src/lib/dashboard-navigation.ts","decision":"preserved","reason":"Value imoveis e parâmetros da URL permanecem iguais; não é renomeação de conceito de domínio."},
+    {"path":"client/src/lib/dashboard-navigation.test.ts","decision":"reviewed","reason":"Testes de navegação existentes usados; sem novo teste espelhando texto de baixo impacto."},
+    {"path":"docs/platform/modules/inicio-gestao.md","decision":"updated","reason":"Documenta a alteração de apresentação localizada solicitada na imagem."}
+  ],
+  "areas":[
+    {"area":"interface","status":"verified","evidence":"Aba autenticada do localhost conferida com Meus Imóveis ao lado de Minhas Alianças. Também visível a390px sem exceder a largura do botão. Aba original do usuário preservada."},
+    {"area":"api","status":"not-applicable","evidence":"Somente conteúdo textual do TabsTrigger; nenhuma requisição ou contrato alterado."},
+    {"area":"dados","status":"not-applicable","evidence":"Nenhum campo, esquema ou registro alterado."},
+    {"area":"calculos-graficos","status":"not-applicable","evidence":"O rótulo não alimenta cálculo, gráfico ou base monetária."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Não é um nome usado por mensagens ou destinatários."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Sem alteração em documento, relatório, PDF ou snapshot; pedido limita-se à aba indicada."},
+    {"area":"integracoes-tarefas","status":"not-applicable","evidence":"Nenhuma integração ou tarefa depende do texto da aba."},
+    {"area":"permissoes","status":"not-applicable","evidence":"Controle de acesso e listas mantêm os mesmos identificadores."},
+    {"area":"legado","status":"verified","evidence":"Preserva value=imoveis, data-testid e URLs anteriores."},
+    {"area":"testes","status":"verified","evidence":"platform:verify com701 testes/0 falhas, tipos/contrato e build aprovados; inclui navegação existente. Conferência visual desktop/mobile autenticada. Nenhum teste novo para esse rótulo de baixo impacto. Log:.BUILT-tmp/my-properties-tab-verify.log."}
+  ],
+  "regressionTests":["client/src/lib/dashboard-navigation.test.ts"],
+  "deprecationRuleIds":[]
+}

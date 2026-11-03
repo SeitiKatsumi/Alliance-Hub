@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
 import { readFileSync } from "node:fs";
 import { calculateInitialMap, calculateMap } from "../shared/member-portfolio";
-import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, mapContentHash, mapRowsFromBase } from "./bia-map-history";
+import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canEditMapComposition, canReviewLegacyMapBase, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 
 const calculation = calculateInitialMap(1500000, [
   { memberId: "a", nome: "João", cargos: ["Diretor", "Guardião"], tipo: "guardiao", indiceContribuicao: 12.5, pesoCapital: 100 },
@@ -24,6 +24,25 @@ test("correções da base exigem papel na BIA e revisão esperada; índices ause
   assert.throws(() => assertMapRevision(2, undefined), /MAP mudou/);
   assertMapRevision(2, 2);
   assert.throws(() => calculateInitialMap(100, [{ ...calculation.participantes[0], indiceContribuicao: null as any }]), /Preencha/);
+});
+
+test("Superadmin canônico e aliases editam composição sem cargo em todas as fases; demais perfis mantêm limites", () => {
+  const bia={diretor_alianca:{id:"d"},aliado_built:"a",situacao:"ativa"};
+  for(const role of ["admin","superadmin","master"]) {
+    assert.equal(canCorrectMapBase(bia,null,role),true);
+    assert.equal(canReviewLegacyMapBase(bia,"unlinked",role),true);
+    for(const situacao of ["em_estruturacao","em_captacao","ativa","suspensa","encerrada"])
+      for(const active of [true,false]) assert.equal(canEditMapComposition({...bia,situacao},null,role,active,false),true);
+  }
+  for(const role of ["user","membro","manager","aliado","diretor_capital","employee",undefined]) {
+    assert.equal(canCorrectMapBase(bia,"unlinked",role),false);
+    assert.equal(canEditMapComposition(bia,"unlinked",role,true,true),false);
+    assert.equal(canEditMapComposition({...bia,situacao:"encerrada"},"d",role,true,true),false);
+  }
+  assert.equal(canEditMapComposition(bia,"d","user",true,false),true);
+  assert.equal(canEditMapComposition(bia,"a","user",true,false),true);
+  assert.equal(canEditMapComposition({...bia,situacao:"em_estruturacao"},"configured","user",false,true),true);
+  assert.equal(canEditMapComposition({...bia,situacao:"em_estruturacao"},"configured","user",false,false),false);
 });
 
 test("aportes pendentes não alteram MAP; transferências incompatíveis recusam em vez de reduzir silenciosamente", () => {

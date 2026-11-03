@@ -1,5 +1,7 @@
 import { PropertyValuationAreaFields } from "@/components/property-valuation-areas";
 import { PropertyValuation } from "@/components/property-valuation";
+import { PropertyCibField } from '@/components/property-cib-field';
+import { normalizePropertyCib } from '@shared/property-cib';
 import type { PropertyValuationAreas } from "@shared/property-valuation";
 import { propertyThesisOptions, propertyThesisLabel } from "@shared/property-thesis";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -130,6 +132,7 @@ interface CarteiraImovel extends PropertyValuationAreas {
   estado?: string;
   pais?: string;
   matricula?: string;
+  cib?: string;
   cartorio?: string;
   foto?: string;
   status?: string;
@@ -435,6 +438,7 @@ const EMPTY_PROPERTY: Omit<CarteiraImovel, "id"> = {
   estado: "",
   pais: "Brasil",
   matricula: "",
+  cib: "",
   cartorio: "",
   foto: "",
   status: "ativo",
@@ -900,6 +904,7 @@ function PropertyFormDialog({
             <Label>Cartório</Label>
             <Input value={form.cartorio || ""} onChange={(event) => setForm({ ...form, cartorio: event.target.value })} />
           </div>
+          <PropertyCibField value={form.cib} onChange={cib=>setForm(current=>({...current,cib}))} disabled={saving}/>
           <div className="space-y-2">
             <Label>Frequência do Pulso</Label>
             <Select value={form.frequencia_pulso} onValueChange={(value: "mensal" | "trimestral" | "desativado") => setForm({ ...form, frequencia_pulso: value })}>
@@ -921,7 +926,7 @@ function PropertyFormDialog({
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700"
             disabled={saving || uploadingPhoto || !form.nome || !form.tipo || Math.abs(mapTotal - 100) >= 0.0001 || (form.socios || []).some((item) => !item.nome || !item.email)}
-            onClick={() => onSave(form)}
+            onClick={() => {try{onSave({...form,cib:normalizePropertyCib(form.cib)});}catch(error:any){toast({title:'Confira o CIB',description:error.message,variant:'destructive'});}}}
            loading={saving || uploadingPhoto}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {initial ? "Salvar alterações" : "Adicionar imóvel"}
@@ -1219,15 +1224,12 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
   if(isLoading)return <div role="status" className="rounded-md border p-4 text-sm text-muted-foreground">Calculando patrimônio…</div>;
   if(isError)return <div role="alert" className="rounded-md border p-4">Não foi possível atualizar o patrimônio. <Button variant="outline" onClick={()=>refetch()}>Tentar novamente</Button></div>;
 
-  const portfolioFilters = <div className="flex flex-wrap gap-3">
-    {!alliancesOnly && <label className="flex min-w-0 flex-col gap-1 text-sm">Imóvel<select aria-label="Filtrar por imóvel" className="h-10 max-w-full rounded-md border bg-background px-3 sm:w-64" value={propertyId} onChange={e => setPropertyFilter(e.target.value)}><option value="">Todos os imóveis</option>{data?.imoveis.map(p => <option key={p.id} value={p.id}>{p.nome || "Imóvel"}</option>)}</select></label>}
-    {showAlliances && <label className="flex min-w-0 flex-col gap-1 text-sm">Aliança<select aria-label="Filtrar por aliança" className="h-10 max-w-full rounded-md border bg-background px-3 sm:w-64" value={allianceId} onChange={e => setAllianceFilter(e.target.value)}><option value="">Todas as alianças</option>{data?.aliancas.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}</select></label>}
-  </div>;
+  const propertyChartFilter = { value: propertyId, items: data?.imoveis || [], onChange: setPropertyFilter };
+  const allianceChartFilter = { value: allianceId, items: data?.aliancas || [], onChange: setAllianceFilter };
   if (alliancesOnly) return <div className="space-y-4" data-testid="alliance-cpp-dashboard">
-    {portfolioFilters}
     <div className="flex justify-end"><Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40" aria-label="Período das CPPs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select></div>
     {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
-    {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics} showProperties={false} showTheses={false}
+    {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics} showProperties={false} showTheses={false} allianceFilter={allianceChartFilter}
       observations={historyQuery.data?.observations || []} historyLoading={historyQuery.isLoading || recordObservation.isPending}
       historyError={historyQuery.isError || recordObservation.isError ? "Não foi possível atualizar o histórico patrimonial." : historyQuery.data?.available === false ? "Histórico aguardando configuração." : undefined} />}
   </div>;
@@ -1251,9 +1253,9 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
       <div className="flex flex-wrap items-center gap-3">
         {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
       </div>
-      {portfolioFilters}
       {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics}
         properties={selectedPortfolio?.imoveis || []} showAlliances={showAlliances} showTheses={!allianceId} thesisAllocation={thesisAllocation}
+        propertyFilter={propertyChartFilter} allianceFilter={showAlliances ? allianceChartFilter : undefined}
         onCreateProperty={() => navigate("/carteira/novo?path=imovel&step=cadastro")}
         onViewProperties={() => document.getElementById("meus-imoveis")?.scrollIntoView({ behavior: "smooth" })}
         onViewAlliances={onViewAlliances || (() => navigate("/?tab=carteira&view=bias"))}
@@ -2156,6 +2158,7 @@ function DetailPage({ id }: { id: string }) {
                   <span>{parseNumber(imovel.area_m2).toLocaleString("pt-BR")} m²</span><span>•</span>
                   <span>Atualizado em {shortDate(imovel.ultima_atualizacao)}</span>
                 </div>
+                {imovel.cib&&<p className="mt-2 break-all text-sm text-muted-foreground">CIB: <span className="font-medium text-foreground">{imovel.cib}</span></p>}
               </div>
               {pulseDue(imovel) && (
                 <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">

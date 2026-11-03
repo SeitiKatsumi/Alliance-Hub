@@ -1,3 +1,6 @@
+import { BiaCardIndicators } from "@/components/bia-card-indicators";
+import { BiaTrackingFields } from '@/components/bia-tracking-fields';
+import { emptyBiaTracking, parseTrackingChanges, type BiaTracking, type BiaThesis } from '@shared/bia-tracking';
 ﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { BiaPartnersStatus } from "@/components/bia-partners-status";
@@ -163,6 +166,7 @@ interface ChamadaAlianca {
 }
 
 interface BiasProjeto {
+  acompanhamento?: BiaTracking;
   id: string;
   codigo_publico?: string | null;
   nome_bia: string;
@@ -408,6 +412,7 @@ function BRLInput({ label, field, form, setForm, testId, required }: {
 
 // ---- Form state type ----
 const EMPTY_FORM = {
+  tracking: {} as BiaTracking['byThesis'],
   nome_bia: "",
   situacao: "em_formacao" as "ativa" | "em_formacao" | BiaPhase,
   bia_publica: false,
@@ -499,6 +504,7 @@ const CHAMADA_SEQUENCE_LABELS: Record<number, string> = {
 
 function biaToForm(b: BiasProjeto): FormState {
   return {
+    tracking: b.acompanhamento?.byThesis || {},
     nome_bia: b.nome_bia || "",
     situacao: b.situacao || "em_formacao",
     bia_publica: b.bia_publica !== false,
@@ -529,8 +535,8 @@ function biaToForm(b: BiasProjeto): FormState {
     perc_dir_obras: b.perc_dir_obras != null ?String(b.perc_dir_obras) : "",
     perc_dir_comercial: b.perc_dir_comercial != null ?String(b.perc_dir_comercial) : "",
     perc_dir_capital: b.perc_dir_capital != null ?String(b.perc_dir_capital) : "",
-    valor_geral_venda_vgv: numToBRLStr(b.valor_geral_venda_vgv),
-    valor_realizado_venda: numToBRLStr(b.valor_realizado_venda),
+    valor_geral_venda_vgv: b.valor_geral_venda_vgv === 0 || b.valor_geral_venda_vgv === '0' ? '0,00' : numToBRLStr(b.valor_geral_venda_vgv),
+    valor_realizado_venda: b.valor_realizado_venda === 0 || b.valor_realizado_venda === '0' ? '0,00' : numToBRLStr(b.valor_realizado_venda),
     comissao_prevista_corretor: b.comissao_prevista_corretor != null ?String(b.comissao_prevista_corretor) : "",
     ir_previsto: b.ir_previsto != null ?String(b.ir_previsto) : "",
     inss_previsto: b.inss_previsto != null ?String(b.inss_previsto) : "",
@@ -1570,9 +1576,6 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
     return map;
   }, [membros]);
 
-  const valorRealizado = n(bia.valor_realizado_venda);
-  const vgv = n(bia.valor_geral_venda_vgv);
-  const progresso = vgv > 0 ? Math.max(0, Math.min(100, Math.round((valorRealizado / vgv) * 100))) : bia.situacao === "ativa" ? 35 : 15;
   const situacaoLabel = biaPhaseLabel(bia.situacao);
   const situacaoClass = bia.situacao === "em_formacao"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -1581,22 +1584,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
   const firstImageOpa = biasOpas.find(o => o.imagem_url || o.imagem_directus_id);
   const biaImageUrl = versionAssetUrl(bia.imagem_url) || versionAssetUrl(bia.imagem_directus_id);
   const imageUrl = biaImageUrl || versionAssetUrl(firstImageOpa?.imagem_url) || versionAssetUrl(firstImageOpa?.imagem_directus_id);
-  const cppCount = [
-    bia.cpp_autor_opa,
-    bia.cpp_aliado_built,
-    bia.cpp_built,
-    bia.cpp_dir_alianca,
-    bia.cpp_dir_tecnico,
-    bia.cpp_dir_obras,
-    bia.cpp_dir_comercial,
-    bia.cpp_dir_capital,
-  ].filter(value => n(value) > 0).length;
-  const nucleosAtivos = [
-    bia.diretor_nucleo_tecnico,
-    bia.diretor_execucao,
-    bia.diretor_comercial,
-    bia.diretor_capital,
-  ].filter(Boolean).length;
+
 
   const dirAlianca = bia.diretor_alianca ?membroMap[bia.diretor_alianca] : null;
   const aliadoBuilt = bia.aliado_built ?membroMap[bia.aliado_built] : null;
@@ -1667,34 +1655,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
             )}
           </div>
 
-          <div className="min-w-0 space-y-2 lg:max-w-[440px] lg:flex-[1.3] xl:max-w-[500px]">
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-                <span>Progresso geral</span>
-                <span className="font-semibold text-foreground">{progresso}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full rounded-full ${bia.situacao === "em_formacao" ? "bg-emerald-500" : "bg-blue-600"}`}
-                  style={{ width: `${progresso}%` }}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-[72px_minmax(130px,1fr)_72px] gap-4">
-              <div>
-                <p className="text-[9px] text-muted-foreground">CPPs distribuídas</p>
-                <p className="text-xs font-semibold text-foreground">{cppCount || biasOpas.length || "-"}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[9px] text-muted-foreground">VGV</p>
-                <p className="break-words text-xs font-semibold leading-tight text-foreground" data-testid={`text-vgv-${bia.id}`}>{vgv > 0 ? formatMoney(vgv, bia.moeda || "BRL") : "-"}</p>
-              </div>
-              <div>
-                <p className="text-[9px] text-muted-foreground">Núcleos</p>
-                <p className="text-xs font-semibold text-foreground">{nucleosAtivos || "-"}</p>
-              </div>
-            </div>
-          </div>
+          <BiaCardIndicators bia={bia} />
 
           <div className="flex items-center justify-end gap-2 lg:ml-auto lg:w-[220px] lg:shrink-0">
             <Button
@@ -1729,6 +1690,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
 const EDIT_TABS = ["geral", "equipe", "map", "juridico", "ativos", "orcamento", "revisao", "ativacao"];
 const EDIT_LABELS = [...BIA_CREATION_STEPS.slice(0,6), "Resumo", "Situação"];
 const IDENTITY_FIELDS = ["business_type_code", "nome_bia", "bia_publica", "destinacao", "selo_certified_alliance", "localizacao", "latitude", "longitude", "objetivo_alianca", "observacoes", "imagem_directus_id", "moeda"] as const;
+const EDIT_DATA_FIELDS = [...IDENTITY_FIELDS, 'tracking'] as const;
 function BiaFormSurface({page,open,onClose,children}:{page:boolean;open:boolean;onClose:()=>void;children:ReactNode}) {
   if(page)return <main className="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-[1500px] min-w-0 flex-col overflow-hidden px-4 pt-6 sm:px-8">{children}</main>;
   return <Sheet open={open} onOpenChange={o=>{if(!o)onClose();}}><SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">{children}</SheetContent></Sheet>;
@@ -1771,6 +1733,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   type InfoComercialForm = typeof EMPTY_INFO;
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const savedTracking = useRef<BiaTracking>(emptyBiaTracking());
   const [infoForm, setInfoForm] = useState<InfoComercialForm>(EMPTY_INFO);
   const [structuredInfo,setStructuredInfo]=useState(false);
   const [activeTab, setActiveTab] = useState<string>(initialSection);
@@ -1958,6 +1921,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   useEffect(() => {
     if (open) {
       setForm(bia ?biaToForm(bia) : EMPTY_FORM);
+      savedTracking.current = bia?.acompanhamento || emptyBiaTracking();
       setMapValorOrigem(0);
       setMapParticipantes([]);
       initializedCreationRoles.current.clear();
@@ -2015,8 +1979,8 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     }
   }, [open, bia?.id]);
 
-  const identityState=JSON.stringify({dados:Object.fromEntries(IDENTITY_FIELDS.map(k=>[k,form[k]])),anexos:existingAnexos.map(a=>a.id)});
-  useEffect(()=>{if(open && bia)setSavedIdentity(JSON.stringify({dados:Object.fromEntries(IDENTITY_FIELDS.map(k=>[k,biaToForm(bia)[k]])),anexos:(bia.Anexos || []).map(a=>a.id)}));},[open,bia?.id]);
+  const identityState=JSON.stringify({dados:Object.fromEntries(EDIT_DATA_FIELDS.map(k=>[k,form[k]])),anexos:existingAnexos.map(a=>a.id)});
+  useEffect(()=>{if(open && bia)setSavedIdentity(JSON.stringify({dados:Object.fromEntries(EDIT_DATA_FIELDS.map(k=>[k,biaToForm(bia)[k]])),anexos:(bia.Anexos || []).map(a=>a.id)}));},[open,bia?.id]);
   const identityDirty=page && !!savedIdentity && (identityState!==savedIdentity || pendingFiles.length>0);
   useUnsavedChanges(identityDirty || (page && uploading));
 
@@ -2348,6 +2312,17 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const trackingChanges = parseTrackingChanges(Object.fromEntries(Object.entries(form.tracking).filter(([code, values]) => JSON.stringify(values) !== JSON.stringify(savedTracking.current.byThesis[code as BiaThesis] || {}))));
+      if (Object.keys(trackingChanges).length && !form.business_type_code) throw new Error('Selecione a tese da BIA antes de salvar o acompanhamento.');
+      const saveTracking = async (response: Response) => {
+        if (!Object.keys(trackingChanges).length || !bia?.id) return response;
+        try {
+          savedTracking.current = await (await apiRequest('PUT', `/api/bias/${bia.id}/acompanhamento`, { revision: savedTracking.current.revision, thesis: form.business_type_code, changes: trackingChanges })).json();
+        } catch (error: any) {
+          throw new Error(`Os dados gerais foram salvos, mas o acompanhamento não: ${error.message}. Os campos continuam nesta tela para conferência.`);
+        }
+        return response;
+      };
       setCppError(null);
       setCppSummary(null);
       if (mapCheckPending || (!page && isEdit && editMapQuery.isError)) throw new Error("Aguarde a conferência do MAP Inicial antes de salvar.");
@@ -2441,10 +2416,10 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       if (isEdit) {
         if(page){
           const identityPayload=Object.fromEntries(IDENTITY_FIELDS.map(k=>[k,payload[k]]));
-          submittedIdentity.current={snapshot:JSON.stringify({dados:Object.fromEntries(IDENTITY_FIELDS.map(k=>[k,form[k]])),anexos:allAnexoIds}),anexos:[...existingAnexos,...newFileIds.map((id,i)=>({id,title:pendingFiles[i]?.name || "Anexo",url:`/api/assets/${id}`}))]};
-          return apiRequest("PATCH", `/api/bias/${bia!.id}`, {...identityPayload,Anexos:allAnexoIds});
+          submittedIdentity.current={snapshot:JSON.stringify({dados:Object.fromEntries(EDIT_DATA_FIELDS.map(k=>[k,form[k]])),anexos:allAnexoIds}),anexos:[...existingAnexos,...newFileIds.map((id,i)=>({id,title:pendingFiles[i]?.name || "Anexo",url:`/api/assets/${id}`}))]};
+          return saveTracking(await apiRequest("PATCH", `/api/bias/${bia!.id}`, {...identityPayload,Anexos:allAnexoIds}));
         }
-        return apiRequest("PATCH", `/api/bias/${bia!.id}`, payload);
+        return saveTracking(await apiRequest("PATCH", `/api/bias/${bia!.id}`, payload));
       } else {
         return apiRequest("POST", "/api/bias", payload);
       }
@@ -2462,6 +2437,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         }).then(response => { commercialInfoFailed = !response.ok; }).catch(() => { commercialInfoFailed = true; });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       if (biaId) queryClient.invalidateQueries({ queryKey: ["/api/bias", biaId] });
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
@@ -2823,6 +2799,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
               <LocationField form={form} setForm={setForm} onPickerOpen={() => setLocationPickerOpen(true)} />
               <div className="min-w-0 sm:col-span-2"><BiaBusinessType value={form.business_type_code} onChange={business_type_code=>setForm({...form,business_type_code})}/></div>
+              {isEdit && <div className="min-w-0 sm:col-span-2"><BiaTrackingFields thesis={form.business_type_code} values={form.tracking[form.business_type_code as BiaThesis] || {}} onChange={values => setForm(current => ({ ...current, tracking: { ...current.tracking, [current.business_type_code]: values } }))} disabled={readOnly || saveMutation.isPending || (page && !hasBiaAccess(access, 'configuracao_bia', 'edit'))} currency={form.moeda} /></div>}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Descrição <span className="text-red-500">*</span></Label>
                 <Textarea
@@ -3392,6 +3369,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
   const biasEndpoint = relatedOnly ? "/api/bias?scope=related" : "/api/bias";
   const { data: biasRaw = [], isLoading: loadingBias, isError: biasLoadError, error: biasLoadErrorInfo } = useQuery<BiasProjeto[]>({
     queryKey: relatedOnly ? ["/api/bias", { scope: "related" }] : ["/api/bias"],
+    refetchOnMount: "always", refetchOnWindowFocus: "always",
     queryFn: async () => (await apiRequest("GET", biasEndpoint)).json(),
   });
 

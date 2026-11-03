@@ -2070,7 +2070,7 @@ export default function FluxoCaixaPage({
     refetchOnMount: "always", refetchOnWindowFocus: "always",
   });
   // Empty render defaults are new arrays each time; invalidate only after a source actually loads.
-  useEffect(() => { if (selectedBiaId && (fluxoUpdatedAt || transferenciasUpdatedAt)) queryClient.invalidateQueries({ queryKey: ["/api/bias", selectedBiaId, "map"] }); }, [fluxoUpdatedAt, transferenciasUpdatedAt, selectedBiaId]);
+  useEffect(() => { if (selectedBiaId && (fluxoUpdatedAt || transferenciasUpdatedAt)) { queryClient.invalidateQueries({ queryKey: ["/api/bias"] }); queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] }); } }, [fluxoUpdatedAt, transferenciasUpdatedAt, selectedBiaId]);
   const favorecidosDaBia = useMemo(() => {
     if (!selectedBia) return [];
     const ids = new Set<string>();

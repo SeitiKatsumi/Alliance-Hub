@@ -1,4 +1,6 @@
+import { withAutomaticBiaIndicators, loadBiaAssetIndicators, BIA_RECEIPTS_QUERY } from './bia-automatic-indicators';
 import {financialImportLabels, financialImportRows} from './financial-import-labels';
+import { registerBiaTrackingRoutes, withBiaTracking } from './bia-tracking';
 import {financialImportPrompt} from './financial-import-prompt';
 import {receiptStageConfig,readStageReceipt,readStageFinancialImport} from './receipt-ai-stage';
 import { memberDisplayName } from "../shared/member-display-name";
@@ -11,7 +13,7 @@ import { categoryText } from "../shared/financial-categories";
 import { registerBiaInviteResend } from "./bia-invite-resend";
 import { registerBiaInviteCancel } from "./bia-invite-cancel";
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO, codigoEticaPorVersao } from "../shared/code-of-ethics";
-import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
+import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, canEditMapComposition, isMapCompositionAdmin, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { MAP_DYNAMIC_FOOTER, BIA_MAP_ECONOMIC_FIELDS } from "@shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContributions, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry, expenseLinks } from "./expense-contributions";
@@ -44,6 +46,8 @@ import type { Response } from "express";
 import { hashInviteToken, storage } from "./storage";
 import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaAprovacoes, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
 import { registerAdminMemberAccess } from './admin-member-access';
+import { DASHBOARD_CAPITAL_QUERY, paidMemberCapital } from '@shared/dashboard-capital';
+import { normalizePropertyCib } from '@shared/property-cib';
 import { registerLiveAccountAccess } from './live-account-access';
 import { memberAccessSummary } from '@shared/member-access-summary';
 import OpenAI from "openai";
@@ -10625,7 +10629,7 @@ export async function registerRoutes(
         ),
         fetchDashboardOpas(),
         directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => []),
-        directusFetch("fluxo_caixa", "fields=id,bia,tipo,valor,favorecido_id").catch(() => []),
+        directusFetchScoped("fluxo_caixa", DASHBOARD_CAPITAL_QUERY).catch(() => null),
       ]);
 
       const userBias = await Promise.all(
@@ -10818,30 +10822,7 @@ export async function registerRoutes(
       };
 
       function n(v: any) { return parseFloat(String(v ?? "")) || 0; }
-      function relId(value: any): string | null {
-        if (!value) return null;
-        if (typeof value === "object") return value.id ? String(value.id) : null;
-        return String(value);
-      }
-
-      const aportesPorBia: Record<string, { total: number; porMembro: Record<string, number> }> = {};
-      const receitasPorBia: Record<string, Record<string, number>> = {};
-      for (const item of fluxoCaixa as any[]) {
-        const tipo = String(item.tipo || "").toLowerCase();
-        const biaId = relId(item.bia);
-        const favorecidoId = relId(item.favorecido_id);
-        const valor = n(item.valor);
-        if (!biaId || !favorecidoId || valor <= 0) continue;
-        if (tipo === "entrada") {
-          if (!aportesPorBia[biaId]) aportesPorBia[biaId] = { total: 0, porMembro: {} };
-          aportesPorBia[biaId].total += valor;
-          aportesPorBia[biaId].porMembro[favorecidoId] = (aportesPorBia[biaId].porMembro[favorecidoId] || 0) + valor;
-        }
-        if (tipo === "saida") {
-          if (!receitasPorBia[biaId]) receitasPorBia[biaId] = {};
-          receitasPorBia[biaId][favorecidoId] = (receitasPorBia[biaId][favorecidoId] || 0) + valor;
-        }
-      }
+      const capitalPorBia = paidMemberCapital(fluxoCaixa || [],membroId,userBiaIds);
 
       const totals = userBias.reduce(
         (acc: any, b: any) => ({
@@ -10862,13 +10843,15 @@ export async function registerRoutes(
         diretor_capital: "Dir. de Capital",
       };
 
-      const biasWithRole = userBias.map((b: any) => {
+      const trackedBias = await hydrateBiaIndicators(req, await withBiaTracking(db, userBias));
+      const biasWithRole = trackedBias.map((b: any) => {
         const papel = BIA_ROLE_FIELDS.find(role => directusRelationId(b[role]) === membroId);
         return { ...b, business_type_code:biaBusinessTypeCode(b) || null, papel_usuario: papel ? biaRoleMap[papel] : "Membro" };
       });
 
       res.json({
-        bias: userBias.map((b: any) => {
+        financeiro_disponivel: fluxoCaixa !== null,
+        bias: trackedBias.map((b: any) => {
           const papel = BIA_ROLE_FIELDS.find((role) => directusRelationId(b[role]) === membroId);
           const papeis: Record<string, string> = {
             aliado_built: "Aliado BUILT",
@@ -10879,16 +10862,13 @@ export async function registerRoutes(
             diretor_comercial: "Dir. Comercial",
             diretor_capital: "Dir. de Capital",
           };
-          const alocacao = aportesPorBia[b.id] || { total: 0, porMembro: {} };
-          const investimentoUsuarioValor = alocacao.porMembro[membroId] || 0;
-          const investimentoUsuarioPercentual = alocacao.total > 0 ? (investimentoUsuarioValor / alocacao.total) * 100 : 0;
-          const receitaUsuarioValor = receitasPorBia[b.id]?.[membroId] || 0;
+          const alocacao = capitalPorBia.get(String(b.id)) || {invested:0,received:0,sharePercent:0};
           return {
             ...b,
             papel_usuario: papel ? papeis[papel] : "Membro",
-            investimento_usuario_valor: investimentoUsuarioValor,
-            investimento_usuario_percentual: investimentoUsuarioPercentual,
-            receita_usuario_valor: receitaUsuarioValor,
+            investimento_usuario_valor: fluxoCaixa === null ? null : alocacao.invested,
+            investimento_usuario_percentual: fluxoCaixa === null ? null : alocacao.sharePercent,
+            receita_usuario_valor: fluxoCaixa === null ? null : alocacao.received,
           };
         }),
         comunidades: userComunidades,
@@ -10903,6 +10883,18 @@ export async function registerRoutes(
     }
   });
 
+  async function hydrateBiaIndicators(req:any, items:any[]) {
+    return withAutomaticBiaIndicators(items, {
+      permissions: async bia => {
+        const access = await resolveBiaAccessForRequest(bia, req);
+        const company = !req.session?.companyEmployeeId || hasCompanyAccess(req.session.companyEmployeePermissions, 'capital', 'view');
+        return {finance:company && hasBiaAccess(access.permissions,'capital_financeiro','view'),assets:company && hasBiaAccess(access.permissions,'capital_analises','view')};
+      },
+      entries: ids => directusFetchScoped('fluxo_caixa', BIA_RECEIPTS_QUERY + '&filter[bia][_in]=' + encodeURIComponent(ids.join(','))),
+      assets: bia => loadBiaAssetIndicators(db,bia,()=>loadBiaLegacySetupData(String(bia.id),bia)),
+    });
+  }
+
   app.get("/api/bias", async (req, res) => {
     try {
       const items = await directusFetch("bias_projetos", "fields=*,Anexos.directus_files_id.*");
@@ -10911,7 +10903,7 @@ export async function registerRoutes(
         ? hasBiaAdminBypass(req) || isUserLinkedToBia(item, (req.session as any)?.membroId)
         : canViewBia(item, req));
       const withCodes = await Promise.all(visible.map((item: any) => ensureBiaPublicCode(item)));
-      res.json(resolveAnexosBia(withCodes));
+      res.json(resolveAnexosBia(await hydrateBiaIndicators(req, await withBiaTracking(db, withCodes))));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -10933,7 +10925,8 @@ export async function registerRoutes(
         FROM bia_map_origem_alocacoes WHERE bia_id = ${String(item.id)} ORDER BY criado_em
       `).catch(() => ({ rows: [] } as any));
       const initialMap = await loadInitialMapSnapshot(String(item.id));
-      res.json({ ...resolveAnexosBia([item])[0], imovel_origem: origin.rows?.[0] || null, map_origem: originMap.rows || [], map_inicial: initialMapSnapshotView(initialMap) });
+      const trackingAccess = await resolveBiaAccessForRequest(item, req);
+      res.json({ ...resolveAnexosBia(await hydrateBiaIndicators(req, await withBiaTracking(db, [item], hasBiaAccess(trackingAccess.permissions, 'configuracao_bia', 'view'))))[0], imovel_origem: origin.rows?.[0] || null, map_origem: originMap.rows || [], map_inicial: initialMapSnapshotView(initialMap) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -10962,8 +10955,8 @@ export async function registerRoutes(
       if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
       if (await loadInitialMapSnapshot(String(bia.id))) return res.status(409).json({ error: "Esta BIA já usa o MAP Inicial atual." });
       const access = await resolveBiaAccessForRequest(bia, req);
-      const canEdit = mapIsActive(bia, null) ? canReviewLegacyMapBase(bia, (req.session as any).membroId, (req.session as any).role)
-        : hasBiaAccess(access.permissions, "configuracao_bia", "edit");
+      const canEdit = canEditMapComposition(bia, (req.session as any).membroId, (req.session as any).role,
+        mapIsActive(bia, null), hasBiaAccess(access.permissions, "configuracao_bia", "edit"));
       const version = (await db.execute(sql`SELECT * FROM bia_map_versoes WHERE bia_id = ${String(bia.id)}
         AND tipo = 'zero' ORDER BY numero DESC LIMIT 1`)).rows[0];
       // A equipe atual é apenas sugestão. Índices/capital históricos não são inferidos.
@@ -10982,7 +10975,7 @@ export async function registerRoutes(
       if (!bia || !canViewBia(bia, req)) return res.status(403).json({ error: "Acesso não autorizado" });
       if (mapIsActive(bia, null)) {
         if (!canReviewLegacyMapBase(bia, (req.session as any).membroId, (req.session as any).role)) return res.status(403).json({ error: "Somente o superadmin, Diretor da Aliança ou Aliado BUILT vinculado pode confirmar a composição." });
-      } else if (!await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
+      } else if (!isMapCompositionAdmin((req.session as any).role) && !await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
       const reason = String(req.body?.motivo || "").trim();
       if (req.body?.confirmarRevisao !== true || !reason) return res.status(400).json({ error: "Revise a composição original, confirme a revisão e informe a fonte dos dados." });
       const calculation = await calculateSubmittedInitialMap(req.body, 3);
@@ -10995,9 +10988,8 @@ export async function registerRoutes(
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"legacy-zero:" + bia.id}))`);
         if (current) throw Object.assign(new Error("Esta BIA já usa o MAP Inicial atual."), { statusCode: 409 });
         const freshBia = await directusFetchOne("bias_projetos", String(bia.id), "fields=*");
-        if(freshBia.situacao === "encerrada")throw Object.assign(new Error("BIA encerrada: composição disponível somente para consulta."),{statusCode:409});
-        if (mapIsActive(freshBia, null) && !canReviewLegacyMapBase(freshBia, (req.session as any).membroId, (req.session as any).role))
-          throw Object.assign(new Error("Confirmação não autorizada."), { statusCode: 403 });
+        if (!canEditMapComposition(freshBia, (req.session as any).membroId, (req.session as any).role, mapIsActive(freshBia, null), true))
+          throw Object.assign(new Error(freshBia.situacao === "encerrada" ? "BIA encerrada: composição disponível somente para consulta." : "Confirmação não autorizada."), { statusCode: freshBia.situacao === "encerrada" ? 409 : 403 });
         const prior: any = (await tx.execute(sql`SELECT * FROM bia_map_versoes WHERE bia_id = ${String(bia.id)}
           AND tipo = 'zero' ORDER BY numero DESC LIMIT 1`)).rows[0];
         if (prior?.hash === mapContentHash(mapBaseContent(base))) return prior;
@@ -11023,7 +11015,7 @@ export async function registerRoutes(
       const active = mapIsActive(bia, snapshot);
       const access = await resolveBiaAccessForRequest(bia, req);
       return res.json({ ...initialMapSnapshotView(snapshot), ativa: active,
-        canEdit: bia.situacao !== "encerrada" && (active ? canCorrectMapBase(bia, (req.session as any).membroId) : hasBiaAccess(access.permissions, "configuracao_bia", "edit")) });
+        canEdit: canEditMapComposition(bia, (req.session as any).membroId, (req.session as any).role, active, hasBiaAccess(access.permissions, "configuracao_bia", "edit")) });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }
@@ -11036,8 +11028,8 @@ export async function registerRoutes(
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
       const baseBefore = await loadInitialMapSnapshot(String(bia.id));
       if (mapIsActive(bia, baseBefore)) {
-        if (!canCorrectMapBase(bia, (req.session as any).membroId)) return res.status(403).json({ error: "Somente o Diretor da Aliança ou o Aliado BUILT desta BIA podem corrigir o MAP Inicial." });
-      } else if (!await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
+        if (!canCorrectMapBase(bia, (req.session as any).membroId, (req.session as any).role)) return res.status(403).json({ error: "Somente o Superadmin, Diretor da Aliança ou Aliado BUILT desta BIA podem corrigir o MAP Inicial." });
+      } else if (!isMapCompositionAdmin((req.session as any).role) && !await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit")) return;
       const calculation = await calculateSubmittedInitialMap(req.body, Number(baseBefore?.modelo_calculo));
       const moeda = String(req.body?.moeda || bia.moeda || "BRL").trim().toUpperCase() || "BRL";
       const saved = await withMapLock(String(bia.id), async (tx, current) => {
@@ -11049,8 +11041,8 @@ export async function registerRoutes(
         assertMapRevision(Number(current.revisao || 0), req.body?.revisaoEsperada);
         const freshBia = await directusFetchOne("bias_projetos", String(bia.id), "fields=*");
         const active = mapIsActive(freshBia, current);
-        if(freshBia.situacao === "encerrada")throw Object.assign(new Error("BIA encerrada: composição disponível somente para consulta."),{statusCode:409});
-        if (active && !canCorrectMapBase(freshBia, (req.session as any).membroId)) throw Object.assign(new Error("Correção não autorizada."), { statusCode: 403 });
+        if (!canEditMapComposition(freshBia, (req.session as any).membroId, (req.session as any).role, active, true))
+          throw Object.assign(new Error(freshBia.situacao === "encerrada" ? "BIA encerrada: composição disponível somente para consulta." : "Correção não autorizada."), { statusCode: freshBia.situacao === "encerrada" ? 409 : 403 });
         const reason = String(req.body?.motivo || "").trim();
         if (active && !reason) throw Object.assign(new Error("Informe o motivo da correção."), { statusCode: 400 });
         await reconcilePendingMapEvents(tx, freshBia, current);
@@ -11604,6 +11596,7 @@ export async function registerRoutes(
     return {...bia,info_comercial:{...(local || {}),...pickFilledBiaInfoComercialFields(rows[0] || {})}};
   }
   registerBiaSetupRoutes(app,{db,ensure:ensureBiaMapInicialSnapshotsTable,access:requireBiaModuleAccess,lock:withMapLock,validateAssets:validateBiaAssetLinks,legacy:loadBiaLegacySetupData});
+  registerBiaTrackingRoutes(app, {db, access: requireBiaModuleAccess});
 
   app.post("/api/bias", createBiaHandler);
 
@@ -15320,6 +15313,7 @@ export async function registerRoutes(
       estado: body.estado || "",
       pais: body.pais || "Brasil",
       matricula: body.matricula || body.numero_matricula || "",
+      cib: normalizePropertyCib(body.cib),
       cartorio: body.cartorio || "",
       foto: body.foto || "",
       status: body.status || "ativo",
@@ -15928,6 +15922,7 @@ export async function registerRoutes(
         ? nextPropertyAssistantStep(current.step)
         : normalizePropertyAssistantStep(req.body?.step ?? current.step);
       const draft = { ...(current.draft || {}), ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}) };
+      if(draft.cib!==undefined) draft.cib=normalizePropertyCib(draft.cib);
       if (req.body?.intencao !== undefined) draft.intencao = req.body.intencao;
       if (draft.intencao !== undefined) draft.intencao = validatePropertyGoal(draft.intencao);
       const suggestions = { ...(current.suggestions || {}), ...(req.body?.suggestions && typeof req.body.suggestions === "object" ? req.body.suggestions : {}) };
@@ -15994,7 +15989,8 @@ export async function registerRoutes(
           role: "user",
           content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados ou estime valor de mercado. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
 Áreas: extraia separadamente privativa, construída, terreno e total SOMENTE quando a natureza estiver explícita no documento. Não copie area_m2 para essas medidas por inferência. area_avaliacao_tipo permanece null para escolha pelo usuário; areas_fonte identifica o trecho/documento de origem, sem afirmar validação profissional.
-{"draft":{"nome":null,"tipo":null,"area_m2":null,"area_privativa_m2":null,"area_construida_m2":null,"area_terreno_m2":null,"area_total_m2":null,"area_avaliacao_tipo":null,"areas_fonte":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
+CIB: extraia somente se estiver explicitamente identificado como CIB ou Cadastro Imobiliário Brasileiro. Retorne como texto, preservando zeros à esquerda. Nunca use matrícula, inscrição municipal, IPTU ou CEP como CIB; sem informação explícita, retorne null.
+{"draft":{"nome":null,"tipo":null,"area_m2":null,"area_privativa_m2":null,"area_construida_m2":null,"area_terreno_m2":null,"area_total_m2":null,"area_avaliacao_tipo":null,"areas_fonte":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cib":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
 
 CONTEÚDO:
 ${inputText.slice(0, 18000)}`,

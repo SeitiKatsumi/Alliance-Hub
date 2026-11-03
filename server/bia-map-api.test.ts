@@ -10,7 +10,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import ts from "typescript";
 import { transformSync } from "esbuild";
 import express from "express";
-import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
+import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canEditMapComposition, isMapCompositionAdmin, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { calculateInitialMap, calculateMap, MAP_DYNAMIC_FOOTER } from "../shared/member-portfolio";
 import { INITIAL_CONTRIBUTIONS_SQL, assertInitialCommitmentsCompatible } from "./initial-contributions";
 import { validateInitialClassifications } from "../shared/initial-contributions";
@@ -41,7 +41,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
   };
   const testDb = {execute:execute(db), transaction:(work:any)=>db.transaction(tx=>work({execute:execute(tx)}))};
   app.use((req: any, _res, next) => {
-    req.session = req.headers["x-member"] ? { directusUserId: "user", membroId: req.headers["x-member"], nome: "Responsável" } : {};
+    req.session = req.headers["x-member"] ? { directusUserId: "user", membroId: req.headers["x-member"], nome: "Responsável", role:req.headers["x-role"] || "user" } : {};
     context.run({ req }, next);
   });
   const input = { valorOrigem: 1000, moeda: "BRL", participantes: [{ memberId: "d", nome: "Diretor", cargos: ["Diretor"], tipo: "guardiao", indiceContribuicao: 0, pesoCapital: 100 }] };
@@ -50,6 +50,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
   const notifications: number[] = [];
   let sourceFails = false;
   let failAfterWrite = false;
+  let revokeInLock = false;
   let entries: any[] = [];
   const transfers: any[] = [];
   await pg.exec(`CREATE TABLE bia_map_inicial_snapshots (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bia_id text UNIQUE, origem_id uuid,
@@ -72,7 +73,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
   visit(parsed);
   const names = ["withMapLock", "mapActor", "mapIsActive", "archiveMapBase", "captureCurrentMap", "reconcilePendingMapEvents", "initialMapHash", "initialMapSnapshotView", "loadInitialMapSnapshot", "createMouAcceptanceWithInitialMap", "hasBiaMouAceito", "ensureMouAceitoOuRetornaPendencia"];
   names.push("calculateSubmittedInitialMap", "buildSimpleTextPdf", "normalizePdfText", "pdfHex", "wrapPdfLine", "splitPdfParagraphs", "emphasizeMouPdfText", "parsePdfInlineRuns", "formatPdfMoney", "formatPdfPercent");
-  const start = source.indexOf('  app.put("/api/bias/:id/map-inicial"');
+  const start = source.indexOf('  app.get("/api/bias/:id/map-inicial"');
   const route = source.slice(start, source.indexOf('  app.get("/api/bias/:id/map"', start));
   const getMap = async (_bia: any, _id: string, options: any) => {
     if (sourceFails) throw new Error("Fonte indisponível");
@@ -81,11 +82,12 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
   const scope: Record<string, any> = {
     syncFormationMapInvites: async () => "ok",
     app, db:testDb, sql, biaAllowsFinance, formatBiaPercent, mapOperationContext: context, ensureBiaMapInicialSnapshotsTable: async () => {},
-    appendMapVersion, assertMapRevision, canCorrectMapBase, mapBaseContent, mapContentHash, mapRowsFromBase,
+    appendMapVersion, assertMapRevision, canCorrectMapBase, canEditMapComposition, isMapCompositionAdmin, mapBaseContent, mapContentHash, mapRowsFromBase,
     createHash, randomUUID, calculateInitialMap, MAP_DYNAMIC_FOOTER, assertInitialCommitmentsCompatible, validateInitialClassifications,
-    directusFetchOne: async (collection: string, id: string) => collection === "fluxo_caixa" ? entries.find(e => e.id === id) : collection === "cadastro_geral" ? {id,nome:"Diretor"} : bia, resolveBiaByIdOrPublicCode: async () => bia,
+    directusFetchOne: async (collection: string, id: string) => {if(revokeInLock && collection==="bias_projetos")context.getStore().req.session.role="user";return collection === "fluxo_caixa" ? entries.find(e => e.id === id) : collection === "cadastro_geral" ? {id,nome:"Diretor"} : bia;}, resolveBiaByIdOrPublicCode: async () => bia,
     directusFetchScoped: async (collection:string) => collection==="Tipos_CPP" ? [{id:"capital",Nome:"CPP Capital"},{id:"lead",Nome:"CPP Liderança"}] : entries, directusRelationId: (v: any) => v?.id || v,
     canViewBia: (_bia: any, req: any) => !!req.session.membroId,
+    resolveBiaAccessForRequest:async()=>({permissions:{}}),hasBiaAccess:()=>false,
     loadMouLogoForPdf: () => null, loadMouAssetPngForPdf: () => null,
     biaFormalParticipantIds: () => ["d"],
     changeEntry: (id: string, data: any) => { entries = entries.filter(e => e.id !== id); if (data) entries.push({id, ...data, bia:"bia"}); if (failAfterWrite) sourceFails = true; return {ok:true}; },
@@ -109,12 +111,17 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>(r => server.once("listening", r));
   const url = `http://127.0.0.1:${(server.address() as any).port}`;
-  const save = (body: any, member = "d") => fetch(`${url}/api/bias/bia/map-inicial`, { method: "PUT", headers: { "content-type": "application/json", ...(member ? { "x-member": member } : {}) }, body: JSON.stringify(body) });
+  const save = (body: any, member = "d", role = "user") => fetch(`${url}/api/bias/bia/map-inicial`, { method: "PUT", headers: { "content-type": "application/json", "x-role":role, ...(member ? { "x-member": member } : {}) }, body: JSON.stringify(body) });
+  const view = (member="unlinked",role="user") => fetch(`${url}/api/bias/bia/map-inicial`,{headers:{"x-member":member,"x-role":role}}).then(r=>r.json());
   const sign = (revision: number, member = "d") => fetch(`${url}/accept`, { method: "POST", headers: { "content-type": "application/json", "x-member": member }, body: JSON.stringify({ map_revisao: revision }) });
   const change = { ...input, participantes: [{ ...input.participantes[0], indiceContribuicao: 10 }], revisaoEsperada: 1, motivo: "Correção conferida" };
   try {
     assert.equal((await save(change, "")).status, 401);
     assert.equal((await save(change, "superadmin")).status, 403);
+    assert.equal((await save({...change,role:"admin",canEdit:true},"unlinked")).status,403,"corpo da requisição não concede privilégio");
+    assert.equal((await view("unlinked","admin")).canEdit,true);
+    assert.equal((await view("unlinked","superadmin")).canEdit,true);
+    assert.equal((await view("unlinked","manager")).canEdit,false);
     assert.equal((await save({ ...change, motivo: "" })).status, 400);
     assert.equal((await save({ ...change, revisaoEsperada: 0 })).status, 409);
     sourceFails = true;
@@ -198,6 +205,33 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
     assert.equal((await sign(6,"m")).status,200);
     assert.equal((await pg.query<any>("SELECT count(*)::int n FROM bia_mou_aceites WHERE membro_id='m' AND map_revisao=6")).rows[0].n,1);
     assert.equal((await fetch(`${url}/activate`,{method:"POST"})).status,200);
+    assert.deepEqual(await pdf(),originalPdf);
+    assert.equal((await pg.query<any>("SELECT count(*)::int n FROM fluxo_caixa")).rows[0].n,0);
+    // Superadmin has no BIA role. Save through the real handler in every phase.
+    for(const [index,phase] of ["em_formacao","em_captacao","ativa","suspensa","encerrada"].entries()) {
+      bia.situacao=phase;
+      if(index===0)await pg.exec("UPDATE bia_map_inicial_snapshots SET ativado_em=NULL");
+      const revision=(await pg.query<any>("SELECT revisao FROM bia_map_inicial_snapshots")).rows[0].revisao;
+      const administrative={...model3,valorOrigem:2400+index*100,participantes:[{...model3.participantes[0],capitalComprometido:2400+index*100}],revisaoEsperada:revision};
+      assert.equal((await view("unlinked","admin")).canEdit,true);
+      const response=await save(administrative,"unlinked","admin");
+      assert.equal(response.status,200,await response.clone().text());
+      assert.equal((await response.json()).revisao,revision+1);
+      assert.equal(bia.situacao,phase,"edição não reabre nem muda fase");
+    }
+    const revision=(await pg.query<any>("SELECT revisao FROM bia_map_inicial_snapshots")).rows[0].revisao;
+    const administrative={...model3,valorOrigem:3000,participantes:[{...model3.participantes[0],capitalComprometido:3000}],revisaoEsperada:revision};
+    assert.equal((await view("d")).canEdit,false,"BIA encerrada continua leitura para o diretor");
+    assert.equal((await save(administrative)).status,409);
+    assert.equal((await save(administrative,"unlinked","manager")).status,403);
+    assert.equal((await save(administrative,"unlinked","diretor_capital")).status,403);
+    assert.equal((await save({...administrative,motivo:""},"unlinked","admin")).status,400);
+    assert.equal((await save({...administrative,revisaoEsperada:0},"unlinked","admin")).status,409);
+    assert.equal((await save({...administrative,valorOrigem:-1},"unlinked","admin")).status,400);
+    revokeInLock=true;
+    assert.equal((await save(administrative,"unlinked","admin")).status,409,"permissão revalidada após espera pelo lock");
+    revokeInLock=false;
+    assert.equal((await pg.query<any>("SELECT revisao FROM bia_map_inicial_snapshots")).rows[0].revisao,revision);
     assert.deepEqual(await pdf(),originalPdf);
     assert.equal((await pg.query<any>("SELECT count(*)::int n FROM fluxo_caixa")).rows[0].n,0);
   } finally { await new Promise<void>(r => server.close(() => r())); await pg.close(); }

@@ -1,0 +1,257 @@
+{
+  "version": 1,
+  "id": "2026-11-03-bia-auto-indicators",
+  "title": "Acompanhamento por tese reutiliza fontes oficiais sem campos duplicados",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-automatic-indicators.ts",
+    "server/bia-automatic-indicators.ts",
+    "shared/bia-tracking.ts"
+  ],
+  "searchTerms": [
+    "manualTrackingFields",
+    "withAutomaticBiaIndicators",
+    "BiaTrackingFields",
+    "indicadores_automaticos"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-automatic-indicators.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/bia-automatic-indicators.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.test.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/bia-automatic-indicators.test.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/bia-tracking.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/bia-tracking.test.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/bia-card-indicators.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "shared/bia-card-indicators.test.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/components/bia-tracking-fields.tsx",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Somente o ajuste de fontes automáticas e campos manuais descrito no contrato; mudanças paralelas preservadas."
+    },
+    {
+      "path": "server/bia-tracking.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "server/bia-tracking.test.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "updated",
+      "reason": "Remove data da estimativa manual; mantém período e valores vindos do helper compartilhado."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/financial-categories.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/bia-business-type.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/strategic-cells.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "migrations/20261103_bia_tracking.sql",
+      "decision": "preserved",
+      "reason": "Fonte/catálogo/consumidor revisado, mantém persistência e autorização existentes. Sem reescrita financeira ou histórica."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa-mobile.test.ts",
+      "decision": "updated",
+      "reason": "Executa o efeito de atualização e verifica invalidação de BIA e dashboard sem loop por render."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do financeiro e do setup; fontes oficiais de Análises/VGV e documentos permanecem, objeto agregado novo é aditivo."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Importa configuração do núcleo de capital; documentos assinados e anexos não consomem os indicadores novos."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Reutiliza FluxoCaixa; atualização de cache também cobre movimentações, sem alterar MAP ou suas regras."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Contém FluxoCaixa; invalidar cartões não altera seções, permissões, saldo bancário nem Análises."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Homologação3018, desktop e390x844: flipping mostra apenas etapa; valorização elimina bloco sem campos manuais. Screenshots automaticos-desktop.png e automaticos-mobile.png em BUILT/indicadores-bia. Sem salvar dados reais."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Hidratação comum após escopo e autorização individual de cada fonte em lista/detalhe/dashboard. Projeção física de recebimentos usa Categoria expandida e status pago."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente leitura de fontes existentes. Snapshots anteriores preservados, nenhum DDL nem exclusão. Não sobrescreve valores oficiais das Análises."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Regressões de recebimentos pagos/centavos/categorias/mês, VGV completo e valorização na mesma base; sem lucro operacional inventado. Detalhes no contrato."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhum consumidor de acompanhamento envia mensagens; só leitura/agregação. Emissão/lembretes financeiros preservados."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional atualizado; documentos assinados/MOU/PDF e colunas financeiras históricas preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Pagamentos via webhook alimentam status oficial existente; nenhum novo envio externo. Atualização dos cards ao consultar/focar e após alterações do financeiro."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Permissões de análise/financeiro e capital da empresa verificadas antes de buscar cada fonte. Teste assegura consulta só dos IDs permitidos e retorno agregado sem dados privados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Campos de acompanhamento automáticos antigos continuam armazenados/validados mas não alimentam indicadores nem aparecem para edição. Sem apagar dados ou adivinhar categorias."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify714testes/0falhas, tipos/contrato/consistência/build. API real isolada:13teses e criar/pagar/editar/reclassificar/excluir entrada sintética; lista/detalhe/dashboard iguais, VGV150000 recebido5; legado999999 preservado. FixtureLL3GNT58YT. Regressão de pool evita dependência de conexão dentro da transação."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-automatic-indicators.test.ts",
+    "server/bia-automatic-indicators.test.ts",
+    "shared/bia-tracking.test.ts",
+    "shared/bia-card-indicators.test.ts",
+    "client/src/pages/fluxo-caixa-mobile.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "bia-tracking-no-financial-inputs"
+  ]
+}

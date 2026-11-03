@@ -2,75 +2,157 @@
   "version": 1,
   "rules": [
     {
+      "id": "bia-card-generic-progress",
+      "description": "Cartões usam indicadores por tese, sem progresso de vendas universal ou percentuais inferidos da fase.",
+      "terms": [
+        "Progresso geral"
+      ],
+      "roots": [
+        "client/src/pages/bias.tsx",
+        "client/src/pages/painel.tsx"
+      ],
+      "regressionTests": [
+        "shared/bia-card-indicators.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
       "id": "mou-notice-clear-action",
       "description": "Aviso acionável deve pedir leitura e aceite, não revisão editorial do documento.",
-      "terms": ["\"Revise o MOU da BIA\"", ">Revisão do MOU<"],
-      "roots": ["server/routes.ts", "client/src/pages/comunidade.tsx"],
-      "regressionTests": ["shared/agenda-action.test.ts", "client/src/pages/mou-navigation.test.ts"],
+      "terms": [
+        "\"Revise o MOU da BIA\"",
+        ">Revisão do MOU<"
+      ],
+      "roots": [
+        "server/routes.ts",
+        "client/src/pages/comunidade.tsx"
+      ],
+      "regressionTests": [
+        "shared/agenda-action.test.ts",
+        "client/src/pages/mou-navigation.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "retire-capital-dm-tab",
       "description": "Edição econômica fica no editor da BIA; Capital não monta a calculadora duplicada.",
-      "terms": ["tab-capital-calculadora", "tab-bia-calculadora", "<BiasCalculadoraPage"],
-      "roots": ["client/src/pages/nucleo-capital.tsx", "client/src/pages/bia-detalhe.tsx"],
-      "regressionTests": ["client/src/pages/dm-map-navigation.test.ts"],
+      "terms": [
+        "tab-capital-calculadora",
+        "tab-bia-calculadora",
+        "<BiasCalculadoraPage"
+      ],
+      "roots": [
+        "client/src/pages/nucleo-capital.tsx",
+        "client/src/pages/bia-detalhe.tsx"
+      ],
+      "regressionTests": [
+        "client/src/pages/dm-map-navigation.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "asaas-exclusive-bia-account",
       "description": "Banco da BIA não aceita dashboard de conta compartilhada; servidor valida vínculo exclusivo antes do provedor.",
-      "terms": ["company_account", "incluindo movimentações de outras BIAs vinculadas"],
-      "roots": ["shared/asaas-dashboard.ts", "server/asaas/dashboard.ts", "client/src/components/asaas-bank-dashboard.tsx"],
-      "regressionTests": ["server/asaas/exclusive-bia.test.ts"],
+      "terms": [
+        "company_account",
+        "incluindo movimentações de outras BIAs vinculadas"
+      ],
+      "roots": [
+        "shared/asaas-dashboard.ts",
+        "server/asaas/dashboard.ts",
+        "client/src/components/asaas-bank-dashboard.tsx"
+      ],
+      "regressionTests": [
+        "server/asaas/exclusive-bia.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "expense-contribution-inherited-payment",
       "description": "Novos aportes vinculados herdam pagamento da saída; não forçar pendente no construtor.",
-      "terms": ["status: \"pendente\", data_vencimento: input.dueDate"],
-      "roots": ["server/expense-contributions.ts"],
-      "regressionTests": ["server/expense-contributions.test.ts"],
+      "terms": [
+        "status: \"pendente\", data_vencimento: input.dueDate"
+      ],
+      "roots": [
+        "server/expense-contributions.ts"
+      ],
+      "regressionTests": [
+        "server/expense-contributions.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "bank-legacy-history-label",
       "description": "Histórico anterior da BIA não deve se confundir com cobranças atuais da conta Asaas.",
-      "terms": ["<CardTitle>Histórico de cobranças</CardTitle>"],
-      "roots": ["client/src/pages/nucleo-capital.tsx"],
-      "regressionTests": ["client/src/components/asaas-bank-dashboard.test.ts"],
+      "terms": [
+        "<CardTitle>Histórico de cobranças</CardTitle>"
+      ],
+      "roots": [
+        "client/src/pages/nucleo-capital.tsx"
+      ],
+      "regressionTests": [
+        "client/src/components/asaas-bank-dashboard.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "onboarding-phone-shared-selector",
       "description": "Telefone do onboarding usa seletor compartilhado de país, mantendo erro acessível.",
-      "terms": ["<Input id=\"onboarding-phone\""],
-      "roots": ["client/src/pages/initial-onboarding.tsx"],
-      "regressionTests": ["client/src/components/phone-input.test.ts"],
+      "terms": [
+        "<Input id=\"onboarding-phone\""
+      ],
+      "roots": [
+        "client/src/pages/initial-onboarding.tsx"
+      ],
+      "regressionTests": [
+        "client/src/components/phone-input.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "expense-pending-helper-copy",
       "description": "Remoção apenas do texto auxiliar de pendência na prévia; status financeiro preservado.",
-      "terms": ["Os aportes serão registrados como pendentes."],
-      "roots": ["client/src/components/expense-contributions.tsx"],
-      "regressionTests": ["client/src/components/expense-contributions.test.ts"],
+      "terms": [
+        "Os aportes serão registrados como pendentes."
+      ],
+      "roots": [
+        "client/src/components/expense-contributions.tsx"
+      ],
+      "regressionTests": [
+        "client/src/components/expense-contributions.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "phone-country-full-name",
       "description": "Seletor telefônico exibe o país por extenso, não a sigla isolada ao lado do DDI.",
-      "terms": ["{item.country} {item.dialCode}"],
-      "roots": ["client/src/components/phone-input.tsx"],
-      "regressionTests": ["client/src/components/phone-input.test.ts"],
+      "terms": [
+        "{item.country} {item.dialCode}"
+      ],
+      "roots": [
+        "client/src/components/phone-input.tsx"
+      ],
+      "regressionTests": [
+        "client/src/components/phone-input.test.ts"
+      ],
       "exceptions": []
     },
     {
       "id": "bia-objective-labels",
       "description": "Objetivo da Aliança foi substituído pela tese canônica; não voltar a exibir o conceito antigo.",
-      "terms": ["Objetivo da Aliança", "Alocação por tipo de negócio"],
-      "roots": ["client/src", "server", "shared"],
-      "regressionTests": ["shared/bia-business-type.test.ts", "client/src/lib/bia-thesis-consumers.test.ts"],
+      "terms": [
+        "Objetivo da Aliança",
+        "Alocação por tipo de negócio"
+      ],
+      "roots": [
+        "client/src",
+        "server",
+        "shared"
+      ],
+      "regressionTests": [
+        "shared/bia-business-type.test.ts",
+        "client/src/lib/bia-thesis-consumers.test.ts"
+      ],
       "exceptions": [
         {
           "file": "shared/public-labels.ts",
@@ -92,20 +174,46 @@
     {
       "id": "bia-thesis-selector",
       "description": "Nomenclatura pública da taxonomia é Tese de interesse em todos os consumidores, inclusive demandas, relatório, erros e PDFs.",
-      "terms": ["Tipo de negócio", "Tipos de negócio"],
-      "roots": ["client/src", "server", "shared"],
-      "regressionTests": ["client/src/pages/bia-creation.test.ts", "client/src/components/bia-review-summary.test.ts", "shared/public-labels.test.ts", "client/src/data/platform-functional-report.test.ts"],
+      "terms": [
+        "Tipo de negócio",
+        "Tipos de negócio"
+      ],
+      "roots": [
+        "client/src",
+        "server",
+        "shared"
+      ],
+      "regressionTests": [
+        "client/src/pages/bia-creation.test.ts",
+        "client/src/components/bia-review-summary.test.ts",
+        "shared/public-labels.test.ts",
+        "client/src/data/platform-functional-report.test.ts"
+      ],
       "exceptions": [
-        {"file": "server/routes.ts", "line": "\"tipo de negocio\": campos.teseInteresse,", "reason": "Placeholder antigo continua resolvendo a tese canônica; novos templates usam Tese de interesse."},
-        {"file": "server/routes.ts", "line": "[/\\bA exploração econômica (?:será destinada ao objetivo da aliança|seguirá o tipo de negócio|seguirá a tese de interesse):/g, (match) => protect(match)],", "reason": "Formatador de documentos históricos preserva os textos já emitidos e assinados."}
+        {
+          "file": "server/routes.ts",
+          "line": "\"tipo de negocio\": campos.teseInteresse,",
+          "reason": "Placeholder antigo continua resolvendo a tese canônica; novos templates usam Tese de interesse."
+        },
+        {
+          "file": "server/routes.ts",
+          "line": "[/\\bA exploração econômica (?:será destinada ao objetivo da aliança|seguirá o tipo de negócio|seguirá a tese de interesse):/g, (match) => protect(match)],",
+          "reason": "Formatador de documentos históricos preserva os textos já emitidos e assinados."
+        }
       ]
     },
     {
       "id": "bia-report-objective-description",
       "description": "Relatório funcional não descreve a visão geral da BIA pelo objetivo retirado.",
-      "terms": ["Objetivo, localização"],
-      "roots": ["client/src/data/platform-functional-report.ts"],
-      "regressionTests": ["client/src/data/platform-functional-report.test.ts"],
+      "terms": [
+        "Objetivo, localização"
+      ],
+      "roots": [
+        "client/src/data/platform-functional-report.ts"
+      ],
+      "regressionTests": [
+        "client/src/data/platform-functional-report.test.ts"
+      ],
       "exceptions": []
     },
     {
@@ -136,6 +244,22 @@
       ],
       "regressionTests": [
         "shared/property-thesis.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "bia-tracking-no-financial-inputs",
+      "description": "Acompanhamento não duplica campos financeiros existentes; somente campos manuais na interface.",
+      "terms": [
+        "saleValues",
+        "onSaleChange",
+        "canEditSales"
+      ],
+      "roots": [
+        "client/src/components/bia-tracking-fields.tsx"
+      ],
+      "regressionTests": [
+        "shared/bia-automatic-indicators.test.ts"
       ],
       "exceptions": []
     }

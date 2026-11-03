@@ -8,7 +8,7 @@ import { sql } from "drizzle-orm";
 import ts from "typescript";
 import { transformSync } from "esbuild";
 import express from "express";
-import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
+import { MAP_HISTORY_SQL, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, canEditMapComposition, isMapCompositionAdmin, mapBaseContent, mapContentHash, mapRowsFromBase } from "./bia-map-history";
 import { calculateInitialMap } from "../shared/member-portfolio";
 import { validateInitialClassifications } from "../shared/initial-contributions";
 
@@ -16,7 +16,7 @@ test("MAP Zero legado: rotas reais, revisão explícita, permissões, idempotên
   const pg = new PGlite();
   const db = drizzle(pg);
   const app = express(); app.use(express.json());
-  app.use((req: any, _res, next) => { req.session = req.headers["x-member"] ? { directusUserId: "user", membroId: req.headers["x-member"], role: req.headers["x-member"] === "root" ? "superadmin" : "admin" } : {}; next(); });
+  app.use((req: any, _res, next) => { req.session = req.headers["x-member"] ? { directusUserId: "user", membroId: req.headers["x-member"], role: req.headers["x-role"] || (req.headers["x-member"] === "root" ? "superadmin" : "user") } : {}; next(); });
   await pg.exec(`CREATE TABLE bia_map_inicial_snapshots (bia_id text PRIMARY KEY);
     CREATE TABLE bia_mou_aceites (bia_id text, membro_id text, mou_versao text, documento text,
       UNIQUE(bia_id,membro_id,mou_versao));
@@ -37,17 +37,18 @@ test("MAP Zero legado: rotas reais, revisão explícita, permissões, idempotên
   }; visit(ast);
   const routes = source.slice(source.indexOf('  app.get("/api/bias/:id/map-zero-legado"'), source.indexOf('  app.get("/api/bias/:id/map-inicial"'));
   assert.ok(routes.length > 0);
-  const scope = { app, db, sql, randomUUID, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, mapBaseContent, mapContentHash, mapRowsFromBase,
+  const scope = { app, db, sql, randomUUID, appendMapVersion, assertMapRevision, canCorrectMapBase, canReviewLegacyMapBase, canEditMapComposition, isMapCompositionAdmin, mapBaseContent, mapContentHash, mapRowsFromBase,
     calculateInitialMap, validateInitialClassifications,
     resolveBiaByIdOrPublicCode: async () => bia, canViewBia: () => true,
     loadInitialMapSnapshot: async () => current,
-    mapIsActive: (b: any) => b.situacao === "ativa",
+    mapIsActive: (b: any) => ["ativa","suspensa","encerrada"].includes(b.situacao),
     resolveBiaAccessForRequest: async () => ({ permissions: {} }), hasBiaAccess: () => false,
     requireBiaModuleAccess: async (_req: any, res: any) => { res.status(403).json({error:"Sem permissão"}); return false; },
     draftMapParticipants: async () => [{ memberId: "d", nome: "Diretor", tipo: "guardiao", cargos: ["Diretor"], indiceContribuicao: null, pesoCapital: null }],
     directusFetchOne: async (collection: string, id: string) => collection === "bias_projetos" ? bia : { id, nome: "Diretor" },
     directusFetchScoped: async (collection: string) => { assert.equal(collection, "Tipos_CPP"); return [{id:"capital",Nome:"Capital"},{id:"origem",Nome:"Origem"}]; },
     getMembroResumo: async () => ({ nome: "Diretor" }),
+    syncFormationMapInvites:async()=>"ok",
     withMapLock: (_id: string, work: any) => db.transaction(tx => work(tx, current)),
     mapActor: () => ({ memberId: "d", name: "Responsável" }),
   };
@@ -56,7 +57,7 @@ test("MAP Zero legado: rotas reais, revisão explícita, permissões, idempotên
   const url = `http://127.0.0.1:${(server.address() as any).port}/api/bias/bia/map-zero-legado`;
   const input = { valorOrigem: 1000, moeda: "BRL", revisaoEsperada: 0, confirmarRevisao: true, motivo: "Conferido no MOU original",
     participantes: [{ memberId:"d", cargos:["Diretor","Guardião"], tipo:"guardiao", indiceContribuicao:0, capitalComprometido:1000, naturezaCapital:"caixa", tipoCppCapital:{id:"capital"} }] };
-  const save = (body = input, member = "d") => fetch(url, {method:"PUT", headers:{"content-type":"application/json",...(member?{"x-member":member}:{})},body:JSON.stringify(body)});
+  const save = (body = input, member = "d", role?:string) => fetch(url, {method:"PUT", headers:{"content-type":"application/json",...(member?{"x-member":member}:{}),...(role?{"x-role":role}:{})},body:JSON.stringify(body)});
   const before = await pg.query("SELECT * FROM bia_mou_aceites");
   try {
     const draft = await (await fetch(url,{headers:{"x-member":"d"}})).json();
@@ -66,6 +67,7 @@ test("MAP Zero legado: rotas reais, revisão explícita, permissões, idempotên
     assert.equal((await save(input,"admin")).status,403);
     assert.equal((await (await fetch(url,{headers:{"x-member":"root"}})).json()).canEdit,true);
     assert.equal((await (await fetch(url,{headers:{"x-member":"admin"}})).json()).canEdit,false);
+    assert.equal((await (await fetch(url,{headers:{"x-member":"unlinked","x-role":"admin"}})).json()).canEdit,true);
     assert.equal((await save({...input,confirmarRevisao:false})).status,400);
     assert.equal((await save({...input,motivo:""})).status,400);
     assert.equal((await save({...input,participantes:[...input.participantes,...input.participantes]})).status,400);
@@ -83,6 +85,20 @@ test("MAP Zero legado: rotas reais, revisão explícita, permissões, idempotên
     assert.equal((await pg.query<any>("SELECT * FROM fluxo_caixa")).rows[0].status,"pago");
     assert.equal((await pg.query<any>("SELECT * FROM transferencias_cotas")).rows[0].status,"aceita");
     assert.equal((await pg.query<any>("SELECT snapshot FROM bia_map_versoes WHERE id=$1",[first.id])).rows[0].snapshot.base.participantes[0].indiceContribuicao,0);
+    bia.situacao="encerrada";
+    assert.equal((await (await fetch(url,{headers:{"x-member":"d"}})).json()).canEdit,false);
+    assert.equal((await save({...changed,revisaoEsperada:2})).status,409);
+    for(const [index,phase] of ["em_formacao","ativa","encerrada"].entries()) {
+      bia.situacao=phase;
+      const edited={...changed,valorOrigem:1100+index*100,participantes:[{...changed.participantes[0],capitalComprometido:1100+index*100}],revisaoEsperada:2+index};
+      const response=await save(edited,"unlinked","admin");
+      assert.equal(response.status,200,await response.clone().text());
+      assert.equal((await response.json()).revisao,3+index);
+      assert.equal(bia.situacao,phase);
+    }
+    assert.deepEqual((await pg.query("SELECT * FROM bia_mou_aceites")).rows,before.rows);
+    assert.equal((await pg.query<any>("SELECT * FROM fluxo_caixa")).rows[0].status,"pago");
+    assert.equal((await pg.query<any>("SELECT * FROM transferencias_cotas")).rows[0].status,"aceita");
     current={id:"new-model"};
     assert.equal((await save()).status,409);
   } finally { await new Promise<void>(resolve=>server.close(()=>resolve())); await pg.close(); }

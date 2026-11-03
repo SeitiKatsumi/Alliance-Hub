@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "id": "2026-11-03-bia-card-indicators",
+  "title": "Cartões de BIA com indicadores por tese e sem progresso genérico",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-card-indicators.ts",
+    "shared/strategic-cells.ts"
+  ],
+  "searchTerms": [
+    "BiaCardIndicators"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-card-indicators.ts",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "shared/bia-card-indicators.test.ts",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Apresentação compartilhada por tese; sem alterações nos valores persistidos ou permissões."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Montagem e consumidores transitivos preservados; editor não usa o novo componente, relatório mantém contrato e apenas descrição atualizada."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consumidores do catálogo funcional e das guardas de depreciação; executados nesta revisão, sem alteração na descoberta ou exigências do gate."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Consumidores do catálogo funcional e das guardas de depreciação; executados nesta revisão, sem alteração na descoberta ou exigências do gate."
+    },
+    {
+      "reason": "Nova regressão dos indicadores ligada ao acompanhamento; o registro2026-11-03-bia-tracking documenta a ampliação da fonte e da persistência.",
+      "path": "shared/bia-tracking.test.ts",
+      "decision": "reviewed"
+    },
+    {
+      "path": "shared/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Extensão deste trabalho em2026-11-03-bia-auto-indicators: regressão das novas fontes automáticas e remoção de entradas duplicadas. Teste executado em platform:verify714, sem atestar mudanças paralelas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real em página sintética das 13 teses: árvore de acessibilidade conferida integralmente; capturas desktop e390x844 mostram rótulos, valores, quebras e ausência de barras. Fluxo não grava dados."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Remove razão realizado/VGV e fallback arbitrário 15/35. Helper cobre 13 teses, distingue zero/ausente, não usa valor de origem como VGV nem deduz ocupação/obra por fase. Teses ambíguas permanecem sem venda inferida."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Mudança limitada aos cartões da lista e Início. Endpoints existentes projetam objetivo_alianca, valor_realizado_venda e valor_geral_venda_vgv. Nenhuma escrita, migração, autorização, evento, integração, tarefa ou PDF alterado; dados legados e editor preservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify: testes de domínio, integração dos dois consumidores, tipos e build. Sem gravação em produção."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-card-indicators.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "bia-card-generic-progress"
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "id": "2026-11-03-bia-organization",
+  "title": "Organograma compacto com equipes reais por contribuição e paleta discreta",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-access.ts",
+    "shared/bia-organization.ts",
+    "shared/contribution-areas.ts"
+  ],
+  "searchTerms": [
+    "BiaOrganizationChart",
+    "biaOrganization",
+    "MembroChip",
+    "getContributionNuclei"
+  ],
+  "consumers": [
+    {
+      "path": "shared/initial-onboarding.ts",
+      "decision": "preserved",
+      "reason": "buildInitialOnboardingProfileFields já normaliza tipos_alianca e deriva nucleos_alianca com getContributionNuclei. Organograma consome esses campos sem modificar o onboarding ou gravar dados."
+    },
+    {
+      "path": "shared/bia-organization.ts",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "shared/bia-organization.test.ts",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "client/src/components/bia-organization-chart.tsx",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "client/src/components/bia-organization-chart.css",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "client/src/components/bia-member-link.test.ts",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "design-qa.md",
+      "decision": "updated",
+      "reason": "Organograma visual da BIA; fonte de cargos e condições preservada, sem gravação ou alteração de permissões."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "preserved",
+      "reason": "Identidade, acesso e contratos existentes preservados; edição de responsabilidades, CPP/DM, documentos e histórico não são substituídos pelo organograma."
+    },
+    {
+      "path": "client/src/components/bia-member-link.tsx",
+      "decision": "preserved",
+      "reason": "Identidade, acesso e contratos existentes preservados; edição de responsabilidades, CPP/DM, documentos e histórico não são substituídos pelo organograma."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "preserved",
+      "reason": "Identidade, acesso e contratos existentes preservados; edição de responsabilidades, CPP/DM, documentos e histórico não são substituídos pelo organograma."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Identidade, acesso e contratos existentes preservados; edição de responsabilidades, CPP/DM, documentos e histórico não são substituídos pelo organograma."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Identidade, acesso e contratos existentes preservados; edição de responsabilidades, CPP/DM, documentos e histórico não são substituídos pelo organograma."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Identidade, acesso e contratos existentes preservados; edição de responsabilidades, CPP/DM, documentos e histórico não são substituídos pelo organograma."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Integração no detalhe da BIA via rotas existentes, sem alteração de shell/autenticação; handoff registra somente esta mudança."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Integração no detalhe da BIA via rotas existentes, sem alteração de shell/autenticação; handoff registra somente esta mudança."
+    },
+    {
+      "path": "shared/contribution-areas.ts",
+      "decision": "preserved",
+      "reason": "Taxonomia oficial reutilizada para agrupar somente participantes da BIA; não atribui cargo ou acesso."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "reviewed",
+      "reason": "GET /api/membros já fornece ramo/segmento e contribuições do perfil; endpoint e exposição preservados."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real renderizado com dados sintéticos em Chromium: larguras 1100/900/760 com quatro colunas e 390/320 com acordeão, sem overflow e teclado funcional. Capturas claras/escuras inspecionadas em output/governance-commit. Captura posterior enviada pelo usuário confirma quatro núcleos na BIA RHCF8KKLKC. Sessão autenticada não automatizada; QA sintético não altera dados."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Somente consumidor de /api/bias/:id e diretório autorizado /api/membros; nenhum endpoint alterado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Nenhuma escrita ou migração: relações oficiais normalizadas por bia-access."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Agrupamento visual por contribuição do perfil cruzado com roster da BIA; nenhum cálculo ou cargo altera. Dois vínculos de condição exibem ambos rótulos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhum disparo/convite introduzido; handlers de convites existentes preservados."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "PDF Organograma usado como referência visual; MOU, documentos assinados e exportações existentes permanecem imutáveis."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem jobs/webhooks/integrações novos; apenas apresentação."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mesma visibilidade de visão geral/governança; links dependem do diretório autorizado. Editores e autorizações backend preservados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Contribuições modernas explícitas (inclusive vazias) prevalecem sobre singular legado. Fallback de núcleo cadastrado somente sem seleção moderna. Profissão não infere vínculo; participantes sem núcleo ficam em Outros participantes."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: 721 testes, 0 falhas, contratos, tipos e build (org-responsive-verify.log). QA responsivo sintético aprovado em cinco larguras, alternância dos núcleos por Enter e clique, nomes longos, ambos vínculos e ausência de erros de página; evidência em design-qa.md."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-organization.test.ts",
+    "client/src/components/bia-member-link.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

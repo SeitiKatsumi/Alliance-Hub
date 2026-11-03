@@ -1,3 +1,4 @@
+import { BiaOrganizationChart } from '@/components/bia-organization-chart';
 import { biaBusinessTypeLabel, opportunityScopeLabel } from "@shared/bia-business-type";
 import { BiaGovernancePanel } from "@/components/bia-setup-panel";
 import { BiaDataDialog } from "@/components/bia-data-dialog";
@@ -669,6 +670,7 @@ export default function BiaDetalhePage() {
     [opasRaw, bia?.id]
   );
 
+
   const equipe = useMemo(() => {
     if (!bia) return [];
     return [
@@ -975,6 +977,7 @@ export default function BiaDetalhePage() {
         <TabsContent value="visao" className="space-y-6">
           <BiaPhaseControls id={bia.id} phase={String(bia.situacao || "ativa")} canEdit={canEditBia}/>
           <TraceabilitySummary objectType="bia" objectId={bia.id} />
+          <BiaOrganizationChart bia={{...bia}} names={membros} members={membrosRaw}/>
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
@@ -987,25 +990,6 @@ export default function BiaDetalhePage() {
               </CardContent>
             </Card>
           )}
-
-          {/* Equipe */}
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <SectionTitle icon={Users}>Governança</SectionTitle>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {equipe.map((e, i) => (
-                  <MembroChip
-                    key={i}
-                    nome={e.id ?membros[e.id] : undefined}
-                    memberId={e.id}
-                    members={membrosRaw}
-                    role={e.role}
-                    icon={e.icon}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* OBAs relacionadas */}
           <Card>
@@ -1166,13 +1150,8 @@ export default function BiaDetalhePage() {
           <>
               {allowedNucleoTabs.some((tab) => tab.value === "diretoria") && (
               <TabsContent value="diretoria" className="space-y-4">
+                <BiaOrganizationChart bia={{...bia}} names={membros} members={membrosRaw}/>
                 <BiaGovernancePanel biaId={bia.id} members={membros}/>
-                <Card>
-                  <CardContent className="pt-5 pb-4">
-                    <SectionTitle icon={Crown}>Governança da Aliança</SectionTitle>
-                    <p className="mb-4 text-sm text-muted-foreground">
-                      Governança, papéis estratégicos e coordenação da BIA.
-                    </p>
                     {canEditBia && <div className="mb-4 flex justify-end">
                       <Button
                         type="button"
@@ -1190,20 +1169,6 @@ export default function BiaDetalhePage() {
                         {gerarMouMutation.isPending ? "Gerando..." : "Gerar MOU Padrão"}
                       </Button>
                     </div>}
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {equipe.map((e, i) => (
-                        <MembroChip
-                          key={i}
-                          nome={e.id ?membros[e.id] : undefined}
-                          memberId={e.id}
-                          members={membrosRaw}
-                          role={e.role}
-                          icon={e.icon}
-                        />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
                 {accessData?.can_manage && <BiaAccessManager biaId={bia.id} data={accessData} />}
               </TabsContent>
               )}

@@ -1,0 +1,82 @@
+.bia-org { container-type:inline-size; padding:24px; --org-line:hsl(var(--muted-foreground)/.4); --org-guardian:#287967; --org-multiplier:#3269a9; }
+.dark .bia-org { --org-guardian:#79baaa; --org-multiplier:#88b2e8; }
+.bia-org-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:28px; }
+.bia-org-header h2 { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:600; }
+.bia-org-header h2 svg { color:hsl(var(--primary)); }
+.bia-org-header p { margin-top:4px; font-size:14px; color:hsl(var(--muted-foreground)); }
+.bia-org-legend,.bia-org-conditions { display:flex; flex-wrap:wrap; gap:6px; }
+.bia-org-badge { display:inline-flex; align-items:center; border:1px solid; border-radius:5px; padding:2px 7px; font-size:11px; line-height:1.4; font-weight:500; }
+.bia-org-guardian { color:var(--org-guardian); border-color:color-mix(in srgb,var(--org-guardian) 40%,transparent); background:color-mix(in srgb,var(--org-guardian) 7%,transparent); }
+.bia-org-multiplier { color:var(--org-multiplier); border-color:color-mix(in srgb,var(--org-multiplier) 40%,transparent); background:color-mix(in srgb,var(--org-multiplier) 7%,transparent); }
+.bia-org-node { position:relative; display:flex; align-items:center; gap:12px; min-width:0; width:100%; border:1px solid hsl(var(--border)); border-left:3px solid hsl(var(--border)); border-radius:10px; background:hsl(var(--background)); padding:14px 12px; }
+.bia-org-node-guardian { border-left-color:var(--org-guardian); }
+.bia-org-node-multiplier:not(.bia-org-node-guardian) { border-left-color:var(--org-multiplier); }
+.bia-org-node-guardian.bia-org-node-multiplier { border-right:3px solid var(--org-multiplier); }
+.bia-org-avatar { display:flex; flex:none; align-items:center; justify-content:center; width:34px; height:34px; border:1px solid hsl(var(--border)); border-radius:50%; background:hsl(var(--muted)); color:hsl(var(--foreground)); font-size:12px; font-weight:600; }
+.bia-org-person { min-width:0; }
+.bia-org-role { font-size:12px; line-height:1.45; color:hsl(var(--muted-foreground)); margin-bottom:4px; }
+.bia-org-name { font-size:14px; line-height:1.45; font-weight:600; overflow-wrap:anywhere; }
+.bia-org-unassigned { color:hsl(var(--muted-foreground)); font-weight:400; }
+.bia-org-conditions:not(:empty) { margin-top:7px; }
+.bia-org-activity { margin-top:3px; font-size:12px; line-height:1.5; color:hsl(var(--muted-foreground)); overflow-wrap:anywhere; }
+.bia-org-leadership { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:16px; position:relative; padding-bottom:36px; }
+.bia-org-director { grid-column:5/span 4; position:relative; display:flex; }
+.bia-org-advisor { grid-column:9/span 4; position:relative; display:flex; }
+.bia-org-advisor::before { content:''; position:absolute; width:16px; border-top:1px dashed var(--org-line); left:-16px; top:50%; }
+.bia-org-director::after { content:''; position:absolute; height:36px; border-left:1px solid var(--org-line); top:100%; left:50%; }
+.bia-org-branches { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; padding:0; list-style:none; position:relative; }
+.bia-org-branches::before { content:''; position:absolute; border-top:1px solid var(--org-line); top:0; left:calc(12.5% - 6px); right:calc(12.5% - 6px); }
+.bia-org-branch { position:relative; padding-top:26px; min-width:0; }
+.bia-org-branch::before { content:''; position:absolute; border-left:1px solid var(--org-line); height:26px; top:0; left:50%; }
+.bia-org-branch>.bia-org-node { min-height:120px; }
+.bia-org-team { list-style:none; padding:0 0 0 20px; margin:0 0 0 12px; }
+.bia-org-team>li { position:relative; padding-top:12px; }
+.bia-org-team>li::before { content:''; position:absolute; left:-20px; top:0; bottom:0; border-left:1px solid var(--org-line); }
+.bia-org-team>li:last-child::before { bottom:calc(50% - 6px); }
+.bia-org-team>li::after { content:''; position:absolute; left:-20px; top:calc(50% + 6px); width:20px; border-top:1px solid var(--org-line); }
+.bia-org-team .bia-org-node { gap:8px; padding:12px 10px; }
+.bia-org-team .bia-org-avatar { width:28px; height:28px; font-size:11px; }
+.bia-org-mobile { display:none; }
+.bia-org summary { display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer; list-style:none; border-radius:8px; }
+.bia-org summary::-webkit-details-marker { display:none; }
+.bia-org summary:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:3px; }
+.bia-org details[open]>summary>svg { transform:rotate(180deg); }
+.bia-org summary>svg { flex:none; color:hsl(var(--muted-foreground)); }
+.bia-org-nucleus { border:1px solid hsl(var(--border)); border-radius:10px; }
+.bia-org-nucleus>summary { min-height:56px; padding:12px 14px; }
+.bia-org-nucleus>summary strong { font-size:14px; font-weight:600; }
+.bia-org-summary-name { display:block; font-size:12px; color:hsl(var(--muted-foreground)); margin-top:3px; overflow-wrap:anywhere; }
+.bia-org-nucleus[open] .bia-org-summary-name { display:none; }
+.bia-org-nucleus-content { padding:0 12px 12px; }
+.bia-org-author { display:flex; align-items:center; flex-wrap:wrap; gap:8px; border-top:1px solid hsl(var(--border)); padding-top:16px; margin-top:24px; font-size:12px; overflow-wrap:anywhere; }
+.bia-org-author>span,.bia-org-author>svg { color:hsl(var(--muted-foreground)); }
+.bia-org-participants { margin-top:16px; padding-top:16px; border-top:1px solid hsl(var(--border)); font-size:13px; }
+.bia-org-participants summary { min-height:44px; }
+.bia-org-participants summary>span { display:flex; align-items:center; gap:8px; }
+.bia-org-participants ul { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:12px; padding:0; list-style:none; }
+.bia-org-participants li { min-width:0; }
+/* Keep the organizational hierarchy visible on laptops, including the sidebar. */
+@container (min-width:700px) and (max-width:999px) {
+  .bia-org-branches { gap:12px; }
+  .bia-org-branches::before { left:calc(12.5% - 4.5px); right:calc(12.5% - 4.5px); }
+  .bia-org-branch .bia-org-node { flex-direction:column; align-items:flex-start; gap:8px; padding:12px 10px; }
+  .bia-org-branch>.bia-org-node { min-height:150px; }
+  .bia-org-team { padding-left:12px; margin-left:6px; }
+  .bia-org-team>li::before,.bia-org-team>li::after { left:-12px; }
+  .bia-org-team>li::after { width:12px; }
+}
+@container (max-width:699px) {
+  .bia-org-branches { display:none; }
+  .bia-org-mobile { display:grid; gap:10px; }
+  .bia-org-leadership { grid-template-columns:1fr 1fr; padding-bottom:20px; gap:16px; }
+  .bia-org-director,.bia-org-advisor { grid-column:auto; }
+  .bia-org-director::after { display:none; }
+}
+@container (max-width:499px) {
+  .bia-org-leadership { grid-template-columns:1fr; gap:10px; }
+  .bia-org-advisor::before { display:none; }
+  .bia-org-header { margin-bottom:20px; }
+  .bia-org-node { padding:12px; }
+  .bia-org-participants ul { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:639px) { .bia-org { padding:16px; } }

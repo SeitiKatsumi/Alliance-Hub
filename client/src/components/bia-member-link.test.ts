@@ -33,7 +33,9 @@ test("não cria link para instituição, função sem identidade, nome vazio ou 
 
 test("Governança e resumo CPP usam o mesmo atalho sem modificar a projeção econômica", () => {
   const page = readFileSync(new URL("../pages/bia-detalhe.tsx", import.meta.url), "utf8");
-  assert.match(page, /memberId=\{e\.id\}/);
+  assert.equal((page.match(/<BiaOrganizationChart /g) || []).length, 2);
+  const chart = readFileSync(new URL("./bia-organization-chart.tsx", import.meta.url), "utf8");
+  assert.match(chart, /memberId=\{p\.id\}/);
   assert.match(page, /memberId=\{nome \? memberId : null\}/);
   assert.equal((page.match(/memberId=\{row\.memberId\}/g) || []).length, 1);
   assert.match(page, /const summary = initialMapEconomicSummary\(snapshot\)/);

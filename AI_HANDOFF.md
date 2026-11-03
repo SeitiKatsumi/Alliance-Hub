@@ -1,5 +1,9 @@
 # AI_HANDOFF.md
 
+## 03/11/2026 — Organograma da governança
+- Visão geral e Governança agora usam o mesmo BiaOrganizationChart, cargos canônicos via shared/bia-organization/bia-access. Diretor acima de4núcleos, aliado lateral como conselheiro, Guardião/Multiplicador somente por condição registrada, autor separado. Áreas do PDF consultáveis; participantes sem vínculo de núcleo ficam em lista própria, sem inferir profissão. Sem novas permissões, escrita, convite, alteração de MOU ou CPP/DM.
+- platform:verify718testes/0falhas; novo build/check após correção CSS, QA real1280/1024/390x844 e teclado, zero erro console. Capturas C:/Users/ESPC/Documents/ChatGPT/BUILT/organograma-bia; design-qa.md passed. Homologação3018 atualizada com dist anterior preservado; túnel local restabelecido. Sem produção/commit/push. Revisão2026-11-03-bia-organization.json; mudanças paralelas preservadas.
+
 
 ## 03/11/2026 — Superadmin edita composição moderna e legada
 
@@ -879,3 +883,18 @@ QA autenticada posterior: usuário entrou novamente. Na BIA868NEL6DXJ, Capital >
 
 ## 02/11/2026 — Descrição/categoria na prévia IA
 Prompt orienta descrição factual e categoria pelo catálogo, com descrição das categorias. Normalização canônica e enriquecimento único de parcelas preservam valores/status/datas. 678 testes, tipos/build e revisão aprovados. Homologação3018 e relay atualizados; teste real sintético retornou descrição e categoria esperadas sem criar lançamento. Nenhum commit/push ou produção nesta tarefa.
+
+## 2026-11-03 — Organograma aplicado à homologação por solicitação do usuário
+- Frontend atualizado em localhost:3018, container isolado built-native-stage-11f7679395c9-app; produção e banco não alterados, sem reinício do servidor.
+- Backup anterior: /srv/built-migration/stage/runtime-6d2f8fb5ddf2/prior-governance-ui-1ad5fc53c96c. Assets antigos preservados; index substituído por último.
+- HTTP 200 e SHA-256 dos arquivos servidos index-CY1snOnE.js e index-BmaTGlpJ.css conferidos com dist/public.
+- Conferência visual continua pendente por indisponibilidade da automação de navegador; esta aplicação não significa aprovação visual. Sem commit/push.
+
+## 2026-11-03 — Responsividade corrigida e aplicada ao localhost:3018
+- Organograma horizontal a partir de 700px úteis, modo compacto até 999px. Resolve acordeão prematuro da captura enviada (~846px úteis). Consumidores: visão geral e governança, via CSS compartilhado; dados e cargos intactos.
+- platform:verify aprovado (721 testes, 0 falhas, tipos e build). platform:review executado: revisão visual ainda pendente e referência shared/initial-onboarding.ts não atestada no registro anterior. Sem commit/publicação.
+- Frontend privado aplicado sem reiniciar servidor; backup /srv/built-migration/stage/runtime-6d2f8fb5ddf2/prior-governance-ui-7c99bf262154. Produção preservada. HTML e hashes de JS/CSS servidos no localhost conferidos.
+- QA visual automática indisponível; navegador retornou browser.user is unavailable. Não declarar conferência visual concluída.
+
+## 2026-11-03 — Preparação do commit do organograma
+QA responsivo concluído com componente real em página sintética Chromium, cinco larguras (320 a 1100), temas claro/escuro, acordeões por teclado e nomes longos, sem overflow ou erros de página. Captura do usuário confirma layout horizontal autenticado. Registro de revisão atualizado com limites explícitos e produtor initial-onboarding preservado. Verificação geral: 721 testes/tipos/build aprovados. Consulta somente leitura na homologação confirmou 16 perfis sem contribuições e um vínculo sem cadastro entre os 17 extras da BIA RHCF8KKLKC; nenhum cadastro foi alterado. Logs e artefatos de teste excluídos do commit.

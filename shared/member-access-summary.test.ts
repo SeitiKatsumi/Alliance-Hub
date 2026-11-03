@@ -27,6 +27,17 @@ test('custom grants preserve role floors and administrator bypass is explicit',(
  assert.equal(admin.alliances[0].permissions.documentos_obra,'edit');
 });
 
+test('relatório de acessos propaga edição financeira dos três cargos com overrides antigos',()=>{
+ for(const field of ['diretor_capital','diretor_alianca','aliado_built']) {
+  const result=memberAccessSummary({...base,biases:[{id:'b',[field]:'m'},{id:'s',socios_guardioes:['m']}],overrides:[{bia_id:'b',permissions:{capital_financeiro:'none'}}]});
+  assert.equal(result.alliances[0].permissions.capital_financeiro,'edit');
+  assert.equal(result.alliances[0].defaults.capital_financeiro,'edit');
+  assert.equal(result.alliances[0].permissions.capital_banco,'view');
+  assert.equal(result.alliances[1].permissions.capital_financeiro,'view');
+  assert.equal(result.admin,false);
+ }
+});
+
 test('membership is independent of administrator and paid subscription',()=>{
  const admin={...base,user:{...base.user,role:'admin'}};
  assert.deepEqual(memberAccessSummary(admin).profiles,[]);

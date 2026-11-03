@@ -13,6 +13,10 @@ export function mouRevisionHref(biaId: string, revision: number) {
   return `/convites-alianca?mou=${encodeURIComponent(biaId)}&revisao=${revision}`;
 }
 
+export function contributionFlowHref(biaId: string, flowId: string) {
+  return `/bias/${encodeURIComponent(biaId)}?tab=capital&capital=financeiro&paymentFlow=${encodeURIComponent(flowId)}`;
+}
+
 export function agendaSourceAction(task: AgendaActionSource): { href: string; label: string } | null {
   if (["concluida", "cancelada"].includes(task.status || "")) return null;
   const biaId = task.contexto_id;
@@ -27,7 +31,7 @@ export function agendaSourceAction(task: AgendaActionSource): { href: string; la
   }
   const financial = `/bias/${encodeURIComponent(biaId)}?tab=capital&capital=financeiro`;
   if (task.contexto_tipo === "aporte_reminder" && task.origem_tarefa_id) {
-    return { href: `${financial}&paymentFlow=${encodeURIComponent(task.origem_tarefa_id)}`, label: "Consultar aporte · Pix e boleto" };
+    return { href: contributionFlowHref(biaId, task.origem_tarefa_id), label: "Consultar aporte · Pix e boleto" };
   }
   if (task.contexto_tipo === "bia_contribution") {
     return { href: `${financial}&financeiro=aportes`, label: "Consultar aporte da BIA" };

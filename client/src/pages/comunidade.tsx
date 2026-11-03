@@ -2,7 +2,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { AGENDA_ALERTS_REFRESH_MS, invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
+import { AGENDA_ALERTS_REFRESH_MS, invalidateAgendaAlertQueries, additionalApprovalAlerts, unresolvedNativeApprovalAlerts, agendaAlertDestination, type AgendaPendingAlert } from "@/lib/agenda-alerts";
+import { AgendaPendingAlerts, NativeApprovalStatus } from "@/components/agenda-pending-alerts";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -1032,11 +1033,22 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   const [locationPermissionHelpOpen, setLocationPermissionHelpOpen] = useState(false);
   const [selectedConvite, setSelectedConvite] = useState<any | null>(null);
 
+  const pendingApprovalAlerts = useQuery<AgendaPendingAlert[]>({
+    queryKey: ["/api/agenda-alertas/alertas"],
+    queryFn: async () => {
+      const response = await fetch("/api/agenda-alertas/alertas?grupo=pendencias", { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error("Não foi possível carregar as pendências.");
+      return response.json();
+    },
+    enabled: !!user && (convitesOnly || activeTab === "convites"),
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS, refetchOnWindowFocus: true, refetchOnMount: "always", staleTime: 0,
+  });
+
   useEffect(() => {
     setActiveTab(convitesOnly ?"convites" : "comunidades");
   }, [convitesOnly]);
 
-  const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
+  const { data: comunidades = [], isLoading, isError: comunidadesError } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades"],
     queryFn: () => fetch("/api/comunidades").then(r => { if (!r.ok) throw new Error("Erro ao buscar comunidades"); return r.json(); }),
     enabled: !isLimitedCoOwner,
@@ -1290,13 +1302,14 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   };
 
   // Fetch convites for relevant communities
-  const { data: convitesPorComunidade } = useQuery<Record<string, any[]>>({
+  const { data: convitesPorComunidade, isLoading: convitesLoading, isError: convitesError } = useQuery<Record<string, any[]>>({
     queryKey: ["/api/convites/aliado", user?.membro_directus_id, isAdmin, isManager, comunidadesParaConvites.map(c => c.id).join(",")],
     queryFn: async () => {
       const result: Record<string, any[]> = {};
       for (const com of comunidadesParaConvites) {
         const r = await fetch(`/api/convites?comunidade_id=${com.id}`);
-        if (r.ok) result[com.id] = await r.json();
+        if (!r.ok) throw new Error("Não foi possível carregar os convites.");
+        result[com.id] = await r.json();
       }
       return result;
     },
@@ -1304,12 +1317,12 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
-  const { data: convitesComoConector = [] } = useQuery<any[]>({
+  const { data: convitesComoConector = [], isLoading: conectorLoading, isError: conectorError } = useQuery<any[]>({
     queryKey: ["/api/convites/conector", user?.membro_directus_id],
     queryFn: async () => {
       if (!user?.membro_directus_id) return [];
       const r = await fetch(`/api/convites?invitador_membro_id=${encodeURIComponent(user.membro_directus_id)}`, { credentials: "include" });
-      if (!r.ok) return [];
+      if (!r.ok) throw new Error("Não foi possível carregar os convites do conector.");
       const data = await r.json();
       return Array.isArray(data) ? data : [];
     },
@@ -1317,11 +1330,11 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
-  const { data: diretorSolicitacoes = [] } = useQuery<DiretorSolicitacao[]>({
+  const { data: diretorSolicitacoes = [], isLoading: diretorLoading, isError: diretorError } = useQuery<DiretorSolicitacao[]>({
     queryKey: ["/api/bia-diretor-solicitacoes/minhas"],
     queryFn: async () => {
       const res = await fetch("/api/bia-diretor-solicitacoes/minhas", { credentials: "include" });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Não foi possível carregar os convites de diretoria.");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
@@ -1329,11 +1342,11 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
-  const { data: socioSolicitacoes = [] } = useQuery<SocioSolicitacao[]>({
+  const { data: socioSolicitacoes = [], isLoading: socioLoading, isError: socioError } = useQuery<SocioSolicitacao[]>({
     queryKey: ["/api/bia-socio-solicitacoes/minhas"],
     queryFn: async () => {
       const res = await fetch("/api/bia-socio-solicitacoes/minhas", { credentials: "include" });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Não foi possível carregar os convites de sócio.");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
@@ -1448,12 +1461,13 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   });
 
   // Query for vitrine/capital candidates from convitesComunidade
-  const { data: vitrineCandidatos = [] } = useQuery<any[]>({
+  const { data: vitrineCandidatos = [], isLoading: vitrineLoading, isError: vitrineError } = useQuery<any[]>({
     queryKey: ["/api/convites/vitrine", isAdmin, isManager, comunidadesParaConvites.map(c => c.id).join(",")],
     queryFn: async () => {
       const results: any[] = [];
       for (const com of comunidadesParaConvites) {
         const r = await fetch(`/api/convites?comunidade_id=${com.id}`);
+        if (!r.ok) throw new Error("Não foi possível carregar as candidaturas.");
         if (r.ok) {
           const data = await r.json();
           results.push(...(data || []).filter((convite: any) => ["vitrine", "capital"].includes(String(convite.tipo || ""))));
@@ -1971,7 +1985,21 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   const aprovacoesImportantes = aprovacoesFiltradas.filter((c: any) => isCommunityApprovalPending(c.status));
   const aprovacoesHistorico = aprovacoesFiltradas.filter((c: any) => !isCommunityApprovalPending(c.status));
   const aprovacoesExibidas = mostrarHistoricoAprovacoes ?aprovacoesHistorico : aprovacoesImportantes;
-  const totalAprovacoesPendentes = mouRevisoesFiltradas.length + aprovacoesImportantes.length + diretorSolicitacoesPendentes.length + socioSolicitacoesPendentes.length;
+  const representedApprovals = [
+    ...convitesUnificados.filter((item: any) => isCommunityApprovalPending(item.status)).map((item: any) => ({source_type:"convite_comunidade",source_id:String(item.id)})),
+    ...mouRevisoes.map(item => ({source_type:"bia_mou_revisao",source_id:`${item.id}:${item.map_revisao}`})),
+    ...(diretorSolicitacoes || []).filter(item => String(item.status || "pendente") === "pendente" && String(item.diretor_membro_id || "") === String(user?.membro_directus_id || "")).map(item => ({source_type:"bia_diretor_solicitacao",source_id:String(item.id)})),
+    ...(socioSolicitacoes || []).filter(item => String(item.status || "pendente") === "pendente" && String(item.socio_membro_id || "") === String(user?.membro_directus_id || "")).map(item => ({source_type:"bia_socio_solicitacao",source_id:String(item.id)})),
+  ];
+  const additionalApprovals = additionalApprovalAlerts(pendingApprovalAlerts.data || [], representedApprovals, aprovacoesSearch);
+  const unresolvedApprovals = unresolvedNativeApprovalAlerts(pendingApprovalAlerts.data || [], representedApprovals, aprovacoesSearch);
+  // Initial requests can arrive in any order. Background polling keeps the native cards mounted.
+  const nativeApprovalLoading = isLoading || convitesLoading || conectorLoading || diretorLoading || socioLoading || vitrineLoading || (!mouRevisoesReady && !mouRevisoesError);
+  const nativeApprovalUnavailable = !nativeApprovalLoading && (comunidadesError || convitesError || conectorError || diretorError || socioError || vitrineError || unresolvedApprovals.length > 0);
+  const retryNativeApprovals = () => {
+    void queryClient.invalidateQueries({ predicate: query => ["/api/comunidades", "/api/convites/aliado", "/api/convites/conector", "/api/convites/vitrine", "/api/bia-diretor-solicitacoes/minhas", "/api/bia-socio-solicitacoes/minhas", "/api/bia-mou/minhas-pendencias", "/api/agenda-alertas/alertas"].includes(String(query.queryKey[0])) });
+  };
+  const totalAprovacoesPendentes = mouRevisoesFiltradas.length + aprovacoesImportantes.length + diretorSolicitacoesPendentes.length + socioSolicitacoesPendentes.length + additionalApprovals.length + unresolvedApprovals.length;
   const opasPublicasFiltradas = (opasNotificacoes || [])
     .filter((opa: any) => {
       const status = String(opa.status || "").toLowerCase();
@@ -2207,7 +2235,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
               </span>
               {!mostrarHistoricoAprovacoes && totalAprovacoesPendentes > 0 && (
                 <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {totalAprovacoesPendentes} item{totalAprovacoesPendentes !== 1 ?"s" : ""}
+                  {totalAprovacoesPendentes} {totalAprovacoesPendentes === 1 ? "item" : "itens"}
                 </span>
               )}
               {mostrarHistoricoAprovacoes && aprovacoesHistorico.length > 0 && (
@@ -2216,7 +2244,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                 </span>
               )}
             </div>
-            {!mouRevisoesError && aprovacoesExibidas.length === 0 && (mostrarHistoricoAprovacoes || (mouRevisoesFiltradas.length === 0 && diretorSolicitacoesPendentes.length === 0 && socioSolicitacoesPendentes.length === 0)) ?(
+            {!mouRevisoesError && aprovacoesExibidas.length === 0 && (mostrarHistoricoAprovacoes || (!nativeApprovalLoading && !nativeApprovalUnavailable && !pendingApprovalAlerts.isLoading && !pendingApprovalAlerts.isError && additionalApprovals.length === 0 && mouRevisoesFiltradas.length === 0 && diretorSolicitacoesPendentes.length === 0 && socioSolicitacoesPendentes.length === 0)) ?(
               <div className="p-8 flex flex-col items-center text-center gap-2">
                 <Ticket className="w-8 h-8 text-brand-gold/30" />
                 <p className="text-slate-500 text-xs font-mono">
@@ -2227,6 +2255,15 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-border">
+                {!mostrarHistoricoAprovacoes && <NativeApprovalStatus loading={nativeApprovalLoading} unavailable={nativeApprovalUnavailable} onRetry={retryNativeApprovals} />}
+                {!mostrarHistoricoAprovacoes && <AgendaPendingAlerts
+                  items={additionalApprovals} loading={pendingApprovalAlerts.isLoading} error={pendingApprovalAlerts.isError} showEmpty={false}
+                  onRetry={() => { void pendingApprovalAlerts.refetch(); }}
+                  onOpen={item => {
+                    setNotificacoesTab("aprovacoes"); setMostrarHistoricoAprovacoes(false);
+                    navigate(agendaAlertDestination(item.href));
+                  }}
+                />}
                 {!mostrarHistoricoAprovacoes && mouRevisoesError && (
                   <p role="alert" className="p-4 text-sm text-red-600 dark:text-red-400">
                     Não foi possível carregar as revisões pendentes do MOU.

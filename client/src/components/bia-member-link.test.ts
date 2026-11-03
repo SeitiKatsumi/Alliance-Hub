@@ -31,11 +31,12 @@ test("não cria link para instituição, função sem identidade, nome vazio ou 
   assert.match(render("member-a", "<script>"), /&lt;script&gt;/);
 });
 
-test("Governança e resumo CPP usam o mesmo atalho sem modificar a projeção econômica", () => {
+test("Governança abre participação e resumo CPP preserva atalho sem modificar projeção econômica", () => {
   const page = readFileSync(new URL("../pages/bia-detalhe.tsx", import.meta.url), "utf8");
   assert.equal((page.match(/<BiaOrganizationChart /g) || []).length, 2);
   const chart = readFileSync(new URL("./bia-organization-chart.tsx", import.meta.url), "utf8");
-  assert.match(chart, /memberId=\{p\.id\}/);
+  assert.match(chart, /setSelectedId\(p\.id\)/);
+  assert.match(chart, /<BiaParticipantDialog/);
   assert.match(page, /memberId=\{nome \? memberId : null\}/);
   assert.equal((page.match(/memberId=\{row\.memberId\}/g) || []).length, 1);
   assert.match(page, /const summary = initialMapEconomicSummary\(snapshot\)/);

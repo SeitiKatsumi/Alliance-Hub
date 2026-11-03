@@ -20,11 +20,44 @@ export interface AgendaPendingAlert {
 }
 
 export function agendaAlertDestination(href: string): string {
-  // These legacy alerts require the existing approval controls, not this index.
-  if (href === "/agenda-alertas?view=alertas" || !href) {
-    return "/agenda-alertas?view=alertas&section=convites";
+  // Both old sections now open the existing unified approvals area.
+  if (!href || href === "/agenda-alertas?view=alertas&section=convites") {
+    return "/agenda-alertas?view=alertas";
   }
   return href;
+}
+
+/** These sources have their own authorized decision controls, never a generic link. */
+export function isNativeApprovalAlert(item: Pick<AgendaPendingAlert, "source_type">): boolean {
+  return ["convite_comunidade", "bia_diretor_solicitacao", "bia_socio_solicitacao", "bia_mou_revisao"].includes(item.source_type);
+}
+
+function unrepresentedApprovalAlerts(
+  items: AgendaPendingAlert[],
+  represented: Array<Pick<AgendaPendingAlert, "source_type" | "source_id">>,
+  search = "",
+): AgendaPendingAlert[] {
+  const key = (item: Pick<AgendaPendingAlert, "source_type" | "source_id">) => JSON.stringify([item.source_type, String(item.source_id)]);
+  const seen = new Set(represented.map(key));
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const query = normalize(search);
+  return items.filter(item => {
+    if (item.group !== "pendencias" || !item.active || !item.action_required || seen.has(key(item))) return false;
+    seen.add(key(item));
+    return !query || normalize([item.title, item.description, item.status, item.category].filter(Boolean).join(" ")).includes(query);
+  });
+}
+
+export function additionalApprovalAlerts(items: AgendaPendingAlert[], represented: Array<Pick<AgendaPendingAlert, "source_type" | "source_id">>, search = "") {
+  return unrepresentedApprovalAlerts(items, represented, search).filter(item => !isNativeApprovalAlert(item));
+}
+
+export function unresolvedNativeApprovalAlerts(items: AgendaPendingAlert[], represented: Array<Pick<AgendaPendingAlert, "source_type" | "source_id">>, search = "") {
+  return unrepresentedApprovalAlerts(items, represented, search).filter(isNativeApprovalAlert);
+}
+
+export function agendaAlertActionLabel(item: Pick<AgendaPendingAlert, "source_type">): string {
+  return item.source_type === "aporte_reminder" ? "Ver lançamento" : "Ver detalhes";
 }
 
 export function normalizeAgendaAlertsView(value: string | null | undefined, canViewAgenda: boolean): AgendaAlertsView {

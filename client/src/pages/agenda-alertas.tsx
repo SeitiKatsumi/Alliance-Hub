@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import AgendaPage from "@/pages/agenda";
 import ConvitesPage from "@/pages/convites";
-import { AgendaPendingAlerts } from "@/components/agenda-pending-alerts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ModuleInfo } from "@/components/module-info";
@@ -25,7 +24,6 @@ import {
   invalidateAgendaAlertQueries,
   normalizeAgendaAlertsView,
   type AgendaAlertsView,
-  type AgendaPendingAlert,
 } from "@/lib/agenda-alerts";
 
 interface AgendaPreviewItem {
@@ -94,21 +92,6 @@ export default function AgendaAlertasPage() {
   const canViewAgenda = hasEmployeeModuleAccess(user, "agenda");
   const requestedView = new URLSearchParams(search).get("view");
   const view = normalizeAgendaAlertsView(requestedView, canViewAgenda);
-  const showInvites = new URLSearchParams(search).get("section") === "convites";
-
-  const pendingAlerts = useQuery<AgendaPendingAlert[]>({
-    queryKey: ["/api/agenda-alertas/alertas"],
-    queryFn: async () => {
-      const response = await fetch("/api/agenda-alertas/alertas?grupo=pendencias", { credentials: "include", cache: "no-store" });
-      if (!response.ok) throw new Error("Não foi possível carregar os alertas.");
-      return response.json();
-    },
-    enabled: view === "alertas",
-    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
-    refetchOnWindowFocus: true,
-    refetchOnMount: "always",
-    staleTime: 0,
-  });
 
   const { data: summary, isLoading } = useQuery<AgendaAlertsSummary>({
     queryKey: ["/api/agenda-alertas/resumo"],
@@ -188,19 +171,7 @@ export default function AgendaAlertasPage() {
       </nav>
 
       {view === "agenda" && canViewAgenda && <AgendaPage embedded />}
-      {view === "alertas" && <div className="space-y-4">
-        <nav className="flex flex-wrap gap-2" aria-label="Tipos de alertas">
-          <Button variant={showInvites ? "outline" : "default"} aria-pressed={!showInvites} onClick={() => navigate("/agenda-alertas?view=alertas")}>Pendências</Button>
-          <Button variant={showInvites ? "default" : "outline"} aria-pressed={showInvites} onClick={() => navigate("/agenda-alertas?view=alertas&section=convites")}>Convites e chamadas</Button>
-        </nav>
-        {showInvites ? <ConvitesPage embedded /> : <AgendaPendingAlerts
-          items={pendingAlerts.data || []}
-          loading={pendingAlerts.isLoading}
-          error={pendingAlerts.isError}
-          onRetry={() => { void pendingAlerts.refetch(); }}
-          onOpen={openAlert}
-        />}
-      </div>}
+      {view === "alertas" && <ConvitesPage embedded />}
 
       {view === "resumo" && (
         <div className="space-y-6">
@@ -220,11 +191,13 @@ export default function AgendaAlertasPage() {
                   <p className="mt-2 text-2xl font-bold text-foreground">{summary?.agenda.overdue_count || 0}</p>
                   <p className="text-xs text-muted-foreground">tarefas que precisam de atenção</p>
                 </div>}
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
-                  <p className="flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4" /> Pendências ativas</p>
-                  <p className="mt-2 text-2xl font-bold text-foreground">{summary?.pending_count || 0}</p>
-                  <p className="text-xs text-muted-foreground">itens que exigem sua ação</p>
-                </div>
+                <button type="button" onClick={() => changeView("alertas")} data-testid="agenda-pending-summary-link"
+                  className="rounded-lg border border-red-200 bg-red-50 p-4 text-left transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring dark:border-red-900 dark:bg-red-950/40 dark:hover:bg-red-950/70">
+                  <span className="flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4" /> Pendências ativas</span>
+                  <span className="mt-2 block text-2xl font-bold text-foreground">{summary?.pending_count || 0}</span>
+                  <span className="block text-xs text-muted-foreground">itens que exigem sua ação</span>
+                  <span className="mt-3 flex items-center gap-1 text-sm font-semibold text-red-700 dark:text-red-300">Ver pendências <ChevronRight className="h-4 w-4" aria-hidden="true" /></span>
+                </button>
               </section>
 
               <div className={`grid min-w-0 grid-cols-1 gap-6 ${canViewAgenda ? "lg:grid-cols-2" : ""}`}>

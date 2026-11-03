@@ -1,0 +1,36 @@
+{
+  "version":1,
+  "id":"2026-11-03-agenda-pending-shortcut",
+  "title":"Abrir a lista completa diretamente do cartão de pendências do Resumo",
+  "status":"complete",
+  "kind":"behavior",
+  "sourceOfTruth":["server/agenda-alerts.ts","client/src/pages/agenda-alertas.tsx"],
+  "searchTerms":["agenda-pending-summary-link"],
+  "consumers":[
+    {"path":"client/src/pages/agenda-alertas.tsx","decision":"updated","reason":"Cartão vermelho vira botão nativo com CTA que abre a lista completa; contador e fontes preservados."},
+    {"path":"client/src/pages/agenda-pending-shortcut.test.ts","decision":"updated","reason":"Executa página/cartão e lista reais: clique abre Pendências, mesma contagem e dois destinos de aporte sem mutação."},
+    {"path":"client/src/components/agenda-pending-alerts.tsx","decision":"preserved","reason":"Lista completa já corrigida em c1282f3, não duplicada; mesma elegibilidade do contador e links específicos."},
+    {"path":"client/src/components/agenda-pending-alerts.test.ts","decision":"preserved","reason":"Protege os tipos contados, mais de cinco itens e distinção de erro/vazio."},
+    {"path":"client/src/lib/agenda-alerts.ts","decision":"preserved","reason":"View e destinos centrais existentes; remove seção anterior ao usar changeView, sem alterar regras de links."},
+    {"path":"client/src/components/app-sidebar.tsx","decision":"preserved","reason":"Badge continua usando a contagem oficial; nenhum novo contador concorrente."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Rota e montagem existentes, sem mudança de sessão ou autorização."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Entrada transitiva do frontend; providers preservados."},
+    {"path":"server/agenda-alerts.ts","decision":"preserved","reason":"Fonte central de elegibilidade/deduplicação/count, usada também pela regressão do cartão."},
+    {"path":"server/routes.ts","decision":"preserved","reason":"Resumo/lista/contador continuam usando listAgendaAlertItems; endpoints e autorização inalterados."},
+    {"path":"client/src/data/platform-functional-report.ts","decision":"preserved","reason":"Catálogo já descreve central/resumo e lista de pendências; sem nova capacidade de domínio ou nova fonte."}
+  ],
+  "areas":[
+    {"area":"interface","status":"verified","evidence":"QA com página real e dados fictícios: Enter no cartão e toque mobile390x844 abrem view=alertas com2itens para count2, títulos/descrições e Ver detalhes; conteúdo390 sem overflow. Capturas output/agenda-pendencias-resumo-mobile.jpg e agenda-pendencias-lista-mobile.jpg/desktop.jpg. Conta real não conferida: localhost redirecionou para login; nenhuma sessão de Rodrigo simulada."},
+    {"area":"api","status":"verified","evidence":"Nenhum endpoint ou contrato novo; lista completa existente em GET alertas?grupo=pendencias, resumo/contador preservados."},
+    {"area":"dados","status":"not-applicable","evidence":"Sem escrita, campo, tabela ou migração; dado continua na origem autorizada."},
+    {"area":"calculos-graficos","status":"verified","evidence":"Total central preservado; regressão confronta o mesmo count com os itens efetivamente apresentados."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Navegação não cria/envia, resolve nem marca o lembrete como lido/concluído."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Cartão não emite documento nem altera texto/cálculo do catálogo ou evidências assinadas."},
+    {"area":"integracoes-tarefas","status":"verified","evidence":"Destinos existentes por tarefa/BIA/imóvel preservados; abrir só navega, sem acionar pagamento/aceite/worker."},
+    {"area":"permissoes","status":"verified","evidence":"Mesma sessão e escopo da lista/resumo; endpoints de destino continuam exigindo autorização, sem impersonação."},
+    {"area":"legado","status":"verified","evidence":"Section convites continua disponível na sua aba; cartão/teclado sempre abre a seção Pendências, evitando herança da seção antiga."},
+    {"area":"testes","status":"verified","evidence":"13 testes focados aprovados em .BUILT-tmp/agenda-pending-shortcut-tests.log. platform:verify aprovado com731 testes/0falhas, TypeScript, contrato, tooling, consistência e build; log .BUILT-tmp/agenda-pending-shortcut-verify.log. QA desktop/mobile/teclado aprovada; nenhuma gravação real. Revisão global executada, pendente nas mudanças paralelas de participantes/acessos. Escopo do cartão aprovado via checkChangeReview, log agenda-pending-shortcut-scoped-review.log; diff --check limpo. Sem publicação conjunta autorizada."}
+  ],
+  "regressionTests":["client/src/pages/agenda-pending-shortcut.test.ts","client/src/components/agenda-pending-alerts.test.ts","client/src/lib/agenda-alerts.test.ts","server/agenda-alerts.test.ts"],
+  "deprecationRuleIds":[]
+}

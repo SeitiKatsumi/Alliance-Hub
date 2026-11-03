@@ -1,0 +1,873 @@
+{
+  "version": 1,
+  "id": "2026-11-03-financial-role-edit",
+  "title": "Edição financeira por cargo para Diretor de Capital, Diretor da Aliança e Aliado BUILT",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-access.ts"
+  ],
+  "searchTerms": [
+    "roleFinancialEditAccess",
+    "resolveBiaParticipantPermissions"
+  ],
+  "consumers": [
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Schema de permissões permanece intacto; nenhum campo ou migração nesta alteração."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "updated",
+      "reason": "Centraliza mínimo de edição de capital_financeiro para três cargos, inclusive override antigo, mantendo falha fechada e outros módulos."
+    },
+    {
+      "path": "shared/bia-access.test.ts",
+      "decision": "updated",
+      "reason": "Testa cargos isolados/acumulados, overrides, troca de ocupante, banco e indisponibilidade."
+    },
+    {
+      "path": "shared/member-access-summary.test.ts",
+      "decision": "updated",
+      "reason": "Prova propagação ao relatório administrativo e isolamento de outra BIA onde só é sócio."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Apenas import/helper e seletor de acesso Financeiro fixo para os três cargos; mudanças paralelas de organograma/modal não são atestadas aqui."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Atualiza regra de acesso vigente, consumidores e tratamento de personalizações anteriores."
+    },
+    {
+      "path": "docs/audit/PLATFORM_AUDIT_2026-08-17.md",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/README.md",
+      "decision": "preserved",
+      "reason": "Referência ao módulo/helper permanece válida; a nova regra financeira está registrada no contrato capital-financeiro."
+    },
+    {
+      "path": "docs/platform/changes/2026-10-30-retire-capital-dm-tab.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/changes/2026-11-02-member-access-panel.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/changes/2026-11-03-bia-auto-indicators.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/changes/2026-11-03-bia-organization.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/changes/2026-11-03-bia-participant-dialog.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/changes/2026-11-03-bia-tracking.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/changes/2026-11-03-superadmin-map-composition.json",
+      "decision": "preserved",
+      "reason": "Registro histórico ou trabalho paralelo apenas referencia a fonte de acesso; preservado, sem atestar alterações paralelas."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "preserved",
+      "reason": "Referência ao módulo/helper permanece válida; a nova regra financeira está registrada no contrato capital-financeiro."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved",
+      "reason": "Referência ao módulo/helper permanece válida; a nova regra financeira está registrada no contrato capital-financeiro."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.tsx",
+      "decision": "preserved",
+      "reason": "Controles usam acesso bancário, que não foi ampliado."
+    },
+    {
+      "path": "client/src/components/asaas-status.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-assets.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-existing-composition.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-organization-chart.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-participant-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-partners-status.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-phase-controls.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/contribution-payment.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/existing-expense-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/components/member-access-panel.tsx",
+      "decision": "preserved",
+      "reason": "Já calcula actual com resolveBiaParticipantPermissions e avisa o mínimo mantido pelo cargo ao tentar reduzir nível; não precisa regra duplicada."
+    },
+    {
+      "path": "client/src/lib/access-session.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/bia-creation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/bia-editar.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/dm-map-navigation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "ReadOnly e operações dependem da matriz/API financeira; ganha edição dos três cargos sem mudar campos ou importação."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Repassa matriz efetiva ao financeiro; Banco e Análises são chaves separadas preservadas."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "client/src/pages/resultados.tsx",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/asaas/dashboard.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/asaas/dashboard.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/asaas/exclusive-bia.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/asaas/operations.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "preserved",
+      "reason": "Permissão de capital_banco segue separada e não recebe o mínimo financeiro."
+    },
+    {
+      "path": "server/auth-google.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/bia-automatic-indicators.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-automatic-indicators.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/bia-composition-invites.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-legacy-zero.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-map-creation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-map-history.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-map-history.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/bia-patrimony.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "preserved",
+      "reason": "Consome edição financeira vigente quando aplicável; cálculos, fontes e transações preservados."
+    },
+    {
+      "path": "server/bia-phase-readiness.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-phase-readiness.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/bia-workflow.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/business-trace.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "preserved",
+      "reason": "Continua autorizando pela guarda injetada e regras de cobrança próprias, sem emissão automática."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/contribution-cancellation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/contribution-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/contribution-reminders.ts",
+      "decision": "preserved",
+      "reason": "Guarda de edição injetada incorpora o mínimo; nenhuma preferência nem entrega é alterada."
+    },
+    {
+      "path": "server/dashboard-capital.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/db.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/existing-expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/initial-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "canEdit vem de capital_financeiro efetivo; guardas de fase, snapshot e confirmação mantidas."
+    },
+    {
+      "path": "server/invite-community-origin.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/native-migration-journey.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/quota-correction.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "server/replit_integrations/audio/index.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/replit_integrations/audio/routes.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/replit_integrations/chat/index.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/replit_integrations/chat/routes.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/replit_integrations/chat/storage.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Resolvedor central alimenta requireBiaModuleAccess e controles de acesso GET/PUT/DELETE; leitura financeira usa view e gravações edit. Guardas empresariais, fase e estado encerrado continuam após a matriz. Nenhuma rota nova ou bypass."
+    },
+    {
+      "path": "server/storage.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/bia-budget.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-business-type.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-card-indicators.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-card-indicators.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/bia-form-options.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-model-five.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-model-four.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-organization.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-organization.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/bia-participant-detail.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-participant-detail.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/bia-patrimony.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/bia-setup.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/bia-tracking.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/contribution-billing.ts",
+      "decision": "preserved",
+      "reason": "canManageContributionBilling já reconhece os mesmos três cargos; limite de operação bancária independente preservado."
+    },
+    {
+      "path": "shared/contribution-reminders.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/dashboard-capital.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/dashboard-capital.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/existing-expense-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/existing-expense-contributions.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/initial-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    },
+    {
+      "path": "shared/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "Dependência transitiva do módulo de acesso; exports de identidade, papéis, consulta e configuração mantidos. Não redefine o mínimo financeiro; consome a matriz comum quando aplicável."
+    },
+    {
+      "path": "shared/member-access-summary.ts",
+      "decision": "preserved",
+      "reason": "Relatório administrativo chama o mesmo resolvedor e padrão por BIA; teste de integração do resumo cobre propagação."
+    },
+    {
+      "path": "shared/property-cib.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo de tipos/identidade/regras da BIA, preservado e incluído na suíte integral; não define regra concorrente de edição financeira."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real Acessos da BIA renderizado com dados fictícios e override antigo: Financeiro edit marcado e desabilitado para cargo gestor, Banco edit separado. Desktop e 390x844 conferidos com rolagem e cancelamento, sem gravar. Painel administrativo usa o resolvedor e exibe mínimo. Localhost3004 atualizado, sessão real no login; validação autenticada final pendente de entrada do usuário."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "requireBiaModuleAccess consulta resolveBiaParticipantPermissions na sessão/BIA corrente; guardas de empresa, fases e encerramento preservadas. Matriz de edit alimenta lançamentos/comprovantes/aportes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração. Vínculos vigentes da BIA definem cargos; overrides antigos continuam salvos mas não reduzem o mínimo financeiro dos três gestores. Falha de leitura não concede acesso."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Nenhuma fórmula, status, valor ou gráfico é alterado; a alteração é autorização para operações existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Sem envio novo nem mudança de destinatários; edição de lembretes continua passando pela permissão financeira existente."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório de acessos consome a matriz comum e recebe teste de propagação. Documentos emitidos e contratos assinados preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Banco/transferências seguem capital_banco e regras Asaas existentes; nenhum pagamento é executado. Sem cron/migração novos."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Usuário solicitou explicitamente edição para Diretor de Capital, Diretor da Aliança e Aliado BUILT. Mínimo limitado a capital_financeiro e vínculo na própria BIA, não a selo global. Outros cargos não recebem edição automática."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Overrides none/view não retiram a edição desses cargos; não são reescritos, evitando concessão permanente ao trocar ocupante. Convites/terceiros não recebem o mínimo."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: 732 testes, zero falhas, contratos/consistência/tipos/build. Testes novos cobrem três cargos, overrides, troca de ocupante, isolamento por BIA, Banco preservado e propagação ao resumo administrativo. Sem escrita financeira real."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-access.test.ts",
+    "shared/member-access-summary.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

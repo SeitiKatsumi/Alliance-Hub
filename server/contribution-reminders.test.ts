@@ -30,7 +30,7 @@ test('entregas persistentes: imediato, sem duplicatas, próximos prazos, isolame
   assert.equal((await service.read('bia','flow',true,null)).settings.enabled,true);
   await service.tick(new Date('2031-11-08T15:00:00Z'));assert.equal(sends,2);assert.equal((await service.alerts('user','payer')).length,1);
   const tasks=(await pg.query<any>(`SELECT id,data::text FROM agenda_tarefas`)).rows;assert.equal(tasks.length,1);assert.equal(tasks[0].data,'2031-11-15');
-  assert.equal((await service.alerts('user','payer'))[0].href,'/agenda-alertas?view=agenda&task='+tasks[0].id);
+  assert.equal((await service.alerts('user','payer'))[0].href,'/bias/bia?tab=capital&capital=financeiro&paymentFlow=flow');
   fail=true;await service.tick(new Date('2031-11-14T15:00:00Z'));await service.tick(new Date('2031-11-14T15:00:00Z'));assert.equal(sends,3);
   entry.status='pago';assert.equal((await service.alerts('user','payer')).length,0);await service.tick(new Date('2031-11-15T15:00:00Z'));assert.equal(sends,3);
   assert.equal((await pg.query<any>(`SELECT count(*)::int n FROM agenda_tarefas WHERE status='pendente'`)).rows[0].n,0);

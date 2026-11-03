@@ -2,6 +2,22 @@
   "version": 1,
   "rules": [
     {
+      "id":"agenda-aporte-no-task-detour",
+      "description":"Aviso de aporte abre o lançamento pelo helper compartilhado; e-mail/calendário preservam URLs históricas.",
+      "terms":["href:contributionAgendaUrl(row.id)"],
+      "roots":["server/contribution-reminders.ts"],
+      "regressionTests":["server/contribution-reminders.test.ts","shared/agenda-action.test.ts"],
+      "exceptions":[]
+    },
+    {
+      "id": "agenda-extra-alert-sections",
+      "description": "Alertas usa a lista existente de Aprovações pendentes, sem uma segunda camada Pendências/Convites e chamadas.",
+      "terms": ["Tipos de alertas", "showInvites", ">Convites e chamadas<"],
+      "roots": ["client/src/pages/agenda-alertas.tsx"],
+      "regressionTests": ["client/src/pages/agenda-pending-shortcut.test.ts", "client/src/pages/agenda-unified-approvals.test.ts"],
+      "exceptions": []
+    },
+    {
       "id": "bia-card-generic-progress",
       "description": "Cartões usam indicadores por tese, sem progresso de vendas universal ou percentuais inferidos da fase.",
       "terms": [

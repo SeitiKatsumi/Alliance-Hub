@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { agendaSourceAction, agendaTaskHref, agendaTaskTitle, matchesMouRevision } from "./agenda-action";
+import { agendaSourceAction, agendaTaskHref, agendaTaskTitle, matchesMouRevision, contributionFlowHref } from "./agenda-action";
 
 const task = { id: "task-1", titulo: "Revise o MOU da BIA", contexto_tipo: "bia", contexto_id: "bia-1", origem_tarefa_id: "map:bia-1:3", status: "pendente" };
 test("aviso legado abre o documento da BIA e revisão exatas sem depender do título", () => {
@@ -20,6 +20,7 @@ test("tarefa manual, correção informativa e histórico preservam edição por 
   }
 });
 test("aportes abrem pagamento ou lista sem inventar um fluxo ausente", () => {
+  assert.equal(contributionFlowHref('bia/2','flow&1'),'/bias/bia%2F2?tab=capital&capital=financeiro&paymentFlow=flow%261');
   assert.equal(agendaTaskHref({ ...task, contexto_tipo: "aporte_reminder", origem_tarefa_id: "flow&1" }), "/bias/bia-1?tab=capital&capital=financeiro&paymentFlow=flow%261");
   assert.equal(agendaTaskHref({ ...task, contexto_tipo: "bia_contribution" }), "/bias/bia-1?tab=capital&capital=financeiro&financeiro=aportes");
   assert.equal(agendaSourceAction({ ...task, contexto_tipo: "aporte_reminder", origem_tarefa_id: null }), null);

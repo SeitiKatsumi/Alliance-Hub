@@ -14,6 +14,7 @@ import {
   mergeBiaAccess,
   normalizeBiaAccessMatrix,
   resolveBiaParticipantPermissions,
+  roleFinancialEditAccess,
 } from "./bia-access";
 
 test("Aliado da comunidade continua elegível sem selo e sem depender do checkbox", () => {
@@ -86,12 +87,35 @@ test("diretores e aliado consultam Capital sem depender de vínculo de sócio", 
     for (const override of [null, EMPTY_BIA_ACCESS]) {
       const access = resolveBiaParticipantPermissions([role], override);
       for (const key of ["capital_banco", "capital_financeiro", "capital_analises", "capital_calculadora"] as const) {
-        assert.equal(access[key], role === "diretor_capital" && override === null ? "edit" : "view");
+        const financialManager = ["aliado", "diretor_alianca", "diretor_capital"].includes(role);
+        assert.equal(access[key], (key === "capital_financeiro" && financialManager) || (role === "diretor_capital" && override === null) ? "edit" : "view");
       }
     }
     assert.equal(resolveBiaParticipantPermissions([role], null, false).capital_financeiro, "none");
   }
   assert.equal(resolveBiaParticipantPermissions(["autor"], null).capital_financeiro, "none");
+});
+
+test("três gestores editam Financeiro por cargo sem ampliar Banco nem depender de permissões antigas", () => {
+  for (const role of ["aliado", "diretor_alianca", "diretor_capital"] as const) {
+    assert.deepEqual(roleFinancialEditAccess([role]), { capital_financeiro: "edit" });
+    assert.equal(defaultBiaAccessForRoles([role]).capital_financeiro, "edit");
+    for (const override of [null, EMPTY_BIA_ACCESS, { capital_financeiro: "view" }]) {
+      const access = resolveBiaParticipantPermissions([role, "socio_guardiao"], override);
+      assert.equal(hasBiaAccess(access, "capital_financeiro", "edit"), true);
+      assert.equal(access.capital_banco, role === "diretor_capital" && override === null ? "edit" : "view");
+    }
+    assert.equal(resolveBiaParticipantPermissions([role], null, false).capital_financeiro, "none");
+  }
+  // Reassigning a role removes its guaranteed access; no migration persists the floor.
+  const bia = { diretor_capital: "novo", socios_guardioes: ["antigo"] };
+  const roles = collectBiaParticipantRoles(bia);
+  assert.equal(resolveBiaParticipantPermissions(roles.get("novo")!, EMPTY_BIA_ACCESS).capital_financeiro, "edit");
+  assert.equal(resolveBiaParticipantPermissions(roles.get("antigo")!, EMPTY_BIA_ACCESS).capital_financeiro, "view");
+  for (const role of ["autor", "diretor_tecnico", "diretor_obra", "diretor_comercial", "terceiro"] as const) {
+    assert.deepEqual(roleFinancialEditAccess([role]), {});
+    assert.equal(hasBiaAccess(resolveBiaParticipantPermissions([role], null), "capital_financeiro", "edit"), false);
+  }
 });
 
 test("combina múltiplos papéis sempre pelo maior acesso", () => {

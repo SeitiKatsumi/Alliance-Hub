@@ -1,5 +1,7 @@
 # Capital e Financeiro da BIA
 
+- 03/11/2026: aviso de aporte em Aprovações pendentes usa `Ver lançamento`, abrindo diretamente Financeiro da BIA e consulta Pix/boleto do `paymentFlow` exato. Helper compartilhado `contributionFlowHref` também alimenta a Agenda. Não emite cobrança, paga, altera lançamento/status ou amplia acesso ao abrir; endpoints e autorização atuais preservados. Links históricos de tarefa/e-mail continuam compatíveis. Regressões em contribution-reminders.test.ts e agenda-action.test.ts.
+
 - 03/11/2026: Capital Total Alocado do Início soma apenas aportes em dinheiro pagos ao favorecido da sessão, nas BIAs vinculadas, pelo helper `paidMemberCapital`. Exclui valores prometidos/em aberto e representações não caixa; o percentual financeiro e os gráficos compartilham essa base. Saídas para o membro só entram como recebimento quando pagas. Não altera os movimentos nem usa esse total para calcular MAP/CPP. A fonte oficial inclui status e falha explícita, sem consulta pública/log como fallback; detalhes no contrato inicio-gestao.
 
 - 02/11/2026: campos de arquivo e seletores de anexos do Financeiro, inclusive comprovantes por IA, importação, rateio individual/grupo e cronograma, aceitam arrastar e soltar por `FileDropTarget`. Mantêm seleção por clique, formatos/quantidades, limites e envio/confirmacão existentes. Regra compartilhada documentada em pagamentos-integracoes.
@@ -137,7 +139,10 @@ A base Asaas mostra vínculo da conta da SPE/holding e estado do cadastro no Ban
 
 ## Papeis e permissoes
 
-- Extensão de 2026-10-08: a mesma consulta mínima de Capital também vale para Aliado BUILT e todos os diretores (Aliança, Técnico, Obra, Comercial e Capital), mesmo sem papel de sócio e com override antigo `none`. Diretor de Capital mantém edição padrão; demais permissões de edição existentes não mudam. Autor isolado não recebe consulta automática.
+- A consulta mínima de Capital vale para Aliado BUILT e todos os diretores (Aliança, Técnico, Obra, Comercial e Capital), mesmo sem papel de sócio e com override antigo `none`. Autor isolado não recebe consulta automática.
+
+- Regra de 03/11/2026: Diretor de Capital, Diretor da Aliança e Aliado BUILT da própria BIA têm edição garantida de `capital_financeiro`, inclusive com personalização antiga `none/view`. Fonte única `roleFinancialEditAccess` em `shared/bia-access.ts`, aplicada aos padrões e à matriz efetiva. Cargos são os vínculos vigentes da BIA, não o selo global. Trocar o ocupante remove o mínimo do anterior (salvo outra autorização válida); não há migração nem gravação em massa. Banco, transferências, Análises, DM e configuração da BIA preservam suas regras. Funcionário ainda depende da permissão empresarial; fase encerrada/estrutural e indisponibilidade de permissões continuam bloqueando as operações aplicáveis.
+- Consumidores: API `requireBiaModuleAccess`, leitura e edição de lançamentos, comprovantes, aportes, rateios e lembretes passam pela mesma matriz. Acessos da BIA mostra Financeiro marcado e fixo para esses cargos; relatório administrativo/painel de acessos usa o mesmo resolvedor. Não muda valores, MAP, anexos, pagamentos, mensagens ou documentos existentes. Testes cobrem os três cargos, personalização antiga, troca de ocupante, isolamento por BIA, ausência de privilégio bancário e relatório administrativo.
 
 - Sócios Guardiões e Multiplicadores vinculados à própria BIA têm consulta mínima em Banco, Financeiro, Análises e DM, inclusive com personalização antiga `none`. O vínculo de sócio não concede edição; edição já autorizada por cargo acumulado ou permissão explícita permanece. Terceiros e convites pendentes não recebem esse mínimo. Falha na leitura de permissões mantém bloqueio seguro. Regra central em `shared/bia-access.ts`, aplicada pela API e interface; sem migração ou alteração de documentos/finanças.
 

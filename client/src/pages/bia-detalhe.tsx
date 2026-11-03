@@ -36,6 +36,7 @@ import {
   hasBiaAccess,
   normalizeBiaAccessMatrix,
   partnerCapitalReadAccess,
+  roleFinancialEditAccess,
   type BiaAccessKey,
   type BiaAccessLevel,
   type BiaAccessMatrix,
@@ -403,7 +404,7 @@ function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessRespo
             <p className="text-sm text-muted-foreground">{selected?.role_labels.join(" · ")}</p>
           </SheetHeader>
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-            {Object.keys(partnerCapitalReadAccess(selected?.roles || [])).length > 0 && <p className="text-sm text-muted-foreground">Sócios, diretores e Aliado BUILT têm visualização garantida do Núcleo de Capital. Edição depende de autorização específica.</p>}
+            {Object.keys(partnerCapitalReadAccess(selected?.roles || [])).length > 0 && <p className="text-sm text-muted-foreground">Sócios, diretores e Aliado BUILT têm visualização garantida do Núcleo de Capital. Diretor de Capital, Diretor da Aliança e Aliado BUILT também têm edição garantida do Financeiro. As demais edições dependem das permissões configuradas.</p>}
             {ACCESS_GROUPS.map((group) => (
               <section key={group.label}>
                 <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{group.label}</h3>
@@ -414,12 +415,13 @@ function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessRespo
                   {group.items.map((item) => {
                     const fixedManagerAccess = item.key === "diretoria" && Boolean(selected?.roles.some((role) => role === "aliado" || role === "diretor_alianca"));
                     const fixedPartnerView = partnerCapitalReadAccess(selected?.roles || [])[item.key] === "view";
-                    const level = matrix[item.key];
+                    const fixedFinancialEdit = roleFinancialEditAccess(selected?.roles || [])[item.key] === "edit";
+                    const level = fixedFinancialEdit ? "edit" : matrix[item.key];
                     return (
                       <div key={item.key} className="grid min-h-11 grid-cols-[minmax(0,1fr)_88px_70px] items-center border-b px-3 py-2 last:border-b-0">
                         <span className="text-sm">{item.label}</span>
-                        <div className="flex justify-center"><Checkbox checked={fixedPartnerView || level === "view" || level === "edit"} disabled={fixedManagerAccess || fixedPartnerView} onCheckedChange={(checked) => setView(item.key, checked === true)} /></div>
-                        <div className="flex justify-center"><Checkbox checked={level === "edit"} disabled={fixedManagerAccess} onCheckedChange={(checked) => setEdit(item.key, checked === true)} /></div>
+                        <div className="flex justify-center"><Checkbox checked={fixedPartnerView || level === "view" || level === "edit"} disabled={fixedManagerAccess || fixedPartnerView || fixedFinancialEdit} onCheckedChange={(checked) => setView(item.key, checked === true)} /></div>
+                        <div className="flex justify-center"><Checkbox checked={level === "edit"} disabled={fixedManagerAccess || fixedFinancialEdit} onCheckedChange={(checked) => setEdit(item.key, checked === true)} /></div>
                       </div>
                     );
                   })}
@@ -977,7 +979,7 @@ export default function BiaDetalhePage() {
         <TabsContent value="visao" className="space-y-6">
           <BiaPhaseControls id={bia.id} phase={String(bia.situacao || "ativa")} canEdit={canEditBia}/>
           <TraceabilitySummary objectType="bia" objectId={bia.id} />
-          <BiaOrganizationChart bia={{...bia}} names={membros} members={membrosRaw}/>
+          <BiaOrganizationChart bia={{...bia}} names={membros} members={membrosRaw} canViewFinancial={hasBiaAccess(accessMatrix, 'capital_financeiro', 'view')}/>
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
@@ -1150,7 +1152,7 @@ export default function BiaDetalhePage() {
           <>
               {allowedNucleoTabs.some((tab) => tab.value === "diretoria") && (
               <TabsContent value="diretoria" className="space-y-4">
-                <BiaOrganizationChart bia={{...bia}} names={membros} members={membrosRaw}/>
+                <BiaOrganizationChart bia={{...bia}} names={membros} members={membrosRaw} canViewFinancial={hasBiaAccess(accessMatrix, 'capital_financeiro', 'view')}/>
                 <BiaGovernancePanel biaId={bia.id} members={membros}/>
                     {canEditBia && <div className="mb-4 flex justify-end">
                       <Button

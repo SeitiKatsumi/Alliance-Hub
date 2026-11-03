@@ -175,8 +175,15 @@ export function partnerCapitalReadAccess(roles: readonly string[]): Partial<BiaA
     : {};
 }
 
+/** Financial stewardship follows the current BIA appointment, including legacy overrides. */
+export function roleFinancialEditAccess(roles: readonly string[]): Partial<BiaAccessMatrix> {
+  return roles.some(role => ["diretor_capital", "diretor_alianca", "aliado"].includes(role))
+    ? { capital_financeiro: "edit" }
+    : {};
+}
+
 export function defaultBiaAccessForRoles(roles: BiaParticipantRole[]): BiaAccessMatrix {
-  const matrices: Partial<BiaAccessMatrix>[] = [partnerCapitalReadAccess(roles)];
+  const matrices: Partial<BiaAccessMatrix>[] = [partnerCapitalReadAccess(roles), roleFinancialEditAccess(roles)];
   for (const role of roles) {
     if (role === "autor") matrices.push({ diretoria: "view" });
     if (role === "aliado" || role === "diretor_alianca") {
@@ -221,5 +228,5 @@ export function resolveBiaParticipantPermissions(
   const base = override === null || override === undefined
     ? defaultBiaAccessForRoles(roles)
     : normalizeBiaAccessMatrix(override);
-  return mergeBiaAccess(base, managerFloor, partnerCapitalReadAccess(roles));
+  return mergeBiaAccess(base, managerFloor, partnerCapitalReadAccess(roles), roleFinancialEditAccess(roles));
 }

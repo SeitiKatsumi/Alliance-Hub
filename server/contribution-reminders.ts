@@ -5,6 +5,7 @@ import {saoPauloClock,cents} from '../shared/contribution-billing';
 import type {ContributionBilling} from './contribution-billing';
 import type {AgendaAlertItem} from './agenda-alerts';
 import {contributionAgendaUrl} from '../shared/contribution-reminders';
+import {contributionFlowHref} from '../shared/agenda-action';
 export function contributionCalendarId(flow:string,payer:string,due:string){const h=createHash('sha256').update(JSON.stringify(['aporte-calendar',flow,payer,due])).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;}
 const fault=(message:string,statusCode=409)=>Object.assign(new Error(message),{statusCode});
 export class ContributionReminders{
@@ -20,7 +21,7 @@ export class ContributionReminders{
    const entry=await this.entry(row.contexto_id,row.origem_tarefa_id),bia=await this.deps.bia(row.contexto_id);
    const charge=(await this.deps.db.execute(sql`SELECT payment_state FROM bia_contribution_charges WHERE flow_id=${row.origem_tarefa_id} AND environment=${this.billing.environment}`)).rows[0];
    if(!reminderEntryEligible(entry)||String(entry.favorecido_id)!==payer||reminderDate(entry.data_vencimento)!==reminderDate(row.due_date)||!['ativa','em_execucao','em_operacao','em_distribuicao'].includes(bia?.situacao)||['received','confirmed','processing','cancelled','refunded'].includes(charge?.payment_state))continue;
-   result.push({id:'aporte:'+row.origem_tarefa_id,source_type:'aporte_reminder',source_id:row.origem_tarefa_id,group:'pendencias',category:'financeiro',title:row.titulo,description:row.descricao,priority:'media',status:'pendente',created_at:row.atualizado_em,due_at:row.due_date,action_required:true,active:true,href:contributionAgendaUrl(row.id),actions:['consultar']});
+   result.push({id:'aporte:'+row.origem_tarefa_id,source_type:'aporte_reminder',source_id:row.origem_tarefa_id,group:'pendencias',category:'financeiro',title:row.titulo,description:row.descricao,priority:'media',status:'pendente',created_at:row.atualizado_em,due_at:row.due_date,action_required:true,active:true,href:contributionFlowHref(row.contexto_id,row.origem_tarefa_id),actions:['consultar']});
   }return result;
  }
  async read(biaId:string,flowId:string,manage:boolean,payerId:string|null){

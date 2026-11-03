@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "2026-11-03-agenda-pending-alerts",
+  "title": "Exibir todas as pendências que alimentam o contador de Alertas",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": ["server/agenda-alerts.ts", "server/routes.ts"],
+  "searchTerms": ["agendaAlertDestination", "AgendaPendingAlerts"],
+  "consumers": [
+    {"path":"client/src/components/agenda-pending-alerts.tsx","decision":"updated","reason":"Lista completa de pendências ativas acionáveis, erro explícito e navegação."},
+    {"path":"client/src/components/agenda-pending-alerts.test.ts","decision":"updated","reason":"Regressão de todos os tipos, mais de cinco itens, equivalência com contador e falha de leitura."},
+    {"path":"client/src/lib/agenda-alerts.ts","decision":"updated","reason":"Destino de alertas genéricos para controles legados; demais links preservados."},
+    {"path":"client/src/lib/agenda-alerts.test.ts","decision":"updated","reason":"Protege links de tarefa, MOU/revisão, imóvel e BIA."},
+    {"path":"client/src/pages/agenda-alertas.tsx","decision":"updated","reason":"Consulta endpoint completo; nova lista padrão e acesso explícito à lista legada."},
+    {"path":"docs/platform/modules/agenda-notificacoes.md","decision":"updated","reason":"Contrato de lista, contador, destinos e estados de leitura."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Rotas Agenda e convites/MOU continuam existentes; nenhum novo privilégio."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Bootstrap inalterado; import transitivo apenas."},
+    {"path":"client/src/components/app-sidebar.tsx","decision":"preserved","reason":"Contador continua vindo da projeção autorizada central."},
+    {"path":"client/src/pages/agenda.tsx","decision":"preserved","reason":"Link com tarefa abre ação existente; nenhuma conclusão automática."},
+    {"path":"client/src/pages/area-aliancas.tsx","decision":"preserved","reason":"Consome invalidação existente, cuja assinatura e comportamento não mudaram."},
+    {"path":"client/src/pages/comunidade.tsx","decision":"preserved","reason":"Aprovações, histórico, novas OBAs e aceite de MOU mantidos na seção convites."},
+    {"path":"client/src/pages/convites.tsx","decision":"preserved","reason":"Wrapper legado permanece acessível na segunda seção."},
+    {"path":"server/agenda-alerts.ts","decision":"reviewed","reason":"Contagem deduplica fontes e exige ativo/pendente/ação; regressão compara lista com essa regra."},
+    {"path":"server/routes.ts","decision":"reviewed","reason":"Lista e contador usam listAgendaAlertItems; endpoint completo autorizado já existe; sem alterações backend."},
+    {"path":"shared/agenda-action.ts","decision":"preserved","reason":"Ações de MOU e aportes continuam apontando para revisão/tarefa específica."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"Lista completa, erro/carregamento/vazio distintos; QA sintética 320/390/1280px sem overflow, teclado e links corretos."},
+    {"area":"api","status":"verified","evidence":"GET /api/agenda-alertas/alertas?grupo=pendencias existente, credenciais de sessão; resumo não usado como lista completa."},
+    {"area":"dados","status":"verified","evidence":"Sem escrita ou migração. Consulta read-only confirmou dois lembretes Pagar aporte vinculados a Rodrigo em 26 e 27/10; não simulou sua sessão nem comprovou todos os filtros finais do endpoint."},
+    {"area":"calculos-graficos","status":"verified","evidence":"Contador central preservado; teste confronta lista com activeAgendaAlertCount, incluindo resolvidos e informativos."},
+    {"area":"notificacoes-emails","status":"verified","evidence":"Somente leitura e destino dos alertas; não cria, envia ou marca lembretes como resolvidos."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Sem alteração documental; MOU conserva BIA e revisão no link e fluxo autorizado existente."},
+    {"area":"integracoes-tarefas","status":"verified","evidence":"Workers e pagamentos preservados; abrir lembrete apenas navega à tarefa existente."},
+    {"area":"permissoes","status":"verified","evidence":"Endpoint central mantém escopo de sessão e autorização de cada fonte/destino; sem impersonação nem concessões."},
+    {"area":"legado","status":"verified","evidence":"Convites e chamadas preserva tela anterior; href genérico aponta à seção correta, links específicos não são reescritos."},
+    {"area":"testes","status":"verified","evidence":"platform:verify passou: tipos, 725 testes sem falhas e build; QA sintética desktop/mobile com clique e teclado, sem erros de navegador. Sem teste autenticado na sessão de Rodrigo."}
+  ],
+  "regressionTests": ["client/src/components/agenda-pending-alerts.test.ts", "client/src/lib/agenda-alerts.test.ts", "server/agenda-alerts.test.ts"],
+  "deprecationRuleIds": []
+}

@@ -1,5 +1,7 @@
 # Pagamentos e Integracoes Externas
 
+- 04/11/2026 — Inicialização local do SMTP: `scripts/start-local-app.ps1` usa `scripts/start-local-app.ts`, que carrega exclusivamente as variáveis SMTP de `.env` antes de importar o servidor. Credenciais/remetente herdados de outro aplicativo não prevalecem nem completam configuração parcial. Variáveis de banco/porta/Directus mantêm a precedência anterior; produção continua com seu bootstrap/variáveis de deploy. Isso não valida automaticamente remetentes no Brevo e não confirma entrega: aceite SMTP pode ser seguido de rejeição do provedor.
+
 ## Seleção de anexos por arraste — 02/11/2026
 
 - `Input type=file` oferece área de arraste compartilhada em `FileDropTarget`; seletores próprios de anexos também a utilizam em Financeiro (incluindo rateio individual), documentos da BIA/núcleos, Carteira, oportunidades, cronogramas e arquivos/áudios da Aura. Fotos de perfil com controles próprios continuam fora deste ajuste de anexos.

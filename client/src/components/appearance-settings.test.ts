@@ -7,6 +7,20 @@ import { transformSync } from "esbuild";
 import ts from "typescript";
 
 const read=(path:string)=>readFileSync(new URL(path,import.meta.url),"utf8");
+test("aviso de cobertura da Aura mantém superfície e texto explícitos por tema", () => {
+  const source = read("../pages/aura.tsx");
+  const start = source.lastIndexOf('<Card ', source.indexOf('data-testid="aura-coverage-notice"'));
+  assert.ok(start >= 0);
+  const notice = source.slice(start, source.indexOf('</Card>', start));
+  assert.match(notice, /bg-amber-50 dark:border-amber-700 dark:bg-amber-950/);
+  assert.doesNotMatch(notice, /bg-amber-50\/|text-muted-foreground/);
+  assert.match(notice, /text-amber-900 dark:text-amber-200/);
+  assert.match(notice, /text-amber-900 dark:text-amber-100/);
+  assert.match(notice, /text-amber-800 dark:text-amber-100/);
+  assert.match(notice, /text-amber-600 dark:text-amber-300/);
+  assert.match(notice, /dimensoesSemEvidencia.length > 0/);
+  assert.match(notice, /viewedAura\?\.motivos_trava/);
+});
 test("avisos de conclusão do perfil têm superfícies escuras sem alterar o modo claro", () => {
   const css = read("../index.css");
   assert.match(css, /\.dark \[data-testid="dashboard-profile-completion"\]\s*\{[^}]*background-color: hsl\(217 65% 18%\)/);

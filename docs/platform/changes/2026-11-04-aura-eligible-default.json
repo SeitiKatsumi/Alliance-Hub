@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "id": "2026-11-04-aura-eligible-default",
+  "title": "Consultar Aura abre sempre em Posso avaliar",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/aura-lookup-dialog.tsx"
+  ],
+  "searchTerms": [
+    "lookupFilter",
+    "setLookupFilter",
+    "AuraLookupDialog"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/aura-lookup-dialog.tsx",
+      "decision": "updated",
+      "reason": "Estado inicial e reset no fechamento usam eligible; cada abertura começa em Posso avaliar, mantendo escolha manual de Todos e expansão10."
+    },
+    {
+      "path": "client/src/components/aura-lookup-dialog.test.ts",
+      "decision": "updated",
+      "reason": "Regressão existente confere seleção inicial/consulta elegíveis e reabertura após Todos, preservando paginação/busca e estados."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Reutiliza modal compartilhado e recebe comportamento novo sem alterar navegação/gate de acesso."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo modal compartilhado, links legados e seleção de membro mantidos."
+    },
+    {
+      "path": "client/src/lib/aura-access.ts",
+      "decision": "preserved",
+      "reason": "Elegibilidade/status por vínculos e avaliações inalterados."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Nenhuma consulta/API alterada; limite servidor100 continua, apenas expansão visual10."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato registra filtro padrão em cada abertura."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas existentes de Início/Aura mantêm componentes e recebem modal compartilhado atualizado."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Raiz React/providers intactos; alteração restrita ao componente carregado pelo roteador."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "preserved",
+      "reason": "Descrição enumera os dois filtros sem prometer posição ou tamanho30; continua válida."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do roteador/catálogo; não utiliza limite visual nem filtros do modal Aura e não foi alterado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada localhost3004: modal inicialmente elegível, selecionar Todos/fechar/reabrir retorna Posso avaliar com2membros; desktop1246 e mobile390x844 sem overflow, viewport restaurado. Capturas output/aura-eligible-default-desktop.png/mobile.png. Componente compartilhado aplica no Início/Aura."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Endpoints busca/vínculos/minhas-avaliações e limite100 preservados; mudanças só na apresentação."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Nenhuma escrita, migração, PostgreSQL/Directus ou cache persistido alterado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Não altera score, cálculo ou gráfico; contador restantes deriva da mesma lista filtrada."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Sem mensagem, e-mail, destinatário ou fila alterada neste pedido."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Sem PDF/exportação/documento ou catálogo com tamanho30 ativo; registros anteriores são histórico de mudanças."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem integração externa/job alterado; startup SMTP anterior preservado e registrado separadamente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "A consulta já existente avaliaveis=1 passa a ser inicial; autorização/vínculos/avaliações continuam no servidor sem nova permissão."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Mudanças anteriores de ordem e expansão10 preservadas. Registro2026-11-04-aura-lookup-ten descreve validação histórica do padrão Todos e é sucedido por este registro; contrato ativo atualizado. Links e dados intactos."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "2 testes focados aprovados; regressão confere abertura/consulta elegíveis e fechar/reabrir após Todos. QA desktop/mobile aprovada e platform:verify752testes/0falhas, tooling/tipos/contrato/consistência/build aprovados (.BUILT-tmp/aura-eligible-default-verify.log)."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/aura-lookup-dialog.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

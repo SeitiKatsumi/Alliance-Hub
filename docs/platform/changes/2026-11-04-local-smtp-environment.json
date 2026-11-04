@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "id": "2026-11-04-local-smtp-environment",
+  "title": "SMTP local usa a conta do projeto antes de carregar o servidor",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "scripts/local-smtp-environment.ts",
+    "scripts/start-local-app.ts"
+  ],
+  "searchTerms": [
+    "applyLocalSmtpEnvironment",
+    "scripts/start-local-app.ts"
+  ],
+  "consumers": [
+    {
+      "path": "scripts/local-smtp-environment.ts",
+      "decision": "updated",
+      "reason": "Seleciona somente seis variáveis SMTP do arquivo do projeto; remove valores herdados ausentes, sem misturar contas."
+    },
+    {
+      "path": "scripts/start-local-app.ts",
+      "decision": "updated",
+      "reason": "Carrega .env com parser nativo antes de importar servidor; nenhuma credencial em log ou comando."
+    },
+    {
+      "path": "scripts/local-smtp-environment.test.ts",
+      "decision": "updated",
+      "reason": "Três regressões: troca de credenciais, arquivo parcial sem fallback de outra conta e subprocesso com bootstrap real/servidor fictício."
+    },
+    {
+      "path": "scripts/start-local-app.ps1",
+      "decision": "updated",
+      "reason": "Launcher local aponta para bootstrap novo mantendo portas, túneis, logs e execução oculta existentes."
+    },
+    {
+      "path": "scripts/tsconfig.platform.json",
+      "decision": "updated",
+      "reason": "Inclui bootstrap/helper/teste na verificação de tipos de ferramentas."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Bootstrap original permanece, inclusive produção/homologação e demais serviços; importado após SMTP local selecionado."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "preserved",
+      "reason": "Transport e FROM continuam lendo environment na importação; nova ordem de startup impede uso de conta herdada. Preferências/template intactos."
+    },
+    {
+      "path": "server/email-preference-policy.ts",
+      "decision": "preserved",
+      "reason": "Continua fail-closed para opcionais, sem bypass em runtime."
+    },
+    {
+      "path": "server/user-preferences.ts",
+      "decision": "preserved",
+      "reason": "Preferências por conta e categoria mantidas."
+    },
+    {
+      "path": "server/ro-pulse.ts",
+      "decision": "preserved",
+      "reason": "Fila e worker existentes; testes3 anteriores não criaram RO nem fila reais."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Endpoints e consumidores de SMTP_FROM usam ambiente configurado; sem alteração de API ou permissão."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de template/sender existentes executadas na suíte completa."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de supressão opcional e mensagens essenciais mantidas."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Lembretes financeiros usam mesmo mailer; fórmula/destinatários/worker sem alteração."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões financeiras existentes mantidas."
+    },
+    {
+      "path": "docs/platform/modules/pagamentos-integracoes.md",
+      "decision": "updated",
+      "reason": "Contrato limita precedência ao ambiente local e diferencia aceite SMTP de entrega."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "not-applicable",
+      "evidence": "Nenhuma interface da plataforma mudou; confirmação de rejeição veio do print do Brevo fornecido pelo usuário."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Não altera endpoints nem payloads; apenas seleção do SMTP antes de importar servidor local."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Sem migração, edição de conta/preferências/RO, PostgreSQL ou Directus. Segredos permanecem no arquivo ignorado, sem logs/hashes."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Nenhum cálculo ou gráfico depende da correção de precedência do SMTP."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Credenciais herdadas diferentes comprovadas por igualdade booleana. TESTE3 chegou à conta correta e foi rejeitado pelo remetente inválido. Novos prints identificaram builtalliances@gmail.com como remetente verificado; .env ignorado atualizado e um único TESTE4 autorizado aceito SMTP250/queued,1aceito/0rejeitados (.BUILT-tmp/ro-pulse-email-test-4-receipt.json). Entrega posterior/inbox ainda não confirmada."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Templates de e-mail, PDFs e documentos assinados preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Mudança só no launcher local; banco, Directus, porta e variáveis de produção não são sobrepostos. Após print do remetente validado, localhost3004 reiniciado no PID41940 com scripts/start-local-app.ts, raizHTTP200 e endpoint protegido401. Nenhuma fila/RO real criada pelo teste."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Não cria credencial, conta, domínio autenticado ou acesso. Respeita política SMTP/preferências existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Start de produção continua server/index/dist original. Arquivo parcial não recorre a conta SMTP de outro aplicativo; testes mantêm banco e porta herdados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "3 testes focados aprovados; platform:verify752testes/0falhas, tipos/contrato/consistência/tooling/build aprovados (.BUILT-tmp/smtp-env-verify.log). Bootstrap real testado com .env e servidor fictícios em subprocesso, sem SMTP/rede reais. Falhas iniciais de URL Windows e assinatura parseEnv corrigidas e repetição completa aprovada."
+    }
+  ],
+  "regressionTests": [
+    "scripts/local-smtp-environment.test.ts",
+    "server/mailer.test.ts",
+    "server/user-preferences.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

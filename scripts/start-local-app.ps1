@@ -27,7 +27,7 @@ $stdoutLog = Join-Path $projectRoot "app-server-$Port-live.out.log"
 $stderrLog = Join-Path $projectRoot "app-server-$Port-live.err.log"
 
 Start-Process -FilePath 'node.exe' `
-  -ArgumentList @('--env-file=.env', '--import', 'tsx', 'server/index.ts') `
+  -ArgumentList @('--env-file=.env', '--import', 'tsx', 'scripts/start-local-app.ts') `
   -WorkingDirectory $projectRoot `
   -RedirectStandardOutput $stdoutLog `
   -RedirectStandardError $stderrLog `

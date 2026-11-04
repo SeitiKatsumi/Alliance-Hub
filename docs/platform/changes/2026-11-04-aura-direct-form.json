@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "id": "2026-11-04-aura-direct-form",
+  "title": "Perfil Aura abre formulário autorizado sem botão intermediário",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/aura.tsx"
+  ],
+  "searchTerms": [
+    "registrationOpen",
+    "setRegistrationOpen",
+    "Registrar percepção",
+    "card-avaliar"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Remove somente toggle/state/ocultação do formulário; mantém guardas carregamento, falha, vínculo e avaliação prévia."
+    },
+    {
+      "path": "client/src/pages/aura-direct-form.test.ts",
+      "decision": "updated",
+      "reason": "Regressão da árvore real confere conteúdo sem ocultação e ramos de conferência/falha/restrição/formulário/registro prévio."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Guarda estreita da página contra retorno do toggle removido; outros botões de envio/onboarding permanecem."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato descreve formulário direto autorizado."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Catálogo deixa de descrever o botão de abertura removido."
+    },
+    {
+      "path": "client/src/components/aura-lookup-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Consulta/seleção de membro continua; descrição sobre registrar não exige botão de abertura. Filtro padrão e expansão10 mantidos."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consultar Aura mantém modal local e navega ao perfil ao selecionar pessoa."
+    },
+    {
+      "path": "client/src/pages/avaliar-aura-candidato.tsx",
+      "decision": "preserved",
+      "reason": "Botão de envio da avaliação pública por token é outra ação; pedido é o toggle da página autenticada."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "preserved",
+      "reason": "Ação de avaliação de candidato da comunidade continua com guardas próprias; não é toggle do perfil."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "preserved",
+      "reason": "Convite por e-mail continua com ação de registrar; nenhuma mensagem enviada/alterada."
+    },
+    {
+      "path": "HISTORICO_TECNICO.md",
+      "decision": "preserved",
+      "reason": "Descrição histórica do domínio de avaliação preservada."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Autorização da gravação/consulta por vínculo, elegibilidade e unicidade permanece; alteração somente apresentação."
+    },
+    {
+      "path": "client/src/lib/aura-access.ts",
+      "decision": "preserved",
+      "reason": "Mesmo helper de elegibilidade e vínculo, sem acesso novo."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Mesmas rotas e perfil Aura; nenhum acesso novo."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo bootstrap/providers; página importada mantém contrato."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Exibe catálogo atualizado sem alterar funcionamento do relatório."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Testes existentes verificam catálogo e são executados na suíte completa."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Ferramenta lê catálogo atualizado como metadados; impacto semântico de Aura mapeado, sem alterar descoberta/grafo."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Valida catálogo/contrato com a nova descrição; funcionamento do gate preservado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada no perfil Luhan com input-palavra visível diretamente e zero botão Registrar percepção, desktop1246/mobile390x844 sem overflow. Perfil sem vínculo consultado pelo modal manteve restrição e zero input-palavra; retorno ao perfil original. Nenhuma avaliação enviada. Capturas output/aura-direct-form-desktop.png/mobile.png; viewport restaurado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Nenhum endpoint/payload modificado; formulário usa operações existentes e não envia automaticamente."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Sem escrita de avaliação/migração ou alteração de PostgreSQL/Directus neste trabalho."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Score, faixas, gráficos e cálculos inalterados."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Sem envio ou mudança de mensagens; convites existentes mantidos."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional atualizado; PDFs/exportações/assinados não dependem do toggle visual."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "IA/áudio/anexos permanecem acionados pelo usuário; não iniciam pela abertura do formulário. Jobs preservados."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Ramos carregamento/falha/restrição/avaliado anteriores mantidos; remove somente ocultação do conteúdo autorizado."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Links de consulta/registro/candidatos continuam; registros históricos mantidos, sem reescrever avaliações."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "1 regressão focada aprovada; platform:verify753testes/0falhas, tooling/tipos/contrato/consistência/build aprovados (.BUILT-tmp/aura-direct-form-verify.log). QA desktop/mobile e perfil sem vínculo conferidos sem enviar avaliação. Guarda aura-no-registration-toggle cobre retorno do botão/ocultação intermediária."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/aura-direct-form.test.ts",
+    "client/src/lib/aura-lookup.test.ts",
+    "client/src/components/aura-lookup-dialog.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "aura-no-registration-toggle"
+  ]
+}

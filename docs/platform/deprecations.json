@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id": "aura-no-registration-toggle",
+      "description": "Perfil Aura mostra o formulário autorizado diretamente, sem botão intermediário para abrir ou ocultar o registro.",
+      "terms": ["registrationOpen", "setRegistrationOpen", "\"Fechar registro\"", "\"Registrar percepção\""],
+      "roots": ["client/src/pages/aura.tsx"],
+      "regressionTests": ["client/src/pages/aura-direct-form.test.ts"],
+      "exceptions": []
+    },
+    {
       "id":"profile-aura-formation-label",
       "description":"Prévia do Meu Perfil identifica explicitamente a Aura quando ainda não há score; outros usos de Em formação permanecem locais.",
       "terms":[": \"Em formação\"}"],

@@ -400,8 +400,6 @@ export default function AuraPage() {
   const [lookupOpen, setLookupOpen] = useState(false);
 
 
-  const [registrationOpen, setRegistrationOpen] = useState(false);
-  useEffect(() => { setRegistrationOpen(false); }, [routeMembroId]);
 
 
   const [selectedMembro, setSelectedMembro] = useState<MembroBusca | null>(null);
@@ -1074,19 +1072,19 @@ export default function AuraPage() {
           </Card>
 
           {(dimensoesSemEvidencia.length > 0 || (viewedAura?.motivos_trava?.length ?? 0) > 0) && (
-            <Card className="border border-amber-200 bg-amber-50/40 xl:col-span-12">
+            <Card className="border border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-950 xl:col-span-12" data-testid="aura-coverage-notice">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-amber-900">Cobertura e travas da Aura</p>
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Cobertura e travas da Aura</p>
                     {dimensoesSemEvidencia.length > 0 && (
-                      <p className="text-xs leading-relaxed text-muted-foreground">
+                      <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-100">
                         Dimensão sem evidência não representa fraqueza automática, mas lacuna reputacional. A leitura técnica considera apenas as dimensões avaliadas, enquanto a Aura Percebida BUILT respeita a Cobertura Dimensional, o Grau de Confiança e as travas de proteção da rede BUILT.
                       </p>
                     )}
                     {(viewedAura?.motivos_trava ?? []).map((motivo) => (
-                      <p key={motivo} className="text-xs text-amber-800">{motivo}</p>
+                      <p key={motivo} className="text-xs text-amber-800 dark:text-amber-100">{motivo}</p>
                     ))}
                   </div>
                 </div>
@@ -1400,9 +1398,8 @@ export default function AuraPage() {
               <Users className="w-4 h-4 text-[#D7BB7D]" />
               {minhaAvaliacaoDoSelecionado ? "Sua percepção registrada" : canRegisterSelectedAura ? `Sua percepção de ${viewedName}` : "Somente consulta"}
             </CardTitle>
-            {canRegisterSelectedAura && !minhaAvaliacaoDoSelecionado && !checkingSelectedEvaluation && !selectedEvaluationError && <Button type="button" variant="outline" className="w-fit" onClick={() => setRegistrationOpen(open => !open)} aria-expanded={registrationOpen}>{registrationOpen ? "Fechar registro" : "Registrar percepção"}</Button>}
           </CardHeader>
-          <CardContent className={`space-y-4 ${canRegisterSelectedAura && !minhaAvaliacaoDoSelecionado && !registrationOpen && !checkingSelectedEvaluation && !selectedEvaluationError && !linksError ? "hidden" : ""}`}>
+          <CardContent className="space-y-4">
             {loadingLinks || checkingSelectedEvaluation ? <p className="text-sm text-muted-foreground">Conferindo permissão…</p> : linksError || selectedEvaluationError ? <p role="alert" className="text-sm text-muted-foreground">Não foi possível conferir sua permissão para registrar. Você pode continuar consultando esta Aura.</p> : !canRegisterSelectedAura ? (
               <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />

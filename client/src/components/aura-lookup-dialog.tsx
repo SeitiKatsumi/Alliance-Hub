@@ -74,15 +74,15 @@ export function AuraLookupDialog({ user, open: lookupOpen, onOpenChange: setLook
     const myId = user?.membro_directus_id;
     const enabled = lookupOpen && !!myId && isBuiltMemberForAura(user);
     const [lookupQuery, setLookupQuery] = useState('');
-    const [lookupFilter, setLookupFilter] = useState<'all' | 'eligible'>('all');
-    const [lookupVisibleCount, setLookupVisibleCount] = useState(30);
+    const [lookupFilter, setLookupFilter] = useState<'all' | 'eligible'>('eligible');
+    const [lookupVisibleCount, setLookupVisibleCount] = useState(10);
     useEffect(() => {
-        setLookupVisibleCount(30);
+        setLookupVisibleCount(10);
     }, [lookupQuery, lookupOpen, lookupFilter]);
     useEffect(() => {
         if (!lookupOpen) {
             setLookupQuery('');
-            setLookupFilter('all');
+            setLookupFilter('eligible');
         }
     }, [lookupOpen]);
     const { data: vinculosAuraServidor = [], isPending: loadingLinks, isError: linksError, refetch: retryLinks } = useQuery<string[]>({
@@ -164,8 +164,8 @@ export function AuraLookupDialog({ user, open: lookupOpen, onOpenChange: setLook
               <Input value={lookupQuery} onChange={e => setLookupQuery(e.target.value)} placeholder="Buscar por nome, empresa ou cargo..." className="pl-9" data-testid="input-consultar-aura-membro"/>
             </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar membros por permissão">
-              <Button type="button" size="sm" variant={lookupFilter === "all" ? "default" : "outline"} aria-pressed={lookupFilter === "all"} onClick={() => setLookupFilter("all")}>Todos os membros</Button>
               <Button type="button" size="sm" variant={lookupFilter === "eligible" ? "default" : "outline"} aria-pressed={lookupFilter === "eligible"} onClick={() => setLookupFilter("eligible")}>Posso avaliar</Button>
+              <Button type="button" size="sm" variant={lookupFilter === "all" ? "default" : "outline"} aria-pressed={lookupFilter === "all"} onClick={() => setLookupFilter("all")}>Todos os membros</Button>
             </div>
             {(linksError || evaluationsError) && <div className="text-sm text-muted-foreground" role="alert">Não foi possível conferir quem você pode avaliar. <Button type="button" variant="ghost" onClick={() => { retryLinks(); retryEvaluations(); }}>Tentar novamente</Button></div>}
             <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/60">
@@ -191,7 +191,7 @@ export function AuraLookupDialog({ user, open: lookupOpen, onOpenChange: setLook
                     <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0"/>
                   </button>)))}
             </div>
-            {!loadingSearch && lookupResults.length > lookupVisibleCount && (<Button type="button" variant="outline" className="w-full gap-2" onClick={() => setLookupVisibleCount(count => count + 30)}>
+            {!loadingSearch && lookupResults.length > lookupVisibleCount && (<Button type="button" variant="outline" className="w-full gap-2" onClick={() => setLookupVisibleCount(count => count + 10)}>
                 Ver mais ({lookupResults.length - lookupVisibleCount} restantes)
                 <ChevronDown className="h-4 w-4"/>
               </Button>)}

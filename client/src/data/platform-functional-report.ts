@@ -195,7 +195,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     title: "Aura Percebida BUILT",
     summary: "Registro estruturado da percepção reputacional e de aplicabilidade dos membros.",
     features: [
-      { id: "aura-registro", title: "Consulta e registro de percepção", description: "Consultar Aura abre o mesmo modal na tela atual, inclusive nas ações rápidas do Início. Reúne Todos os membros e Posso avaliar, com indicação de vínculo e avaliação já registrada. Pessoas elegíveis abrem Registrar percepção no próprio perfil.", status: "disponivel" },
+      { id: "aura-registro", title: "Consulta e registro de percepção", description: "Consultar Aura abre o mesmo modal na tela atual, inclusive nas ações rápidas do Início. Reúne Todos os membros e Posso avaliar, com indicação de vínculo e avaliação já registrada. O formulário aparece diretamente no perfil da pessoa para quem pode avaliá-la.", status: "disponivel" },
       { id: "aura-termos", title: "Seleção de termos", description: "Escolha manual de termos e expressões do léxico estruturado de Aura.", status: "disponivel" },
       { id: "aura-ia", title: "Análise de percepção com IA", description: "Sugestão de termos a partir de texto e arquivos enviados pelo avaliador.", status: "evolucao" },
       { id: "aura-audio", title: "Gravação e envio de áudio", description: "Captura, animação de gravação e transcrição direta para o campo de percepção.", status: "evolucao" },

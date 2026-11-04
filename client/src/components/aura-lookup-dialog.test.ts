@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { transformSync } from 'esbuild';
 import { auraLookupState, isBuiltMemberForAura } from '../lib/aura-access';
-test('modal compartilhado mantém busca,30 por vez, permissões, fechamento e seleção', () => {
+test('modal compartilhado mostra filtros na ordem solicitada e expande10 por vez mantendo busca, permissões, fechamento e seleção', () => {
     const source = readFileSync(new URL('./aura-lookup-dialog.tsx', import.meta.url), 'utf8'), ast = ts.createSourceFile('dialog.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const functions = ast.statements.filter(ts.isFunctionDeclaration).map(n => n.getText(ast).replace(/^export /, ''));
     const people = Array.from({ length: 65 }, (_, i) => ({ id: String(i), nome: `Pessoa ${String(i).padStart(2, '0')}`, empresa: 'Empresa', cargo: 'Engenheiro', foto: null }));
@@ -39,23 +39,29 @@ test('modal compartilhado mantém busca,30 por vez, permissões, fechamento e se
     const nodes = (el: any): any[] => el && typeof el === 'object' ? [el, ...React.Children.toArray(el.props?.children).flatMap(nodes)] : [];
     const memberButtons = (tree: any) => nodes(tree).filter(n => n.props?.['data-testid']?.startsWith('btn-consultar-aura-membro-'));
     let tree = render();
-    assert.equal(memberButtons(tree).length, 30);
+    assert.equal(memberButtons(tree).length, 1);
+    assert.equal(nodes(tree).find(n => n.type === Button && n.props.children === 'Posso avaliar').props['aria-pressed'], true);
+    assert.equal(queries.at(-1).queryKey[2], true, 'abertura consulta elegíveis no servidor');
+    nodes(tree).find(n => n.type === Button && n.props.children === 'Todos os membros').props.onClick();
+    tree = render();
+    assert.equal(memberButtons(tree).length, 10);
+    assert.deepEqual(nodes(tree).filter(n => n.type === Button && ['Posso avaliar', 'Todos os membros'].includes(n.props.children)).map(n => n.props.children), ['Posso avaliar', 'Todos os membros']);
     assert.equal(memberButtons(tree)[0].props['data-testid'], 'btn-consultar-aura-membro-1');
-    assert.match(renderToStaticMarkup(tree), /35 restantes/);
+    assert.match(renderToStaticMarkup(tree), /55 restantes/);
     assert.match(renderToStaticMarkup(tree), /Pode avaliar/);
     assert.match(renderToStaticMarkup(tree), /Já avaliado por você/);
-    nodes(tree).find(n => n.type === Button && String(n.props.children[0]).startsWith('Ver mais')).props.onClick();
-    tree = render();
-    assert.equal(memberButtons(tree).length, 60);
-    nodes(tree).find(n => n.type === Button && String(n.props.children[0]).startsWith('Ver mais')).props.onClick();
-    tree = render();
-    assert.equal(memberButtons(tree).length, 65);
+    for (const count of [20, 30, 40, 50, 60, 65]) {
+        nodes(tree).find(n => n.type === Button && String(n.props.children[0]).startsWith('Ver mais')).props.onClick();
+        tree = render();
+        assert.equal(memberButtons(tree).length, count);
+    }
+    assert.ok(!nodes(tree).some(n => n.type === Button && String(n.props.children[0]).startsWith('Ver mais')));
     nodes(tree).find(n => n.type === Input).props.onChange({ target: { value: 'abner' } });
     tree = render();
     assert.equal(memberButtons(tree).length, 1);
     nodes(tree).find(n => n.type === Input).props.onChange({ target: { value: '' } });
     tree = render();
-    assert.equal(memberButtons(tree).length, 30);
+    assert.equal(memberButtons(tree).length, 10);
     nodes(tree).find(n => n.type === Button && n.props.children === 'Posso avaliar').props.onClick();
     tree = render();
     assert.equal(memberButtons(tree).length, 1);
@@ -65,7 +71,18 @@ test('modal compartilhado mantém busca,30 por vez, permissões, fechamento e se
     render();
     opened = true;
     tree = render();
-    assert.equal(memberButtons(tree).length, 30);
+    assert.equal(memberButtons(tree).length, 1);
+    nodes(tree).find(n => n.type === Button && n.props.children === 'Todos os membros').props.onClick();
+    tree = render();
+    opened = false;
+    render();
+    opened = true;
+    tree = render();
+    assert.equal(nodes(tree).find(n => n.type === Button && n.props.children === 'Posso avaliar').props['aria-pressed'], true, 'reabrir restaura elegíveis mesmo após selecionar Todos');
+    assert.equal(memberButtons(tree).length, 1);
+    nodes(tree).find(n => n.type === Button && n.props.children === 'Todos os membros').props.onClick();
+    tree = render();
+    assert.equal(memberButtons(tree).length, 10);
     let prevented = false;
     nodes(tree).find(n => n.props?.onCloseAutoFocus).props.onCloseAutoFocus({ preventDefault: () => prevented = true });
     assert.equal(restore, 1);

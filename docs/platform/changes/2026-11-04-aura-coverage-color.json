@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "id": "2026-11-04-aura-coverage-color",
+  "title": "Aviso de cobertura Aura com contraste explícito em ambos os temas",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/aura.tsx"
+  ],
+  "searchTerms": [
+    "Cobertura e travas da Aura",
+    "aura-coverage-notice"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Somente classes do aviso: fundo âmbar opaco por tema, cores explícitas de título/descrição/motivos/ícone. Condição e textos preservados."
+    },
+    {
+      "path": "client/src/components/appearance-settings.test.ts",
+      "decision": "updated",
+      "reason": "Regressão localizada impede fundo claro translúcido e texto secundário neste aviso, preservando ramificações e motivos."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato documenta contraste localizado sem alteração de cobertura/score."
+    },
+    {
+      "path": "client/src/index.css",
+      "decision": "preserved",
+      "reason": "Compatibilidade global cobre bg-amber-50 sem opacidade; variantes dark explícitas têm precedência e evitam interferir em outros avisos."
+    },
+    {
+      "path": "client/src/components/ui/card.tsx",
+      "decision": "preserved",
+      "reason": "Card mantém estilos compartilhados; classes locais sobrescrevem fundo/borda do aviso sem mudar outros cartões."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Mesma página atende Aura própria/terceiros com mesmas rotas e guardas."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Providers de tema/roteador intactos; mudança local na apresentação."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada dark desktop1246 e mobile390x844, sem overflow e viewport restaurado; capturas output/aura-coverage-color-dark.png/mobile.png. Cores computadas fundo69,26,3; título253,230,138/12.03:1 e descrição254,243,199/13.45:1. Tema claro validado pelas classes/regressão e paleta instalada (descrição8.75:1, motivos6.84:1), sem trocar preferência nem afirmar captura clara."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Nenhum endpoint, payload ou consulta alterado."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Sem migração ou escrita em PostgreSQL/Directus/preferências."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Somente classes do aviso; mesma condição dimensões sem evidência/motivos e score/travas intactos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Aviso da própria página, sem e-mail/notificação externa ou destinatário."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Texto intacto, sem template/PDF/exportação ou documento assinado alterado."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem IA, webhook, fila ou job alterados."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mesma condição de renderização e dados autorizados; não libera ação/avaliação."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Demais avisos e estilos globais intactos. Ajustes anteriores de formulário e consulta Aura preservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "11 testes de aparência aprovados; platform:verify754testes/0falhas, tooling/tipos/contrato/consistência/build aprovados (.BUILT-tmp/aura-coverage-color-verify.log). Somente classes do aviso mudaram, texto e condição preservados."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/appearance-settings.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

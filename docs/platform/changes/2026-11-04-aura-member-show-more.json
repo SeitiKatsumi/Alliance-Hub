@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "id": "2026-11-04-aura-member-show-more",
+  "title": "Lista progressiva de membros no modal Consultar e registrar Aura",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/aura.tsx"
+  ],
+  "searchTerms": [
+    "client/src/pages/aura.tsx",
+    "lookupResults",
+    "lookupVisibleCount"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/aura-lookup-dialog.tsx",
+      "decision": "updated",
+      "reason": "Lista movida posteriormente para componente compartilhado no trabalho2026-11-04-aura-inline-lookup, preservando30 iniciais/expansão30a30/reset/ordenação. QA30→60 e teste executado naquele trabalho."
+    },
+    {
+      "reason": "Lista alfabética pt-BR pelo nome exibido com trim,30 iniciais e expansão30 a30; busca/reabertura resetam. Modal limitado90dvh.",
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated"
+    },
+    {
+      "reason": "Documenta interação e limite existente da API de busca.",
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated"
+    },
+    {
+      "reason": "Busca autenticada existente retorna até100 membros por consulta. Não altera autorização, dados ou avaliações.",
+      "path": "server/routes.ts",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Aura própria e de terceiros usam a mesma página.",
+      "path": "client/src/App.tsx",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Providers da página preservados.",
+      "path": "client/src/main.tsx",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Rotas e módulo de Aura mantidos.",
+      "path": "docs/platform/platform-contract.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-10-26-global-save-loading.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-10-26-onboarding-phone.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-10-30-aura-warning-contrast.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-10-30-session-display-name.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-11-02-aura-touch-help.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-11-02-file-drop.json",
+      "decision": "preserved"
+    },
+    {
+      "reason": "Registro histórico de alteração anterior, preservado.",
+      "path": "docs/platform/changes/2026-11-02-live-account-profiles.json",
+      "decision": "preserved"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada:30 iniciais/70 restantes e60 após um clique/40 restantes. Nomes começam Abner, Adolfo, Alessandro; espaços iniciais ignorados. Captura output/aura-more/live-thirty.png. Sem avaliação gravada. Mesmo layout responsivo já conferido anteriormente."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Verificação posterior no mesmo workspace:platform:verify742 testes/0 falhas, tipos/build/contratos. QA30/60 e ordem alfabética já registrados; falha transitória do trabalho paralelo não persiste na suíte."
+    }
+  ],
+  "regressionTests": [
+    "server/aura-lexico.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

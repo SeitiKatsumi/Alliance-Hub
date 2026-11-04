@@ -7,6 +7,8 @@ import { memberDisplayName } from "../shared/member-display-name";
 import { validatePropertyGoal, propertyThesisLabel, propertyThesisCode, PROPERTY_THESIS_OPTIONS } from "../shared/property-thesis";
 import { platformDataFetch as fetch, nativeDataEnabled } from './native-data-transport';
 import { isolatedStage } from './isolated-stage';
+import { RoPulse } from './ro-pulse';
+import { registerRoPulseRoutes } from './ro-pulse-routes';
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, quotaTransferAmountsSchema } from "../shared/quota-correction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { categoryText } from "../shared/financial-categories";
@@ -21401,6 +21403,20 @@ Deixe claro que premissas precisam de validação profissional.`,
     return { canView: participant || canReview || communityMember, canOrganize: canReview };
   }
 
+  const roPulse = new RoPulse({
+    db,
+    communities: async () => directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS),
+    members: async () => directusFetch('cadastro_geral', 'fields=id,nome,Nome_de_usuario,email,em_membros_built&limit=-1'),
+    meeting: async id => (await db.execute(sql`SELECT * FROM opportunity_meetings WHERE id::text=${id} OR codigo=${id} LIMIT 1`)).rows[0] || null,
+    send: async input => (await import('./mailer')).notificarPulsoRo(input),
+  });
+  const roPulseActor = (req:any) => {
+    const actor = requireCarteiraActor(req);
+    if (req.session?.companyEmployeeId) throw Object.assign(new Error('Use o perfil pessoal para os Pulsos das ROs.'), {status:403});
+    return {userId:String(req.session?.accessUserId || actor.userId),memberId:actor.membroId ? String(actor.membroId) : null,admin:actor.isPlatformAdmin};
+  };
+  registerRoPulseRoutes(app, roPulse, roPulseActor);
+
   app.use("/api/reunioes-oportunidades", async (_req, res, next) => {
     try {
       await ensureBusinessOpportunityTables();
@@ -21483,6 +21499,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         convidados_externos: (participants.rows || []).filter((participant: any) => participant.external === true),
         decisoes_estruturadas: decisions.rows || [],
         can_organize: access.canOrganize,
+        can_manage_pulse: !((req.session as any)?.companyEmployeeId) && roPulse.canManage(meeting,roPulseActor(req)),
       });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -24410,6 +24427,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const isAdmin = ["admin", "manager", "superadmin", "master"].includes(String(role || "").toLowerCase());
     const allItems: AgendaAlertItem[] = [];
     allItems.push(...await contributionBilling.reminders.alerts(String(userId),session.companyEmployeeId?null:membroId?String(membroId):null));
+    if (!session.companyEmployeeId) allItems.push(...await roPulse.alerts(String(session.accessUserId || userId), membroId ? String(membroId) : null));
 
     allItems.push(...await listMouRevisionAlerts(db,String(userId),session.companyEmployeeId ? null : membroId ? String(membroId) : null,BIA_MOU_VERSAO,async biaId=>{
       const bia=await phaseDeps.fetch(biaId);
@@ -29139,6 +29157,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         sort: "nome",
       });
       if (access.membroId) params.set("filter[id][_neq]", access.membroId);
+      if (req.query.avaliaveis === "1") {
+        if (!access.membroId || !access.canRegisterAura) return res.json([]);
+        const linked = await getAuraLinkedMemberIdsServer(access.membroId);
+        const given = await storage.getAuraAvaliacoesByAvaliador(access.membroId);
+        const evaluated = new Set(given.map(item => String(item.avaliado_membro_id)));
+        const eligible = [...linked].filter(id => id !== String(access.membroId) && !evaluated.has(id));
+        if (!eligible.length) return res.json([]);
+        params.set("filter[id][_in]", eligible.join(","));
+      }
       if (q.length >= 2) {
         params.set("filter[_or][0][nome][_icontains]", q);
         params.set("filter[_or][1][empresa][_icontains]", q);
@@ -29148,7 +29175,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       }
       const url = `${DIRECTUS_URL}/items/cadastro_geral?${params.toString()}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!r.ok) return res.json([]);
+      if (!r.ok) return res.status(503).json({ error: "Não foi possível buscar os membros." });
       const json = await r.json();
       const items = (json.data || []).map((m: any) => ({
         id: m.id,
@@ -29159,7 +29186,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       }));
       return res.json(items);
     } catch {
-      return res.json([]);
+      return res.status(503).json({ error: "Não foi possível conferir os membros disponíveis." });
     }
   });
 

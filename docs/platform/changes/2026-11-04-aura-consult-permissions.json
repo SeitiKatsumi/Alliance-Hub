@@ -1,0 +1,341 @@
+{
+  "version": 1,
+  "id": "2026-11-04-aura-consult-permissions",
+  "title": "Entrada única Consultar Aura com filtro de elegibilidade e estados por membro",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/lib/aura-access.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "auraLookupState",
+    "client/src/pages/aura.tsx",
+    "client/src/pages/painel.tsx",
+    "client/src/lib/aura-access.ts"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/aura-lookup-dialog.tsx",
+      "decision": "updated",
+      "reason": "Extração posterior do modal no trabalho2026-11-04-aura-inline-lookup: preserva helper/estados/filtros deste trabalho e permite abertura sobre Home. Revisão desta sobreposição registrada naquele arquivo."
+    },
+    {
+      "path": "client/src/components/aura-lookup-dialog.test.ts",
+      "decision": "updated",
+      "reason": "Regressão da extração posterior executa o componente e atalho reais, preservando gate e estados de consulta/avaliação; coberta pelo registro2026-11-04-aura-inline-lookup."
+    },
+    {
+      "decision": "preserved",
+      "path": "client/src/App.tsx",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "updated",
+      "path": "client/src/data/platform-functional-report.ts",
+      "reason": "Descrição da funcionalidade Aura atualizada; alterações RO paralelas preservadas."
+    },
+    {
+      "decision": "updated",
+      "path": "client/src/lib/aura-access.ts",
+      "reason": "Novo helper de estado usa canRegisterAuraForMember existente sem ampliar permissão."
+    },
+    {
+      "decision": "updated",
+      "path": "client/src/lib/aura-lookup.test.ts",
+      "reason": "Estados elegível, consulta, avaliado, pendente, erro, próprio e usuário restrito."
+    },
+    {
+      "decision": "preserved",
+      "path": "client/src/lib/bia-thesis-consumers.test.ts",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "preserved",
+      "path": "client/src/main.tsx",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "updated",
+      "path": "client/src/pages/aura.tsx",
+      "reason": "Consulta única, filtros, estados por linha, erro/carregamento e botão que revela formulário no perfil; preserva30 itens e ordenação."
+    },
+    {
+      "decision": "preserved",
+      "path": "client/src/pages/mou-navigation.test.ts",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "updated",
+      "path": "client/src/pages/painel.tsx",
+      "reason": "Ação rápida renomeada Consultar Aura com link legado preservado."
+    },
+    {
+      "decision": "preserved",
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "preserved",
+      "path": "client/src/pages/vitrine.tsx",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-23-market-estimate-validation.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-23-property-launch-edit.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-23-theses-publication.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-23-thesis-naming.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-26-bank-dashboard.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-26-global-save-loading.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-26-onboarding-phone.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-26-patrimony-source-and-corrections.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-29-carteira-tabs.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-aura-warning-contrast.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-carteira-remove-opportunity-shortcut.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-management-card-wrap.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-property-theses.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-retire-capital-dm-tab.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-session-display-name.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-30-unified-portfolio.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-10-31-mou-direct-action.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-02-aura-touch-help.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-02-built-property-valuation.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-02-file-drop.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-02-import-category-picker.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-02-live-account-profiles.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-02-portfolio-item-filters.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-agenda-native-actions.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-bia-auto-indicators.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-bia-card-indicators.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-bia-tracking.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-financial-role-edit.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-my-properties-tab.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-paid-allocated-capital.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-portfolio-chart-filters.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-03-property-cib.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/changes/2026-11-04-aura-member-show-more.json",
+      "reason": "Registro de outro trabalho, histórico preservado; não atesta mudanças paralelas."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/deprecations.json",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "updated",
+      "path": "docs/platform/modules/aura.md",
+      "reason": "Regra, fontes, consumidores, dados legados e limites documentados."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/modules/inicio-gestao.md",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "preserved",
+      "path": "docs/platform/platform-contract.json",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    },
+    {
+      "decision": "updated",
+      "path": "server/aura-member-search.test.ts",
+      "reason": "Executa handler real isolado: IDs canônicos, avaliações excluídas, filtro antes do limite, busca,401 e503."
+    },
+    {
+      "decision": "updated",
+      "path": "server/routes.ts",
+      "reason": "Apenas busca de membros recebe filtro avaliaveis por vínculos e avaliações antes do limite; falha503. Guardas de escrita permanecem. Mudanças RO paralelas não atestadas."
+    },
+    {
+      "decision": "preserved",
+      "path": "shared/bia-card-indicators.test.ts",
+      "reason": "Consumidor de imports/rotas/contrato preservado: helper de vínculo e consulta anterior mantém assinatura, permissões e domínio; sem regra concorrente de elegibilidade. Apenas modal e atalho alterados."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Markup real do modal conferido desktop/390x844 com três estados fictícios, filtros e lista30. Perfil revele formulário por botão; QA autenticada final aguarda login solicitado. Capturas output/aura-consult."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Handler real testado com dependências simuladas: filtro por vínculos e exclusão das avaliações antes do limite;401/503. Regra de gravação existente preservada."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Sem migração. Lista de vínculos canônica e avaliações do ator são somente lidas; erro não vira lista vazia."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Mudança visual localizada no modal de consulta: preserva backend, autorização, dados, avaliações, cálculos, documentos, e-mails e tarefas existentes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional atualizado; documentos assinados e relatórios de Aura preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Apenas consultas autenticadas existentes; sem IA, e-mail, tarefa ou integração adicional acionados pelos filtros."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Consulta continua para membro BUILT e registro exige vínculo. Helper visual e filtro usam mesmos dados oficiais; backend POST revalida. Nenhuma concessão pelo botão/filtro."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "URL registrar=1 continua abrindo consulta; API sem avaliaveis mantém escopo anterior e limite100. Busca/estado não regravam avaliações. Vínculo vigente vem do servidor, alinhado com guarda de POST; erro permite apenas consultar."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify742 testes/0 falhas, tipos/contratos/build. Dois testes novos de domínio e handler real. QA de modal em desktop/celular com dados fictícios; nenhuma avaliação gravada."
+    }
+  ],
+  "regressionTests": [
+    "client/src/lib/aura-lookup.test.ts",
+    "server/aura-member-search.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

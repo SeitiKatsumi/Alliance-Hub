@@ -1,5 +1,7 @@
 # Aura Percebida
 
+- 04/11/2026: Consultar Aura das ações rápidas do Início abre `AuraLookupDialog` sobre o próprio Início, mantendo URL/aba e restaurando o foco ao fechar. A página Aura usa o mesmo componente, busca, filtros Todos/Posso avaliar, permissões e expansão30a30 ordenada por nome. Selecionar pessoa mantém navegação para sua Aura; `/aura?registrar=1` continua compatível como link direto legado. Gate de membro e diálogo de acesso do Início preservados; leituras só quando modal aberto, sem avaliar/gravar automaticamente. Refatoração não muda endpoints, cadastro, vínculos ou autorização de registro.
+
 ## Objetivo e usuarios
 
 Registra percepcoes reputacionais entre membros por palavras ou expressoes, com apoio de IA/audio, e consolida indice, dimensoes e matriz de aplicabilidade.
@@ -62,3 +64,12 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 
 ## Contraste do aviso de vínculo
 Descrição do aviso de registro restrito usa âmbar escuro opaco no tema claro e âmbar claro no tema escuro, sem transparência no texto. Mudança visual localizada; vínculo, score e permissões preservados.
+
+## Lista progressiva no modal — 04/11/2026
+Consultar e registrar Aura mostra30 membros inicialmente e botão Ver mais (N restantes) abaixo da lista. Cada clique acrescenta30 membros; busca e reabertura reiniciam o limite. Filtro por nome/empresa/cargo considera todos os resultados retornados, removendo corte visual anterior em20; API preserva seu limite existente de100 por consulta. Lista continua rolável e modal limitado a90dvh no celular. Rotas, permissões, avaliações, IA, áudio, score, e-mails e documentos não mudam.
+
+A lista é ordenada pelo nome exibido com locale pt-BR, sem diferenciar caixa/acentos e ignorando espaços nas extremidades antes de paginar. Isso evita nomes com espaço inicial no topo.
+## Entrada única e elegibilidade — 04/11/2026
+A ação rápida do Início e o cabeçalho/modal usam Consultar Aura. Link legado /aura?registrar=1 continua abrindo a consulta. Modal oferece Todos os membros e Posso avaliar, mantém busca alfabética e30 itens por expansão. Cada linha indica Pode avaliar, Somente consulta (sem BIA/comunidade em comum), Já avaliado por você, ou conferência/indisponibilidade. Dados ainda não confirmados nunca viram ausência de vínculo. Consulta de vínculos e avaliações usa endpoints autenticados; falha aparece com Tentar novamente.
+Posso avaliar usa GET /api/aura/membros/busca?avaliaveis=1: servidor resolve vínculos pela mesma fonte de requireAuraRegisterTarget e exclui avaliações dadas antes de aplicar limite100 e busca. Assim um elegível fora dos100 primeiros da listagem geral pode ser encontrado. Rótulos usam auraLookupState e vínculos confirmados pelo servidor, sem união concorrente com listas de comunidades/BIAs no cliente. Consultas duplicadas dessas listas foram removidas da página; helper antigo permanece para consumidores de compatibilidade. Status já avaliado tem precedência sobre vínculo atual. Nenhuma avaliação é exposta a outro avaliador.
+No perfil, Registrar percepção revela o formulário para elegíveis; registro já existente continua consultável. Não elegível vê motivo da restrição; indisponibilidade não oferece registrar. Backend de gravação/uniquidade/IA/score permanece autorizado pelas guardas existentes. Sem migração, e-mail, notificação, mudança em candidatos públicos ou publicação de dados. Consumidores: painel, modal/perfil Aura, catálogo funcional, busca privada, vínculos e minhas-avaliacoes. Testes aura-lookup e aura-member-search cobrem estados, isolamento/filtro antes do limite e erro503 em vez de vazio falso.

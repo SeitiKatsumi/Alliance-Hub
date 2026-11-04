@@ -1,8 +1,9 @@
+import {AuraLookupDialog} from '@/components/aura-lookup-dialog';
 import { BiaCardIndicators } from "@/components/bia-card-indicators";
 import { biaBusinessTypeLabel, buildBiaThesisAllocation } from "@shared/bia-business-type";
 import { agendaTaskHref, agendaTaskTitle } from "@shared/agenda-action";
 ﻿import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -555,6 +556,8 @@ export default function PainelPage() {
   const [carteiraView, setCarteiraView] = useState<CarteiraView>(initialNavigation.carteiraView);
   const [businessSection, setBusinessSection] = useState<BusinessSection>(initialNavigation.businessSection);
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
+  const [auraLookupOpen,setAuraLookupOpen]=useState(false);
+  const auraLookupTriggerRef=useRef<HTMLButtonElement|null>(null);
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const [selectedCarteiraAlert, setSelectedCarteiraAlert] = useState<CarteiraDashboardAlert | null>(null);
   const [carteiraAlertAction, setCarteiraAlertAction] = useState("");
@@ -960,7 +963,7 @@ export default function PainelPage() {
       setBlockedAccess(environmentAccessFor(user, "alliances"));
       return;
     }
-    navigate("/aura?registrar=1");
+    setAuraLookupOpen(true);
   }
   const comunidadeLabel = comunidades.length > 0 ?comunidades[0].nome : null;
 
@@ -1295,7 +1298,7 @@ export default function PainelPage() {
               {[
                 { label: "Nova Demanda", icon: Target, path: "/demandas/nova" },
                 { label: "Nova BIA", icon: Plus, path: "/area-aliancas?tab=bias&criar=true" },
-                { label: "Registrar Percepção de AURA", icon: Sparkles, path: "/aura?registrar=1", auraRegister: true },
+                { label: "Consultar Aura", icon: Sparkles, path: "/aura", auraRegister: true },
                 { label: "Criar destaque", icon: Megaphone, path: "/vitrine?criarAnuncio=true", target: "vitrine" as const },
                 { label: "Registrar aporte", icon: Wallet, path: "/built-capital", target: "capital" as const },
               ].map((acao) => {
@@ -1304,6 +1307,7 @@ export default function PainelPage() {
                   <button
                     key={acao.label}
                     type="button"
+                    ref={acao.auraRegister ? auraLookupTriggerRef : undefined}
                     onClick={() => acao.auraRegister ? goToAuraRegister() : acao.target ? goToEnvironment(acao.target, acao.path) : navigate(acao.path)}
                     className="group flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-lg border border-border/70 bg-background px-1 text-center text-[10px] font-semibold leading-tight text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
                     data-testid={`acao-rapida-${acao.label.toLowerCase().replace(/\s+/g, "-")}`}
@@ -1463,6 +1467,7 @@ export default function PainelPage() {
         )}
       </div>
 
+        <AuraLookupDialog user={user} open={auraLookupOpen} onOpenChange={setAuraLookupOpen} onSelect={member=>navigate(`/aura/${encodeURIComponent(member.id)}`)} restoreFocus={()=>auraLookupTriggerRef.current?.focus()} />
         <EnvironmentAccessDialog
           access={blockedAccess}
           open={!!blockedAccess}

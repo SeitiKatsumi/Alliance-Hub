@@ -42,4 +42,8 @@ test("convites de diretoria e sócio mantêm ação antecipada e alternativa em 
     assert.doesNotMatch(html, /src="http:\/\/localhost/);
   }
   assert.match(messages[2].html, /href="http:\/\/localhost:3004\/agenda-alertas/);
+  await mailer.notificarPulsoRo({email:'example@example.test',nome:'Pessoa <teste>',meeting:{titulo:'RO <img>',codigo:'RO-1',data:'2031-01-01',hora:'10:00',timezone:'Asia/Tokyo'},url:'/ros/avisos/ro-id'});
+  assert.match(messages[3].html,/RO &lt;img&gt;/);assert.match(messages[3].html,/Pessoa &lt;teste&gt;/);
+  assert.match(messages[3].html,/01\/01\/2031/);assert.match(messages[3].html,/10:00/);
+  assert.match(messages[3].html,/http:\/\/localhost:3004\/ros\/avisos\/ro-id/);
 });

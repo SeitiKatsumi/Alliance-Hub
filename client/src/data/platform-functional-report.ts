@@ -130,6 +130,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     features: [
       { id: "obas", title: "Oportunidades BUILT de Aliança (OBAs)", description: "Cadastro, edição, publicação, consulta e vinculação de oportunidades às BIAs.", status: "disponivel" },
       { id: "pulso-obas", title: "Pulso de OBAs", description: "Distribuição em cinco ondas, da comunidade de origem à Vitrine geral, com notificação e e-mail por etapa.", status: "disponivel" },
+      { id: "pulso-ros", title: "Pulso das ROs", description: "Divulgação da mesma Reunião de Oportunidades da origem às comunidades regionais, nacionais e globais. Criador escolhe comunidades e intervalo entre os pulsos, com pausa, retomada, avanço e encerramento. Cada onda gera aviso e e-mail conforme preferências. Destinatário consulta resumo autenticado; não ganha presença confirmada nem acesso a dados privados.", status: "disponivel" },
       { id: "compartilhar-obas", title: "Compartilhamento externo de OBA", description: "Convite individual e temporário que conduz usuários existentes ou novos até a OBA compartilhada.", status: "disponivel" },
       { id: "mapa-obas", title: "Mapa de oportunidades", description: "Visualização geográfica e filtragem das OBAs disponíveis.", status: "disponivel" },
       { id: "interesse-obas", title: "OBAs de interesse", description: "Registro e acompanhamento do interesse do usuário em oportunidades da rede.", status: "disponivel" },
@@ -194,7 +195,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     title: "Aura Percebida BUILT",
     summary: "Registro estruturado da percepção reputacional e de aplicabilidade dos membros.",
     features: [
-      { id: "aura-registro", title: "Registro de percepção", description: "Avaliação de outro membro com termos vinculados a experiências reais.", status: "disponivel" },
+      { id: "aura-registro", title: "Consulta e registro de percepção", description: "Consultar Aura abre o mesmo modal na tela atual, inclusive nas ações rápidas do Início. Reúne Todos os membros e Posso avaliar, com indicação de vínculo e avaliação já registrada. Pessoas elegíveis abrem Registrar percepção no próprio perfil.", status: "disponivel" },
       { id: "aura-termos", title: "Seleção de termos", description: "Escolha manual de termos e expressões do léxico estruturado de Aura.", status: "disponivel" },
       { id: "aura-ia", title: "Análise de percepção com IA", description: "Sugestão de termos a partir de texto e arquivos enviados pelo avaliador.", status: "evolucao" },
       { id: "aura-audio", title: "Gravação e envio de áudio", description: "Captura, animação de gravação e transcrição direta para o campo de percepção.", status: "evolucao" },

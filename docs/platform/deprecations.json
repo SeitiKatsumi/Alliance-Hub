@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id":"home-aura-lookup-no-page-redirect",
+      "description":"Consultar Aura nas ações rápidas abre o modal local; link direto legado permanece permitido na página Aura.",
+      "terms":["/aura?registrar=1"],
+      "roots":["client/src/pages/painel.tsx"],
+      "regressionTests":["client/src/components/aura-lookup-dialog.test.ts"],
+      "exceptions":[]
+    },
+    {
       "id":"agenda-aporte-no-task-detour",
       "description":"Aviso de aporte abre o lançamento pelo helper compartilhado; e-mail/calendário preservam URLs históricas.",
       "terms":["href:contributionAgendaUrl(row.id)"],

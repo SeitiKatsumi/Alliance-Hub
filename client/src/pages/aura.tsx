@@ -1,3 +1,4 @@
+import {AuraLookupDialog,AvatarImage,fixMojibakeDeep,fotoUrl,getInitials,type MembroBusca} from '@/components/aura-lookup-dialog';
 ﻿import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -20,13 +21,13 @@ import {
   TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
   ShieldCheck, Target, Briefcase, CalendarDays, BarChart3,
   AlertTriangle, Lock, BookOpen, Handshake, Settings,
-  Info, Mic, Square, Upload,
+  Info, Mic, Square, Upload, ChevronDown,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useLocation, useParams } from "wouter";
-import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
+import { canRegisterAuraForMember, isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
 import {
   createAuraMediaRecorder,
   formatAuraRecordingTime,
@@ -99,13 +100,7 @@ interface ConvergenciaNucleo {
   justificativa: string;
 }
 
-interface MembroBusca {
-  id: string;
-  nome: string;
-  cargo: string;
-  empresa: string;
-  foto: string | { id: string; filename_disk: string } | null;
-}
+
 
 interface MinhaAvaliacao {
   id: number;
@@ -385,54 +380,15 @@ function faixaDescricao(score: number | null): string {
   return "Aura em Evolução";
 }
 
-function fixMojibakeText(value: string): string {
-  if (!/[ÃÂ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
-  try {
-    return decodeURIComponent(escape(value)).normalize("NFC");
-  } catch {
-    return value.normalize("NFC");
-  }
-}
 
-function fixMojibakeDeep<T>(value: T): T {
-  if (typeof value === "string") return fixMojibakeText(value) as T;
-  if (Array.isArray(value)) return value.map(item => fixMojibakeDeep(item)) as T;
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, fixMojibakeDeep(item)])
-    ) as T;
-  }
-  return value;
-}
 
-function fotoUrl(foto: MembroBusca["foto"]): string | null {
-  if (!foto) return null;
-  const fileId = typeof foto === "string" ? foto : foto.id || foto.filename_disk;
-  if (!fileId) return null;
-  if (fileId.startsWith("/api/assets/")) return fileId;
-  if (fileId.startsWith("/assets/")) return fileId.replace(/^\/assets\//, "/api/assets/");
-  if (fileId.startsWith("http")) return fileId;
-  return `/api/assets/${fileId}?width=80&height=80&fit=cover`;
-}
 
-function AvatarImage({ foto, nome }: { foto: MembroBusca["foto"]; nome: string }) {
-  const [failed, setFailed] = useState(false);
-  const src = !failed ? fotoUrl(foto) : null;
-  if (!src) return <>{getInitials(nome || "")}</>;
-  return (
-    <img
-      src={src}
-      alt=""
-      aria-hidden="true"
-      className="w-full h-full object-cover"
-      onError={() => setFailed(true)}
-    />
-  );
-}
 
-function getInitials(nome: string): string {
-  return nome.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "";
-}
+
+
+
+
+
 
 export default function AuraPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -442,7 +398,12 @@ export default function AuraPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [lookupOpen, setLookupOpen] = useState(false);
-  const [lookupQuery, setLookupQuery] = useState("");
+
+
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  useEffect(() => { setRegistrationOpen(false); }, [routeMembroId]);
+
+
   const [selectedMembro, setSelectedMembro] = useState<MembroBusca | null>(null);
   const [selectedPalavras, setSelectedPalavras] = useState<string[]>([]);
   const [palavraInput, setPalavraInput] = useState("");
@@ -552,69 +513,44 @@ export default function AuraPage() {
 
   const { data: minhasAvaliacoesData } = useQuery<MinhasAvaliacoesResponse>({
     queryKey: ["/api/aura/minhas-avaliacoes"],
-    queryFn: async () => fixMojibakeDeep(await fetch("/api/aura/minhas-avaliacoes", { credentials: "include" }).then(res => res.json())),
+    queryFn: async () => {
+      const res = await fetch("/api/aura/minhas-avaliacoes", { credentials: "include" });
+      if (!res.ok) throw new Error("Não foi possível conferir suas avaliações.");
+      return fixMojibakeDeep(await res.json());
+    },
     enabled: !!myId,
   });
   const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
   const minhasAvaliacoesRecebidas: MinhaAvaliacao[] = minhasAvaliacoesData?.recebidas ?? [];
   const evolucaoDados = useMemo(() => isOwnAura ? calcularEvolucao(minhasAvaliacoesRecebidas) : [], [isOwnAura, minhasAvaliacoesRecebidas]);
 
-  const { data: minhasComunidadesAura = [] } = useQuery<any[]>({
-    queryKey: ["/api/comunidades", { membro_id: myId, scope: "aura-registro" }],
-    queryFn: async () => {
-      const res = await fetch(`/api/comunidades?membro_id=${myId}`, { credentials: "include" });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
-    },
-    enabled: !!myId && canConsultAura,
-  });
-
-  const { data: minhasBiasAura = [] } = useQuery<any[]>({
-    queryKey: ["/api/bias", "aura-registro"],
-    queryFn: async () => {
-      const res = await fetch("/api/bias", { credentials: "include" });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
-    },
-    enabled: !!myId && canConsultAura,
-  });
-
-  const { data: vinculosAuraServidor = [] } = useQuery<string[]>({
+  const { data: vinculosAuraServidor = [], isPending: loadingLinks, isError: linksError } = useQuery<string[]>({
     queryKey: ["/api/aura/vinculos", myId],
     queryFn: async () => {
       const res = await fetch("/api/aura/vinculos", { credentials: "include" });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Não foi possível conferir seus vínculos.");
       const data = await res.json();
-      return Array.isArray(data?.ids) ? data.ids.map(String) : [];
+      if (!Array.isArray(data?.ids)) throw new Error("Resposta de vínculos indisponível.");
+      return data.ids.map(String);
     },
     enabled: !!myId && canConsultAura,
   });
 
-  const auraLinkedMemberIds = useMemo(() => {
-    const linkedIds = getAuraLinkedMemberIds({
-      comunidades: minhasComunidadesAura,
-      bias: minhasBiasAura,
-      currentMemberId: myId,
-    });
-    for (const id of vinculosAuraServidor) linkedIds.add(String(id));
-    return linkedIds;
-  }, [minhasComunidadesAura, minhasBiasAura, myId, vinculosAuraServidor]);
-
   const memberSearchTerm = searchQuery.trim();
   const memberSearchActive = memberSearchTerm.length >= 2;
-  const lookupSearchTerm = lookupQuery.trim();
-  const auraSearchTerm = lookupOpen ? lookupSearchTerm : memberSearchActive ? memberSearchTerm : "";
+
+  const auraSearchTerm = memberSearchActive ? memberSearchTerm : "";
+
+
 
   const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
-    queryKey: ["/api/aura/membros/busca", auraSearchTerm],
+    queryKey: ["/api/aura/membros/busca", auraSearchTerm, false],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (auraSearchTerm.length >= 2) params.set("q", auraSearchTerm);
       const url = `/api/aura/membros/busca${params.toString() ? `?${params.toString()}` : ""}`;
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Não foi possível buscar os membros.");
       const data: MembroBusca[] = await res.json();
       return fixMojibakeDeep(data);
     },
@@ -642,23 +578,10 @@ export default function AuraPage() {
       return nome.includes(q) || empresa.includes(q);
     })
     .slice(0, 12) : [];
-  const lookupResults = useMemo(() => {
-    const q = lookupSearchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return allMembros
-      .filter(m => m.id !== myId)
-      .filter(m => {
-        if (!q) return true;
-        const nome = (m.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const empresa = (m.empresa || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const cargo = (m.cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return nome.includes(q) || empresa.includes(q) || cargo.includes(q);
-      })
-      .slice(0, 20);
-  }, [allMembros, lookupSearchTerm, myId]);
+
 
   function abrirAuraDoMembro(membro: MembroBusca) {
     setLookupOpen(false);
-    setLookupQuery("");
     setSelectedMembro(membro);
     setSelectedPalavras([]);
     setSearchQuery("");
@@ -669,14 +592,14 @@ export default function AuraPage() {
   const canRegisterSelectedAura = canRegisterAuraForMember({
     user,
     targetMemberId: targetRegisterMemberId,
-    linkedMemberIds: auraLinkedMemberIds,
+    linkedMemberIds: new Set(vinculosAuraServidor),
   });
 
-  const { data: minhaAvaliacaoDoSelecionado } = useQuery<AvaliacaoExistente | null>({
+  const { data: minhaAvaliacaoDoSelecionado, isLoading: checkingSelectedEvaluation, isError: selectedEvaluationError } = useQuery<AvaliacaoExistente | null>({
     queryKey: ["/api/aura/avaliacao", targetRegisterMemberId],
     queryFn: async () => {
       const res = await fetch(`/api/aura/avaliacao/${targetRegisterMemberId}`, { credentials: "include" });
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error("Não foi possível conferir sua percepção registrada.");
       return fixMojibakeDeep(await res.json());
     },
     enabled: !!targetRegisterMemberId && canRegisterSelectedAura,
@@ -689,6 +612,7 @@ export default function AuraPage() {
     onSuccess: () => {
       toast({ title: "Avaliação enviada!", description: "Obrigado por contribuir com a Aura da comunidade." });
       queryClient.invalidateQueries({ queryKey: ["/api/aura/minhas-avaliacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aura/membros/busca"] });
       queryClient.invalidateQueries({ queryKey: ["/api/aura/avaliacao", selectedMembro?.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/aura/score", selectedMembro?.id] });
       if (!routeMembroId) setSelectedMembro(null);
@@ -1037,7 +961,7 @@ export default function AuraPage() {
               data-testid="btn-consultar-registrar-aura"
             >
               <Sparkles className="w-4 h-4" />
-              Consultar e registrar Aura
+              Consultar Aura
             </Button>
           )}
           {myId && canConsultAura && !isOwnAura && (
@@ -1061,66 +985,7 @@ export default function AuraPage() {
         onOpenChange={(open) => !open && setBlockedAccess(null)}
       />
 
-      {canConsultAura && (
-      <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Consultar e registrar Aura</DialogTitle>
-            <DialogDescription>
-              Selecione um membro para abrir a Aura da pessoa e registrar sua percepção.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-              <Input
-                value={lookupQuery}
-                onChange={e => setLookupQuery(e.target.value)}
-                placeholder="Buscar por nome, empresa ou cargo..."
-                className="pl-9"
-                data-testid="input-consultar-aura-membro"
-              />
-            </div>
-            <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/60">
-              {loadingSearch ? (
-                <div className="space-y-1 p-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2">
-                      <Skeleton className="w-10 h-10 rounded-full" />
-                      <div className="space-y-2 flex-1">
-                        <Skeleton className="h-4 w-44" />
-                        <Skeleton className="h-3 w-32" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : lookupResults.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">Nenhum membro encontrado.</p>
-              ) : (
-                lookupResults.map(m => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => abrirAuraDoMembro(m)}
-                    className="w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-muted/70 border-b border-border/50 last:border-0"
-                    data-testid={`btn-consultar-aura-membro-${m.id}`}
-                  >
-                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold bg-[#001D34]/10 text-[#D7BB7D] shrink-0">
-                      <AvatarImage foto={m.foto} nome={m.nome} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">{m.nome || "—"}</p>
-                      <p className="text-xs text-muted-foreground truncate">{[m.cargo, m.empresa].filter(Boolean).join(" · ") || "Membro BUILT"}</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      )}
+      {canConsultAura && <AuraLookupDialog user={user} open={lookupOpen} onOpenChange={setLookupOpen} onSelect={abrirAuraDoMembro} />}
 
       {canViewRequestedAura && (
         <div className="order-2 grid grid-cols-1 gap-4 xl:grid-cols-12" data-testid="section-aura-dashboard">
@@ -1533,11 +1398,12 @@ export default function AuraPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Users className="w-4 h-4 text-[#D7BB7D]" />
-              {routeMembroId && routeMembroId !== myId ? `Registrar Aura de ${viewedName}` : "Avaliar um Membro"}
+              {minhaAvaliacaoDoSelecionado ? "Sua percepção registrada" : canRegisterSelectedAura ? `Sua percepção de ${viewedName}` : "Somente consulta"}
             </CardTitle>
+            {canRegisterSelectedAura && !minhaAvaliacaoDoSelecionado && !checkingSelectedEvaluation && !selectedEvaluationError && <Button type="button" variant="outline" className="w-fit" onClick={() => setRegistrationOpen(open => !open)} aria-expanded={registrationOpen}>{registrationOpen ? "Fechar registro" : "Registrar percepção"}</Button>}
           </CardHeader>
-          <CardContent className="space-y-4">
-            {!canRegisterSelectedAura ? (
+          <CardContent className={`space-y-4 ${canRegisterSelectedAura && !minhaAvaliacaoDoSelecionado && !registrationOpen && !checkingSelectedEvaluation && !selectedEvaluationError && !linksError ? "hidden" : ""}`}>
+            {loadingLinks || checkingSelectedEvaluation ? <p className="text-sm text-muted-foreground">Conferindo permissão…</p> : linksError || selectedEvaluationError ? <p role="alert" className="text-sm text-muted-foreground">Não foi possível conferir sua permissão para registrar. Você pode continuar consultando esta Aura.</p> : !canRegisterSelectedAura ? (
               <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <div className="space-y-1">

@@ -136,6 +136,16 @@ export function canRegisterAuraForMember({
   return Boolean(linkedMemberIds?.has(String(targetMemberId)));
 }
 
+export function auraLookupState(input: {
+  user?: AppUser | null; targetMemberId: string; linkedMemberIds: Set<string>;
+  evaluatedMemberIds: Set<string>; ready: boolean; failed?: boolean;
+}): "checking" | "unavailable" | "evaluated" | "eligible" | "consult" {
+  if (input.failed) return "unavailable";
+  if (!input.ready) return "checking";
+  if (input.evaluatedMemberIds.has(String(input.targetMemberId))) return "evaluated";
+  return canRegisterAuraForMember(input) ? "eligible" : "consult";
+}
+
 export function canConsultAuraForMember({
   user,
   targetMemberId,

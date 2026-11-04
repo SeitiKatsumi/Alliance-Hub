@@ -950,6 +950,17 @@ export async function enviarAprovacaoVitrineInvitador(opts: {
   await send("community", opts.invitadorEmail, `${opts.candidatoNome} foi aprovado na ${opts.comunidadeNome}!`, html);
 }
 
+export async function notificarPulsoRo(opts: {email:string;nome:string;meeting:{titulo:string;codigo:string;data:unknown;hora?:string|null;timezone?:string|null};url:string}) {
+  const safe=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+  return send('opportunities',opts.email,`RO na rede BUILT: ${opts.meeting.titulo}`,baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">Reunião de Oportunidades</h2>
+    <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${safe(opts.nome)}</strong>!</p>
+    <p style="color:#fff">${safe(opts.meeting.titulo)} · ${safe(opts.meeting.codigo)}</p>
+    <p style="color:rgba(255,255,255,0.7)">${safe(String(opts.meeting.data).slice(0,10).split('-').reverse().join('/'))} · ${safe(opts.meeting.hora||'Horário a confirmar')} · ${safe(opts.meeting.timezone||'America/Sao_Paulo')}</p>
+    <div style="margin:28px 0"><a href="${safe(BASE_URL+opts.url)}" style="display:inline-block;background:#D7BB7D;color:#001D34;padding:14px 24px;border-radius:8px;font-weight:bold;text-decoration:none">Consultar RO</a></div>
+  `));
+}
+
 export async function notificarNovaOportunidade(opts: {
   email: string;
   nome: string;

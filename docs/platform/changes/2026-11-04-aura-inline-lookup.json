@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "id": "2026-11-04-aura-inline-lookup",
+  "title": "Consultar Aura abre sobre o Início sem redirecionamento",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/aura-lookup-dialog.tsx",
+    "client/src/lib/aura-access.ts"
+  ],
+  "searchTerms": [
+    "AuraLookupDialog",
+    "goToAuraRegister"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/aura-lookup-dialog.tsx",
+      "decision": "updated",
+      "reason": "Modal existente extraído sem nova regra: busca autenticada, filtros, estado por pessoa,30 iniciais e expansão30a30; foco opcional ao fechar."
+    },
+    {
+      "path": "client/src/components/aura-lookup-dialog.test.ts",
+      "decision": "updated",
+      "reason": "Executa componente/handler reais com simulação dos hooks: busca, paginação, reset, filtros, erro/loading, foco, seleção e gate do atalho."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "updated",
+      "reason": "Atalho abre estado local, preserva bloqueio de acesso e retorna foco; seleção navega para Aura do membro. Outras alterações paralelas preservadas."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Reutiliza modal extraído; mantém pesquisa própria, avaliação, dados e redirecionamento legado. Não atesta evolução paralela anterior de permissões."
+    },
+    {
+      "path": "client/src/lib/aura-access.ts",
+      "decision": "preserved",
+      "reason": "Reutiliza isBuiltMemberForAura/auraLookupState atuais, sem ampliar elegibilidade nem modificar código paralelo do helper."
+    },
+    {
+      "path": "client/src/lib/aura-lookup.test.ts",
+      "decision": "preserved",
+      "reason": "Regressão de estados de consulta/avaliação existente executada com o novo teste do componente."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas autenticadas de Home e Aura continuam iguais, sem nova rota ou mudança no trabalho paralelo de ROs."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Providers existentes de sessão/query/router atendem ambos os consumidores do modal."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "GETs existentes de busca/vínculos/minhas avaliações reutilizados; escrita e autorização do servidor intactas neste pedido."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Descrição da funcionalidade informa modal na página atual inclusive Início; catálogo RO paralelo preservado."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato registra abertura local, seleção, foco, compatibilidade legada, mesmos filtros e autorização."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "updated",
+      "reason": "Apenas lista frontend do módulo Aura inclui o componente compartilhado; entradas paralelas preservadas."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Guarda localizada impede retorno do redirect registrar=1 apenas no atalho Home, mantendo compatibilidade na AuraPage."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA autenticada no localhost: abrir/fechar mantém / e foco Consultar Aura;30/70 restantes→60/40, pesquisa Abner, filtro elegível. Desktop e390x844 sem overflow. Capturas output/aura-consulta-inicio-desktop.jpg/mobile.jpg; seleção abre Aura do membro e página antiga ainda abre modal."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Componente usa mesmos GETs /api/aura/membros/busca, /vinculos e /minhas-avaliacoes, query keys e credentials. Nenhum endpoint/contrato alterado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente estado React e cache de leituras existentes. Sem avaliação enviada, vínculo criado, migração, PostgreSQL ou Directus alterado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Score e dimensões permanecem na AuraPage, sem alteração de função de cálculo ou consumidores. Modal só lista pessoas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Atalho abre modal local. Nenhum envio/contador/job/template alterado; URLs legadas da Aura continuam compatíveis."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Não existe geração de documento neste fluxo. Catálogo funcional documentado; PDFs/exportações e registros históricos preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Nenhum worker ou integração externa acionado. Leitura utiliza APIs já autenticadas; desenvolvimento aplicado por HMR sem reiniciar backend."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mesmo gate de membro no Home/componente e helper auraLookupState existente; avaliação continua autorizada pelo backend. Teste de não membro preserva diálogo de bloqueio."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Aura própria/terceiros e /aura?registrar=1 ainda funcionam; guarda de redirect restrita ao painel. Teste protege atalho local; nenhuma alteração nos registros de revisão anteriores."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "3 focados aprovados; platform:verify744 testes/0 falhas, typecheck/contrato/consistência/tooling/build aprovados (.BUILT-tmp/aura-inline-verify.log). Falha inicial de alias movido corrigida antes da execução final. QA sem gravação real."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/aura-lookup-dialog.test.ts",
+    "client/src/lib/aura-lookup.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "home-aura-lookup-no-page-redirect"
+  ]
+}

@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+import {transformSync} from 'esbuild';
+import {RO_PULSE_LABELS,RO_PULSE_STAGES} from '../../../shared/ro-pulse';
+
+test('controle real escolhe intervalo/comunidades, preserva origem e aciona os controles da fila',async()=>{
+ const source=readFileSync(new URL('./ro-pulse-controls.tsx',import.meta.url),'utf8'),ast=ts.createSourceFile('ui.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ const component=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='RoPulseControls')!;
+ const calls:any[]=[],states:any[]=[];let hook=0,options:any,pending=false;
+ let data:any={flow:null,waves:[],email_states:[],can_start:true,communities:[{id:'o',nome:'Origem',stage:'origem'},{id:'r',nome:'Regional',stage:'regional'},{id:'g',nome:'Global',stage:'global'}]};
+ const Button=({children,loading,...props}:any)=>React.createElement('button',props,loading?'Salvando…':children);
+ const Input=(props:any)=>React.createElement('input',props),Label=(props:any)=>React.createElement('label',props);
+ const Checkbox=({checked,disabled}:any)=>React.createElement('input',{type:'checkbox',checked,disabled,readOnly:true});
+ const scope:any={React,RO_PULSE_LABELS,RO_PULSE_STAGES,Button,Input,Label,Checkbox,empty:{intervalo_horas:4,comunidades:{regional:[],nacional:[],global:[]}},useId:()=> 'interval',useEffect:()=>{},useToast:()=>({toast:()=>{}}),useState:(initial:any)=>{const index=hook++;states[index]??=initial;return [states[index],(v:any)=>states[index]=v];},useQuery:()=>({data,isLoading:false,isError:false}),useMutation:(value:any)=>{options=value;return {isPending:pending,mutate:(v:any)=>value.mutationFn(v)};},apiRequest:async(method:string,path:string,body:any)=>{calls.push({method,path,body});return {json:async()=>data};},queryClient:{invalidateQueries:()=>Promise.resolve()}};
+ const render=()=>{hook=0;const build=new Function(...Object.keys(scope),transformSync(component.getText(ast).replace(/^export /,''),{loader:'tsx'}).code+'; return RoPulseControls;');return build(...Object.values(scope))({meetingId:'ro'});};
+ const nodes=(n:any):any[]=>n&&typeof n==='object'?[n,...React.Children.toArray(n.props?.children).flatMap(nodes)]:[];
+ let tree=render();assert.match(renderToStaticMarkup(tree),/Tempo entre os pulsos/);
+ const interval=nodes(tree).find(n=>n.type===Input);interval.props.onChange({target:{valueAsNumber:9}});
+ tree=render();const checks=nodes(tree).filter(n=>n.type===Checkbox);assert.equal(checks[0].props.disabled,true);assert.equal(checks[0].props.checked,true);
+ checks[1].props.onCheckedChange(true);tree=render();await options.mutationFn('iniciar');
+ assert.equal(calls[0].body.intervalo_horas,9);assert.deepEqual(calls[0].body.comunidades.regional,['r']);assert.deepEqual(calls[0].body.comunidades.global,[]);
+ data={...data,flow:{id:'flow',status:'ativo',config:states[0]},waves:[{id:'w',stage:'origem',status:'executada'}]};
+ const active=renderToStaticMarkup(render());assert.match(active,/9 hora/);assert.match(active,/Pausar/);assert.doesNotMatch(active,/Iniciar Pulso/);
+ for(const action of ['pausar','retomar','avancar','encerrar'])await options.mutationFn(action);
+ assert.deepEqual(calls.slice(1).map(c=>c.body.action),['pausar','retomar','avancar','encerrar']);
+ pending=true;assert.match(renderToStaticMarkup(render()),/Salvando/);
+ const app=readFileSync(new URL('../App.tsx',import.meta.url),'utf8');assert.match(app,/path="\/ros\/avisos\/:id"/);assert.match(app,/\/ro-convite\//,'convite externo por token continua separado');
+});

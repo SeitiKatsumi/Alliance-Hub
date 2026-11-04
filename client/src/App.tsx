@@ -1,5 +1,6 @@
 ﻿import { Switch, Route, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import RoPulseInvitation from '@/pages/ro-pulse-invitation';
 import { resetContentScroll } from "@/lib/content-scroll";
 import { PreferencesProvider } from '@/components/preferences-provider';
 import { CODIGO_ETICA_BUILT, CODIGO_ETICA_BUILT_VERSAO } from "@shared/code-of-ethics";
@@ -1533,6 +1534,7 @@ function ProtectedApp() {
               <Route path="/built-capital">{() => MEMBER_PORTFOLIO_V2_ENABLED ? <LegacyCapitalRedirect /> : <BuiltCapitalPage />}</Route>
               <Route path="/membros" component={LegacyMembrosRedirect} />
               <Route path="/aura/:membroId" component={AuraPage} />
+              <Route path="/ros/avisos/:id" component={RoPulseInvitation} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />
               <Route path="/meu-perfil" component={MeuPerfilPage} />

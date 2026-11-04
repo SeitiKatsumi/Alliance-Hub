@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "id": "2026-11-04-profile-aura-formation-label",
+  "title": "Aura em formação na prévia do Meu Perfil",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "client/src/pages/meu-perfil.tsx"
+  ],
+  "searchTerms": [
+    "profile-preview-aura"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "updated",
+      "reason": "Somente texto do estado sem score na prévia superior: Aura em formação. Faixa quando há score, círculo e link preservados."
+    },
+    {
+      "path": "client/src/pages/meu-perfil-layout.test.ts",
+      "decision": "updated",
+      "reason": "Assert existente da prévia exige novo texto no ramo sem score, mantendo verificações do círculo e rota."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rota Meu Perfil e demais páginas mantidas; nenhum provider ou permissão alterado."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Bootstrap/provider da página mantido; não há outro produtor deste texto local."
+    },
+    {
+      "path": "client/src/components/aura-score.tsx",
+      "decision": "preserved",
+      "reason": "Pedido localizado no texto ao lado do círculo. Componente continua com showLabel=false; score/faixa/tooltip e outros contextos não mudam."
+    },
+    {
+      "path": "docs/platform/modules/aura.md",
+      "decision": "updated",
+      "reason": "Contrato registra texto do estado sem score somente na prévia superior do Meu Perfil."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Guarda restrita ao ramo antigo nesta página, sem proibir Em formação em outros componentes."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Localhost autenticado Meu Perfil: texto visível Aura em formação no desktop e390x844; documento390/viewport390, sem overflow. Capturas output/aura-em-formacao-perfil-desktop.jpg/mobile.jpg. Viewport restaurado; sem gravação."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Só literal de apresentação na prévia; mesma consulta de score, nenhum endpoint ou entrada alterado."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Sem mudança de persistência, PostgreSQL, Directus, cache ou migração. Nenhum dado de perfil editado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Condição score!=null e valor/faixa preservados; círculo AuraScore showLabel=false mantém geometria/cálculo."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Texto só em Meu Perfil, sem relação com notificações, destinatários ou templates."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Nenhum gerador de PDF/export/relatório usa este literal local; registros históricos mantidos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Nenhum cron, webhook, envio ou serviço externo depende da legenda local da prévia."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Gate membroId e href autenticado iguais; somente texto do span alterado."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Texto antigo permanece permitido fora da página; nenhum enum/campo/status de domínio renomeado. Guarda limitada à expressão antiga."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado:744 testes/0 falhas, typecheck/contrato/consistência/tooling/build. Log .BUILT-tmp/aura-profile-label-verify.log. Teste existente de layout protege a legenda; QA desktop/mobile sem gravação."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/meu-perfil-layout.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "profile-aura-formation-label"
+  ]
+}

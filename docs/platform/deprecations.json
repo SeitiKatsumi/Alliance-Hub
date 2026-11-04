@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id":"profile-aura-formation-label",
+      "description":"Prévia do Meu Perfil identifica explicitamente a Aura quando ainda não há score; outros usos de Em formação permanecem locais.",
+      "terms":[": \"Em formação\"}"],
+      "roots":["client/src/pages/meu-perfil.tsx"],
+      "regressionTests":["client/src/pages/meu-perfil-layout.test.ts"],
+      "exceptions":[]
+    },
+    {
       "id":"home-aura-lookup-no-page-redirect",
       "description":"Consultar Aura nas ações rápidas abre o modal local; link direto legado permanece permitido na página Aura.",
       "terms":["/aura?registrar=1"],

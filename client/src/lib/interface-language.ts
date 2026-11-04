@@ -22,6 +22,8 @@ export const interfaceCopy: Record<string, readonly [string,string]> = {
   'Atualizações de BIAs':['BIA updates','Actualizaciones de BIAs'],
   'Solicitações, respostas e novos integrantes nas suas alianças.':['Requests, responses and new participants in your alliances.','Solicitudes, respuestas y nuevos integrantes de tus alianzas.'],
   'Oportunidades e demandas':['Opportunities and requests','Oportunidades y demandas'],
+  'Pulsos das ROs':['RO pulses','Pulsos de las ROs'],
+  'Avisos por e-mail de Reuniões de Oportunidades divulgadas nas suas comunidades.':['Email notices for Opportunity Meetings shared in your communities.','Avisos por correo de Reuniones de Oportunidades difundidas en tus comunidades.'],
   'Novas oportunidades e manifestações de interesse.':['New opportunities and expressions of interest.','Nuevas oportunidades y manifestaciones de interés.'],
   'Comunidade e rede':['Community and network','Comunidad y red'],
   'Novos membros, candidaturas e lembretes de avaliação de Aura.':['New members, applications and Aura review reminders.','Nuevos miembros, candidaturas y recordatorios de evaluación de Aura.'],

@@ -12,6 +12,7 @@ const copy = {
   agenda:['Agenda e lembretes','Chamadas de aliança e lembretes de vencimento.'],
   bia:['Atualizações de BIAs','Solicitações, respostas e novos integrantes nas suas alianças.'],
   opportunities:['Oportunidades e demandas','Novas oportunidades e manifestações de interesse.'],
+  ro_pulses:['Pulsos das ROs','Avisos por e-mail de Reuniões de Oportunidades divulgadas nas suas comunidades.'],
   community:['Comunidade e rede','Novos membros, candidaturas e lembretes de avaliação de Aura.'],
 };
 

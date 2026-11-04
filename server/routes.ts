@@ -21417,6 +21417,20 @@ Deixe claro que premissas precisam de validação profissional.`,
   };
   registerRoPulseRoutes(app, roPulse, roPulseActor);
 
+  app.get("/api/comunidades/:id/ro-pulso", async (req, res) => {
+    try {
+      roPulseActor(req);
+      const community = await getCommunityForCells(String(req.params.id));
+      if (!community) return res.status(404).json({ error: "Comunidade não encontrada." });
+      if (!isAdminRequest(req) && !await isCommunityMemberIncludingAnchor(req, community)) {
+        return res.status(403).json({ error: "Escolha uma Comunidade da qual você participa." });
+      }
+      res.json(await roPulse.catalog({ community_id: String(req.params.id) }));
+    } catch (error: any) {
+      res.status(error.status || 503).json({ error: "Não foi possível carregar as comunidades do Pulso." });
+    }
+  });
+
   app.use("/api/reunioes-oportunidades", async (_req, res, next) => {
     try {
       await ensureBusinessOpportunityTables();
@@ -21572,64 +21586,73 @@ Deixe claro que premissas precisam de validação profissional.`,
         const access = await economicOpportunityAccess(req, economic);
         if (!access.canManage && !access.canReview) return res.status(403).json({ error: `Sem permissão para organizar uma RO sobre ${registry.codigo}.` });
       }
+      const pulseActor = req.body?.pulso != null ? roPulseActor(req) : null;
+      const pulsePlan = pulseActor ? await roPulse.prepare({
+        community_id: communityId, data: schedule.date, hora: schedule.time, timezone, status: "agendada",
+        organizador_user_id: actor.userId, organizador_membro_id: actor.membroId,
+      }, pulseActor, req.body.pulso) : null;
       const code = await createUniqueMeetingCode();
-      const inserted = await db.execute(sql`
-        INSERT INTO opportunity_meetings (
-          codigo, titulo, event_type, community_id, data, hora, start_at, end_at, timezone,
-          link, location_type, address, guest_policy, pauta, strategic_cell_id, publico,
-          organizador_user_id, organizador_membro_id
-        ) VALUES (
-          ${code}, ${titulo}, ${RO_EVENT_TYPE}, ${communityId}, ${schedule.date}, ${schedule.time}, ${schedule.startAt}, ${schedule.endAt}, ${timezone},
-          ${meetingUrl}, ${locationType}, ${address}, ${guestPolicy}, ${req.body?.pauta || null}, ${strategicCellId},
-          ${guestPolicy === "external_by_invitation" ? "convidados" : "membros"}, ${actor.userId}, ${actor.membroId}
-        ) RETURNING *
-      `);
-      const meeting = inserted.rows?.[0] as any;
-      const alertCopy = roAlertCopy({ date: schedule.date, time: schedule.time, cellName: strategicCellName, communityName: community.nome || community.sigla || null });
-      const participantMap = new Map<string, { user_id: string | null; membro_id: string | null; nome: string | null; papel: string }>();
-      const addParticipant = (userId: any, membroId: any, nome: any, papel: string) => {
-        const key = membroId ? `m:${membroId}` : userId ? `u:${userId}` : "";
-        if (key && !participantMap.has(key)) participantMap.set(key, { user_id: userId || null, membro_id: membroId || null, nome: nome || null, papel });
-      };
-      addParticipant(actor.userId, actor.membroId, (req.session as any)?.nome || null, "organizador");
-      for (const registry of registries) {
-        await db.execute(sql`INSERT INTO opportunity_meeting_items (meeting_id, registry_id, papel) VALUES (${meeting.id}, ${registry.id}, ${registry.papel || "contexto"}) ON CONFLICT DO NOTHING`);
-        addParticipant(registry.autor_user_id, registry.autor_membro_id, null, "autor");
-        addParticipant(registry.responsavel_user_id, registry.responsavel_membro_id, null, "responsavel");
-        if (registry.tipo === "demanda") {
-          const interests = await db.execute(sql`SELECT user_id, membro_id, membro_nome FROM carteira_demanda_interesses WHERE demanda_id::text = ${registry.source_id} AND status <> 'retirado'`);
-          for (const interest of interests.rows || []) addParticipant((interest as any).user_id, (interest as any).membro_id, (interest as any).membro_nome, "interessado");
-        } else if (registry.tipo === "oba") {
-          const interests = await db.execute(sql`SELECT user_id, membro_id, membro_nome FROM opa_interesses WHERE opa_id = ${registry.source_id} AND COALESCE(status_crm, '') <> 'retirado'`);
-          for (const interest of interests.rows || []) addParticipant((interest as any).user_id, (interest as any).membro_id, (interest as any).membro_nome, "interessado");
-        }
-      }
-      for (const participant of Array.isArray(req.body?.participantes) ? req.body.participantes : []) {
-        addParticipant(participant.user_id, participant.membro_id, participant.nome, participant.papel || "convidado");
-      }
-      for (const participant of Array.from(participantMap.values())) {
-        await db.execute(sql`
-          INSERT INTO opportunity_meeting_participants (meeting_id, user_id, membro_id, nome, papel)
-          VALUES (${meeting.id}, ${participant.user_id}, ${participant.membro_id}, ${participant.nome}, ${participant.papel})
+      const { meeting, participants } = await db.transaction(async (tx) => {
+        const inserted = await tx.execute(sql`
+          INSERT INTO opportunity_meetings (
+            codigo, titulo, event_type, community_id, data, hora, start_at, end_at, timezone,
+            link, location_type, address, guest_policy, pauta, strategic_cell_id, publico,
+            organizador_user_id, organizador_membro_id
+          ) VALUES (
+            ${code}, ${titulo}, ${RO_EVENT_TYPE}, ${communityId}, ${schedule.date}, ${schedule.time}, ${schedule.startAt}, ${schedule.endAt}, ${timezone},
+            ${meetingUrl}, ${locationType}, ${address}, ${guestPolicy}, ${req.body?.pauta || null}, ${strategicCellId},
+            ${guestPolicy === "external_by_invitation" ? "convidados" : "membros"}, ${actor.userId}, ${actor.membroId}
+          ) RETURNING *
         `);
-        let agendaUserId = participant.user_id;
-        if (!agendaUserId && participant.membro_id) {
-          const linked = await db.execute(sql`SELECT id FROM users WHERE membro_directus_id = ${participant.membro_id} LIMIT 1`);
-          agendaUserId = (linked.rows?.[0] as any)?.id || null;
+        const meeting = inserted.rows?.[0] as any;
+        const alertCopy = roAlertCopy({ date: schedule.date, time: schedule.time, cellName: strategicCellName, communityName: community.nome || community.sigla || null });
+        const participantMap = new Map<string, { user_id: string | null; membro_id: string | null; nome: string | null; papel: string }>();
+        const addParticipant = (userId: any, membroId: any, nome: any, papel: string) => {
+          const key = membroId ? `m:${membroId}` : userId ? `u:${userId}` : "";
+          if (key && !participantMap.has(key)) participantMap.set(key, { user_id: userId || null, membro_id: membroId || null, nome: nome || null, papel });
+        };
+        addParticipant(actor.userId, actor.membroId, (req.session as any)?.nome || null, "organizador");
+        for (const registry of registries) {
+          await tx.execute(sql`INSERT INTO opportunity_meeting_items (meeting_id, registry_id, papel) VALUES (${meeting.id}, ${registry.id}, ${registry.papel || "contexto"}) ON CONFLICT DO NOTHING`);
+          addParticipant(registry.autor_user_id, registry.autor_membro_id, null, "autor");
+          addParticipant(registry.responsavel_user_id, registry.responsavel_membro_id, null, "responsavel");
+          if (registry.tipo === "demanda") {
+            const interests = await tx.execute(sql`SELECT user_id, membro_id, membro_nome FROM carteira_demanda_interesses WHERE demanda_id::text = ${registry.source_id} AND status <> 'retirado'`);
+            for (const interest of interests.rows || []) addParticipant((interest as any).user_id, (interest as any).membro_id, (interest as any).membro_nome, "interessado");
+          } else if (registry.tipo === "oba") {
+            const interests = await tx.execute(sql`SELECT user_id, membro_id, membro_nome FROM opa_interesses WHERE opa_id = ${registry.source_id} AND COALESCE(status_crm, '') <> 'retirado'`);
+            for (const interest of interests.rows || []) addParticipant((interest as any).user_id, (interest as any).membro_id, (interest as any).membro_nome, "interessado");
+          }
         }
-        if (agendaUserId) {
-          await db.execute(sql`
-            INSERT INTO agenda_tarefas (
-              user_id, membro_id, titulo, descricao, data, hora, prioridade,
-              contexto_tipo, contexto_id, atribuido_por_user_id, atribuido_por_membro_id, atribuido_por_nome
-            ) VALUES (
-              ${agendaUserId}, ${participant.membro_id}, ${alertCopy}, ${req.body?.pauta || titulo},
-              ${schedule.date}, ${schedule.time}, 'media', 'reuniao_oportunidades', ${String(meeting.id)},
-              ${actor.userId}, ${actor.membroId}, ${(req.session as any)?.nome || null}
-            )
+        for (const participant of Array.isArray(req.body?.participantes) ? req.body.participantes : []) {
+          addParticipant(participant.user_id, participant.membro_id, participant.nome, participant.papel || "convidado");
+        }
+        for (const participant of Array.from(participantMap.values())) {
+          await tx.execute(sql`
+            INSERT INTO opportunity_meeting_participants (meeting_id, user_id, membro_id, nome, papel)
+            VALUES (${meeting.id}, ${participant.user_id}, ${participant.membro_id}, ${participant.nome}, ${participant.papel})
           `);
+          let agendaUserId = participant.user_id;
+          if (!agendaUserId && participant.membro_id) {
+            const linked = await tx.execute(sql`SELECT id FROM users WHERE membro_directus_id = ${participant.membro_id} LIMIT 1`);
+            agendaUserId = (linked.rows?.[0] as any)?.id || null;
+          }
+          if (agendaUserId) {
+            await tx.execute(sql`
+              INSERT INTO agenda_tarefas (
+                user_id, membro_id, titulo, descricao, data, hora, prioridade,
+                contexto_tipo, contexto_id, atribuido_por_user_id, atribuido_por_membro_id, atribuido_por_nome
+              ) VALUES (
+                ${agendaUserId}, ${participant.membro_id}, ${alertCopy}, ${req.body?.pauta || titulo},
+                ${schedule.date}, ${schedule.time}, 'media', 'reuniao_oportunidades', ${String(meeting.id)},
+                ${actor.userId}, ${actor.membroId}, ${(req.session as any)?.nome || null}
+              )
+            `);
+          }
         }
-      }
+        if (pulsePlan && pulseActor) await roPulse.enqueue(tx, meeting, pulseActor, pulsePlan);
+        return { meeting, participants: Array.from(participantMap.values()) };
+      });
       for (const registry of registries) {
         await attachObjectToRegistryTraces(registry, {
           type: "ro",
@@ -21641,7 +21664,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         }, "discutida_em_ro", { userId: actor.userId, memberId: actor.membroId });
         await recordOpportunityEvent(String(registry.id), req, "incluida_ro", "Incluída em Reunião de Oportunidades", { ro_codigo: code });
       }
-      res.status(201).json({ ...meeting, community_name: community.nome || community.sigla || null, strategic_cell_name: strategicCellName, oportunidades: registries, participantes: Array.from(participantMap.values()) });
+      res.status(201).json({ ...meeting, community_name: community.nome || community.sigla || null, strategic_cell_name: strategicCellName, oportunidades: registries, participantes: participants });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }

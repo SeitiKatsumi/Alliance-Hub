@@ -18,7 +18,7 @@ test('preferences: isolated migration, account isolation, partial merges and ema
   assert.deepEqual(await store.read('a'),defaultPreferences());
   await store.patch('a',{language:'es',email:{invites:false}});
   await Promise.all([store.patch('a',{email:{agenda:false}}),store.patch('a',{email:{bia:false}})]);
-  assert.deepEqual(await store.read('a'),{language:'es',email:{invites:false,agenda:false,bia:false,opportunities:true,community:true}});
+  assert.deepEqual(await store.read('a'),{language:'es',email:{invites:false,agenda:false,bia:false,opportunities:true,ro_pulses:true,community:true}});
   assert.deepEqual(await store.read('b'),defaultPreferences());
   assert.equal(await store.allowsEmail(' OWNER@example.test ','invites'),false);
   assert.equal(await store.allowsEmail('new@example.test','invites'),true);
@@ -27,6 +27,14 @@ test('preferences: isolated migration, account isolation, partial merges and ema
   assert.equal(preferencesPatchSchema.safeParse({user_id:'b',language:'en'}).success,false);
   assert.equal(preferencesPatchSchema.safeParse({language:'fr'}).success,false);
   assert.equal(parsePreferences({email:{invites:false}}).email.invites,false);
+  await pg.exec(`UPDATE user_platform_preferences SET email='{"opportunities":false}'::jsonb WHERE user_id='a'`);
+  assert.equal((await store.read('a')).email.ro_pulses,false,'preferência antiga mantém recusa aos Pulsos');
+  assert.equal(await store.allowsEmail('owner@example.test','ro_pulses'),false);
+  await store.patch('a',{email:{ro_pulses:true}});
+  assert.equal((await store.read('a')).email.opportunities,false,'nova escolha é independente de oportunidades');
+  assert.equal(await store.allowsEmail('owner@example.test','ro_pulses'),true);
+  await store.patch('c',{email:{ro_pulses:false}});
+  assert.equal(await store.allowsEmail('owner@example.test','ro_pulses'),false,'conta ativa no mesmo e-mail também respeita recusa');
 });
 
 test('preferences routes: session owner only, validation and storage errors are explicit',async()=>{
@@ -59,6 +67,11 @@ test('email preferences gate actual SMTP, essential bypass and failure safety',a
   configureEmailPreferencePolicy(async()=>true);
   await mail.enviarSolicitacaoSocioBia({socioEmail:'person@example.test',socioNome:'Pessoa',biaNome:'BIA',papel:'Sócio'});
   assert.equal(messages.length,2);
+  let pulseAllowed=false;
+  configureEmailPreferencePolicy(async(_to,category)=>category==='ro_pulses'?pulseAllowed:true);
+  const pulse={email:'person@example.test',nome:'Pessoa',meeting:{titulo:'RO teste',codigo:'RO-1',data:'2035-01-01'},url:'/ros/avisos/test'};
+  assert.equal((await mail.notificarPulsoRo(pulse)).skipped,true);assert.equal(messages.length,2);
+  pulseAllowed=true;assert.equal((await mail.notificarPulsoRo(pulse)).ok,true);assert.equal(messages.length,3);
 });
 
 test('every mail call has an explicit category; only the central sender accesses SMTP',()=>{
@@ -68,7 +81,7 @@ test('every mail call has an explicit category; only the central sender accesses
   const walk=(node:ts.Node)=>{
     if(ts.isCallExpression(node)&&node.expression.getText(ast)==='send'){
       count++;assert.ok(ts.isStringLiteral(node.arguments[0]));
-      assert.match((node.arguments[0] as ts.StringLiteral).text,/^(essential|invites|agenda|bia|opportunities|community)$/);
+      assert.match((node.arguments[0] as ts.StringLiteral).text,/^(essential|invites|agenda|bia|opportunities|ro_pulses|community)$/);
     }ts.forEachChild(node,walk);
   };walk(ast);assert.equal(count,33);
   assert.equal((source.match(/transporter.sendMail/g)||[]).length,1);

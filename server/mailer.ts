@@ -952,7 +952,7 @@ export async function enviarAprovacaoVitrineInvitador(opts: {
 
 export async function notificarPulsoRo(opts: {email:string;nome:string;meeting:{titulo:string;codigo:string;data:unknown;hora?:string|null;timezone?:string|null};url:string}) {
   const safe=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-  return send('opportunities',opts.email,`RO na rede BUILT: ${opts.meeting.titulo}`,baseTemplate(`
+  return send('ro_pulses',opts.email,`RO na rede BUILT: ${opts.meeting.titulo}`,baseTemplate(`
     <h2 style="color:#D7BB7D;margin-top:0">Reunião de Oportunidades</h2>
     <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${safe(opts.nome)}</strong>!</p>
     <p style="color:#fff">${safe(opts.meeting.titulo)} · ${safe(opts.meeting.codigo)}</p>

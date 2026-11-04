@@ -1,0 +1,368 @@
+{
+  "version": 1,
+  "id": "2026-11-04-ro-pulse-creation",
+  "title": "Pulso na criação da RO, seleção de comunidades e preferência de e-mail própria",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/ro-pulse.ts",
+    "shared/ro-pulse.ts",
+    "shared/user-preferences.ts",
+    "client/src/components/ro-pulse-setup.tsx"
+  ],
+  "searchTerms": [
+    "RoPulseCreation",
+    "RoPulseSetup",
+    "ro-pulso",
+    "ro_pulses"
+  ],
+  "consumers": [
+    {
+      "path": "shared/ro-pulse.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "shared/ro-pulse.test.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "shared/ro.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/ro-pulse.ts",
+      "decision": "updated",
+      "reason": "prepare/enqueue compartilhados por criação e início manual: valida antes, insere na transação do chamador, sem SMTP na requisição. Execução da fila mantida."
+    },
+    {
+      "path": "server/ro-pulse-routes.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/ro-pulse.test.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "migrations/20261104_ro_pulses.sql",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Catálogo por comunidade exige identidade/participação/admin e perfil pessoal. Criação aceita pulso opcional; transação atômica inclui RO/itens/participantes/Agenda/fila. Traceabilidade posterior existente mantida."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/isolated-stage.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "updated",
+      "reason": "Somente notificarPulsoRo usa ro_pulses, passando pelo remetente/template e política SMTP existentes."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "updated",
+      "reason": "JSON legado, escolha independente, recusas no mesmo endereço e SMTP real simulado ligado/desligado para o Pulso."
+    },
+    {
+      "path": "server/user-preferences.ts",
+      "decision": "preserved",
+      "reason": "Mesmo store/JSON e merge parcial por conta; política consulta parsePreferences a cada envio e respeita contas ativas do endereço."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/components/ro-pulse-controls.tsx",
+      "decision": "updated",
+      "reason": "Acompanhamento existente mantido; configuração de RO legada começa em ação explícita e reutiliza o formulário/explanação."
+    },
+    {
+      "path": "client/src/components/ro-pulse-controls.test.ts",
+      "decision": "updated",
+      "reason": "Regressão de ativação legada e9h/comunidades, pausa/retomada/avanço/encerramento e loading real."
+    },
+    {
+      "path": "client/src/pages/ro-pulse-invitation.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "updated",
+      "reason": "Nova RO envia pulso opcional, limpa ao abrir/mudar origem/salvar e informa a ativação; botão possui loading real. Gate funcionário e fluxo sem Pulso preservados."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/pages/ro-guest-confirmation.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/agenda-alerts.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "server/opportunity-platform.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "migrate.cjs",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "updated",
+      "reason": "Catálogo de frontend/API/testes do módulo atualizado sem remover outros recursos."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Contrato de criação atômica/opcional, seleção em lote, erro e configuração legada."
+    },
+    {
+      "path": "docs/platform/modules/agenda-notificacoes.md",
+      "decision": "updated",
+      "reason": "Categoria própria e compatibilidade dos opt-outs antigos; avisos internos mantidos."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Descrição agora informa configuração opcional na criação e acompanhamento no detalhe."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Revisado neste trabalho: contrato original do Pulso preservado; nenhuma mudança aqui de elegibilidade, resumo privado, fila, agendamento ou integração de terceiros."
+    },
+    {
+      "path": "client/src/components/ro-pulse-setup.tsx",
+      "decision": "updated",
+      "reason": "Formulário compartilhado de intervalo/destinos, explicação e seleção de todas/limpeza por etapa sem duplicação, origem fixa."
+    },
+    {
+      "path": "client/src/components/ro-pulse-creation.tsx",
+      "decision": "updated",
+      "reason": "Opt-in na criação, catálogo autorizado por origem, carregamento/erro recuperável e mesmas escolhas da ativação legada."
+    },
+    {
+      "path": "client/src/components/ro-pulse-creation.test.ts",
+      "decision": "updated",
+      "reason": "Componente real, opção/erro/query, seleção de todas/limpeza, requisição única e bloqueio no perfil empresarial."
+    },
+    {
+      "path": "server/ro-pulse-creation.test.ts",
+      "decision": "updated",
+      "reason": "Handlers reais e SQL/PGlite: criação com/sem Pulso, validação,401/403/503,9h, etapas e rollback total na falha de fila. Nenhum SMTP real."
+    },
+    {
+      "path": "shared/user-preferences.ts",
+      "decision": "updated",
+      "reason": "Categoria própria ro_pulses no JSON existente; ausência legada herda opportunities incluindo false, escolha explícita prevalece."
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "decision": "updated",
+      "reason": "Switch independente Pulsos das ROs no painel existente, mesmo PATCH parcial/feedback/loading."
+    },
+    {
+      "path": "client/src/components/platform-preferences.test.ts",
+      "decision": "updated",
+      "reason": "Seis controles reais/legendas em três idiomas e estados de carregamento/erro."
+    },
+    {
+      "path": "client/src/lib/interface-language.ts",
+      "decision": "updated",
+      "reason": "Traduções EN/ES da nova categoria e descrição, sem traduzir dados pessoais ou e-mails."
+    },
+    {
+      "path": "docs/platform/modules/acesso-onboarding.md",
+      "decision": "updated",
+      "reason": "Configurações existente recebe categoria própria, sem mudar acesso/onboarding."
+    },
+    {
+      "path": "server/email-preference-policy.ts",
+      "decision": "preserved",
+      "reason": "Fail-closed e mensagens essenciais iguais; teste pontual autorizado usa política restrita ao único destinatário apenas no processo separado, sem alterar preferências."
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "decision": "preserved",
+      "reason": "Mesmos GET/PATCH autenticados, cache por usuário e schema canônico; novo campo vem normalizado do servidor."
+    },
+    {
+      "path": "client/src/components/appearance-settings.tsx",
+      "decision": "preserved",
+      "reason": "Consome locale/preferences sem alteração da aparência."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "preserved",
+      "reason": "Consome locale; sem nova entrada ou mudança de navegação."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Hospeda painel existente. Alteração paralela Aura em formação preservada e coberta pelo registro próprio."
+    },
+    {
+      "path": "client/src/lib/environment-nomenclature.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de nomenclatura existentes aprovadas; nenhuma renomeação de ambiente."
+    },
+    {
+      "path": "client/src/lib/interface-language.test.ts",
+      "decision": "preserved",
+      "reason": "Suíte de tradução existente executada com novas entradas; demais textos preservados."
+    },
+    {
+      "path": "migrations/20261015_user_preferences.sql",
+      "decision": "preserved",
+      "reason": "JSON já existente acomoda a nova chave; nenhuma migração/backfill necessária."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "QA da página/componente reais em prévia isolada54759: opt-in off inicial,9h e destino regional, criar e reabrir mostra intervalo salvo/pausa; reset nova RO. Selecionar todas marca quatro etapas, limpar mantém origem. Preferência off salva e persiste após reload. Desktop/mobile390x844 sem overflow; capturas output/ro-pulso-criacao-*, ro-pulso-selecionar-todas-desktop.jpg e ro-pulso-preferencias-*."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Novo GET de catálogo autenticado e autorizado. POST RO aceita pulso opcional/null e valida pelo mesmo serviço do início manual. Testes executam handlers reais com PGlite e dependências de rede simuladas, incluindo401/403/400/409/503 e rollback."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Mesmo schema/filas; RO/itens/participantes/Agenda/fila na mesma transação, teste injeta falha após enqueue e prova rollback. Preferência em JSON existente, sem migração. Nenhuma RO real criada/ativada em QA."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Mantidos1–168h, origem fixa, classificação oficial de alcances e tempo do worker; seleção em lote usa somente destinos recebidos pelo catálogo, sem recalcular geografia ou alterar gráficos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "SMTP de Pulso passa à categoria ro_pulses; recusa legada opportunities=false é herdada até escolha explícita. Avisos internos continuam. Teste único autorizado enviado a luhanguilherme2@gmail.com, remetente BUILT noreply@builtalliances.com, aceito SMTP (receipt local) sem alegar recebimento inbox; sem ativar onda real. Preferências não foram alteradas para esse envio pontual."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional atualizado; nenhum PDF/termo/aceite/exportação depende da configuração opcional ou nova chave de e-mail. Registros históricos mantidos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Worker/SMTP/template/posse/unicidade existentes preservados; preparar/enfileirar não envia e-mail no POST. Agenda permanece registrada atomicamente e traceabilidade conserva processamento posterior. Sem chamadas financeiras ou novas dependências."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Catálogo verifica comunidade permitida/admin; perfil empresarial não configura Pulso, criador/admin controlam como antes. Receber aviso não concede vínculo/presença ou acesso a ata/link privados. Store de preferências continua isolado por conta."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "ROs sem pulso/null usam fluxo anterior. RO legada sem fila permite ativação explícita no detalhe; filas existentes não reiniciam. JSON sem ro_pulses herda opportunities e não reinscreve quem recusou. Nenhuma tabela/dado antigo foi regravado."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "10 testes de criação/serviço/UI/domínio e10 focados de seleção/preferências/mailer aprovados. platform:verify final749testes/0falhas, tipos/contrato/consistência/tooling/build aprovados (.BUILT-tmp/ro-pulse-create-verify-final.log). QA só em dados fictícios, SMTP simulado salvo o único teste solicitado."
+    }
+  ],
+  "regressionTests": [
+    "server/ro-pulse-creation.test.ts",
+    "server/ro-pulse.test.ts",
+    "shared/ro-pulse.test.ts",
+    "client/src/components/ro-pulse-creation.test.ts",
+    "client/src/components/ro-pulse-controls.test.ts",
+    "server/user-preferences.test.ts",
+    "client/src/components/platform-preferences.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

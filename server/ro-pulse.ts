@@ -22,18 +22,23 @@ export class RoPulse {
   const states=flow?(await this.db.execute(sql`SELECT d.state,count(*)::int AS total FROM ro_pulse_deliveries d JOIN ro_pulse_waves w ON w.id=d.wave_id WHERE w.flow_id=${flow.id} AND d.channel='email' GROUP BY d.state`)).rows:[];
   return {flow,waves,email_states:states,communities:await this.catalog(meeting),can_start:roPulseOpen(meeting)};
  }
- async start(meeting:any,actor:Actor,raw:unknown,now=new Date()){
+ async prepare(meeting:any,actor:Actor,raw:unknown,now=new Date()){
   if(!this.canManage(meeting,actor))throw fault('Sem permissão para iniciar este Pulso.',403);
   await this.available();if(!roPulseOpen(meeting,now))throw fault('Somente ROs agendadas e futuras podem iniciar o Pulso.',409);
   const catalog=await this.catalog(meeting);
   let plan:ReturnType<typeof roPulseWaves>;try{plan=roPulseWaves(String(meeting.community_id),catalog,raw);}catch(e:any){throw fault(e.message);}
-  const {config,waves}=plan;
-  await this.db.transaction(async(tx:any)=>{
+  return plan;
+ }
+ async enqueue(tx:any,meeting:any,actor:Actor,plan:ReturnType<typeof roPulseWaves>,now=new Date()){
+   const {config,waves}=plan;
    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'ro-pulse:'+meeting.id}))`);
    const found=(await tx.execute(sql`SELECT id FROM ro_pulse_flows WHERE meeting_id=${meeting.id}`)).rows[0];if(found)throw fault('Esta RO já tem um Pulso. Use os controles existentes.',409);
    const flow=(await tx.execute(sql`INSERT INTO ro_pulse_flows(meeting_id,creator_user_id,creator_member_id,intervalo_horas,config,next_at) VALUES(${meeting.id},${actor.userId},${actor.memberId},${config.intervalo_horas},${JSON.stringify(config)}::jsonb,${now.toISOString()}) RETURNING id`)).rows[0];
    for(const [index,wave] of waves.entries())await tx.execute(sql`INSERT INTO ro_pulse_waves(flow_id,ordem,stage,community_ids) VALUES(${flow.id},${index+1},${wave.stage},${JSON.stringify(wave.communities)}::jsonb)`);
-  });
+ }
+ async start(meeting:any,actor:Actor,raw:unknown,now=new Date()){
+  const plan=await this.prepare(meeting,actor,raw,now);
+  await this.db.transaction((tx:any)=>this.enqueue(tx,meeting,actor,plan,now));
   return this.read(meeting,actor);
  }
  async action(meeting:any,actor:Actor,action:string,now=new Date()){

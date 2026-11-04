@@ -40,6 +40,8 @@ import { useToast } from "@/hooks/use-toast";
 import OportunidadesPage from "@/pages/oportunidades";
 import TraceabilitySummary from "@/components/traceability-summary";
 import { RoPulseControls } from '@/components/ro-pulse-controls';
+import { RoPulseCreation } from '@/components/ro-pulse-creation';
+import { roPulseSchema, type RoPulseConfig } from '@shared/ro-pulse';
 
 type OpportunityType = "demandas" | "oportunidades" | "obas" | "ros";
 
@@ -229,6 +231,8 @@ export default function NetworkOpportunitiesHub({ communityId, communityName, ro
   const [demandForm, setDemandForm] = useState(EMPTY_DEMAND);
   const [economicForm, setEconomicForm] = useState(EMPTY_ECONOMIC);
   const [meetingForm, setMeetingForm] = useState({ ...EMPTY_MEETING, community_id: communityId || "" });
+  const [meetingPulse, setMeetingPulse] = useState<RoPulseConfig | null>(null);
+  useEffect(() => { setMeetingPulse(null); }, [meetingForm.community_id]);
   const [meetingEdit, setMeetingEdit] = useState({ ata: "", proximos_passos: "", status: "agendada" });
   const [guestForm, setGuestForm] = useState({ nome: "", email: "" });
   const [decisionDrafts, setDecisionDrafts] = useState<Record<string, { acao: string; parecer: string }>>({});
@@ -401,12 +405,14 @@ export default function NetworkOpportunitiesHub({ communityId, communityName, ro
       ...meetingForm,
       strategic_cell_id: meetingForm.focus_mode === "cell" ? meetingForm.strategic_cell_id : null,
       end_at: meetingForm.end_at || null,
+      pulso: meQuery.data?.company_employee ? null : meetingPulse,
     })).json(),
     onSuccess: () => {
       setMeetingOpen(false);
       setMeetingForm({ ...EMPTY_MEETING, community_id: communityId || "" });
+      setMeetingPulse(null);
       queryClient.invalidateQueries({ queryKey: ["/api/reunioes-oportunidades"] });
-      toast({ title: "RO criada", description: "A pauta e os participantes foram registrados na Agenda." });
+      toast({ title: "RO criada", description: meetingPulse ? "O Pulso foi ativado e a divulgação começará pela comunidade de origem." : "A pauta e os participantes foram registrados na Agenda." });
     },
     onError: (error: any) => toast({ title: "Não foi possível criar a RO", description: error?.message, variant: "destructive" }),
   });
@@ -522,7 +528,7 @@ export default function NetworkOpportunitiesHub({ communityId, communityName, ro
         </div>
         {activeType === "demandas" && <Button onClick={() => setDemandOpen(true)}><Plus className="mr-2 h-4 w-4" />Nova Demanda</Button>}
         {activeType === "oportunidades" && <Button disabled={!canCreateEconomic} onClick={() => setEconomicOpen(true)}><Plus className="mr-2 h-4 w-4" />Nova Oportunidade</Button>}
-        {activeType === "ros" && <Button onClick={() => { setMeetingForm({ ...EMPTY_MEETING, community_id: communityId || "" }); setMeetingOpen(true); }}><Plus className="mr-2 h-4 w-4" />Nova RO</Button>}
+        {activeType === "ros" && <Button onClick={() => { setMeetingForm({ ...EMPTY_MEETING, community_id: communityId || "" }); setMeetingPulse(null); setMeetingOpen(true); }}><Plus className="mr-2 h-4 w-4" />Nova RO</Button>}
       </div>
 
       {!roOnly && <Tabs value={activeType} onValueChange={(value) => setType(value as OpportunityType)}>
@@ -599,7 +605,8 @@ export default function NetworkOpportunitiesHub({ communityId, communityName, ro
             <div className="space-y-2 sm:col-span-2"><Label>Oportunidades da pauta</Label><div className="max-h-48 divide-y overflow-y-auto border-y">{(economicsQuery.data || []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 py-3"><Checkbox checked={selectedEconomicCodes.has(item.codigo)} onCheckedChange={(checked) => setMeetingForm((current) => ({ ...current, oportunidades: checked ? [...current.oportunidades, item.codigo] : current.oportunidades.filter((code) => code !== item.codigo) }))} /><Badge className="bg-amber-50 text-amber-800">Tese</Badge><span className="min-w-0 flex-1 truncate text-sm">{item.titulo}</span><span className="font-mono text-[10px] text-muted-foreground">{item.codigo}</span></label>)}</div></div>
             <div className="space-y-2 sm:col-span-2"><Label>Demandas e OBAs relacionadas</Label><div className="max-h-40 divide-y overflow-y-auto border-y">{(contextsQuery.data || []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 py-3"><Checkbox checked={selectedContextCodes.has(item.codigo)} onCheckedChange={(checked) => setMeetingForm((current) => ({ ...current, contextos: checked ? [...current.contextos, item.codigo] : current.contextos.filter((code) => code !== item.codigo) }))} /><Badge variant="outline">{item.tipo === "demanda" ? "Demanda" : "OBA"}</Badge><span className="min-w-0 flex-1 truncate text-sm">{item.titulo}</span></label>)}</div></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setMeetingOpen(false)}>Cancelar</Button><Button disabled={!meetingForm.titulo || !meetingForm.community_id || !meetingForm.data || (meetingForm.focus_mode === "cell" && !meetingForm.strategic_cell_id) || meetingForm.oportunidades.length === 0 || createMeeting.isPending} onClick={() => createMeeting.mutate()}>Criar RO</Button></DialogFooter>
+          {!meQuery.data?.company_employee && <RoPulseCreation communityId={meetingForm.community_id} value={meetingPulse} onChange={setMeetingPulse} disabled={createMeeting.isPending} />}
+          <DialogFooter><Button variant="outline" disabled={createMeeting.isPending} onClick={() => setMeetingOpen(false)}>Cancelar</Button><Button loading={createMeeting.isPending} disabled={!meetingForm.titulo || !meetingForm.community_id || !meetingForm.data || (meetingForm.focus_mode === "cell" && !meetingForm.strategic_cell_id) || meetingForm.oportunidades.length === 0 || (meetingPulse !== null && !roPulseSchema.safeParse(meetingPulse).success)} onClick={() => createMeeting.mutate()}>{meetingPulse ? "Criar RO e iniciar Pulso" : "Criar RO"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

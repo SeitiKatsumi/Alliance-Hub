@@ -1542,7 +1542,7 @@ export default function MeuPerfilPage() {
                 >
                   <AuraScore score={auraData?.score ?? null} size="md" showLabel={false} />
                   <span className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
-                    {auraData?.score != null ? (auraData.faixa || "Aura") : "Em formação"}
+                    {auraData?.score != null ? (auraData.faixa || "Aura") : "Aura em formação"}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </span>
                 </a>

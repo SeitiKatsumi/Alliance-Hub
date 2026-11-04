@@ -10,6 +10,7 @@ test("a central do perfil mostra a previa superior com Aura do tamanho da foto",
   assert.ok(hub.indexOf("{profilePreview}") < hub.indexOf("profileCategories.map"));
   assert.match(page, /h-24 w-24[\s\S]*?data-testid="profile-preview-avatar"/);
   assert.match(page, /data-testid="profile-preview-aura"[\s\S]*?<AuraScore[\s\S]*?size="md"/);
+  assert.match(page, /auraData\?\.score != null \? \(auraData\.faixa \|\| "Aura"\) : "Aura em formação"/);
   assert.match(page, /\[data-testid="profile-preview-aura"\] svg circle:first-of-type/);
   assert.match(auraScore, /md: "w-24 h-24"/);
   assert.match(page, /href=\{`\/aura\/\$\{encodeURIComponent\(membroId\)\}`\}/);

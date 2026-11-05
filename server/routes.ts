@@ -4224,7 +4224,8 @@ async function resolveFileIds(ids: string[]): Promise<any[]> {
 
 export async function registerRoutes(
   httpServer: Server,
-  app: Express
+  app: Express,
+  googleCalendar?: import('./google-calendar-service').GoogleCalendarService
 ): Promise<Server> {
   const preferenceStore = new UserPreferencesStore(db);
   configureEmailPreferencePolicy((to,category) => preferenceStore.allowsEmail(to,category));
@@ -17525,6 +17526,118 @@ ${inputText.slice(0, 18000)}`,
     }
   });
 
+  async function sendDossier(res: any, source: import('./dossier').DossierSource, year: number) {
+    const { buildDossier } = await import('./dossier');
+    const bytes = await buildDossier(source, year, async (fileId) => {
+      if (!/^[a-zA-Z0-9_-]+$/.test(fileId)) throw new Error('Arquivo inválido');
+      const upstream = await fetch(`${DIRECTUS_URL}/assets/${encodeURIComponent(fileId)}`, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }, signal: AbortSignal.timeout(20000), redirect: 'error',
+      });
+      if (!upstream.ok || !upstream.body) throw new Error('Arquivo indisponível');
+      const reader = upstream.body.getReader();
+      const parts: Uint8Array[] = []; let size = 0;
+      try {
+        while (true) {
+          const {done, value} = await reader.read(); if (done) break;
+          size += value.byteLength;
+          if (size > 20 * 1024 * 1024) throw new Error('Arquivo excede 20 MB');
+          parts.push(value);
+        }
+      } finally { await reader.cancel(); }
+      const mime = upstream.headers.get('content-type')?.split(';')[0];
+      const extension = ({'application/pdf':'pdf','image/jpeg':'jpg','image/png':'png','image/webp':'webp'} as Record<string,string>)[mime || ''];
+      return {bytes: Buffer.concat(parts), name: extension ? `${fileId}.${extension}` : undefined};
+    }, (title, body) => buildSimpleTextPdf(title, [{title: 'Resumo financeiro e conteúdo', body}]));
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', `attachment; filename="dossie-${year}.zip"`);
+    res.send(Buffer.from(bytes));
+  }
+
+  app.get('/api/carteira/imoveis/:id/dossie', async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(String(req.params.id), actor, 'leitura');
+      const {dossierYear} = await import('./dossier');
+      const year = dossierYear(req.query.ano);
+      const launches = await db.execute(sql`SELECT * FROM inventario_lancamentos WHERE imovel_id = ${req.params.id}`);
+      const documents = await db.execute(sql`SELECT * FROM carteira_documentos WHERE imovel_id = ${req.params.id} ORDER BY criado_em`);
+      const notes = ['Imóvel da carteira: documentos e comprovantes cadastrados na aba Documentos. MAP não incluído.'];
+      const files = (documents.rows as any[]).flatMap(d => {
+        const id = directusAssetId(d.file_id);
+        if (!id) { notes.push(`Documento ${d.nome || d.id}: sem arquivo armazenado.`); return []; }
+        return [{id, name: d.nome || id, folder: 'Documentos'}];
+      });
+      const entries = launches.rows.map(normalizeInventarioRow);
+      const {dossierEntries} = await import('./dossier');
+      for (const e of dossierEntries(entries, year)) {
+        const attachments = Array.isArray(e.anexos) ? e.anexos : [];
+        if (!attachments.length) notes.push(`Lançamento ${e.id}: sem comprovante vinculado. Confira os documentos cadastrais.`);
+        for (const a of attachments) {
+          const fileId = directusAssetId(typeof a === 'string' ? a : a?.id || a?.file_id || a?.directus_files_id);
+          if (!fileId) { notes.push(`Lançamento ${e.id}: referência de anexo indisponível.`); continue; }
+          files.push({id: fileId, name: a?.filename || fileId, folder: `Comprovantes-${e.id}`});
+        }
+      }
+      await sendDossier(res, {name: access.imovel.nome || String(req.params.id), currency: access.imovel.moeda || 'BRL', entries, files, notes}, year);
+    } catch (e: any) { res.status(e.status || 503).json({error: e.status ? e.message : 'Não foi possível gerar o dossiê completo. Confira os arquivos e tente novamente.'}); }
+  });
+
+  app.get('/api/bias/:id/dossie', async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({error: 'Não autenticado'});
+      const bia = await resolveBiaByIdOrPublicCode(String(req.params.id), '*');
+      if (!bia) return res.status(404).json({error: 'BIA não encontrada'});
+      const id = String(bia.id);
+      if (!await requireBiaModuleAccess(req, res, id, 'capital_financeiro', 'view')) return;
+      const { dossierYear, dossierEntries } = await import('./dossier');
+      const year = dossierYear(req.query.ano);
+      const access = await resolveBiaAccessForRequest(bia, req);
+      // Exportação não usa fallback de logs/cache quando a fonte financeira falha.
+      const response = await fetch(`${DIRECTUS_URL}/items/fluxo_caixa?limit=-1&filter[bia][_eq]=${encodeURIComponent(id)}&fields=*,Anexos.directus_files_id.*`, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }, signal: AbortSignal.timeout(20000),
+      });
+      if (!response.ok) throw new Error('Fonte financeira indisponível');
+      const payload = await response.json();
+      if (!Array.isArray(payload.data)) throw new Error('Resposta financeira inválida');
+      const entries = await initialEntryMetadata(payload.data.filter((e: any) => fluxoBiaId(e) === id));
+      const source: import('./dossier').DossierSource = {name: bia.nome_bia || id, currency: bia.moeda || 'BRL', entries, files: [], notes: []};
+      for (const e of dossierEntries(entries, year)) {
+        const attachments = e.Anexos || [];
+        if (!attachments.length) source.notes.push(`Lançamento ${e.id}: sem comprovante anexado.`);
+        for (const a of attachments) {
+          const file = a.directus_files_id;
+          const fileId = typeof file === 'object' ? file?.id : file;
+          if (!fileId) throw new Error('Anexo sem referência');
+          source.files.push({id: String(fileId), name: file?.filename_download || String(fileId), folder: `Comprovantes-${e.id}`});
+        }
+      }
+      for (const module of ['tecnico', 'obra', 'comercial', 'capital'] as const) {
+        if (!hasBiaAccess(access.permissions, `documentos_${module}`, 'view')) { source.notes.push(`Documentos do núcleo ${module}: não incluídos por permissão.`); continue; }
+        const persisted = module === 'tecnico' ? await db.select().from(nucleoTecnicoDocs) : await db.select().from(aliancaDocs);
+        const fallback = module === 'tecnico' ? [...nucleoTecnicoDocsFallback, ...listFallbackDocuments('tecnico')] : listFallbackDocuments('alianca');
+        const merged = [...fallback, ...persisted.filter(d => !fallback.some(f => String(f.id) === String(d.id)))];
+        for (const d of merged.filter((d: any) => String(d.bia_id) === id && (module === 'tecnico' || d.modulo === module))) {
+          const ids = Array.isArray(d.arquivo_ids) ? d.arquivo_ids : [];
+          if (!ids.length) source.notes.push(`Documento ${d.id}: sem arquivo armazenado.`);
+          for (const fileId of ids) source.files.push({id: String(fileId), name: String(fileId), folder: `Documentos-${module}`});
+        }
+      }
+      const versions = await db.execute(sql`SELECT id, tipo, numero, criado_em, snapshot FROM bia_map_versoes WHERE bia_id = ${id} AND criado_em < ${`${year + 1}-01-01`}::date ORDER BY criado_em`);
+      for (const v of versions.rows as any[]) {
+        const snapshot = v.snapshot || {};
+        const body = [`Registro de ${v.criado_em}. Versão ${v.numero}, tipo ${v.tipo}.`, snapshot.biaName || bia.nome_bia,
+          `Valor de origem: ${snapshot.base?.moeda || bia.moeda || 'BRL'} ${snapshot.base?.valor_origem ?? 'Não informado'}`,
+          ...(snapshot.rows || []).map((r: any) => `${r.name} | ${r.group || ''} | Valor: ${r.value} | Participação: ${r.percent}%`), snapshot.footer || '',
+          'Reprodução dos dados da versão armazenada; não constitui novo aceite.'
+        ].join('\n');
+        source.files.push({id: String(v.id), name: `MAP-${v.tipo}-${v.numero}.pdf`, folder: 'MAP', bytes: buildSimpleTextPdf(`MAP ${v.numero}`, [{title:'Registro histórico',body}])});
+      }
+      if (!versions.rows.length) source.notes.push('Não há versão histórica de MAP registrada até o fim do ano selecionado.');
+      await sendDossier(res, source, year);
+    } catch (e: any) { res.status(e.status || 503).json({error: e.status ? e.message : 'Não foi possível gerar o dossiê completo. Confira os arquivos e tente novamente.'}); }
+  });
+
   app.get("/api/carteira/imoveis/:id/documentos", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -24817,6 +24930,20 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       res.status(500).json({ error: error.message || "Erro ao carregar membros disponÃ­veis" });
     }
   });
+
+  if (googleCalendar) {
+    googleCalendar.authorize = async userId => {
+      const user = await storage.getUser(userId);
+      if (!user?.ativo) return false;
+      const employee = await getCompanyEmployeeByUserId(userId);
+      if (!employee) return true;
+      const plan = await ensureCompanyPlanForOwner(String(employee.owner_user_id));
+      return employee.status === 'ativo' && isActiveCompanyPlan(plan) && hasCompanyAccess(employee.permissions, 'agenda', 'view');
+    };
+    const { registerGoogleCalendarRoutes } = await import('./google-calendar-routes');
+    const { resolveCalendarAccount } = await import('./google-calendar-domain');
+    registerGoogleCalendarRoutes(app, googleCalendar, 'api', req => resolveCalendarAccount(req.session, storage));
+  }
 
   app.get("/api/agenda", async (req, res) => {
     try {

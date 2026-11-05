@@ -211,7 +211,8 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     summary: "Organização das atividades e comunicações operacionais da rede.",
     features: [
       { id: "agenda", title: "Agenda em lista", description: "Cadastro, filtros e acompanhamento de compromissos, prioridades, responsáveis e horários.", status: "disponivel" },
-      { id: "agenda-calendario", title: "Calendário mensal e semanal", description: "Calendário como visualização principal, com navegação por mês ou semana e grade semanal das 24 horas.", status: "disponivel" },
+      { id: "agenda-calendario", title: "Calendário mensal e semanal", description: "Calendário como visualização principal, com abas Resumo, Agenda e Alertas preservadas. Cabeçalho reúne Dashboard e Google Agenda em diálogos, criação e filtros. Navegação por mês, semana de 24 horas ou lista, sem painéis empurrando o calendário para baixo.", status: "disponivel" },
+      { id: "agenda-google", title: "Conexão com Google Agenda", description: "Conexão opcional da agenda principal Google: eventos pessoais aparecem somente para a própria pessoa e ações da BUILT são sincronizadas automaticamente. Requer configuração e autorização Google; permite sincronizar agora e desconectar.", status: "disponivel" },
       { id: "agenda-criacao-contextual", title: "Criação pelo calendário", description: "Clique em um dia ou horário abre a nova ação com data e hora preenchidas; a gravação só ocorre após confirmação no formulário autorizado.", status: "disponivel" },
       { id: "chamadas-alianca", title: "Chamadas para aliança", description: "Convocação de participantes para papéis e necessidades das BIAs.", status: "disponivel" },
       { id: "convites-diretoria", title: "Convites de diretoria e sociedade", description: "Aceite ou recusa de indicações para papéis em uma BIA.", status: "disponivel" },

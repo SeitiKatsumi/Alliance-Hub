@@ -1,3 +1,4 @@
+import { DossierExport } from "@/components/dossier-export";
 import { PropertyValuationAreaFields } from "@/components/property-valuation-areas";
 import { PropertyValuation } from "@/components/property-valuation";
 import { PropertyCibField } from '@/components/property-cib-field';
@@ -2247,8 +2248,9 @@ function DetailPage({ id }: { id: string }) {
           </section>
 
           <section>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold">Receitas e despesas</h2><p className="text-sm text-muted-foreground">Histórico financeiro exclusivo deste imóvel.</p></div>
+              <DossierExport kind="imovel" id={id} />
               {canCollaborate && <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setEditingLaunch(null); setLaunchOpen(true); }}><Plus className="mr-2 h-4 w-4" />Lançamento</Button>}
             </div>
             {(launchesQuery.data || []).length === 0 ? (

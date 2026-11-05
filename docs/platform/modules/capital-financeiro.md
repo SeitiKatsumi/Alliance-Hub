@@ -287,3 +287,11 @@ A aba Análises no Núcleo de Capital depende de `biaHasSalesThesis`, além das 
 A IA deve sugerir descrição factual (objeto/finalidade e fornecedor presentes) e categoria pelo catálogo com nome, tipo e descrição. Normalização retorna o nome oficial pelo ID ou nome exato não ambíguo; categoria inexistente continua vazia. Pré-leitura que preserva mais parcelas recebe sugestões apenas em correspondência única por tipo, valor e vencimento, sem mudar valores/status/datas ou perder número da parcela. Editor e criação usam a mesma prévia editável. Sem gravação automática ou migração.
 
 Prévia IA usa o próprio CategoriaCombobox do lançamento manual, injetado pelo Financeiro: mesmo catálogo, busca, grupos, filtro entrada/saída e criação contextual de categoria. O cartão usa stripPlanoContaCode, preservando o ID original. Sem mudança no servidor ou na persistência.
+
+## Dossiê por ano — 05/11/2026
+
+Exportar dossiê oferece ZIP com Resumo.pdf, Extrato.csv UTF-8, Leia-me e Manifesto.json com SHA256 dos arquivos. Data de pagamento tem precedência sobre data do lançamento/vencimento; apenas pago e caixa soma no resumo nominal da moeda do recurso. Pendentes e não caixa continuam no extrato. Documento cadastral entra independentemente do ano. Ausências de vínculo/arquivo são declaradas; erro ao baixar um arquivo aborta o pacote, sem sucesso parcial. Limites300arquivos/20MBporarquivo/100MBtotal.
+
+Imóvel exige leitura e consulta SQL restrita ao ID, inclui documentos e anexos legados dos lançamentos; sem MAP. BIA exige capital_financeiro:view e consulta financeira sem fallback de logs; inclui só documentos de núcleos autorizados e versões MAP até o fim do ano, datadas e reproduzidas dos snapshots. MAP não presume posição anual; não é novo aceite. Arquivos resolvidos no servidor por IDs vinculados e host fixo, sem URL arbitrária.
+
+Somente exportação: nenhum upload novo, migração, alteração/exclusão de comprovante, pagamento, evento, e-mail ou declaração fiscal automática. Arquivos já cadastrados continuam no armazenamento existente; a exportação não cria retenção imutável/backups. Fonte de extrato é registro BUILT, não banco. Documento apoia conferência do contador. Desktop/mobile usam mesmo diálogo e estado real de download.

@@ -63,7 +63,8 @@ export function agendaAlertActionLabel(item: Pick<AgendaPendingAlert, "source_ty
 export function normalizeAgendaAlertsView(value: string | null | undefined, canViewAgenda: boolean): AgendaAlertsView {
   if (value === "alertas") return "alertas";
   if (value === "agenda") return canViewAgenda ? "agenda" : "alertas";
-  return "resumo";
+  if (value === "resumo") return "resumo";
+  return canViewAgenda ? "agenda" : "resumo";
 }
 
 export function agendaAlertBadgeLabel(value: unknown): string | null {

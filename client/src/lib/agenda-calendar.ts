@@ -18,6 +18,18 @@ export function startOfAgendaWeek(date: Date) {
   return start;
 }
 
+export function buildAgendaMonth(date: Date) {
+  const first = new Date(date.getFullYear(), date.getMonth(), 1);
+  const start = startOfAgendaWeek(first);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const length = Math.max(35, Math.ceil((first.getDay() + lastDay) / 7) * 7);
+  return Array.from({ length }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return { date: day, key: toAgendaDateKey(day) };
+  });
+}
+
 export function buildAgendaWeek(date: Date) {
   const start = startOfAgendaWeek(date);
   return Array.from({ length: 7 }, (_, index) => {

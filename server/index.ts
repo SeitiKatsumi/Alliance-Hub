@@ -11,6 +11,13 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { Pool } from "pg";
 import { publicBankResponse } from "./bank-response";
+import { db } from './db';
+import { calendarConfig, resolveCalendarAccount } from './google-calendar-domain';
+import { storage } from './storage';
+import { GoogleCalendarClient } from './google-calendar-client';
+import { GoogleCalendarStore } from './google-calendar-store';
+import { GoogleCalendarService } from './google-calendar-service';
+import { registerGoogleCalendarRoutes } from './google-calendar-routes';
 
 const app = express();
 assertIsolatedStageEnvironment();
@@ -136,7 +143,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)|\/fluxo-caixa\/comprovantes(?:\/|$)/i.test(path)) {
+      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)|\/fluxo-caixa\/comprovantes(?:\/|$)|^\/api\/agenda\/google(?:\/|$)/i.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -148,8 +155,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const googleCalendarConfig = calendarConfig();
+  const googleCalendar = new GoogleCalendarService(new GoogleCalendarStore(db), new GoogleCalendarClient(googleCalendarConfig), googleCalendarConfig);
+  registerGoogleCalendarRoutes(app, googleCalendar, 'oauth', req => resolveCalendarAccount(req.session, storage));
   setupGoogleAuth(app);
-  await registerRoutes(httpServer, app);
+  await registerRoutes(httpServer, app, googleCalendar);
+  cron.schedule('*/5 * * * *', () => {
+    if (!isolatedStage()) void googleCalendar.tick().catch(() => log('Sincronização Google Agenda temporariamente indisponível.', 'calendar'));
+  });
   // ── Reminder cron: runs every 30 minutes, sends 24h/48h/72h reminders for termos_pendentes
   cron.schedule("*/30 * * * *", async () => {
     if (isolatedStage()) return;

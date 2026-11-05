@@ -87,7 +87,7 @@ export function AppSidebar() {
 
               {!isLimitedCoOwner && <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location.startsWith("/agenda-alertas") || location === "/agenda" || location === "/notificacoes"} data-testid="nav-agenda-alertas" className="text-sm">
-                  <Link href="/agenda-alertas?view=resumo">
+                  <Link href="/agenda-alertas">
                     <BellRing className="w-3.5 h-3.5" />
                     <span className="truncate">{t('Agenda e Alertas')}</span>
                     {alertBadge && (

@@ -6,6 +6,7 @@ import {
   DEFAULT_AGENDA_VIEW_MODE,
   agendaHourFromTime,
   buildAgendaWeek,
+  buildAgendaMonth,
   formatAgendaWeekTitle,
   toAgendaDateKey,
 } from "./agenda-calendar";
@@ -36,4 +37,22 @@ test("grade cobre as 24 horas e agrupa horarios validos", () => {
   assert.equal(agendaHourFromTime("24:00"), null);
   assert.equal(agendaHourFromTime(null), null);
   assert.equal(toAgendaDateKey(new Date(2026, 9, 5)), "2026-10-05");
+});
+
+test('mês usa cinco ou seis semanas sem perder datas e mantém o intervalo Google alinhado', () => {
+  const november = buildAgendaMonth(new Date(2026, 10, 5));
+  assert.equal(november.length, 35);
+  assert.equal(november[0].key, '2026-11-01');
+  assert.equal(november.at(-1)?.key, '2026-12-05');
+  const august = buildAgendaMonth(new Date(2026, 7, 1));
+  assert.equal(august.length, 42);
+  assert.equal(august[0].key, '2026-07-26');
+  assert.equal(august.at(-1)?.key, '2026-09-05');
+  for (const month of [new Date(2032, 1, 29), new Date(2026, 11, 31)]) {
+    const days = buildAgendaMonth(month);
+    assert.equal(new Set(days.map(d => d.key)).size, days.length);
+    assert.equal(days[0].date.getDay(), 0);
+    assert.equal(days.at(-1)?.date.getDay(), 6);
+    assert.ok(days.some(d => d.key === toAgendaDateKey(month)));
+  }
 });

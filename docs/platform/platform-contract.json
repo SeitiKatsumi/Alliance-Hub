@@ -121,13 +121,13 @@
       "doc": "docs/platform/modules/agenda-notificacoes.md",
       "keywords": ["agenda", "alerta", "notificacao", "pendencia", "chamada", "convite de diretoria", "lembrete", "contador"],
       "routes": ["/agenda-alertas", "/agenda", "/notificacoes", "/convites", "/built-capital/chamadas"],
-      "frontendFiles": ["client/src/pages/agenda-alertas.tsx", "client/src/pages/agenda.tsx", "client/src/lib/agenda-alerts.ts", "client/src/lib/agenda-calendar.ts", "client/src/components/app-sidebar.tsx"],
-      "backendFiles": ["server/mailer.ts","server/routes.ts","server/agenda-alerts.ts","shared/schema.ts","server/user-preferences.ts","server/email-preference-policy.ts"],
+      "frontendFiles": ["client/src/pages/agenda-alertas.tsx","client/src/pages/agenda.tsx","client/src/lib/agenda-alerts.ts","client/src/lib/agenda-calendar.ts","client/src/components/app-sidebar.tsx","client/src/components/google-calendar-connection.tsx"],
+      "backendFiles": ["server/mailer.ts","server/routes.ts","server/agenda-alerts.ts","shared/schema.ts","server/user-preferences.ts","server/email-preference-policy.ts","server/google-calendar-domain.ts","server/google-calendar-client.ts","server/google-calendar-store.ts","server/google-calendar-service.ts","server/google-calendar-routes.ts"],
       "apiPrefixes": ["/api/agenda", "/api/agenda-alertas"],
-      "dataStores": ["PostgreSQL agenda_tarefas", "estados dos objetos de origem", "cache React Query"],
+      "dataStores": ["PostgreSQL agenda_tarefas","estados dos objetos de origem","cache React Query","PostgreSQL google_calendar_connections (tokens cifrados)","PostgreSQL google_calendar_event_links"],
       "roles": ["destinatario", "aliado", "diretor", "membro", "admin"],
-      "invariants": ["Contador e lista usam a mesma regra.", "Uma origem gera no maximo uma pendencia equivalente.", "Notificacao nao substitui autorizacao no destino.", "Com a aplicacao visivel, novas aprovacoes pendentes aparecem em ate 2 segundos sem recarregar a pagina.", "Calendario e a primeira visualizacao da Agenda; mes, semana e lista usam a mesma colecao autorizada e o mesmo filtro de status.", "Clique em dia ou horario apenas preenche o formulario; nenhuma acao e criada antes da confirmacao explicita do usuario."],
-      "tests": ["server/mailer.test.ts","server/agenda-alerts.test.ts","client/src/lib/agenda-alerts.test.ts","client/src/lib/agenda-calendar.test.ts","client/src/lib/dashboard-navigation.test.ts","server/user-preferences.test.ts","server/payment-reminders.test.ts"]
+      "invariants": ["Contador e lista usam a mesma regra.","Uma origem gera no maximo uma pendencia equivalente.","Notificacao nao substitui autorizacao no destino.","Com a aplicacao visivel, novas aprovacoes pendentes aparecem em ate 2 segundos sem recarregar a pagina.","Calendario e a primeira visualizacao da Agenda; mes, semana e lista usam a mesma colecao autorizada e o mesmo filtro de status.","Clique em dia ou horario apenas preenche o formulario; nenhuma acao e criada antes da confirmacao explicita do usuario.","Google Agenda e conexao opcional pessoal: consulta externa nao vira tarefa/pendencia ou compartilhamento. Exportacao usa somente agenda_tarefas da conta autorizada e IDs determinísticos; tokens cifrados nunca retornam ao frontend."],
+      "tests": ["server/mailer.test.ts","server/agenda-alerts.test.ts","client/src/lib/agenda-alerts.test.ts","client/src/lib/agenda-calendar.test.ts","client/src/lib/dashboard-navigation.test.ts","server/user-preferences.test.ts","server/payment-reminders.test.ts","server/google-calendar.test.ts","client/src/components/google-calendar-connection.test.ts"]
     },
     {
       "id": "administracao",

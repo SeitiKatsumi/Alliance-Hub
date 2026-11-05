@@ -12,6 +12,14 @@ test("mantem as visualizacoes persistentes validas", () => {
   assert.equal(normalizeAgendaAlertsView("alertas", true), "alertas");
 });
 
+test('entrada sem aba abre calendário sem substituir links explícitos ou dar acesso a funcionário', () => {
+  assert.equal(normalizeAgendaAlertsView(null, true), 'agenda');
+  assert.equal(normalizeAgendaAlertsView('invalida', true), 'agenda');
+  assert.equal(normalizeAgendaAlertsView(null, false), 'resumo');
+  assert.equal(normalizeAgendaAlertsView('resumo', true), 'resumo');
+  assert.equal(normalizeAgendaAlertsView('alertas', true), 'alertas');
+});
+
 test("funcionario sem Agenda e direcionado aos Alertas", () => {
   assert.equal(normalizeAgendaAlertsView("agenda", false), "alertas");
 });

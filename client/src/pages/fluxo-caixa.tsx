@@ -1,3 +1,4 @@
+import { DossierExport } from "@/components/dossier-export";
 import { ImportPreviewEditor } from "@/components/import-preview-editor";
 import { importPreviewError } from "@shared/import-preview";
 import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema, type QuotaCorrectionRecord } from "@shared/quota-correction";
@@ -3033,7 +3034,8 @@ export default function FluxoCaixaPage({
           <p className="text-muted-foreground mt-1">Gestão de entradas e saídas por BIA</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {selectedBiaId && <DossierExport kind="bia" id={selectedBiaId} />}
           {!embedded && (
             <Select value={selectedBiaId} onValueChange={handleBiaChange}>
               <SelectTrigger className="w-[280px]" data-testid="select-bia">

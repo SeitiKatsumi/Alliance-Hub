@@ -4,6 +4,7 @@ import { agendaSourceAction, agendaTaskTitle } from "@shared/agenda-action";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
+  BarChart3,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -21,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,10 +30,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   AGENDA_HOURS,
-  AGENDA_VIEW_ORDER,
   DEFAULT_AGENDA_VIEW_MODE,
   agendaHourFromTime,
   buildAgendaWeek,
+  buildAgendaMonth,
   formatAgendaWeekTitle,
   toAgendaDateKey,
   type AgendaCalendarDisplay,
@@ -40,11 +41,14 @@ import {
 } from "@/lib/agenda-calendar";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
+import { GoogleCalendarConnection, type GoogleCalendarEntry } from '@/components/google-calendar-connection';
 
 type AgendaStatus = "pendente" | "em_andamento" | "concluida" | "cancelada";
 type AgendaPrioridade = "baixa" | "media" | "alta";
 
 interface AgendaTarefa {
+  google_event?: boolean;
+  google_url?: string;
   origem_tarefa_id?: string | null;
   id: string;
   titulo: string;
@@ -174,6 +178,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   const [openedTask,setOpenedTask]=useState<string|null>(null);
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaTarefa | null>(null);
   const [statusFilter, setStatusFilter] = useState<AgendaStatus | "todas">("todas");
   const [viewMode, setViewMode] = useState<AgendaViewMode>(DEFAULT_AGENDA_VIEW_MODE);
@@ -186,6 +191,11 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   const [selectedMembroIds, setSelectedMembroIds] = useState<string[]>([]);
   const [membroSearch, setMembroSearch] = useState("");
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
+  const [googleEntries, setGoogleEntries] = useState<GoogleCalendarEntry[]>([]);
+  const monthDays = useMemo(() => buildAgendaMonth(calendarCursor), [calendarCursor]);
+  const googleFrom = monthDays[0].key;
+  const googleEnd = monthDays[monthDays.length - 1].date;
+  const googleTo = toAgendaDateKey(new Date(googleEnd.getFullYear(), googleEnd.getMonth(), googleEnd.getDate() + 1));
 
   const { data: tarefas = [], isLoading } = useQuery<AgendaTarefa[]>({
     queryKey: ["/api/agenda"],
@@ -200,8 +210,9 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   });
 
   const filtered = useMemo(() => {
-    return tarefas.filter(tarefa => statusFilter === "todas" || tarefa.status === statusFilter);
-  }, [tarefas, statusFilter]);
+    const own = tarefas.filter(tarefa => statusFilter === "todas" || tarefa.status === statusFilter);
+    return [...own, ...(statusFilter === 'todas' ? googleEntries : [])].sort((a, b) => a.data.localeCompare(b.data) || String(a.hora || '').localeCompare(String(b.hora || '')));
+  }, [tarefas, statusFilter, googleEntries]);
 
   const grouped = useMemo(() => {
     return filtered.reduce<Record<string, AgendaTarefa[]>>((acc, tarefa) => {
@@ -220,15 +231,8 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   }, [tarefas]);
 
   const calendarDays = useMemo(() => {
-    const year = calendarCursor.getFullYear();
     const month = calendarCursor.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const start = new Date(firstDay);
-    start.setDate(firstDay.getDate() - firstDay.getDay());
-    const days = Array.from({ length: 42 }, (_, index) => {
-      const date = new Date(start);
-      date.setDate(start.getDate() + index);
-      const key = toAgendaDateKey(date);
+    const days = monthDays.map(({date, key}) => {
       return {
         key,
         date,
@@ -238,7 +242,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
       };
     });
     return days;
-  }, [calendarCursor, filtered]);
+  }, [calendarCursor, monthDays, filtered]);
 
   const weekDays = useMemo(() => buildAgendaWeek(calendarCursor).map((day) => ({
     ...day,
@@ -388,6 +392,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   }
 
   function openEdit(tarefa: AgendaTarefa) {
+    if (tarefa.google_event) { openAction(tarefa); return; }
     setEditing(tarefa);
     setForm({
       titulo: tarefa.titulo || "",
@@ -404,6 +409,11 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   }
 
   function openAction(tarefa: AgendaTarefa) {
+    if (tarefa.google_event) {
+      if (tarefa.google_url) window.open(tarefa.google_url, '_blank', 'noopener,noreferrer');
+      else toast({ title: tarefa.titulo, description: 'Este evento pode ser consultado na sua conta Google Agenda.' });
+      return;
+    }
     const action = agendaSourceAction(tarefa);
     if (action) navigate(action.href);
     else openEdit(tarefa);
@@ -430,139 +440,90 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
   }
 
   return (
-    <div className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6"}>
-      <div className={`flex flex-col gap-3 sm:flex-row sm:items-start ${embedded ? "sm:justify-end" : "sm:justify-between"}`}>
-        {!embedded && <div>
-          <p className="text-xs text-muted-foreground">Início / Agenda</p>
-          <h1 className="mt-2 flex items-center gap-3 text-2xl font-bold text-foreground">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-700">
-              <CalendarDays className="h-5 w-5" />
-            </span>
-            Agenda
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Organize ações, tarefas e acompanhamentos da sua rotina BUILT.
-          </p>
-        </div>}
-        <Button onClick={openCreate} className="gap-2 bg-blue-600 text-white hover:bg-blue-700" data-testid="btn-nova-acao-agenda">
-          <Plus className="h-4 w-4" />
-          Nova ação
-        </Button>
-      </div>
+    <div className={embedded ? "space-y-0" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6"}>
+      {!embedded && <header className="mb-5">
+        <p className="text-xs text-muted-foreground">Início / Agenda</p>
+        <h1 className="mt-2 text-2xl font-bold text-foreground">Agenda</h1>
+      </header>}
 
-      <div className="grid gap-3 sm:grid-cols-4">
-        {(["pendente", "em_andamento", "concluida", "cancelada"] as AgendaStatus[]).map(status => (
-          <Card key={status} className="border border-border/60">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">{STATUS_LABEL[status]}</p>
-              <p className="mt-2 text-2xl font-bold text-foreground">{counts[status] || 0}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Label className="text-xs font-semibold text-muted-foreground">Filtrar status</Label>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as AgendaStatus | "todas")}>
-            <SelectTrigger className="w-full sm:w-56" data-testid="select-agenda-status-filter">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas</SelectItem>
-              <SelectItem value="pendente">Pendentes</SelectItem>
-              <SelectItem value="em_andamento">Em andamento</SelectItem>
-              <SelectItem value="concluida">Concluídas</SelectItem>
-              <SelectItem value="cancelada">Canceladas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 rounded-md border border-border/60 bg-muted/20 p-1 sm:w-fit" data-testid="agenda-view-mode">
-          {AGENDA_VIEW_ORDER.map((mode) => {
-            const Icon = mode === "calendario" ? CalendarDays : List;
-            const label = mode === "calendario" ? "Calendário" : "Lista";
-            return (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setViewMode(mode)}
-                className={`inline-flex items-center justify-center gap-2 rounded px-3 py-2 text-xs font-semibold transition-colors ${
-                  viewMode === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-                data-testid={`btn-agenda-${mode}`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card" data-testid="agenda-workspace">
+        <header className="space-y-3 border-b border-border/60 p-3 sm:p-4" data-testid="agenda-calendar-toolbar">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8 shrink-0 sm:h-9 sm:w-9" onClick={() => changeCalendarPeriod(-1)} aria-label="Anterior">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h2 className="min-w-0 text-sm font-bold text-foreground first-letter:uppercase sm:text-xl">{calendarTitle}</h2>
+              <Button variant="outline" size="icon" className="h-8 w-8 shrink-0 sm:h-9 sm:w-9" onClick={() => changeCalendarPeriod(1)} aria-label="Próximo">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 px-2 text-xs sm:h-9 sm:px-3" onClick={goToToday}>Hoje</Button>
+            </div>
+            <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+              <Button variant="outline" className="gap-1 px-2 text-xs sm:gap-2 sm:px-4 sm:text-sm" onClick={() => setDashboardOpen(true)} data-testid="btn-agenda-dashboard">
+                <BarChart3 className="hidden h-4 w-4 sm:block" />Dashboard
+              </Button>
+              <GoogleCalendarConnection compact from={googleFrom} to={googleTo} onEventsChange={setGoogleEntries} />
+              <Button onClick={openCreate} className="gap-1 bg-blue-600 px-2 text-xs text-white hover:bg-blue-700 sm:gap-2 sm:px-4 sm:text-sm" data-testid="btn-nova-acao-agenda">
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />Nova ação
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end sm:gap-3">
+            <div className="flex rounded-md border border-border/60 bg-muted/20 p-1" data-testid="agenda-view-mode">
+              <div className="flex" data-testid="agenda-calendar-display">
+                {(["mes", "semana"] as const).map(display => (
+                  <button key={display} type="button" onClick={() => { setCalendarDisplay(display); setViewMode("calendario"); }}
+                    aria-pressed={viewMode === "calendario" && calendarDisplay === display}
+                    className={`rounded px-2 py-1.5 text-xs font-semibold transition-colors sm:px-3 ${viewMode === "calendario" && calendarDisplay === display ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    data-testid={`btn-agenda-${display}`}>
+                    {display === "mes" ? "Mês" : "Semana"}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => setViewMode("lista")} aria-pressed={viewMode === "lista"}
+                className={`rounded px-2 py-1.5 text-xs font-semibold transition-colors sm:px-3 ${viewMode === "lista" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                data-testid="btn-agenda-lista">Lista</button>
+            </div>
+            <div className="min-w-0 border-l border-border/60 pl-2 sm:pl-3">
+              <Label htmlFor="agenda-status-filter" className="sr-only">Filtrar status</Label>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as AgendaStatus | "todas")}>
+                <SelectTrigger id="agenda-status-filter" className="h-9 w-24 sm:w-36" data-testid="select-agenda-status-filter"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas</SelectItem>
+                  <SelectItem value="pendente">Pendentes</SelectItem>
+                  <SelectItem value="em_andamento">Em andamento</SelectItem>
+                  <SelectItem value="concluida">Concluídas</SelectItem>
+                  <SelectItem value="cancelada">Canceladas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </header>
 
       {isLoading ? (
-        <div className="rounded-lg border border-border/60 bg-card p-6 text-sm text-muted-foreground">
-          Carregando agenda...
-        </div>
+        <div className="p-6 text-sm text-muted-foreground" role="status">Carregando agenda...</div>
       ) : viewMode === "calendario" ? (
-        <Card className="overflow-hidden border border-border/60">
-          <CardContent className="p-0">
-            <div className="flex flex-col gap-3 border-b border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Calendário</p>
-                <h2 className="mt-1 text-lg font-bold capitalize text-foreground">{calendarTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Clique em um dia ou horário para criar uma nova ação.</p>
-              </div>
-              <div className="flex flex-col gap-2 sm:items-end">
-                <div className="grid grid-cols-2 rounded-md border border-border/60 bg-muted/20 p-1" data-testid="agenda-calendar-display">
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDisplay("mes")}
-                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${calendarDisplay === "mes" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                    data-testid="btn-agenda-mes"
-                  >
-                    Mês
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDisplay("semana")}
-                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${calendarDisplay === "semana" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                    data-testid="btn-agenda-semana"
-                  >
-                    Semana
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => changeCalendarPeriod(-1)} className="gap-1">
-                    <ChevronLeft className="h-4 w-4" />
-                    Anterior
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={goToToday}>Hoje</Button>
-                  <Button variant="outline" size="sm" onClick={() => changeCalendarPeriod(1)} className="gap-1">
-                    Próximo
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+        <>
             {calendarDisplay === "mes" ? (
               <div className="overflow-x-auto" data-testid="agenda-month-calendar">
-                <div className="min-w-[720px]">
+                <div className="min-w-0">
                   <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30 text-center text-[11px] font-semibold uppercase text-muted-foreground">
                     {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(day => (
                       <div key={day} className="px-1 py-2">{day}</div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7">
+                  <div className="grid grid-cols-7" style={{ minHeight: "calc(100dvh - 475px)" }}>
                     {calendarDays.map(day => (
                       <div
                         key={day.key}
                         onClick={() => openCreateAt(day.key)}
-                        className={`group min-h-32 cursor-pointer border-b border-r border-border/60 p-2 transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20 ${
-                          day.currentMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"
+                        className={`group min-h-24 min-w-0 cursor-pointer border-b border-r border-border/60 p-1 sm:min-h-20 sm:p-2 transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20 ${
+                          day.today ? "bg-blue-50/60 dark:bg-blue-950/20" : day.currentMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"
                         }`}
                         data-testid={`agenda-month-day-${day.key}`}
                       >
-                        <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="mb-2 flex items-center justify-between gap-0.5">
                           <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${
                             day.today ? "bg-blue-600 text-white" : day.currentMonth ? "text-foreground" : "text-muted-foreground"
                           }`}>
@@ -570,14 +531,14 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                           </span>
                           <span className="flex items-center gap-1">
                             {day.tarefas.length > 0 && (
-                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+                              <span className="hidden rounded-full bg-blue-50 px-2 py-0.5 sm:inline-block text-[10px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
                                 {day.tarefas.length}
                               </span>
                             )}
                             <button
                               type="button"
                               onClick={(event) => { event.stopPropagation(); openCreateAt(day.key); }}
-                              className="grid h-6 w-6 place-items-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-blue-100 hover:text-blue-700 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-blue-950 dark:hover:text-blue-200"
+                              className="hidden h-6 w-6 place-items-center rounded text-muted-foreground opacity-0 sm:grid transition-opacity hover:bg-blue-100 hover:text-blue-700 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-blue-950 dark:hover:text-blue-200"
                               aria-label={`Criar ação em ${formatDate(day.key)}`}
                             >
                               <Plus className="h-3.5 w-3.5" />
@@ -593,7 +554,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                               className={`w-full rounded border px-2 py-1 text-left text-[11px] leading-tight transition-colors hover:border-blue-300 ${STATUS_CLASS[tarefa.status]}`}
                               title={agendaTaskTitle(tarefa)}
                             >
-                              <span className="block truncate font-semibold">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}{agendaTaskTitle(tarefa)}</span>
+                              <span className="block truncate font-semibold"><span className="hidden sm:inline">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}</span>{agendaTaskTitle(tarefa)}</span>
                             </button>
                           ))}
                           {day.tarefas.length > 3 && (
@@ -683,8 +644,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </>
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center">
           <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground/40" />
@@ -692,7 +652,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
           <p className="mt-1 text-xs text-muted-foreground">Crie sua primeira tarefa para começar a organizar a agenda.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 p-3 sm:p-4">
           {Object.entries(grouped).map(([dateLabel, items]) => (
             <section key={dateLabel} className="space-y-2">
               <h2 className="text-sm font-bold text-foreground">{dateLabel}</h2>
@@ -703,8 +663,10 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline" className={STATUS_CLASS[tarefa.status]}>{STATUS_LABEL[tarefa.status]}</Badge>
-                            <Badge variant="outline" className={PRIORIDADE_CLASS[tarefa.prioridade]}>{PRIORIDADE_LABEL[tarefa.prioridade]}</Badge>
+                            {tarefa.google_event ? <Badge variant="outline">Google Agenda</Badge> : <>
+                              <Badge variant="outline" className={STATUS_CLASS[tarefa.status]}>{STATUS_LABEL[tarefa.status]}</Badge>
+                              <Badge variant="outline" className={PRIORIDADE_CLASS[tarefa.prioridade]}>{PRIORIDADE_LABEL[tarefa.prioridade]}</Badge>
+                            </>}
                             {tarefa.hora && (
                               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 <Clock3 className="h-3.5 w-3.5" />
@@ -727,16 +689,17 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                           )}
                           {agendaSourceAction(tarefa) && <a className="mt-2 inline-block text-xs text-primary underline" href={agendaSourceAction(tarefa)!.href}>{agendaSourceAction(tarefa)!.label}</a>}
                         </div>
-                        <button
+                        {!tarefa.google_event && <button
                           type="button"
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                           onClick={() => updateStatusMutation.mutate({ id: tarefa.id, status: tarefa.status === "concluida" ? "pendente" : "concluida" })}
                           title={tarefa.status === "concluida" ? "Reabrir" : "Concluir"}
                         >
                           {tarefa.status === "concluida" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <Circle className="h-5 w-5" />}
-                        </button>
+                        </button>}
                       </div>
                       <div className="mt-4 flex flex-wrap justify-end gap-2">
+                        {tarefa.google_event ? <Button variant="outline" size="sm" onClick={() => openAction(tarefa)}>Abrir no Google Agenda</Button> : <>
                         <Button variant="outline" size="sm" className="gap-2" onClick={() => openEdit(tarefa)}>
                           <Pencil className="h-3.5 w-3.5" />
                           Editar
@@ -745,6 +708,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                           <Trash2 className="h-3.5 w-3.5" />
                           Excluir
                         </Button>
+                        </>}
                       </div>
                     </CardContent>
                   </Card>
@@ -754,6 +718,25 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
           ))}
         </div>
       )}
+
+      </div>
+
+      <Dialog open={dashboardOpen} onOpenChange={setDashboardOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dashboard da Agenda</DialogTitle>
+            <DialogDescription>Suas ações na BUILT por status. Os eventos pessoais do Google ficam separados.</DialogDescription>
+          </DialogHeader>
+          {isLoading ? <p role="status" className="text-sm text-muted-foreground">Carregando dashboard...</p> : <div className="grid grid-cols-2 gap-3" data-testid="agenda-status-dashboard">
+            {(["pendente", "em_andamento", "concluida", "cancelada"] as AgendaStatus[]).map(status => (
+              <button key={status} type="button" onClick={() => { setStatusFilter(status); setDashboardOpen(false); }} className="rounded-lg border border-border/60 p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="text-xs text-muted-foreground">{STATUS_LABEL[status]}</span>
+                <span className="mt-2 block text-2xl font-bold text-foreground">{counts[status] || 0}</span>
+              </button>
+            ))}
+          </div>}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:w-full">

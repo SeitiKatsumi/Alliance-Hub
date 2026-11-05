@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "id": "2026-11-05-dossier",
+  "title": "Dossiê anual autorizado de BIAs e imóveis",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/dossier.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "dossie",
+    "DossierExport",
+    "buildDossier",
+    "carteira_documentos",
+    "bia_map_versoes"
+  ],
+  "consumers": [
+    {
+      "path": "server/dossier.ts",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "server/dossier.test.ts",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "client/src/components/dossier-export.tsx",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "package.json",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "package-lock.json",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Exportação anual somente leitura; mudanças paralelas de Agenda preservadas e não atestadas neste registro."
+    },
+    {
+      "path": "client/src/pages/nucleo-comercial.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/pages/nucleo-tecnico.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "migrations/20260918_map_zero_versions.sql",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/bia-legacy-zero.test.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/bia-map-history.test.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/bia-map-history.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Fontes e consumidores existentes preservados: dossiê só lê lançamentos/documentos e snapshots; não altera cadastro, versão, aceite, navegação, fórmulas ou schema. Edições paralelas neste arquivo não pertencem a este trabalho."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo das rotas/Financeiro: bootstrap e movimentação de cotas preservados; dossiê não grava ou transfere CPP. Trabalho paralelo não atestado."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo das rotas/Financeiro: bootstrap e movimentação de cotas preservados; dossiê não grava ou transfere CPP. Trabalho paralelo não atestado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real em prévia isolada desktop e390x844; abrir, ano, carregamento, erro e retry conferidos. Capturas output/dossier/desktop.png e mobile.png. Fluxo live autenticado pendente após reinício; não atestado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Rotas GET por recurso autenticam/autorizam antes de consultar fontes. Quatro regressões focadas aprovadas incluindo negação e isolamento de BIA/núcleo e indisponibilidade sem fallback."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "SQL restrito ao imóvel/BIA, Directus fonte viva sem fallback financeiro; sem escrita/migração. Snapshot histórico lido; arquivo original preservado byte a byte no ZIP e SHA256."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Resumo nominal em centavos por moeda do recurso; apenas status pago e natureza caixa. Pendentes/não caixa constam CSV; precedência pagamento/data/vencimento coberta por teste. Nenhum dashboard recalculado."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Somente resposta de download solicitada. Nenhuma fila, SMTP, destinatário, alerta ou notificação nova."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "ZIP com PDF resumo, CSV protegido contra fórmula, manifesto e anexos originais. MAP reproduz versão datada armazenada até fim do ano, sem novo aceite nem garantia de posição anual. Erro em arquivo aborta, ausência de vínculo é declarada."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Download interno do host configurado, IDs vinculados sem URL do usuário, timeout/limites. Sem IA, Asaas, pagamento, cron ou armazenamento externo novo. fflate para ZIP local."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "BIA exige capital_financeiro view e cada núcleo usa documentos_* view; Carteira exige leitura pelo resolvedor oficial. Testes negam antes das consultas e excluem outra BIA/núcleos privados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Anexos legados dos lançamentos de imóveis e documentos fallback existentes considerados; ausência identificada. Sem backfill ou alteração de registros/assinados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify passou768testes/0falhas, tipos/tooling/contrato/build; depois quatro regressões focadas aprovadas com teste extra de BIA autorizada. UI com dados fictícios; download autenticado real pendente. Alterações paralelas Agenda não atestadas por este registro."
+    }
+  ],
+  "regressionTests": [
+    "server/dossier.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

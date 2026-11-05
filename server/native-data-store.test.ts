@@ -81,7 +81,7 @@ test('native: arquivos mantêm bytes, validam conteúdo e recusam caminho fora d
   }finally{await db.close();for(const name of await readdir(root))await unlink(path.join(root,name));await rmdir(root);}
 });
 test('native: homologação exige segredo próprio e não admite credenciais externas',()=>{
-  const keys=['BUILT_ISOLATED_STAGE','BUILT_DATA_BACKEND','SESSION_SECRET','SMTP_PASS','SMTP_USER','DIRECTUS_TOKEN','ASAAS_API_KEY','OPENAI_API_KEY','STRIPE_SECRET_KEY','GOOGLE_CLIENT_SECRET'];
+  const keys=['BUILT_ISOLATED_STAGE','BUILT_DATA_BACKEND','SESSION_SECRET','SMTP_PASS','SMTP_USER','DIRECTUS_TOKEN','ASAAS_API_KEY','OPENAI_API_KEY','STRIPE_SECRET_KEY','GOOGLE_CLIENT_SECRET','GOOGLE_CALENDAR_CLIENT_SECRET','GOOGLE_CALENDAR_ENCRYPTION_KEY'];
   const original=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
   try{
     for(const key of keys)delete process.env[key];
@@ -90,6 +90,9 @@ test('native: homologação exige segredo próprio e não admite credenciais ext
     process.env.BUILT_DATA_BACKEND='postgres';process.env.SESSION_SECRET='test-only'.repeat(8);
     assert.doesNotThrow(assertIsolatedStageEnvironment);
     process.env.SMTP_PASS='fixture-only';
+    assert.throws(assertIsolatedStageEnvironment,/credenciais/);
+    delete process.env.SMTP_PASS;
+    process.env.GOOGLE_CALENDAR_CLIENT_SECRET='fixture-only';
     assert.throws(assertIsolatedStageEnvironment,/credenciais/);
   }finally{for(const key of keys)if(original[key]===undefined)delete process.env[key];else process.env[key]=original[key];}
 });

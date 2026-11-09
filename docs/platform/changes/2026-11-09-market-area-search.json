@@ -1,0 +1,40 @@
+{
+  "version":1,
+  "id":"2026-11-09-market-area-search",
+  "title":"Pesquisar a natureza de área confirmada e rejeitar classificação sem trecho compatível",
+  "status":"complete",
+  "kind":"behavior",
+  "sourceOfTruth":["server/market-area-search.ts","server/property-market-evidence.ts","server/routes.ts"],
+  "searchTerms":["typedAreaSearchMessages","marketSearchModelOptions","hasExplicitAreaEvidence","MARKET_AREA_SEARCH_VERSION","trecho_area"],
+  "consumers":[
+    {"path":"server/market-area-search.ts","decision":"updated","reason":"Prompt por área tipada, opções compatíveis do modelo e prova textual de rótulo/valor. Não converte medidas."},
+    {"path":"server/market-area-search.test.ts","decision":"updated","reason":"Seis regressões de medida citada, fonte, resposta incompleta, modelo e cache; teste executa função real extraída de routes com provedor isolado."},
+    {"path":"server/routes.ts","decision":"updated","reason":"Pesquisa real usa helper, valida fonte e trecho antes de geocódigo/cálculo e registra marcador. APIs/autorização e transação existentes mantidas."},
+    {"path":"server/property-market-evidence.ts","decision":"updated","reason":"Falha antiga sem versão da busca pode ser refeita; sucesso existente e falha nova mantêm TTL. Histórico não é regravado."},
+    {"path":"server/property-market-evidence.test.ts","decision":"updated","reason":"Cache negativo novo/antigo e scope do metadata da função extraída atualizados. Mesmas proteções de autorização/cache/revisão."},
+    {"path":"server/market-comparables.ts","decision":"updated","reason":"Preserva trecho_area nos comparáveis como evidência adicional. Mediana, outliers, raio, moeda, tipo e configuração mantidos."},
+    {"path":"server/market-comparables.test.ts","decision":"preserved","reason":"Filtros e agregação mantidos, incluindo rejeição de natureza de área ausente/diferente; suíte executada."},
+    {"path":"server/index.ts","decision":"preserved","reason":"Mesmo registro de rotas/autenticação. Servidor local reiniciado para carregar correção, sem publicação."},
+    {"path":"server/built-valuation.ts","decision":"preserved","reason":"Estudos e adoção usam fingerprint/resultado atuais sem substituir premissas manuais, alterar valor ou históricos. Não executada adoção."},
+    {"path":"server/built-valuation.test.ts","decision":"preserved","reason":"Governança/adoção/histórico continuam testados; helper novo não dá privilégio nem certifica documento."},
+    {"path":"shared/property-cib.test.ts","decision":"preserved","reason":"Dependência transitiva da pesquisa/rotas não muda CIB nem classificação cadastral; cobertura mantida."},
+    {"path":"client/src/components/property-valuation.tsx","decision":"preserved","reason":"Mesmo fluxo automático, estado de carregamento e resultado; após cache negativo antigo ficar inelegível, faz nova pesquisa autorizada."},
+    {"path":"client/src/pages/carteira-assistente.tsx","decision":"preserved","reason":"Mesmo endpoint com medida escolhida e sem preço inicial obrigatório; nova pesquisa preserva escolha construída do usuário."},
+    {"path":"client/src/components/portfolio-patrimony-dashboard.tsx","decision":"preserved","reason":"Mesmos totais e disparo de pesquisa para administrador; sem fallback de preço declarado nem valor inventado."},
+    {"path":"docs/platform/modules/carteira.md","decision":"updated","reason":"Registra prova de área, modelo/custo/latência, cache, diagnóstico e limites sem alegar acurácia."}
+  ],
+  "areas":[
+    {"area":"interface","status":"verified","evidence":"Sessão real após login: pesquisa automática200 em88,6s, resultado salvo atualizada com3 comparáveis/100m² construída, mediana14375/m² e total1437500BRL. Tela/SQL concordam. Fontes abertas e medida construída da referência Henares conferida na página pública. Desktop/mobile390 sem overflow, viewport restaurado; capturas output/market-area-search. Não altera referência declarada nem adota valor."},
+    {"area":"api","status":"verified","evidence":"Mesmos endpoints/origens e autorização. Pesquisa tipada ganha prova textual e falha incomplete503; JSON de comparável adiciona trecho_area. Função real extraída testada com provedor isolado."},
+    {"area":"dados","status":"verified","evidence":"Sem campo Directus, tabela, migração ou mudança cadastral. Marcador/evidência no JSON de análise nova; histórico e sucessos anteriores preservados. Diagnóstico não grava avaliação/valor."},
+    {"area":"calculos-graficos","status":"verified","evidence":"Mínimo3,10km geocodificados, tipo, natureza, faixa de área e características permanecem. Teste calcula mediana apenas com3 fontes/trechos compatíveis e exclui área útil rotulada construída e URL não ligada à busca."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Pesquisa não envia e-mail/aviso/publicação; SMTP, preferências, destinatários e templates intactos."},
+    {"area":"documentos-relatorios","status":"verified","evidence":"Nenhum estudo, documento assinado, aceite ou PDF antigo regravado. Trecho extraído é evidência adicional de análise nova, sem certificação profissional."},
+    {"area":"integracoes-tarefas","status":"verified","evidence":"Chave existente autorizada. GPT-5 somente como padrão da busca tipada, env continua prevalecendo; demais pesquisas mantêm modelo antigo. Mesmo90s/sem retry/storefalse e geocódigo. Custo/latência maiores possíveis documentados; sem nova dependência ou segredo."},
+    {"area":"permissoes","status":"verified","evidence":"Não muda resolvedor/autorização de imóvel, administração necessária à pesquisa nem revisão409. Nenhuma sessão é criada para contornar login; QA real aguarda usuário."},
+    {"area":"legado","status":"verified","evidence":"Sucessos válidos antigos continuam30dias. Falha sem versão atual pode repetir; falha nova aguarda1hora. BIA sem medida tipada não passa pela exigência de trecho. Nenhuma conversão entre medidas ou regravação de histórico."},
+    {"area":"testes","status":"verified","evidence":"29 testes específicos aprovados; platform:verify final799testes/0falhas, tipos app/tooling, contrato/consistência e build (.BUILT-tmp/market-area-search-verify-projected.log). QA autorizado da avaliação persistida e readonly SQL confirmados. Última projeção de campos da consulta está no código/testes; processo local havia carregado a versão anterior do mesmo helper, com os mesmos guardas/modelo/cálculo, antes desse refinamento sem efeito no resultado salvo."}
+  ],
+  "regressionTests":["server/market-area-search.test.ts","server/market-comparables.test.ts","server/property-market-evidence.test.ts"],
+  "deprecationRuleIds":[]
+}

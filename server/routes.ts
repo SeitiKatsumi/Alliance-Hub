@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { typedAreaSearchMessages, marketSearchModelOptions, hasExplicitAreaEvidence, MARKET_AREA_SEARCH_VERSION } from './market-area-search';
+import { acquireMapFinancialLock, createMapRecoveryJob } from './map-recovery-job';
 import { areaChoices, blockedArea, withAreaChoices } from '../shared/account-areas';
 import { withAutomaticBiaIndicators, loadBiaAssetIndicators, BIA_RECEIPTS_QUERY } from './bia-automatic-indicators';
 import {financialImportLabels, financialImportRows} from './financial-import-labels';
@@ -7642,7 +7644,7 @@ export async function registerRoutes(
     return db.transaction(async (tx) => {
       // Legacy BIAs have no snapshot row to lock. Serialize them as well, including
       // competing confirmations from different tabs/processes and ordinary edits.
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`bia-financial:${biaId}`}))`);
+      await acquireMapFinancialLock(tx, biaId);
       const base = await loadInitialMapSnapshot(biaId, tx, true);
       return mapOperationContext.run({ ...context, biaId, tx }, () => work(tx, base));
     });
@@ -7830,7 +7832,7 @@ export async function registerRoutes(
       return String((await directusCreate("Categorias",{Nome_da_categoria:name,Tipo_de_categoria:type})).id);
     },
   });
-  const mapRecoveryTimer = setInterval(async () => {
+  const runMapRecovery = createMapRecoveryJob(async () => {
     if(isolatedStage())return;
     try {
       await ensureBiaMapInicialSnapshotsTable();
@@ -7841,7 +7843,8 @@ export async function registerRoutes(
         if (base) await reconcilePendingMapEvents(tx, await directusFetchOne("bias_projetos", String(event.bia_id), "fields=*"), base);
       });
     } catch { console.warn("[map-history] Conciliação pendente; nova tentativa no próximo ciclo."); }
-  }, 60_000);
+  });
+  const mapRecoveryTimer = setInterval(() => { void runMapRecovery(); }, 60_000);
   mapRecoveryTimer.unref();
 
   const phaseDeps={db,fetch:(id:string)=>directusFetchOne("bias_projetos",id,"fields=*"),update:(id:string,data:any)=>directusUpdate("bias_projetos",id,data)};
@@ -15999,9 +16002,9 @@ export async function registerRoutes(
         messages: [{
           role: "user",
           content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados ou estime valor de mercado. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
-Áreas: extraia separadamente privativa, construída, terreno e total SOMENTE quando a natureza estiver explícita no documento. Não copie area_m2 para essas medidas por inferência. area_avaliacao_tipo permanece null para escolha pelo usuário; areas_fonte identifica o trecho/documento de origem, sem afirmar validação profissional.
+Áreas: extraia separadamente privativa, construída, terreno e total SOMENTE quando a natureza estiver explícita no documento. Não copie area_m2 para essas medidas por inferência. area_avaliacao_tipo permanece null para escolha pelo usuário. Medidas extraídas não representam validação profissional.
 CIB: extraia somente se estiver explicitamente identificado como CIB ou Cadastro Imobiliário Brasileiro. Retorne como texto, preservando zeros à esquerda. Nunca use matrícula, inscrição municipal, IPTU ou CEP como CIB; sem informação explícita, retorne null.
-{"draft":{"nome":null,"tipo":null,"area_m2":null,"area_privativa_m2":null,"area_construida_m2":null,"area_terreno_m2":null,"area_total_m2":null,"area_avaliacao_tipo":null,"areas_fonte":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cib":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
+{"draft":{"nome":null,"tipo":null,"area_m2":null,"area_privativa_m2":null,"area_construida_m2":null,"area_terreno_m2":null,"area_total_m2":null,"area_avaliacao_tipo":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"complemento":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","padrao_imovel":null,"ano_construcao":null,"estado_conservacao":null,"quartos":null,"banheiros":null,"vagas":null,"matricula":null,"cib":null,"cartorio":null,"descricao":null},"intencao":"${PROPERTY_THESIS_OPTIONS.map(([code]) => code).join("|")}","resumo":"texto curto","especialidades":["..."]}
 
 CONTEÚDO:
 ${inputText.slice(0, 18000)}`,
@@ -16757,7 +16760,7 @@ ${inputText.slice(0, 18000)}`,
 
   async function researchPropertyMarketValue(imovel: any, previousAttempt?: any) {
     const readiness = propertyValuationReadiness(imovel);
-    const metadata = { versao_metodo: BUILT_VALUATION_VERSION, area_avaliacao: readiness.area, area_avaliacao_tipo: readiness.basis, areas_fonte: imovel.areas_fonte, classificacao_entrada: "informada_pelo_usuario", indicativa_avaliada: true };
+    const metadata = { versao_metodo: BUILT_VALUATION_VERSION, busca_area_versao: MARKET_AREA_SEARCH_VERSION, area_avaliacao: readiness.area, area_avaliacao_tipo: readiness.basis, classificacao_entrada: "informada_pelo_usuario", indicativa_avaliada: true };
     if (!readiness.ready) return { ...metadata, status: "dados_pendentes", pendencias: readiness.pending, valor_estimado: null };
     let comparable = previousAttempt;
     if (!comparable) {
@@ -22821,8 +22824,8 @@ Instruções:
     }
 
     const response = await client.responses.create({
-      model: process.env.OPENAI_WEB_SEARCH_MODEL || "gpt-4.1-mini",
-      input: [
+      ...marketSearchModelOptions(Boolean(params.areaTipo), process.env.OPENAI_WEB_SEARCH_MODEL),
+      input: params.areaTipo ? typedAreaSearchMessages({ ...params, areaMin, areaMax }) : [
         {
           role: "system",
           content: "Você é um pesquisador de comparáveis imobiliários. Extraia somente anúncios públicos de venda que atendam exatamente ao tipo, à região e à faixa de área solicitados.",
@@ -22833,12 +22836,11 @@ Instruções:
       tool_choice: "required",
       include: ["web_search_call.action.sources"],
       store: false,
-      temperature: 0.1,
-      max_output_tokens: 2600,
     }, { timeout: 90_000, maxRetries: 0 });
 
+    if (response.status && response.status !== 'completed') throw Object.assign(new Error('A pesquisa de mercado não terminou. Tente novamente mais tarde.'), { status: 503 });
     const parsed = extractJsonObject(response.output_text || "");
-    return { ...parsed, comparaveis: groundedMarketComparables(response, parsed.comparaveis || parsed.imoveis) };
+    return { ...parsed, comparaveis: groundedMarketComparables(response, parsed.comparaveis || parsed.imoveis).filter((row: any) => hasExplicitAreaEvidence(row, params.areaTipo)) };
   }
 
   app.post("/api/ai/preco-m2", async (req, res) => {

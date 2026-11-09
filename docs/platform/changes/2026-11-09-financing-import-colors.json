@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "2026-11-09-financing-import-colors",
+  "title": "Contraste do bloco de importação de financiamento no tema escuro",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": ["client/src/pages/carteira.tsx", "client/src/index.css"],
+  "searchTerms": ["Importar parcelas do financiamento", "financingPreviewMutation", "financingPreview.parcelas"],
+  "consumers": [
+    {"path":"client/src/pages/carteira.tsx","decision":"updated","reason":"Somente duas listas de classes: superfície, texto e borda semânticos da seção e das linhas da prévia. Mesmos campos, handlers, botões e autorização."},
+    {"path":"client/src/index.css","decision":"preserved","reason":"Reutiliza variáveis card/card-foreground/background/foreground/border dos temas existentes; não altera a compatibilidade global de cores legadas nem impressão."},
+    {"path":"client/src/components/ui/input.tsx","decision":"preserved","reason":"Campo de arquivo e drop target já seguem o fundo/texto do tema; mesmos MIME, seleção e eventos."},
+    {"path":"client/src/components/file-drop-target.tsx","decision":"preserved","reason":"Arraste/seleção e realce de drag permanecem no componente compartilhado, sem alterações."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Mesmas rotas e componente Carteira; sem mudança de tema, sessão ou navegação."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Providers e bootstrap mantidos; atualização por HMR sem reinício do servidor."},
+    {"path":"client/src/pages/painel.tsx","decision":"preserved","reason":"Consome Carteira, mas a mudança se limita às classes da seção Documentos do detalhe do imóvel; indicadores e dashboard não mudam."},
+    {"path":"docs/platform/modules/carteira.md","decision":"updated","reason":"Registra alcance visual, cores semânticas e fluxos preservados."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"QA real tema escuro desktop1280 e mobile390x844, fundo14/21/37 e texto claro, sem overflow. Capturas output/financing-colors. Viewport restaurado e modal de edição original preservado. Prévia preenchida não executada; somente classes das linhas corrigidas."},
+    {"area":"api","status":"not-applicable","evidence":"Nenhum endpoint, payload, mutation ou contrato de importação alterado; mudança só de classes CSS."},
+    {"area":"dados","status":"not-applicable","evidence":"Sem upload real, importação, confirmação, edição de imóvel ou migração. Valores e fontes PostgreSQL/Directus preservados."},
+    {"area":"calculos-graficos","status":"not-applicable","evidence":"Classes da seção e linhas não alteram parcelas, dívida, saldo, arredondamento ou gráficos."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Nenhum evento, preferência, mensagem, template ou destinatário depende dessas classes visuais."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Não muda arquivos, tipos documentais, geração do dossiê, PDF, conteúdo assinado ou exportação; apenas a superfície da tela."},
+    {"area":"integracoes-tarefas","status":"not-applicable","evidence":"Mesmo parser/importador e fluxo Gerar prévia/Confirmar parcelas; sem alterar IA, cron ou serviço externo."},
+    {"area":"permissoes","status":"not-applicable","evidence":"canManage e endpoints autenticados intactos; cores não concedem acesso nem executam importações."},
+    {"area":"legado","status":"verified","evidence":"Sem renomear campo, remover valor, mudar status ou criar migração. Tokens de tema existentes seguem também no modo claro."},
+    {"area":"testes","status":"verified","evidence":"Sem teste novo para classes de uma mudança visual reversível. QA real desktop/mobile concluído; platform:verify aprovado com791testes/0falhas, contrato/consistência, tipos app/tooling e build; log .BUILT-tmp/financing-colors-verify.log."}
+  ],
+  "regressionTests": ["client/src/pages/carteira-mobile-launch.test.ts", "client/src/pages/carteira-chart-filters.test.ts"],
+  "deprecationRuleIds": []
+}

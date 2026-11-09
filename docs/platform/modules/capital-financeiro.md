@@ -1,5 +1,11 @@
 # Capital e Financeiro da BIA
 
+## Recuperação automática do MAP — 09/11/2026
+
+- O ciclo de recuperação não se sobrepõe no mesmo processo. Ao encontrar o bloqueio financeiro de uma BIA ocupado, usa tentativa não bloqueante e adia o ciclo de conciliação; não acumula conexões à espera do bloqueio e não interrompe a operação que o detém.
+- Operações solicitadas pelo usuário continuam usando o mesmo bloqueio transacional exclusivo. Aportes, fases, históricos, permissões e cálculos permanecem iguais. Nenhuma transação de outra instância é encerrada para liberar o login.
+- Regressões em `server/map-recovery-job.test.ts`: execução lenta sem sobreposição, BIA ocupada sem trabalho parcial, retentativa depois de falha e preservação do bloqueio das operações interativas.
+
 - 03/11/2026: aviso de aporte em Aprovações pendentes usa `Ver lançamento`, abrindo diretamente Financeiro da BIA e consulta Pix/boleto do `paymentFlow` exato. Helper compartilhado `contributionFlowHref` também alimenta a Agenda. Não emite cobrança, paga, altera lançamento/status ou amplia acesso ao abrir; endpoints e autorização atuais preservados. Links históricos de tarefa/e-mail continuam compatíveis. Regressões em contribution-reminders.test.ts e agenda-action.test.ts.
 
 - 03/11/2026: Capital Total Alocado do Início soma apenas aportes em dinheiro pagos ao favorecido da sessão, nas BIAs vinculadas, pelo helper `paidMemberCapital`. Exclui valores prometidos/em aberto e representações não caixa; o percentual financeiro e os gráficos compartilham essa base. Saídas para o membro só entram como recebimento quando pagas. Não altera os movimentos nem usa esse total para calcular MAP/CPP. A fonte oficial inclui status e falha explícita, sem consulta pública/log como fallback; detalhes no contrato inicio-gestao.

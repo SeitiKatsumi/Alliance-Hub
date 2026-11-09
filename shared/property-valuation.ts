@@ -17,6 +17,7 @@ export interface PropertyValuationAreas {
   area_terreno_m2?: number | string | null;
   area_total_m2?: number | string | null;
   area_avaliacao_tipo?: "privativa" | "construida" | null;
+  /** Retired input: preserved only when present in existing JSON or older clients. */
   areas_fonte?: string | null;
 }
 export function valuationNumber(value: unknown): number | null {
@@ -36,7 +37,8 @@ export function sanitizeValuationAreas(body: PropertyValuationAreas): PropertyVa
     values[key] = value;
   }
   if (body.area_avaliacao_tipo && !["privativa", "construida"].includes(body.area_avaliacao_tipo)) throw Object.assign(new Error("Selecione a natureza da área usada na avaliação."), { status: 400 });
-  return { ...values, area_avaliacao_tipo: body.area_avaliacao_tipo || null, areas_fonte: String(body.areas_fonte || "").trim().slice(0, 500) };
+  return { ...values, area_avaliacao_tipo: body.area_avaliacao_tipo || null,
+    ...(body.areas_fonte === undefined ? {} : { areas_fonte: String(body.areas_fonte || "").trim().slice(0, 500) }) };
 }
 export function propertyValuationReadiness(property: PropertyValuationAreas & { tipo?: string; cidade?: string; estado?: string; pais?: string; endereco?: string; quartos?: unknown; banheiros?: unknown; vagas?: unknown; estado_conservacao?: unknown }) {
   const pending: string[] = [];
@@ -47,7 +49,6 @@ export function propertyValuationReadiness(property: PropertyValuationAreas & { 
   const basis = property.area_avaliacao_tipo;
   const area = basis === "privativa" ? valuationNumber(property.area_privativa_m2) : basis === "construida" ? valuationNumber(property.area_construida_m2) : null;
   if (!area) pending.push("Informe a área privativa ou construída e selecione qual será usada na avaliação.");
-  if (!String(property.areas_fonte || "").trim()) pending.push("Informe de onde vieram as medidas de área.");
   const missingFeatures = ["quartos", "banheiros", "vagas", "estado_conservacao"].filter(key => (property as any)[key] == null || (property as any)[key] === "");
   return { ready: pending.length === 0, pending, area, basis: basis || null, missingFeatures };
 }

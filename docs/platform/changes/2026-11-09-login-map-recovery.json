@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "2026-11-09-login-map-recovery",
+  "title": "Impedir esgotamento de conexões do login por recuperação do MAP",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": ["server/map-recovery-job.ts", "server/routes.ts"],
+  "searchTerms": ["mapRecoveryTimer", "withMapLock", "acquireMapFinancialLock", "createMapRecoveryJob"],
+  "consumers": [
+    {"path":"server/map-recovery-job.ts","decision":"updated","reason":"Contexto assíncrono de recuperação, trava por processo e tentativa não bloqueante da chave financeira existente."},
+    {"path":"server/map-recovery-job.test.ts","decision":"updated","reason":"Quatro regressões verificam sobreposição, retentativa, BIA ocupada e isolamento da operação interativa."},
+    {"path":"server/bia-map-api.test.ts","decision":"updated","reason":"O teste que extrai withMapLock de routes recebe o novo helper real no seu escopo; mesma cobertura de permissões, revisão, caixa, aceites e falha da fonte, sem relaxar nenhuma asserção."},
+    {"path":"server/bia-composition-invites.test.ts","decision":"preserved","reason":"Usa mock próprio de withMapLock para conferir convites após a revisão; não depende do corpo do bloqueio extraído. Asserções e domínio preservados."},
+    {"path":"server/bia-draft-api.test.ts","decision":"preserved","reason":"Transações de rascunho usam mock próprio do bloqueio, fora do cron; mesmas permissões e persistência."},
+    {"path":"server/bia-legacy-zero.test.ts","decision":"preserved","reason":"Trava transacional própria do teste; manutenção da base legada e regras de correção não mudam."},
+    {"path":"server/bia-map-creation.test.ts","decision":"preserved","reason":"Criação usa mock próprio de withMapLock; novo helper não muda cálculos, convites ou efeitos de criação."},
+    {"path":"server/bia-mou-action.test.ts","decision":"preserved","reason":"Aceite testa bloqueio próprio e condição de ação; não extrai o corpo alterado nem executa recuperação."},
+    {"path":"server/bia-setup.test.ts","decision":"preserved","reason":"Teste de setup injeta withMapLock com base e executor isolados; mesmas revisões, snapshots e autorização."},
+    {"path":"server/routes.ts","decision":"updated","reason":"Conecta somente o bloqueio financeiro e o ciclo de recuperação ao helper; mesmos endpoints e trabalhos transacionais."},
+    {"path":"server/index.ts","decision":"preserved","reason":"Mesmo registro de rotas, pool, autenticação, sessão e cron; não modifica bootstrapping nem credenciais."},
+    {"path":"server/initial-contributions.ts","decision":"preserved","reason":"recover reutiliza withMapLock dentro do contexto de recuperação; chamadas HTTP ficam fora dele e continuam serializadas. Não altera emissão, parcelas nem confirmação."},
+    {"path":"server/bia-workflow.ts","decision":"preserved","reason":"Mesmas transições e histórico; a recuperação só inicia o trabalho após adquirir o bloqueio financeiro. Nenhuma alteração de fase manual."},
+    {"path":"server/storage.ts","decision":"preserved","reason":"A consulta de usuários mantida; a falha era indisponibilidade de conexões, sem mudança de senha, papel, autorização ou fallback."},
+    {"path":"client/src/hooks/use-auth.ts","decision":"preserved","reason":"Mesmo contrato POST login e estado pendente; teste de resposta local inválida termina401 em3,08s depois do reinício."},
+    {"path":"client/src/pages/login.tsx","decision":"preserved","reason":"Formulário, aparência, credenciais e envio mantidos. Não contorna a autenticação para desbloquear a interface."},
+    {"path":"docs/platform/modules/acesso-onboarding.md","decision":"updated","reason":"Registra causa operacional da espera do login e invariantes preservadas."},
+    {"path":"docs/platform/modules/capital-financeiro.md","decision":"updated","reason":"Documenta recuperação sem sobreposição, adiamento com BIA ocupada e bloqueio de usuário preservado."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"Navegador real: estado Entrando saiu após reinício, formulário limpo e botão Entrar disponível; captura output/login-recovery/login-ready.png. Não há alteração de layout desktop/mobile. Login autenticado não foi confirmado: usuário precisa reinserir suas credenciais após o recarregamento."},
+    {"area":"api","status":"verified","evidence":"POST login mantém payload, sessão e autenticação. Sonda com credenciais fictícias recebeu401 em3,08s, em vez de espera indefinida."},
+    {"area":"dados","status":"verified","evidence":"Health Directus200 e SELECT1 confirmaram disponibilidade. Diagnóstico PostgreSQL identifica espera advisory financeira; nenhuma tabela, migração, identidade ou transação externa alterada."},
+    {"area":"calculos-graficos","status":"not-applicable","evidence":"Não muda entradas, saldos, fórmulas, MAP/CPP nem apresentação de gráficos; altera apenas concorrência da recuperação."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Não altera SMTP, templates, destinatários, preferências ou conteúdo de avisos; mantém o trabalho existente de cada conciliação efetivamente iniciada."},
+    {"area":"documentos-relatorios","status":"not-applicable","evidence":"Nenhum template, relatório, PDF, aceite ou histórico financeiro regravado pela correção."},
+    {"area":"integracoes-tarefas","status":"verified","evidence":"Timer continua60s; apenas uma execução por processo e pg_try_advisory_xact_lock no contexto de recuperação. Falhas liberam guard; próximos ciclos repetem pendências. Não encerra bloqueio de outra instância."},
+    {"area":"permissoes","status":"verified","evidence":"Autenticação e autorização backend intactas. Contexto AsyncLocalStorage restrito à recuperação; testes comprovam que escrita fora dele conserva pg_advisory_xact_lock."},
+    {"area":"legado","status":"verified","evidence":"Mesma chave bia-financial e transação existente, inclusive BIAs sem snapshot. Sem migração, redefinição de senha, alteração de conta ou encerramento de conexão alheia."},
+    {"area":"testes","status":"verified","evidence":"Cinco regressões específicas aprovadas, incluindo API MAP com helper real no escopo extraído. platform:verify final aprovado:791 testes/0falhas, contrato, consistência, tipos app/tooling e build; log .BUILT-tmp/login-recovery-verify-final.log. A primeira rodada identificou a dependência nova ausente no harness, corrigida sem relaxar asserções."}
+  ],
+  "regressionTests": ["server/map-recovery-job.test.ts", "server/bia-map-api.test.ts"],
+  "deprecationRuleIds": []
+}

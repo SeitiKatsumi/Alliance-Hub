@@ -2381,7 +2381,7 @@ function DetailPage({ id }: { id: string }) {
               </div>
             </section>
           )}
-          {canManage && <section className="space-y-3 rounded-md border border-blue-100 bg-blue-50/40 p-4">
+          {canManage && <section className="space-y-3 rounded-md border border-border bg-card p-4 text-card-foreground">
             <div><h3 className="font-semibold">Importar parcelas do financiamento</h3><p className="text-sm text-muted-foreground">Envie XLS, XLSX, CSV ou PDF do banco. Revise a prévia antes de gravar lançamentos e saldo devedor.</p></div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input type="file" accept=".xls,.xlsx,.csv,.pdf" onChange={(event) => { setFinancingFile(event.target.files?.[0] || null); setFinancingPreview(null); }} />
@@ -2389,7 +2389,7 @@ function DetailPage({ id }: { id: string }) {
             </div>
             {financingPreview && <div className="space-y-2">
               <p className="text-sm font-medium">{financingPreview.arquivo} · {financingPreview.parcelas.length} parcela(s)</p>
-              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">{financingPreview.parcelas.map((item, index) => <div key={index} className="grid gap-2 rounded-md border bg-white p-2 sm:grid-cols-[80px_1fr_130px_130px_40px]">
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">{financingPreview.parcelas.map((item, index) => <div key={index} className="grid gap-2 rounded-md border border-border bg-background p-2 text-foreground sm:grid-cols-[80px_1fr_130px_130px_40px]">
                 <Input type="number" min="1" value={item.parcela} aria-label="Número da parcela" onChange={(event) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, parcela: Number(event.target.value) } : row) })} />
                 <Input type="date" value={item.data_vencimento || item.data || ""} aria-label="Vencimento" onChange={(event) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, data_vencimento: event.target.value } : row) })} />
                 <Input inputMode="decimal" value={item.valor} aria-label="Valor da parcela" onChange={(event) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, valor: parseNumber(event.target.value) } : row) })} />

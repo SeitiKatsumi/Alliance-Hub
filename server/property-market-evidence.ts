@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { MARKET_AREA_SEARCH_VERSION } from './market-area-search';
 import { buildComparableMarketAnalysis } from "./market-comparables";
 import { BUILT_VALUATION_VERSION, PROPERTY_AREA_FIELDS, propertyValuationReadiness } from "../shared/property-valuation";
 
@@ -6,6 +7,7 @@ export const PROPERTY_MARKET_VERSION = "estimativas-imoveis-v6";
 export const MARKET_SUCCESS_TTL = 30 * 24 * 60 * 60 * 1000;
 export const INDICATIVE_MARKET_METHOD = "estimativa_indicativa_ia";
 export function marketRetryDelay(outcome: any) {
+  if (outcome?.status === 'sem_amostra' && outcome?.busca_area_versao !== MARKET_AREA_SEARCH_VERSION) return 0;
   return outcome?.status === "atualizada" ? MARKET_SUCCESS_TTL : 60 * 60 * 1000;
 }
 
@@ -52,6 +54,7 @@ export function calculateIndicativeMarketValue(property: any, references: unknow
 export function reusableMarketAnalysis(_property: any, row: any) {
   return row?.versao_regra === PROPERTY_MARKET_VERSION
     && row?.resultado?.versao_metodo === BUILT_VALUATION_VERSION
+    && (row?.resultado?.status === 'atualizada' || row?.resultado?.busca_area_versao === MARKET_AREA_SEARCH_VERSION)
     && row?.resultado?.metodo !== INDICATIVE_MARKET_METHOD;
 }
 
@@ -127,7 +130,8 @@ export function confirmedMarketEvidence(property: any, row: any) {
 }
 export function propertyMarketFingerprint(property: any) {
   const keys = ["tipo", "area_m2", "moeda", "endereco", "numero", "bairro", "cidade", "estado", "pais", "cep", "padrao_imovel", "ano_construcao", "estado_conservacao", "quartos", "banheiros", "vagas"];
-  return createHash("sha256").update(JSON.stringify([BUILT_VALUATION_VERSION, ...keys.concat([...PROPERTY_AREA_FIELDS, "area_avaliacao_tipo", "areas_fonte"]).map(key => property[key] ?? null)])).digest("hex");
+  // Keep the retired final metadata slot null for cache compatibility with records without it.
+  return createHash("sha256").update(JSON.stringify([BUILT_VALUATION_VERSION, ...keys.concat([...PROPERTY_AREA_FIELDS, "area_avaliacao_tipo"]).map(key => property[key] ?? null), null])).digest("hex");
 }
 
 export { BUILT_VALUATION_VERSION, propertyValuationReadiness };

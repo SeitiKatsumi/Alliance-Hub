@@ -10,6 +10,7 @@ export function marketAreaRange(areaM2: number) {
 }
 
 export interface MarketComparable {
+  trecho_area?: string;
   area_tipo?: string;
   titulo: string;
   url: string;
@@ -287,6 +288,7 @@ function normalizeComparable(
     banheiros,
     vagas,
     trecho: row.trecho || row.resumo ? String(row.trecho || row.resumo).trim().slice(0, 280) : undefined,
+    trecho_area: typeof row.trecho_area === 'string' ? row.trecho_area.slice(0, 400) : undefined,
   };
 }
 

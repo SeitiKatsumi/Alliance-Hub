@@ -162,7 +162,7 @@ function parseDraftNumber(value: unknown): number {
 
 function marketInputKey(draft: Record<string, any>) {
   return JSON.stringify([
-    ...PROPERTY_AREA_FIELDS.map(key => draft[key]), draft.area_avaliacao_tipo, draft.areas_fonte, draft.tipo, draft.area_m2, draft.moeda, draft.cep, draft.endereco, draft.numero, draft.bairro,
+    ...PROPERTY_AREA_FIELDS.map(key => draft[key]), draft.area_avaliacao_tipo, draft.tipo, draft.area_m2, draft.moeda, draft.cep, draft.endereco, draft.numero, draft.bairro,
     draft.cidade, draft.estado, draft.pais, draft.padrao_imovel, draft.ano_construcao,
     draft.estado_conservacao, draft.quartos, draft.banheiros, draft.vagas,
   ]);
@@ -459,7 +459,7 @@ export default function CarteiraAssistentePage() {
           tipo: draft.tipo,
           area_m2: draft.area_m2,
           ...Object.fromEntries(PROPERTY_AREA_FIELDS.map(key => [key, draft[key]])),
-          area_avaliacao_tipo: draft.area_avaliacao_tipo, areas_fonte: draft.areas_fonte,
+          area_avaliacao_tipo: draft.area_avaliacao_tipo,
           moeda: draft.moeda || "BRL",
           cep: draft.cep,
           endereco: draft.endereco,

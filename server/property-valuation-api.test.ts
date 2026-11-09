@@ -28,7 +28,9 @@ test("sanitizador usado por criação, edição e assistente mantém medidas dis
   const code = source.slice(a, source.indexOf("  function sanitizeInventarioLancamento", a));
   const run = new Function("sanitizeValuationAreas", "validatePropertyGoal", "normalizePropertyCib", transformSync(code, { loader: "ts" }).code + ";return sanitizeInventarioImovel;")(sanitizeValuationAreas, (s: string) => s, normalizePropertyCib);
   const old = run({ area_m2: 900 }, {}, "a"); assert.equal(old.area_m2, 900); assert.equal(old.area_construida_m2, null);
-  const saved = run({ ...old, area_construida_m2: "120,5", area_terreno_m2: 900, area_avaliacao_tipo: "construida", areas_fonte: "Planta" }, {}, "a");
+  const saved = run({ ...old, area_construida_m2: "120,5", area_terreno_m2: 900, area_avaliacao_tipo: "construida" }, {}, "a");
+  assert.equal(Object.hasOwn(saved, "areas_fonte"), false);
+  assert.equal(run({ ...saved, areas_fonte: "Planta antiga" }, {}, "a").areas_fonte, "Planta antiga");
   assert.equal(saved.area_construida_m2, 120.5); assert.equal(saved.area_terreno_m2, 900); assert.equal(saved.area_m2, 900);
   assert.equal(run(saved, {}, "a").area_construida_m2, 120.5);
 });

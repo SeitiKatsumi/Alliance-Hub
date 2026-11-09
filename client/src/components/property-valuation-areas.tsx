@@ -13,6 +13,5 @@ export function PropertyValuationAreaFields({ value, onChange }: { value: Proper
         <option value="">Selecione a natureza da área</option><option value="privativa">Privativa</option><option value="construida">Construída</option>
       </select>
     </Label>
-    <Label className="block space-y-2"><span>Fonte das medidas</span><Input maxLength={500} value={value.areas_fonte || ""} placeholder="Ex.: matrícula, planta ou medição do proprietário" onChange={event => onChange({ areas_fonte: event.target.value })} /></Label>
   </fieldset>;
 }

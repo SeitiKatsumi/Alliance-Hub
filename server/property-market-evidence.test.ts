@@ -8,6 +8,13 @@ import { transformSync } from "esbuild";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
+import { MARKET_AREA_SEARCH_VERSION } from './market-area-search';
+test("o metadado aposentado não impede avaliação nem altera a chave da pesquisa", () => {
+  const property = { tipo: "Casa", endereco: "Rua A", cidade: "Vitória", estado: "ES", area_avaliacao_tipo: "construida" as const, area_construida_m2: 100 };
+  assert.equal(propertyValuationReadiness(property).ready, true);
+  assert.equal(propertyMarketFingerprint(property), propertyMarketFingerprint({ ...property, areas_fonte: "Planta antiga" }));
+  assert.notEqual(propertyMarketFingerprint(property), propertyMarketFingerprint({ ...property, area_construida_m2: 120 }));
+});
 test("anúncio gerado sem fonte não entra; citação e fonte exatas entram sem aceitar outro caminho", () => {
   const rows = [{ url: "https://site.example/a?utm=1" }, { url: "https://site.example/inventado" }];
   assert.deepEqual(groundedMarketComparables({ output: [] }, rows), []);
@@ -80,7 +87,8 @@ test("evidência capturada no cadastro é reutilizada, não o preço manual; dad
   assert.equal(confirmedMarketEvidence(property, { ...row, entrada: { ...row.entrada, raio_aplicado_km: 20 } }), null);
   assert.equal(confirmedMarketEvidence(property, { ...row, entrada: { ...row.entrada, fontes: [] } }), null);
   assert.equal(confirmedMarketEvidence(property, { ...row, entrada: { valor_atual: 1 } }), null);
-  assert.equal(marketRetryDelay({ status: "sem_amostra" }), 3600000);
+  assert.equal(marketRetryDelay({ status: "sem_amostra" }), 0);
+  assert.equal(marketRetryDelay({ status: "sem_amostra", busca_area_versao: MARKET_AREA_SEARCH_VERSION }), 3600000);
   assert.equal(marketRetryDelay({ status: "atualizada" }), 30 * 86400000);
 });
 
@@ -150,7 +158,7 @@ test("BUILT não inventa avaliação quando faltam áreas ou comparáveis e não
   const begin = source.indexOf("  async function researchPropertyMarketValue(");
   const code = source.slice(begin, source.indexOf("  async function buildCarteiraResumo", begin));
   let calls = 0, sufficient = true;
-  const scope = { propertyValuationReadiness, BUILT_VALUATION_VERSION,
+  const scope = { propertyValuationReadiness, BUILT_VALUATION_VERSION, MARKET_AREA_SEARCH_VERSION,
     researchComparablePropertyMarketValue: async () => { calls++; return { status: sufficient ? "atualizada" : "sem_amostra" }; } };
   const run = new Function(...Object.keys(scope), transformSync(code, { loader: "ts" }).code + "; return researchPropertyMarketValue;")(...Object.values(scope));
   assert.equal((await run({ area_m2: 80 })).status, "dados_pendentes"); assert.equal(calls, 0);

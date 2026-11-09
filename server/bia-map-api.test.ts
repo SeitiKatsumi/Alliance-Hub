@@ -1,4 +1,5 @@
 import test from "node:test";
+import { acquireMapFinancialLock } from "./map-recovery-job";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
@@ -81,7 +82,7 @@ test("rotas reais: permissões, revisão, não alteração do caixa, aceites ant
   };
   const scope: Record<string, any> = {
     syncFormationMapInvites: async () => "ok",
-    app, db:testDb, sql, biaAllowsFinance, formatBiaPercent, mapOperationContext: context, ensureBiaMapInicialSnapshotsTable: async () => {},
+    app, db:testDb, sql, biaAllowsFinance, formatBiaPercent, acquireMapFinancialLock, mapOperationContext: context, ensureBiaMapInicialSnapshotsTable: async () => {},
     appendMapVersion, assertMapRevision, canCorrectMapBase, canEditMapComposition, isMapCompositionAdmin, mapBaseContent, mapContentHash, mapRowsFromBase,
     createHash, randomUUID, calculateInitialMap, MAP_DYNAMIC_FOOTER, assertInitialCommitmentsCompatible, validateInitialClassifications,
     directusFetchOne: async (collection: string, id: string) => {if(revokeInLock && collection==="bias_projetos")context.getStore().req.session.role="user";return collection === "fluxo_caixa" ? entries.find(e => e.id === id) : collection === "cadastro_geral" ? {id,nome:"Diretor"} : bia;}, resolveBiaByIdOrPublicCode: async () => bia,

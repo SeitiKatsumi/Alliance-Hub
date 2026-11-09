@@ -2,6 +2,14 @@
   "version": 1,
   "rules": [
     {
+      "id": "property-area-source-input-removed",
+      "description": "Fonte das medidas não volta ao formulário, payload de pesquisa, extração por IA ou requisito de avaliação. JSON legado permanece somente compatível no sanitizador.",
+      "terms": ["Fonte das medidas", "areas_fonte", "Informe de onde vieram as medidas de área."],
+      "roots": ["client/src/components/property-valuation-areas.tsx", "client/src/pages/carteira-assistente.tsx", "server/routes.ts"],
+      "regressionTests": ["shared/property-valuation.test.ts", "server/property-market-evidence.test.ts", "server/property-valuation-api.test.ts"],
+      "exceptions": []
+    },
+    {
       "id": "no-global-built-capital-profile",
       "description": "O perfil aposentado não volta a ser oferecido nos seletores administrativos.",
       "terms": [

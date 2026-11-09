@@ -1,5 +1,7 @@
 # Acesso, Cadastro e Onboarding
 
+- 09/11/2026: login local travado por esgotamento do pool, causado por ciclos sobrepostos de recuperação do MAP esperando o mesmo bloqueio financeiro. Recuperação agora não se sobrepõe e adia o ciclo quando o bloqueio está ocupado; endpoint, credenciais, fonte de identidade, sessão e autorização do login não mudam. Detalhes no contrato Capital/Financeiro.
+
 - 04/11/2026: Configurações do Meu Perfil oferece categoria de e-mail independente “Pulsos das ROs” (`ro_pulses`), com tradução EN/ES. Mantém PATCH parcial/autorizado da própria conta, armazenamento no JSON existente e avisos internos ativos. Preferências antigas sem a chave herdam opportunities, inclusive false; escolha explícita prevalece. Não muda vínculo, papel, onboarding ou mensagens essenciais.
 
 - 26/10/2026: telefone em Perfil e Validações usa PhoneInput compartilhado: país por extenso e DDI acima do número. Preserva label, erro acessível, validação normalizeOnboardingPhone e campo opcional. Digitação envia o mesmo campo telefone com DDI; renderização não regrava dados existentes. Sem migração ou alteração de autorização/conclusão.

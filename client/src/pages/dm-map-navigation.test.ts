@@ -14,7 +14,7 @@ const editor = calculator.slice(calculator.indexOf("function MapInicialCalculato
 test("Editar BIA padroniza o atalho DM e não reenvia economia nem parcelas antigas", () => {
   const source = read("./bias.tsx");
   assert.doesNotMatch(source, /value="cpp"|tab-cpp|canEditLegacyDm|<PagamentoModal/);
-  assert.match(source, /isEdit && <p[^\n]+Núcleo de Capital → DM/);
+  assert.match(source, /isEdit && <p[^\n]+Gestão Financeira → DM/);
   assert.match(source, /grid-cols-2 sm:grid-cols-4/);
   const guard = expression(source, (n, f) => ts.isIfStatement(n) && n.getText(f).includes("delete payload[field]"));
   for (const usesMapZero of [true, false]) {

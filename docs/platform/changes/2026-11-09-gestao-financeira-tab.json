@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "id": "2026-11-09-gestao-financeira-tab",
+  "title": "Renomear a área financeira da BIA para Gestão Financeira",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "client/src/pages/bia-detalhe.tsx",
+    "client/src/pages/nucleo-capital.tsx"
+  ],
+  "searchTerms": [
+    "Núcleo de Capital",
+    "Gestão Financeira → DM"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "reason": "A aba capital, o título e o resumo de acesso usam Gestão Financeira. Cargos mantêm o nome formal.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "reason": "Atualiza o título da seção compartilhada e preserva as subabas e rotas.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "reason": "Apresenta o mesmo título na categoria documental da BIA sem mudar sua chave.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "reason": "Atualiza o texto do atalho para a calculadora sem alterar o parâmetro capital.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/dm-map-navigation.test.ts",
+      "reason": "Valida a nomenclatura do atalho no editor existente.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/routes.ts",
+      "reason": "A origem exibida nos dados do Banco adota o nome da seção.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/mailer.ts",
+      "reason": "A mensagem de conta Asaas indica o caminho Banco da Gestão Financeira.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "reason": "Reutiliza o cadastro de BIA com o mesmo destino.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "reason": "Reutiliza o editor e seu atalho sem alterar autorização.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "reason": "Reutiliza o cadastro sem modificar etapas nem nomes internos.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "reason": "Exemplo de convite cita o cargo de diretoria, não o nome da aba.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "reason": "Envio agendado usa o mesmo serviço e preserva destinatários e horário.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "reason": "Cobertura do envio agendado não depende do título da aba.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "reason": "Preferências de comunicação continuam válidas para o envio existente.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/App.tsx",
+      "reason": "O literal identifica um vínculo cadastral persistido de onboarding.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "reason": "O nome formal do cargo não identifica a seção navegável.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/bia-organization.ts",
+      "reason": "Células do organograma representam núcleos e cargos cadastrados.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/bia-organization.test.ts",
+      "reason": "Fixture representa identificador histórico de pertencimento a um núcleo.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/contribution-areas.ts",
+      "reason": "Taxonomia de contribuição possui identidade distinta da navegação.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/initial-onboarding.test.ts",
+      "reason": "Compatibilidade de seleção dos núcleos históricos no cadastro.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "reason": "Filtro usa a taxonomia de núcleos já persistida na oportunidade.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "reason": "Valores das opções são núcleos de atuação de profissionais.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "reason": "O exemplo no formulário indica núcleo cadastral de uma oportunidade.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "reason": "A indicação do diretor corresponde ao cargo, não ao nome da aba.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "reason": "Descrição de ator e título de cargo mantêm nomenclatura organizacional.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/assets/bia-mou-padrao.txt",
+      "decision": "preserved",
+      "reason": "Modelo formal do MOU descreve a função organizacional do diretor e seus deveres. A mudança solicitada renomeia a área da plataforma."
+    },
+    {
+      "path": "server/assets/mou-padrao/anexo-i-qualificacao-exemplo.txt",
+      "decision": "preserved",
+      "reason": "Modelo formal do MOU descreve a função organizacional do diretor e seus deveres. A mudança solicitada renomeia a área da plataforma."
+    },
+    {
+      "path": "server/assets/mou-padrao/mou-padrao-built.txt",
+      "decision": "preserved",
+      "reason": "Modelo formal do MOU descreve a função organizacional do diretor e seus deveres. A mudança solicitada renomeia a área da plataforma."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "A aba da BIA, o título da seção, categoria de documentos, atalho e resumo de acesso apresentam o novo nome."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Somente origem textual projetada nos dados do banco muda. Rotas públicas e privadas continuam com as mesmas chaves."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Nenhuma migração. Valores cadastrados em nucleos_alianca permanecem reconhecidos."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "O atalho DM mantém a calculadora e a mesma base de cálculo."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "O próximo aviso da conta usa o novo caminho visível. Nenhum envio disparado por esta alteração."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Alterado o título de navegação em Documentos. Instrumentos formais do MOU e nomes oficiais dos cargos mantêm a versão correspondente."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "As integrações bancárias e o agendamento não consultam o rótulo da aba para executar suas operações."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Permissões capital_* e papel diretor_capital permanecem idênticos."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Links com tab=capital, categorias de contribuição e nomes históricos de núcleos conservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "O teste de navegação DM verifica o novo texto e protege o envio de dados econômicos no cadastro."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/dm-map-navigation.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "bia-financial-management-tab"
+  ]
+}

@@ -1,5 +1,9 @@
 # Pagamentos e Integracoes Externas
 
+## 09/11/2026 — Recebimentos em conta externa da BIA
+
+A escolha de conta da BIA controla novas emissões de aportes pelo Asaas. Cobranças já emitidas continuam acompanhadas. O conector externo consulta somente créditos autorizados. Uma repetição não dá baixa novamente. Credenciais de produção ficam cifradas no servidor. O catálogo cobre 11 bancos que aguardam habilitação e homologação por modalidade. Consulte o [guia de habilitação](../../EXTERNAL_BANKING.md).
+
 - 05/11/2026 — Google Agenda usa OAuth separado do login, PKCE/state vinculado à sessão, token offline cifrado por chave própria e confirmação de proprietário para eventos exportados. Não integra pagamentos ou escreve dados bancários; eventos externos não são lançamentos/tarefas de terceiros. API própria sem payload em logs, job de5min e desconexão local. Configuração/limites/fontes primárias em [GOOGLE_CALENDAR](../../GOOGLE_CALENDAR.md). Cadastro real de URI/escopo/Calendar API no Google Cloud e consentimento da pessoa continuam necessários; testes simulados não comprovam esse cadastro externo.
 
 - 04/11/2026 — Inicialização local do SMTP: `scripts/start-local-app.ps1` usa `scripts/start-local-app.ts`, que carrega exclusivamente as variáveis SMTP de `.env` antes de importar o servidor. Credenciais/remetente herdados de outro aplicativo não prevalecem nem completam configuração parcial. Variáveis de banco/porta/Directus mantêm a precedência anterior; produção continua com seu bootstrap/variáveis de deploy. Isso não valida automaticamente remetentes no Brevo e não confirma entrega: aceite SMTP pode ser seguido de rejeição do provedor.

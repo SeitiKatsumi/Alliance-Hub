@@ -2,6 +2,26 @@
   "version": 1,
   "rules": [
     {
+      "id": "bia-financial-management-tab",
+      "description": "A navegação financeira da BIA usa Gestão Financeira. Cargos, núcleos cadastrados e instrumentos formais têm identidade própria.",
+      "terms": [
+        "label: \"Núcleo de Capital\"",
+        "Núcleo de Capital → DM",
+        "aba Banco do Nucleo de Capital"
+      ],
+      "roots": [
+        "client/src/pages/bia-detalhe.tsx",
+        "client/src/pages/bia-documentos.tsx",
+        "client/src/pages/nucleo-capital.tsx",
+        "client/src/pages/bias.tsx",
+        "server/mailer.ts"
+      ],
+      "regressionTests": [
+        "client/src/pages/dm-map-navigation.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
       "id": "property-area-source-input-removed",
       "description": "Fonte das medidas não volta ao formulário, payload de pesquisa, extração por IA ou requisito de avaliação. JSON legado permanece somente compatível no sanitizador.",
       "terms": ["Fonte das medidas", "areas_fonte", "Informe de onde vieram as medidas de área."],

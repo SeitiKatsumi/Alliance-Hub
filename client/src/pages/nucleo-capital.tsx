@@ -13,6 +13,7 @@ import ResultadosPage from "./resultados";
 import { useInitialMapSnapshot } from "./bias-calculadora";
 import type { BiaAccessLevel } from "@shared/bia-access";
 import { BiaAsaasStatus } from "@/components/asaas-status";
+import { BiaBanking } from "@/components/bia-banking";
 import { biaHasSalesThesis } from "@shared/bia-sales-analysis";
 
 export const NUCLEO_CAPITAL_DOCS_CONFIG: AliancaDocsPageConfig = {
@@ -78,7 +79,7 @@ type BankHistoryData = {
 function BancoBiaPage({ biaId, readOnly = false }: { biaId?: string | null; readOnly?: boolean }) {
   const history = useQuery<BankHistoryData>({ queryKey: [`/api/bias/${biaId}/banco`], enabled: !!biaId });
   return <div className="space-y-5">
-    {biaId ? <BiaAsaasStatus key={biaId} biaId={biaId} canEdit={!readOnly} /> : <Card><CardHeader><CardTitle>Banco da BIA</CardTitle></CardHeader><CardContent>
+    {biaId ? <BiaBanking key={biaId} biaId={biaId} canEdit={!readOnly}><BiaAsaasStatus biaId={biaId} canEdit={!readOnly} /></BiaBanking> : <Card><CardHeader><CardTitle>Banco da BIA</CardTitle></CardHeader><CardContent>
       <p>Estamos preparando a integração com o Asaas. Abertura de conta e operações bancárias ficarão disponíveis após a homologação.</p>
       <p className="mt-2 text-sm text-muted-foreground">Os lançamentos e registros financeiros existentes continuam disponíveis para consulta.</p>
     </CardContent></Card>}
@@ -147,7 +148,7 @@ export default function NucleoCapitalPage({
           <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
             <Landmark className="h-6 w-6" />
           </div>
-          Núcleo de Capital
+          Gestão Financeira
         </h1>
         <p className="text-sm text-muted-foreground">
           Banco, financeiro e análises em uma visão única.

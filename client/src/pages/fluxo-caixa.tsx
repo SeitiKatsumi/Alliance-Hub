@@ -5,6 +5,7 @@ import { canCorrectQuotaTransfer, canProcessQuotaTransfer, quotaCorrectionSchema
 import { isCashEntry, isAdditionalContribution } from "@shared/initial-contributions";
 import { confirmsContributionReceipt } from "@shared/contribution-edit";
 import { ReceiptMatching } from "@/components/receipt-matching";
+import { BankReceipts } from "@/components/bia-banking";
 import { FileDropTarget } from "@/components/file-drop-target";
 import type { ReactNode } from "react";
 import { ContributionPaymentDialog, prepareFlowPayment } from '@/components/contribution-payment';
@@ -3843,6 +3844,7 @@ export default function FluxoCaixaPage({
 
           {!cotasOnly && (
           <>
+          {selectedBiaId && <BankReceipts key={selectedBiaId} biaId={selectedBiaId} readOnly={readOnly} />}
           <Card data-testid="panel-lancamentos">
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">

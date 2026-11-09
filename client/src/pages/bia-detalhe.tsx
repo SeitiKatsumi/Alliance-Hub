@@ -300,7 +300,7 @@ const ACCESS_GROUPS: Array<{ label: string; items: Array<{ key: BiaAccessKey; la
       { key: "documentos_tecnico", label: "Núcleo Técnico" },
       { key: "documentos_obra", label: "Núcleo de Obra" },
       { key: "documentos_comercial", label: "Núcleo Comercial" },
-      { key: "documentos_capital", label: "Núcleo de Capital" },
+      { key: "documentos_capital", label: "Gestão Financeira" },
     ],
   },
   {
@@ -404,7 +404,7 @@ function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessRespo
             <p className="text-sm text-muted-foreground">{selected?.role_labels.join(" · ")}</p>
           </SheetHeader>
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-            {Object.keys(partnerCapitalReadAccess(selected?.roles || [])).length > 0 && <p className="text-sm text-muted-foreground">Sócios, diretores e Aliado BUILT têm visualização garantida do Núcleo de Capital. Diretor de Capital, Diretor da Aliança e Aliado BUILT também têm edição garantida do Financeiro. As demais edições dependem das permissões configuradas.</p>}
+            {Object.keys(partnerCapitalReadAccess(selected?.roles || [])).length > 0 && <p className="text-sm text-muted-foreground">Sócios, diretores e Aliado BUILT têm visualização garantida da Gestão Financeira. Diretor de Capital, Diretor da Aliança e Aliado BUILT também têm edição garantida do Financeiro. As demais edições dependem das permissões configuradas.</p>}
             {ACCESS_GROUPS.map((group) => (
               <section key={group.label}>
                 <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{group.label}</h3>
@@ -756,7 +756,7 @@ export default function BiaDetalhePage() {
       },
       {
         value: "capital",
-        label: "Núcleo de Capital",
+        label: "Gestão Financeira",
         testId: "tab-bia-nucleo-capital",
         allowed: hasCapitalAccess,
       },
@@ -1247,7 +1247,7 @@ export default function BiaDetalhePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Wallet className="h-4 w-4 text-blue-600" />
-                  Núcleo de Capital
+                  Gestão Financeira
                 </CardTitle>
               </CardHeader>
               <CardContent>

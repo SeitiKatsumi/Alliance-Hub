@@ -100,6 +100,10 @@ test("cobranças: migração isolada, fila, conta própria, revisão, webhook, p
     assert.equal((await db.execute(sql`SELECT state FROM bia_contribution_notices WHERE kind='smtp-failure-fixture'`)).rows[0].state,"unknown");
     await assert.rejects(()=>service.webhook({payment:{id:"pay-fixture"},account:{id:"other-account"}}),/Origem/);
     payments.get("pay-fixture").status="CONFIRMED";
+    // Trocar a conta interrompe novas emissões, mas preserva consulta/baixa da cobrança emitida.
+    await pg.exec(readFileSync(new URL("../migrations/20261109_external_banking.sql",import.meta.url),"utf8"));
+    await db.execute(sql`INSERT INTO bia_bank_choices(bia_id,environment,choice,actor_id) VALUES('bia-test','sandbox','external','fixture')`);
+    await assert.rejects(()=>service.enqueue('bia-test',true),/conta externa/);
     await service.webhook({payment:{id:"pay-fixture"},account:{id:"account-fixture"}});await service.processCharge(chargeId);
     dashboard=await service.dashboard("bia-test",true,"payer");assert.equal(dashboard.totals.confirmed,11000);assert.equal(dashboard.totals.received,10000);
     payments.get("pay-fixture").status="RECEIVED";payments.get("pay-fixture").paymentDate="2031-06-10";
@@ -110,6 +114,8 @@ test("cobranças: migração isolada, fila, conta própria, revisão, webhook, p
     await service.webhook({payment:{id:"pay-fixture",status:"PENDING"},account:{id:"account-fixture"}});await service.processCharge(chargeId);
     assert.equal((await service.dashboard("bia-test",true,"payer")).rows.find(r=>r.id===chargeId).paymentState,"received");
     payments.get("pay-fixture").status="RECEIVED";await service.processCharge(chargeId);
+    assert.equal(created,1,'escolha de conta externa não emite outra cobrança');
+    await db.execute(sql`UPDATE bia_bank_choices SET choice='asaas' WHERE bia_id='bia-test'`);
     const sentBefore=email;await service.notices(new Date("2031-06-10T12:00:00Z"));assert.equal(email,sentBefore);
     await assert.rejects(()=>service.preview("bia-test",body),/protegida/);
     enabled=false;await service.processCharge(chargeId);assert.equal(created,1);

@@ -606,7 +606,7 @@ export async function enviarContaBiaAberta(opts: {
     <h2 style="color:#D7BB7D;margin-top:0">Conta da BIA criada com sucesso</h2>
     <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.destinatarioNome || "membro"}</strong>!</p>
     <p style="color:rgba(255,255,255,0.7)">A conta digital da BIA <strong>${opts.biaNome}</strong> foi criada com sucesso.</p>
-    <p style="color:rgba(255,255,255,0.7)">Voce ja pode movimentar, gerar cobrancas, consultar saldo e acompanhar o extrato pela aba Banco do Nucleo de Capital.</p>
+    <p style="color:rgba(255,255,255,0.7)">Voce ja pode movimentar, gerar cobrancas, consultar saldo e acompanhar o extrato pela aba Banco da Gestão Financeira.</p>
     <div style="text-align:center;margin:32px 0">
       <a href="${BASE_URL}/area-aliancas?tab=bias" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar BIAs</a>
     </div>

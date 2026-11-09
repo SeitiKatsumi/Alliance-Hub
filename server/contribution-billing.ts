@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { usesAsaasBanking } from "./external-banking";
 import { randomUUID } from "node:crypto";
 import { paymentGuidance, payerMissingFields } from '../shared/contribution-payment-guidance';
 import { ContributionReminders } from './contribution-reminders';
@@ -46,6 +47,7 @@ export class ContributionBilling {
   // Called only after explicit confirmation/recovery, not from a status query.
   async enqueue(biaId:string,strict=false) {
     if(!await this.ready())return;
+    if(!await usesAsaasBanking(this.deps.db,biaId,this.environment)){if(strict)throw fault("A BIA escolheu uma conta externa; novas cobranças Asaas estão interrompidas.");return;}
     if((await this.deps.bia(biaId))?.moeda!=="BRL") {if(strict)throw fault("Cobranças Asaas exigem moeda BRL confirmada na BIA",422);return;}
     await this.deps.lock(biaId,async(tx)=>{
       const rows=(await tx.execute(sql`SELECT * FROM bia_aportes_parcelas WHERE bia_id=${biaId} AND vigente=true AND pendente=false AND natureza='caixa' AND componente='capital'`)).rows;
@@ -109,6 +111,7 @@ export class ContributionBilling {
     return this.deps.lock(biaId,async(tx)=>{
       const prior=(await tx.execute(sql`SELECT id FROM bia_contribution_charges WHERE environment=${this.environment} AND bia_id=${biaId} AND flow_id=${flowId} AND payment_state<>'cancelled'`)).rows[0];
       if(prior)return prior;
+      if(!await usesAsaasBanking(tx,biaId,this.environment))throw fault("A BIA escolheu uma conta externa; novas cobranças Asaas estão interrompidas.");
       const bia=await this.deps.bia(biaId);
       if(!activePhase(bia?.situacao)||bia?.moeda!=='BRL')throw fault('A cobrança exige BIA ativa em BRL.',422);
       const entry=(await this.deps.entries(biaId)).find(e=>String(e.id)===flowId);
@@ -161,7 +164,8 @@ export class ContributionBilling {
     const charge=(await this.rows(biaId)).find((r:any)=>String(r.flow_id)===flowId&&r.vigente);
     const owner=charge?.payer_id || String(entry.favorecido_id || '');
     if(!manage && (!payerId || owner!==payerId))throw fault('Meio de pagamento restrito ao pagador e gestores.',403);
-    const canPrepare=manage&&!charge&&!cashContributionProblem(entry);
+    const asaasSelected=await usesAsaasBanking(this.deps.db,biaId,this.environment);
+    const canPrepare=manage&&!charge&&!cashContributionProblem(entry)&&asaasSelected;
     const payable=charge?.job_state==='ready'&&!charge.pending_revision&&['open','overdue'].includes(charge.payment_state)&&entry.status!=='pago';
     const guidance=charge?.job_state==='blocked'?paymentGuidance({code:charge.error_code || '',
       payer:charge.error_code==='PAYER_PENDING'?await this.deps.member(owner):undefined,
@@ -170,7 +174,7 @@ export class ContributionBilling {
     return {environment:this.environment,enabled:this.enabled(),canPrepare,canCancel:manage&&!!charge&&!charge.protected&&!charge.pending_revision&&charge.job_state!=="creating"&&["none","open","overdue"].includes(charge.payment_state),chargeId:charge?.id || null,
       amountCents:charge?.amount_cents ?? cents(entry.valor),dueDate:charge?.due_date || iso(entry.data_vencimento),
       paymentState:charge?.payment_state || (entry.status==='pago'?'received':'none'),jobState:charge?.job_state || null,
-      message:!this.enabled()?'Emissão aguardando habilitação da integração. Solicite a habilitação à administração.':!charge?cashContributionProblem(entry):guidance?.message || (charge.job_state==='unknown'?'Emissão em conciliação. Não crie outra cobrança.':null),
+      message:!charge&&!asaasSelected?'Esta BIA usa uma conta externa. Novas cobranças Asaas estão interrompidas.':!this.enabled()?'Emissão aguardando habilitação da integração. Solicite a habilitação à administração.':!charge?cashContributionProblem(entry):guidance?.message || (charge.job_state==='unknown'?'Emissão em conciliação. Não crie outra cobrança.':null),
       correction:this.enabled()?guidance?.correction || null:null,
       details:payable?await this.details(biaId,charge.id,manage,payerId):null};
   }
@@ -252,6 +256,13 @@ export class ContributionBilling {
         if(!this.enabled())throw new AsaasError("BILLING_DISABLED","Integração não homologada");
         if(!before.external_id&&before.protected)throw fault("Parcela protegida");
         const account=await this.account(before.bia_id);provider=await this.provider(account);
+        if(!before.external_id && !await usesAsaasBanking(this.deps.db,before.bia_id,this.environment)){
+          // Pedido anterior de resultado incerto pode já existir. Só consulta; nunca emite novamente.
+          const existing=await provider.findPayment(reference(before));
+          if(!existing)throw new AsaasError("EXTERNAL_ACCOUNT_SELECTED","Novas emissões Asaas interrompidas pela escolha de conta externa.");
+          await this.deps.db.execute(sql`UPDATE bia_contribution_charges SET external_id=${existing.id} WHERE id=${before.id}`);
+          before.external_id=existing.id;
+        }
         if(before.account_id && (before.account_id!==account.id||before.external_account_id!==account.external_account_id))throw fault("Vínculo de conta alterado");
         await provider.verifyAccount(account);
         await this.deps.db.execute(sql`UPDATE bia_contribution_charges SET account_id=${account.id},external_account_id=${account.external_account_id} WHERE id=${id}`);
@@ -288,6 +299,7 @@ export class ContributionBilling {
         if(!provider)throw fault("Provedor indisponível");
         let payment:any=row.external_id?await provider.read(row.external_id):await provider.findPayment(reference(row));
         if(!payment) {
+          if(!await usesAsaasBanking(tx,row.bia_id,this.environment))throw new AsaasError("EXTERNAL_ACCOUNT_SELECTED","Novas emissões Asaas interrompidas pela escolha de conta externa.");
           if(claimed.job_state==="unknown" || claimed.error_code==="CREATE_UNKNOWN")throw fault("Emissão com resultado desconhecido; aguarde conciliação");
           // Mark the non-repeatable dispatch durably before sending it.
           payment=await provider.create(remoteCustomer.id,reference(row),row.amount_cents,row.due_date,'BOLETO');

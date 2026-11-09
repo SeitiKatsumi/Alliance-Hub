@@ -1,5 +1,11 @@
 # AI_HANDOFF.md
 
+## 09/11/2026 — Recebimentos em conta externa da BIA
+
+Verificação da plataforma com 811 testes aprovados, tipos e build. Revisão transversal contra a base 8b4de131 aprovada. A suíte bancária também verificou que uma confirmação manual concorrente não é reaberta pela atualização de sugestões. Evidências locais em `.BUILT-tmp/multibank-verified.log`, `.BUILT-tmp/multibank-reviewed.log` e `output/external-banking/`. Nenhum deploy ou teste com movimentação financeira real.
+
+Base 8b4de131. Implementados escolha Asaas/externo, migração aditiva, conectores de consulta direta por perfil e Pluggy, leitura incremental, conciliação, histórico e preservação das cobranças Asaas existentes. Testes isolados com PGlite e transportes simulados. Interface conferida em desktop/mobile e temas claro/escuro. Sem credenciais bancárias disponíveis, nenhuma instituição habilitada e nenhuma migração aplicada ao banco compartilhado. Ainda faltam os contratos e adaptações específicos de cada instituição, inclusive notificações diretas e homologação de cada modalidade. Nenhum serviço contratado. Detalhes em [EXTERNAL_BANKING.md](docs/EXTERNAL_BANKING.md).
+
 ## 09/11/2026 — Preparação do commit completo solicitado
 
 - Usuário pediu commit e push de todas as alterações. Escopo reúne correção de concorrência da recuperação do MAP/login, contraste de importação, remoção de origem das medidas e busca por natureza de área com evidência textual, incluindo testes/contratos/registros. Base30c03a35aa9e167a3772779f6c3e557503db637b em main, origin/main sincronizado após fetch.

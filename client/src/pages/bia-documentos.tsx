@@ -103,7 +103,7 @@ const MODULOS: ModuloConfig[] = [
   },
   {
     key: "capital",
-    label: "Núcleo de Capital",
+    label: "Gestão Financeira",
     color: "#7c3aed",
     subnucleos: NUCLEO_CAPITAL_DOCS_CONFIG.aliancas.map((item) => ({
       ...item,

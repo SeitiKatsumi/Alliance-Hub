@@ -25,6 +25,10 @@ import { INITIAL_CONTRIBUTIONS_SQL, decorateInitialEntries, registerInitialContr
 import { EXPENSE_CONTRIBUTIONS_SQL, registerExpenseContributions, protectExpenseEntry, expenseLinks } from "./expense-contributions";
 import { editLinkedContribution } from "./contribution-edit";
 import { registerReceiptMatching } from "./receipt-matching";
+import { ExternalBanking } from "./external-banking";
+import { registerExternalBanking } from "./external-banking-routes";
+import { BankingError } from "./external-banking-provider";
+import { bankMoneyCents, type ReceiptFlow } from "../shared/external-banking";
 import { linkedExpenseMovementIds } from './existing-expense-contributions';
 import { initialExpenseDistribution } from '@shared/existing-expense-contributions';
 import { isCashEntry, isAdditionalContribution, validateInitialClassifications, withAutomaticEconomicRights, memberContributionProgress } from "@shared/initial-contributions";
@@ -10210,7 +10214,7 @@ export async function registerRoutes(
     pinbank_baas: {
       titulo: "Termos de Uso BaaS PINBANK",
       versao: "PINBANK",
-      origem: "Núcleo de Capital",
+      origem: "Gestão Financeira",
       body: [
         "COMPROVANTE DE ACEITE DOS TERMOS DE USO BAAS PINBANK",
         "",
@@ -10467,7 +10471,7 @@ export async function registerRoutes(
           titulo: biaNome ? `Termos de Uso BaaS PINBANK - BIA ${biaNome}` : "Termos de Uso BaaS PINBANK",
           versao: account.terms_version || "PINBANK",
           aceito_em: acceptedDocDate(account.terms_accepted_at),
-          origem: biaNome ? `Núcleo de Capital - BIA ${biaNome}` : `Núcleo de Capital - BIA ${account.bia_id}`,
+          origem: biaNome ? `Gestão Financeira - BIA ${biaNome}` : `Gestão Financeira - BIA ${account.bia_id}`,
           bia_id: account.bia_id,
           bia_nome: biaNome || null,
           aceite_localizacao: account.terms_acceptance_location || null,
@@ -12231,6 +12235,64 @@ export async function registerRoutes(
   });
 
   // Registrar antes do bloqueio genérico de operações bancárias legadas.
+  const bankActorAccess = async (biaId: string, actorId: string, finance = false) => {
+    const user = await storage.getUser(actorId);
+    if (!user?.ativo) return false;
+    const employee = await getCompanyEmployeeByUserId(actorId);
+    const actorRequest: any = { session: { role: user.role, email: user.email, membroId: user.membro_directus_id } };
+    if (employee) {
+      if (employee.status !== "ativo" || !await hasActiveCompanyPlan(actorId) || !hasCompanyAccess(employee.permissions, "capital", finance ? "edit" : "view")) return false;
+      applyCompanyEmployeeSession(actorRequest, employee, user);
+    }
+    const bia = await directusFetchOne("bias_projetos", biaId, "fields=*");
+    const access = await resolveBiaAccessForRequest(bia, actorRequest);
+    return hasBiaAccess(access.permissions, "capital_banco", finance ? "edit" : "view")
+      && (!finance || hasBiaAccess(access.permissions, "capital_financeiro", "edit"));
+  };
+  const externalBankFlows = async (biaId: string): Promise<ReceiptFlow[]> => {
+    const bia = await directusFetchOne("bias_projetos", biaId, "fields=id,moeda");
+    const rows = await initialEntryMetadata(await directusFetchScoped("fluxo_caixa", `fields=*&filter[bia][_eq]=${encodeURIComponent(biaId)}&filter[tipo][_eq]=entrada&filter[status][_in]=pendente,agendado,vencido`));
+    const hasCharges = (await db.execute(sql`SELECT to_regclass('bia_contribution_charges') IS NOT NULL AS ready`)).rows[0]?.ready;
+    const charges = hasCharges ? (await db.execute(sql`SELECT flow_id FROM bia_contribution_charges WHERE bia_id=${biaId} AND payment_state NOT IN ('cancelled','refunded') AND (external_id IS NOT NULL OR job_state IN ('creating','unknown','sync'))`)).rows : [];
+    return Promise.all(rows.map(async (row: any) => {
+      const memberId = directusRelationId(row.favorecido_id);
+      const payer = typeof row.favorecido_id === "object" ? row.favorecido_id : memberId ? await directusFetchOne("cadastro_geral", memberId, "fields=id,nome,cpf,cnpj") : null;
+      return { id: String(row.id), biaId, type: row.tipo, status: row.status, amountCents: bankMoneyCents(row.valor), currency: bia.moeda || "",
+        date: row.data_vencimento || row.data, description: row.descricao || "Lançamento", payerName: payer?.nome, payerDocument: payer?.cpf || payer?.cnpj,
+        cash: isCashEntry(row), protected: !!row.conciliacao_pendente || row.parcela_vigente === false || !!row.data_pagamento,
+        activeCharge: charges.some((c: any) => String(c.flow_id) === String(row.id)) || !!row.pagamento_id,
+        reference: undefined };
+    }));
+  };
+  const externalBanking = new ExternalBanking({
+    db, lock: (id, work) => withMapLock(id, tx => work(tx)), flows: externalBankFlows,
+    canRead: (id, actor) => bankActorAccess(id, actor), canAutomate: (id, actor) => bankActorAccess(id, actor, true),
+    apply: async ({ biaId, flowId, receiptId, receipt, actor, previousStatus }, tx) => {
+      await assertBiaFinancialPhase(biaId);
+      const row = await directusFetchOne("fluxo_caixa", flowId, "fields=*");
+      if (directusRelationId(row.bia) !== biaId || row.tipo !== "entrada" || !isCashEntry(row) || bankMoneyCents(row.valor) !== receipt.amountCents || receipt.currency !== "BRL") throw new BankingError("FLOW_CHANGED", "Lançamento alterado; confira o recebimento.");
+      const bankBia = await directusFetchOne("bias_projetos", biaId, "fields=moeda");
+      if (bankBia.moeda !== receipt.currency || receipt.status !== "settled") throw new BankingError("FLOW_CHANGED");
+      const alreadyApplied = row.status === "pago" && row.pagamento_provider === "external_bank" && row.pagamento_id === receiptId;
+      if (!alreadyApplied) {
+        const current = (await externalBankFlows(biaId)).find(f => f.id === flowId);
+        if (!current || current.protected || current.activeCharge || !["pendente","agendado","vencido"].includes(current.status)) throw new BankingError("FLOW_PROTECTED", "Confira o lançamento e as cobranças existentes antes da baixa.");
+        const patch = { status: "pago", data_pagamento: new Date(receipt.receivedAt).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), pagamento_provider: "external_bank", pagamento_id: receiptId, pagamento_status: "received" };
+        await mapFinancialWrite!("fluxo_caixa", flowId, patch, () => mapOperationContext.run({ ...mapOperationContext.getStore(), initialContributionWrite: true }, () => directusUpdate("fluxo_caixa", flowId, patch)));
+      }
+      await tx.execute(sql`INSERT INTO fluxo_caixa_historico(fluxo_caixa_id,bia_id,acao,ator_user_id,origem,dados_antes,dados_depois,payload)
+        SELECT ${flowId},${biaId},'recebimento_conciliado',${actor},'banco:recebimento',${JSON.stringify({ status: previousStatus })}::jsonb,${JSON.stringify({ status: "pago", valor: Number(row.valor) })}::jsonb,${JSON.stringify({ bank_receipt_id: receiptId })}::jsonb
+        WHERE NOT EXISTS(SELECT 1 FROM fluxo_caixa_historico WHERE fluxo_caixa_id=${flowId} AND payload->>'bank_receipt_id'=${receiptId})`);
+    },
+  });
+  registerExternalBanking(app, externalBanking, async (req, res, biaId, bankLevel, financeLevel) => {
+    const auth = await requireBiaModuleAccess(req, res, biaId, "capital_banco", bankLevel); if (!auth) return null;
+    if (financeLevel && !await requireBiaModuleAccess(req, res, auth.bia.id, "capital_financeiro", financeLevel)) return null;
+    const actorUser = await storage.getUserByEmail(String((req.session as any).email || ""));
+    if (!actorUser?.ativo) { res.status(403).json({ error: "Conta ativa necessária para gerenciar a conexão." }); return null; }
+    return { id: String(auth.bia.id), actor: String(actorUser.id), canEdit: hasBiaAccess(auth.access.permissions, "capital_banco", "edit"), canFinance: hasBiaAccess(auth.access.permissions, "capital_financeiro", "edit") && (!(req.session as any).companyEmployeeId || hasCompanyAccess((req.session as any).companyEmployeePermissions, "capital", "edit")) };
+  });
+  const externalBankTimer = setInterval(() => { void externalBanking.tick().catch(() => console.warn("[banking] Atualização bancária pendente.")); }, 60_000); externalBankTimer.unref();
   registerAsaasFoundation(app, {
     db,
     onSandboxPayment:async(body)=>await contributionBilling.ready()?contributionBilling.webhook(body):false,

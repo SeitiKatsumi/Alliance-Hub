@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "id": "2026-11-09-external-banking",
+  "title": "Escolher conta de recebimentos da BIA e conciliar créditos autorizados, com liberação bancária pendente",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/external-banking.ts",
+    "shared/external-banking.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "ExternalBanking",
+    "BiaBanking",
+    "usesAsaasBanking",
+    "bia_bank_connections",
+    "BankReceipts"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-banking.tsx",
+      "decision": "updated",
+      "reason": "Escolha Asaas/conta existente, consentimento e conferência. O painel aprovado da BIA tem precedência sobre o seletor e sobre falhas ao consultar opções externas. Observa o resultado existente do painel Asaas."
+    },
+    {
+      "path": "client/src/components/bia-banking.test.ts",
+      "decision": "updated",
+      "reason": "Verifica as duas opções e o componente nos consumidores. Renderiza o painel com conta aprovada e falha da escolha, além do cenário sem vínculo."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "updated",
+      "reason": "Monta o seletor na aba Banco e continua apresentando a conta Asaas existente."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Apresenta os créditos e candidatos junto aos lançamentos da BIA selecionada."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Informa no relatório que as 11 instituições aguardam homologação."
+    },
+    {
+      "path": "migrations/20261109_external_banking.sql",
+      "decision": "updated",
+      "reason": "Cria registros e restrições de exclusividade, intenção, escolha e deduplicação. Validada duas vezes em PGlite."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "updated",
+      "reason": "Bloqueia preparar/emissão nova para conta externa e recupera emissão prévia pela referência antes de decidir."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "updated",
+      "reason": "Exercita troca com cobrança emitida, acompanhamento e bloqueio de nova emissão."
+    },
+    {
+      "path": "server/external-banking-provider.ts",
+      "decision": "updated",
+      "reason": "Cofre, mTLS, hosts oficiais, OAuth e consultas. Pluggy usa consentimento vinculado e cursor de transações."
+    },
+    {
+      "path": "server/external-banking-routes.ts",
+      "decision": "updated",
+      "reason": "Exige Banco e Financeiro conforme ação, resolve BIA canônica, valida origem e separa webhook."
+    },
+    {
+      "path": "server/external-banking.test.ts",
+      "decision": "updated",
+      "reason": "Testa API, cofre, provedores com respostas simuladas, migração, retomada e falhas com PGlite."
+    },
+    {
+      "path": "server/external-banking.ts",
+      "decision": "updated",
+      "reason": "Controla ativação exclusiva, projeção mascarada, sincronização incremental, retomada e histórico das decisões."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Registra API antes do bloqueio legado e reutiliza as permissões, lock e atualização do lançamento original."
+    },
+    {
+      "path": "shared/external-banking.ts",
+      "decision": "updated",
+      "reason": "Define o catálogo e compara identificadores, valor em centavos, moeda, situação e unicidade por BIA."
+    },
+    {
+      "path": "shared/external-banking.test.ts",
+      "decision": "updated",
+      "reason": "Protege parsing de valores, isolamento por BIA e sugestões ambíguas ou com pagamentos parciais."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Roteador mantém os caminhos atuais de Capital e Financeiro."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "A inicialização React carrega o mesmo aplicativo e seus provedores existentes."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Continua apresentando o núcleo selecionado e delega Banco ao componente de Capital."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Documentos continuam consumindo o fluxo existente sem importar segredos ou alterar documentos assinados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "MAP/cotas continuam lendo lançamentos oficiais pagos, sem uma segunda origem de CPPs."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Renderiza catálogo funcional incluindo a nova entrada em homologação."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "O novo item usa identificador único e situação de homologação já suportada pelo catálogo."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "O índice de contratos mapeia os novos arquivos de Capital e integrações para a análise de impacto."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Valida os testes e arquivos mapeados nos contratos sem mudar o critério de aprovação."
+    },
+    {
+      "path": "server/asaas/exclusive-bia.test.ts",
+      "decision": "preserved",
+      "reason": "A exclusividade da subconta Asaas mantém a proteção própria, independente da exclusividade da conta externa."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "preserved",
+      "reason": "As rotas Asaas existentes delegam elegibilidade e emissão ao serviço que considera a escolha da BIA."
+    },
+    {
+      "path": "server/contribution-cancellation.test.ts",
+      "decision": "preserved",
+      "reason": "Cancelamento explícito de cobrança Asaas preserva suas regras quando a BIA troca de escolha."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "preserved",
+      "reason": "A API anterior segue usando as mesmas permissões para consultar o pagamento já emitido."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "preserved",
+      "reason": "Os critérios do lançamento de aporte permanecem válidos antes da emissão de uma cobrança Asaas."
+    },
+    {
+      "path": "server/contribution-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Os lembretes existentes continuam testando a cobrança emitida e o destino financeiro habitual."
+    },
+    {
+      "path": "server/contribution-reminders.ts",
+      "decision": "preserved",
+      "reason": "Lembretes de cobranças existentes permanecem independentes da escolha para novas emissões."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "O registro de rotas já inicializa o worker condicionado aos flags. Sem alteração na inicialização global."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Verificação com interfaces reais e dados isolados em desktop/mobile 390, temas claro e escuro, bloqueios e confirmação manual."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Testes HTTP de escopo Banco/Financeiro, BIA canônica, origem de escrita e erro sanitizado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Migração idempotente e índices em PGlite. Cofre com contexto por conexão e recebimento. Banco compartilhado sem alterações."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Regras de centavos e candidatos únicos testadas. A escrita financeira existente atualiza MAP e consumidores da baixa, sem somar extrato a indicadores."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Esta mudança trata créditos bancários e sugestões no Financeiro. O envio de lembretes Asaas existentes continua no serviço habitual."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório funcional distingue catálogo em homologação. Documentos e aceites assinados não participam da escrita de baixa."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Worker e retomada testados com transportes isolados, cursor, remoções e estornos. As APIs reais dos bancos e suas notificações exigem habilitação e homologação futura. Liberação operacional pendente nos 11 bancos."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Backend exige Banco para consulta e edição, e Financeiro para baixa. Worker reavalia autorização antes de continuar, inclusive acesso de colaborador."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Asaas é padrão sem escolha persistida. Teste de cobrança anterior à troca confirma acompanhamento sem nova emissão."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Suítes em PostgreSQL isolado e adaptadores simulados exercitam duplicação, resposta perdida, credencial cifrada, conflito, autorização e revisão. As verificações de UI usam fixtures e não provam conexão real."
+    }
+  ],
+  "regressionTests": [
+    "server/external-banking.test.ts",
+    "shared/external-banking.test.ts",
+    "client/src/components/bia-banking.test.ts",
+    "server/contribution-billing.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

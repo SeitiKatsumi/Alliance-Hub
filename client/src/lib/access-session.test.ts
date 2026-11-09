@@ -14,7 +14,9 @@ test('perfis de teste cobrem cargos persistidos e Superadmin usa admin compatív
   assert.equal(accountAccessPreset('employee'),undefined);
   assert.equal(normalizeAccountRole('superadmin'),'admin');assert.equal(normalizeAccountRole('master'),'admin');
   assert.equal(canAccessBuiltEnvironment({role:accountAccessPreset('membro')?.role},'alliances'),true);
-  assert.equal(canAccessBuiltEnvironment({role:accountAccessPreset('investidor')?.role},'capital'),true);
+  assert.equal(accountAccessPreset('investidor'),undefined);
+  assert.equal(updateUserSchema.safeParse({role:'investidor'}).success,false);
+  assert.equal(canAccessBuiltEnvironment({role:'investidor'},'capital'),true); // leitura legada
   assert.equal(canAccessBuiltEnvironment({role:accountAccessPreset('user')?.role},'alliances'),false);
 });
 

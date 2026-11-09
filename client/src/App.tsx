@@ -1,3 +1,5 @@
+import { areaForPath, blockedArea } from '@shared/account-areas';
+import { useSearch as useAccountSearch } from 'wouter';
 ﻿import { Switch, Route, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import RoPulseInvitation from '@/pages/ro-pulse-invitation';
@@ -1187,6 +1189,8 @@ function ProtectedApp() {
   const { toast } = useToast();
   const opportunityInviteToken = location === "/login" ? new URLSearchParams(window.location.search).get("convite") : null;
   const [opportunityInviteError, setOpportunityInviteError] = useState("");
+  const search = useAccountSearch();
+  const accountRouteDenied = blockedArea(user?.permissions, areaForPath(location + "?" + search));
   const companyRouteModule = companyModuleForLocation(location);
   const companyRouteDenied = Boolean(
     user?.company_employee
@@ -1447,7 +1451,7 @@ function ProtectedApp() {
             </div>
           </header>
           <main data-app-scroll className="min-w-0 flex-1 overflow-auto overflow-x-hidden bg-background">
-            {companyRouteDenied ? (
+            {companyRouteDenied || accountRouteDenied ? (
               <div className="flex min-h-[55vh] items-center justify-center px-5">
                 <div className="max-w-md text-center">
                   <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-full bg-blue-50 text-blue-700">
@@ -1455,7 +1459,7 @@ function ProtectedApp() {
                   </div>
                   <h1 className="text-xl font-bold text-[#001D34]">Acesso não liberado</h1>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    O responsável pela conta da empresa ainda não liberou esta área para você.
+                    {accountRouteDenied ? "Esta área foi bloqueada para a sua conta." : "O responsável pela conta da empresa ainda não liberou esta área para você."}
                   </p>
                   <Button className="mt-5 bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/meu-perfil")}>
                     Ver meu acesso

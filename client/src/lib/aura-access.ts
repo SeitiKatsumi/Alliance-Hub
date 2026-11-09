@@ -1,3 +1,4 @@
+import { areaChoices } from '@shared/account-areas';
 import type { AppUser } from "@/hooks/use-auth";
 
 function userRedes(user?: AppUser | null): string[] {
@@ -8,7 +9,7 @@ function truthyFlag(value: unknown): boolean {
   return value === true || value === 1 || value === "1" || value === "true";
 }
 
-export function isBuiltMemberForAura(user?: AppUser | null): boolean {
+function hasAuraMembership(user?: AppUser | null): boolean {
   const role = user?.role || "";
   const redes = userRedes(user);
   return (
@@ -20,10 +21,18 @@ export function isBuiltMemberForAura(user?: AppUser | null): boolean {
   );
 }
 
+/** Includes a personal grant to consult Aura. Registration also requires membership and a link. */
+export function isBuiltMemberForAura(user?: AppUser | null): boolean {
+  const choice = areaChoices(user?.permissions).aura;
+  if (choice && !user?.company_employee && user?.role !== 'coproprietario') return choice === 'permit';
+  return hasAuraMembership(user);
+}
+
 export function isVitrineOnlyUser(user?: AppUser | null): boolean {
   return (
     user?.role === "user" &&
     truthyFlag(user?.na_vitrine) &&
+    areaChoices(user?.permissions).aura !== "permit" &&
     !truthyFlag(user?.em_membros_built) &&
     !truthyFlag(user?.em_built_capital)
   );
@@ -132,7 +141,7 @@ export function canRegisterAuraForMember({
   linkedMemberIds?: Set<string>;
 }): boolean {
   if (!targetMemberId || user?.membro_directus_id === targetMemberId) return false;
-  if (!isBuiltMemberForAura(user)) return false;
+  if (!isBuiltMemberForAura(user) || !hasAuraMembership(user)) return false;
   return Boolean(linkedMemberIds?.has(String(targetMemberId)));
 }
 

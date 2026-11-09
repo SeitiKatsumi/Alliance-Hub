@@ -15,6 +15,8 @@ Este diretório documenta o comportamento que precisa permanecer coerente entre 
 
 ## Documentos globais
 
+- [Referência visual e editorial da marca BUILT](../brand/README.md), indicada pelo usuário para futuras alterações; inclui o PDF recebido.
+
 - [Arquitetura](./ARCHITECTURE.md)
 - [Fontes de verdade](./SOURCES_OF_TRUTH.md)
 - [Glossário](./GLOSSARY.md)

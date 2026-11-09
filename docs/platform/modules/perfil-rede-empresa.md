@@ -1,5 +1,9 @@
 # Perfis, Rede, Empresas e Comunidades
 
+- 09/11/2026 (refinamento): Foto de perfil e seu input/upload ficam em Dados pessoais. O cartão inferior contém apenas Dados para formalização, sem o contorno/fundo/padding de uma segunda caixa e sem título externo duplicado. Campos continuam sempre visíveis; upload, recorte, posição da foto, validações, condicionais e salvamento seguem os mesmos handlers. Dados da empresa e Perfil profissional mantêm seus cabeçalhos e logo.
+
+- 09/11/2026: Meu Perfil > Identidade e contato > Formalização e foto mostra Dados para formalização sempre visíveis, com título estático e sem recolher/expandir. Campos, condições de cônjuge/endereço, CEP, edição/salvamento, foto, permissões e atalhos para nome completo/CPF são preservados. Mudança somente de apresentação no componente DadosFormalizacaoSection; não altera o formulário de formalização da BIA na Comunidade.
+
 - 28/10/2026: `cadastro_geral.segmento` usa PostgreSQL `text`, preservando a seleção múltipla serializada já usada no onboarding/perfil, sem cortar opções. Correção operacional em `scripts/directus-segmento-text.sql`, exclusiva do banco Directus. O adaptador de erros PostgreSQL do Directus pode atribuir VALUE_TOO_LONG ao primeiro campo do UPDATE, não ao campo excedido; telefone não deve ser alterado com base nesse rótulo. Sem mudança de API, valores, permissões ou aceites.
 
 - 23/10/2026 — o nome público atual da entidade técnica BusinessType/Market é Tese de interesse, também em demandas, administração e mensagens de erro. Referências históricas a Tipo de negócio abaixo não representam um segundo campo. O adapter de rótulos normaliza somente aliases descontinuados conhecidos sem modificar códigos, preferências, associações ou nomes personalizados. Onboarding e Perfil já exibiam teses; cadastro e salvamento permanecem iguais.

@@ -1,9 +1,11 @@
+import { areaChoices } from './account-areas';
 import { hasCompanyAccess } from "./company-access";
 import { normalizeOnboardingPurposes } from "./initial-onboarding";
 
 export type BuiltEnvironmentTarget = "vitrine" | "alliances" | "capital";
 
 export type BuiltEnvironmentAccessSubject = {
+  permissions?: unknown;
   role?: string | null;
   account_purposes?: unknown;
   Outras_redes_as_quais_pertenco?: unknown;
@@ -27,7 +29,9 @@ export function isBuiltAlliancesMember(user: BuiltEnvironmentAccessSubject | nul
 
 export function canPublishVitrineProfile(user: BuiltEnvironmentAccessSubject | null | undefined): boolean {
   const role = String(user?.role || "").trim().toLowerCase();
-  return ["admin", "manager", "superadmin"].includes(role)
+  const choice = areaChoices(user?.permissions).publicar;
+  if (choice) return choice === "permit" && role !== "coproprietario";
+  return ["admin", "manager", "superadmin", "aliado", "membro"].includes(role)
     || normalizeOnboardingPurposes(user?.account_purposes).includes("profissional");
 }
 
@@ -40,6 +44,10 @@ export function canAccessBuiltEnvironment(
   }
 
   const role = String(user?.role || "").trim().toLowerCase();
+  if (target !== "capital" && role !== "coproprietario") {
+    const choice = areaChoices(user?.permissions)[target];
+    if (choice) return choice === "permit";
+  }
   const redes = Array.isArray(user?.Outras_redes_as_quais_pertenco)
     ? user.Outras_redes_as_quais_pertenco.map(String)
     : [];

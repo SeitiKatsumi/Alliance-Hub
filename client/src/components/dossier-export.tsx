@@ -19,8 +19,11 @@ export function DossierExport({kind, id}: {kind: 'bia' | 'imovel'; id: string}) 
         const detail = await response.json().catch(() => ({}));
         throw new Error(detail.error || 'Não foi possível gerar o dossiê. Entre novamente ou tente mais tarde.');
       }
+      if (!response.headers.get('content-type')?.toLowerCase().startsWith('application/pdf')) {
+        throw new Error('O PDF não foi recebido. Atualize a página e tente novamente.');
+      }
       const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a'); link.href = url; link.download = `dossie-${kind}-${year}.zip`;
+      const link = document.createElement('a'); link.href = url; link.download = `dossie-${kind}-${year}.pdf`;
       document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
       setOpen(false);
     } catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível gerar o dossiê.'); }
@@ -31,10 +34,10 @@ export function DossierExport({kind, id}: {kind: 'bia' | 'imovel'; id: string}) 
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
       <DialogHeader><DialogTitle>Exportar dossiê</DialogTitle><DialogDescription>Reúna os registros para consultar ou compartilhar com seu contador.</DialogDescription></DialogHeader>
       <div className="space-y-2"><Label htmlFor={`dossier-year-${kind}-${id}`}>Ano das movimentações</Label><Input id={`dossier-year-${kind}-${id}`} type="number" min={1900} max={2100} value={year} onChange={e => setYear(e.target.value)} disabled={busy} /></div>
-      <p className="text-sm text-muted-foreground">O ZIP inclui resumo em PDF, extrato dos lançamentos, documentos e comprovantes armazenados{kind === 'bia' ? ', além das versões do MAP registradas até o fim do ano' : ''}. Documentos cadastrais entram independentemente do ano, conforme suas permissões.</p>
+      <p className="text-sm text-muted-foreground">O PDF reúne o resumo financeiro, o extrato, os documentos e os comprovantes{kind === 'bia' ? ', além dos MAPs registrados até o fim do ano' : ''}. Use o sumário para ir direto a uma seção. Os arquivos originais ficam no painel Anexos do leitor de PDF.</p>
       <p className="text-sm text-muted-foreground">Lançamentos seguem a data de pagamento ou, se ausente, a data registrada. Arquivos ausentes são identificados no resumo. Limites: 300 arquivos, 20 MB por arquivo e 100 MB no total.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <Button onClick={download} loading={busy} loadingText="Gerando dossiê…" disabled={!/^\d{4}$/.test(year) || +year < 1900 || +year > 2100}>Baixar dossiê</Button>
+      <Button onClick={download} loading={busy} loadingText="Gerando dossiê…" disabled={!/^\d{4}$/.test(year) || +year < 1900 || +year > 2100}>Baixar PDF</Button>
     </DialogContent>
   </Dialog>;
 }

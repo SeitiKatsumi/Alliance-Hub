@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "id": "2026-11-09-account-access-visible",
+  "title": "Exibir perfil e áreas antes de preencher a senha da conta",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/membros.tsx",
+    "client/src/components/account-profile-picker.tsx"
+  ],
+  "searchTerms": [
+    "AccountProfilePicker"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "updated",
+      "reason": "Retira o bloqueio visual pela senha e mantém a validação para salvar a conta; lista de áreas inicialmente aberta."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.tsx",
+      "decision": "updated",
+      "reason": "Retira o bloqueio visual pela senha e mantém a validação para salvar a conta; lista de áreas inicialmente aberta."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "updated",
+      "reason": "Retira o bloqueio visual pela senha e mantém a validação para salvar a conta; lista de áreas inicialmente aberta."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.test.ts",
+      "decision": "updated",
+      "reason": "Retira o bloqueio visual pela senha e mantém a validação para salvar a conta; lista de áreas inicialmente aberta."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Retira o bloqueio visual pela senha e mantém a validação para salvar a conta; lista de áreas inicialmente aberta."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Editor e renderização conferidos: configuração visível antes da senha, validação ao salvar preservada.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Correção localizada na apresentação. Endpoints, gravação, cálculos, documentos, mensagens, tarefas e autorização não são alterados por esta correção visual.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Editor e renderização conferidos: configuração visível antes da senha, validação ao salvar preservada.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/membros-permissions.test.ts",
+    "client/src/components/account-profile-picker.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { areaChoices, blockedArea, withAreaChoices } from '../shared/account-areas';
 import { withAutomaticBiaIndicators, loadBiaAssetIndicators, BIA_RECEIPTS_QUERY } from './bia-automatic-indicators';
 import {financialImportLabels, financialImportRows} from './financial-import-labels';
 import { registerBiaTrackingRoutes, withBiaTracking } from './bia-tracking';
@@ -35,6 +37,7 @@ import { portfolioHistory, portfolioHistoryScope } from "./portfolio-history";
 import { selectPortfolio } from "../shared/portfolio-selection";
 import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis } from "./property-market-evidence";
 import { BUILT_VALUATION_VERSION, sanitizeValuationAreas, propertyValuationReadiness, valuationObservationReason } from "../shared/property-valuation";
+import { registerBuiltValuationRoutes } from './built-valuation';
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { agendaTaskHref, agendaTaskTitle, matchesMouRevision, MOU_REVIEW_LABEL } from "../shared/agenda-action";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
@@ -6050,7 +6053,7 @@ export async function registerRoutes(
   // Helper: check if the session role allows full Cadastro Geral access (Super Admin only)
   async function requireCadastroAccess(req: any, res: any): Promise<boolean> {
     const role = await getEffectiveRole(req);
-    if (["admin", "superadmin"].includes(role)) return true;
+    if (["admin", "superadmin"].includes(role) && !blockedArea(req.session?.permissions,'admin')) return true;
     res.status(403).json({ error: "Acesso restrito a Super Administradores." });
     return false;
   }
@@ -6058,7 +6061,7 @@ export async function registerRoutes(
   // Helper: allow if Super Admin OR if user is accessing their own membro record
   async function requireCadastroOrOwn(req: any, res: any): Promise<boolean> {
     const role = await getEffectiveRole(req);
-    if (role === "admin" || role === "superadmin") return true;
+    if (["admin", "superadmin"].includes(role) && !blockedArea(req.session?.permissions,'admin')) return true;
     const sessionMembroId = (req.session as any).membroId as string | null;
     if (sessionMembroId && req.params.id === sessionMembroId) return true;
     res.status(403).json({ error: "Acesso restrito a Super Administradores." });
@@ -6256,6 +6259,11 @@ export async function registerRoutes(
         Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key) && key !== "aceite_localizacao")
       );
       const sessionRole = String((req.session as any).role || "user");
+      const accountPermissions = (req.session as any).permissions;
+      if (payload.na_vitrine === true && blockedArea(accountPermissions, 'publicar')) {
+        const current = await directusFetchOne("cadastro_geral", req.params.id, "fields=na_vitrine");
+        if (!current?.na_vitrine) return res.status(403).json({error:'Publicação na Vitrine bloqueada para esta conta.'});
+      }
       if (payload.na_vitrine === true && !["admin", "manager", "superadmin"].includes(sessionRole)) {
         const current = await directusFetchOne("cadastro_geral", req.params.id, "fields=na_vitrine");
         if (current?.na_vitrine !== true) {
@@ -6264,7 +6272,7 @@ export async function registerRoutes(
             FROM user_account_purposes
             WHERE user_id = ${String((req.session as any).directusUserId)} AND active = true
           `).then((result: any) => result.rows || []);
-          if (!canPublishVitrineProfile({ role: sessionRole, account_purposes: purposeRows.map((row: any) => row.purpose) })) {
+          if (!canPublishVitrineProfile({ role: sessionRole, permissions: accountPermissions, account_purposes: purposeRows.map((row: any) => row.purpose) })) {
             return res.status(403).json({ error: "A publicação na Vitrine é exclusiva para perfis profissionais e fornecedores." });
           }
         }
@@ -9043,7 +9051,7 @@ export async function registerRoutes(
   function buildSimpleTextPdf(
     title: string,
     sections: Array<{ title: string; body: string }>,
-    options: { headerLabel?: string; footerLabel?: string; documentDate?: string | Date } = {}
+    options: { headerLabel?: string; footerLabel?: string; documentDate?: string | Date; pageNumbers?: boolean } = {}
   ): Buffer {
     const pages: string[][] = [];
     let ops: string[] = [];
@@ -9429,7 +9437,7 @@ export async function registerRoutes(
     }
     if (ops.length) pages.push(ops);
     const totalPages = pages.length;
-    pages.forEach((pageOps, index) => {
+    if (options.pageNumbers !== false) pages.forEach((pageOps, index) => {
       const pageLabel = `Página ${index + 1} de ${totalPages}`;
       const pageLabelSize = 7.2;
       const pageLabelX = 553 - estimateTextWidth(pageLabel, pageLabelSize, "F1");
@@ -10582,8 +10590,8 @@ export async function registerRoutes(
       const membroId = (req.session as any).membroId as string | null;
       const directusUserId = (req.session as any).directusUserId as string;
 
-      // Security: if the user has no linked Directus member profile, return empty scoped data
-      if (!membroId) {
+      // The home dashboard also aggregates alliance records.
+      if (!membroId || blockedArea((req.session as any).permissions,'alliances')) {
         return res.json({
           bias: [],
           comunidades: [],
@@ -17303,6 +17311,8 @@ ${inputText.slice(0, 18000)}`,
   });
 
   const marketResearchLimit = pLimit(2);
+  registerBuiltValuationRoutes(app, { db, actor: requireCarteiraActor, access: requireCarteiraAccess });
+
   app.get("/api/carteira/imoveis/:id/avaliacao", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -17547,10 +17557,10 @@ ${inputText.slice(0, 18000)}`,
       const mime = upstream.headers.get('content-type')?.split(';')[0];
       const extension = ({'application/pdf':'pdf','image/jpeg':'jpg','image/png':'png','image/webp':'webp'} as Record<string,string>)[mime || ''];
       return {bytes: Buffer.concat(parts), name: extension ? `${fileId}.${extension}` : undefined};
-    }, (title, body) => buildSimpleTextPdf(title, [{title: 'Resumo financeiro e conteúdo', body}]));
-    res.setHeader('Content-Type', 'application/zip');
+    }, () => buildSimpleTextPdf('', [], {headerLabel: 'DOSSIÊ ANUAL BUILT', footerLabel: 'BUILT Alliances · Dossiê anual de documentos e movimentações', pageNumbers: false}));
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('Content-Disposition', `attachment; filename="dossie-${year}.zip"`);
+    res.setHeader('Content-Disposition', `attachment; filename="dossie-${year}.pdf"`);
     res.send(Buffer.from(bytes));
   }
 
@@ -23661,12 +23671,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const naVitrine = accountPurposes.includes("profissional");
       const emBuiltCapital = accountPurposes.includes("capital");
       const emMembrosBuilt = false;
-      const roleInicial: "user" | "investidor" = emBuiltCapital && !naVitrine ? "investidor" : "user";
-      const selosPorRole: Record<string, string[]> = {
-        membro: ["BUILT_PROUD_MEMBER"],
-        investidor: ["BUILT_CAPITAL_PARTNER"],
-      };
-      const selosIniciais = selosPorRole[roleInicial] || [];
+      const roleInicial = "user" as const;
 
       // 1. Create entry in Directus cadastro_geral (mandatory â€” registration fails if this fails)
       const directusPayload: Record<string, any> = {
@@ -23674,12 +23679,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         nome,
         email,
         na_vitrine: naVitrine,
-        em_built_capital: emBuiltCapital,
+        em_built_capital: false,
         em_membros_built: emMembrosBuilt,
       };
-      if (selosIniciais.length > 0) {
-        directusPayload.Outras_redes_as_quais_pertenco = selosIniciais;
-      }
       if (emBuiltCapital) {
         directusPayload.nucleo_alianca = "NÃºcleo de Capital";
         directusPayload.tipo_alianca = "AlianÃ§as de Aporte Financeiro";
@@ -24934,7 +24936,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   if (googleCalendar) {
     googleCalendar.authorize = async userId => {
       const user = await storage.getUser(userId);
-      if (!user?.ativo) return false;
+      if (!user?.ativo || blockedArea(user.permissions, 'agenda')) return false;
       const employee = await getCompanyEmployeeByUserId(userId);
       if (!employee) return true;
       const plan = await ensureCompanyPlanForOwner(String(employee.owner_user_id));
@@ -25566,7 +25568,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         hasActiveMemberEntitlementFor(user.id,memberId),getCompanyEmployeeByUserId(user.id),
         db.execute(sql`SELECT purpose FROM user_account_purposes WHERE user_id = ${user.id} AND active = true`),
       ]);
-      return memberAccessSummary({user,member:{...member,account_purposes:purposes.rows.map((r:any)=>r.purpose)},biases,overrides,entitlement,employee,bootstrap:isBootstrapSuperAdmin(user.email)});
+      const properties = await db.execute(sql`SELECT DISTINCT i.id, COALESCE(NULLIF(i.data->>'nome',''), NULLIF(i.data->>'titulo',''), i.id::text) AS name
+        FROM carteira_imovel_socios s JOIN inventario_imoveis i ON i.id=s.imovel_id
+        WHERE s.status='aceito' AND (s.user_id=${user.id} OR s.membro_id=${memberId || null}) ORDER BY name`);
+      return memberAccessSummary({user,sharedProperties:properties.rows.map(p=>({id:String(p.id),name:String(p.name)})),member:{...member,account_purposes:purposes.rows.map((r:any)=>r.purpose)},biases,overrides,entitlement,employee,bootstrap:isBootstrapSuperAdmin(user.email)});
     },
     professional:async(id,enabled,actor)=>{
       const target=await storage.getUser(id);
@@ -25628,7 +25633,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/users", async (req, res) => {
     try {
-      const parsed = createUserSchema.parse(req.body);
+      const {professional, ...parsed} = createUserSchema.extend({professional:z.boolean().optional()}).parse(req.body);
       const existing = await storage.getUserByUsername(parsed.username);
       if (existing) return res.status(409).json({ error: "Username jÃ¡ existe" });
 
@@ -25641,8 +25646,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         ...parsed,
         email: parsed.email || null,
         membro_directus_id: parsed.membro_directus_id || null,
-        permissions: (parsed.permissions as any) || (parsed.role === "admin" ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS),
-      });
+        permissions: (parsed.permissions as any) || permissionsForRole(parsed.role),
+      },professional);
       const { password, ...safe } = user;
       res.json(safe);
     } catch (error: any) {
@@ -25913,7 +25918,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!req.params.id || req.params.id === "undefined" || req.params.id === "null") {
         return res.status(400).json({ error: "Conta de acesso nÃ£o encontrada para este membro." });
       }
-      const parsed = updateUserSchema.parse(req.body);
+      const {professional, ...parsed} = updateUserSchema.extend({professional:z.boolean().optional()}).parse(req.body);
       // Strip undefined values â€” only include explicitly provided fields
       const updateData: any = Object.fromEntries(
         Object.entries(parsed).filter(([, v]) => v !== undefined)
@@ -25922,15 +25927,21 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (parsed.membro_directus_id === "") updateData.membro_directus_id = null;
       if (parsed.password === "") delete updateData.password;
 
-      if (updateData.role !== undefined || updateData.permissions !== undefined || updateData.ativo !== undefined) {
+      if (updateData.role !== undefined || updateData.permissions !== undefined || updateData.ativo !== undefined || professional !== undefined) {
         const before = await storage.getUser(req.params.id);
         if (!before) return res.status(404).json({ error: 'Conta não encontrada.' });
-        if (isBootstrapSuperAdmin(before.email) && ((updateData.role !== undefined && updateData.role !== 'admin') || updateData.ativo === false)) {
+        if (updateData.role !== undefined && updateData.permissions === undefined) {
+          updateData.permissions = withAreaChoices(permissionsForRole(updateData.role), areaChoices(before.permissions));
+        }
+        if ((updateData.role !== undefined || updateData.permissions !== undefined || professional !== undefined) && await getCompanyEmployeeByUserId(before.id)) {
+          return res.status(400).json({error:'Edite os acessos do funcionário pelo Plano Empresa.'});
+        }
+        if (isBootstrapSuperAdmin(before.email) && ((updateData.role !== undefined && updateData.role !== 'admin') || updateData.ativo === false || Object.values(areaChoices(updateData.permissions)).includes('deny'))) {
           return res.status(400).json({error:'A conta de recuperação mantém o acesso Superadmin. Use outra conta para testar os demais perfis.'});
         }
         await db.insert(userUsageEvents).values({user_id:(req as any).memberAccessActor.id,event_type:'admin_access_change_requested',path:'/api/users/:id',label:'Alteração administrativa de acesso solicitada',metadata:{target_user_id:req.params.id,before:{role:before.role,permissions:before.permissions,active:before.ativo},requested:{role:updateData.role,permissions:updateData.permissions,active:updateData.ativo}}});
       }
-      const user = await storage.updateUser(req.params.id, updateData);
+      const user = await storage.updateUser(req.params.id, updateData, professional);
       if (!user) return res.status(404).json({ error: "UsuÃ¡rio nÃ£o encontrado" });
       const { password, ...safe } = user;
       res.json(safe);
@@ -27559,35 +27570,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           // Vitrine/Capital: direct approval â†’ platform access
           newStatus = "vitrine_ativo";
           updated = await storage.updateConvite(convite.id, { status: newStatus });
-          if (convite.candidato_membro_id) {
-            const accessPatch: Record<string, any> = convite.tipo === "capital"
-              ? {
-                  na_vitrine: false,
-                  em_built_capital: true,
-                  em_membros_built: false,
-                }
-              : {
-                  na_vitrine: true,
-                  em_built_capital: false,
-                  em_membros_built: false,
-                };
-            if (convite.tipo === "capital") {
-              const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
-              const redesAtuais = Array.isArray(candidatoData?.Outras_redes_as_quais_pertenco)
-                ? candidatoData.Outras_redes_as_quais_pertenco
-                : [];
-              accessPatch.Outras_redes_as_quais_pertenco = redesAtuais.includes("BUILT_CAPITAL_PARTNER")
-                ? redesAtuais
-                : [...redesAtuais, "BUILT_CAPITAL_PARTNER"];
-            }
+          if (convite.tipo !== "capital" && convite.candidato_membro_id) {
+            const accessPatch = { na_vitrine: true, em_built_capital: false, em_membros_built: false };
             await directusUpdate("cadastro_geral", convite.candidato_membro_id, accessPatch);
           }
 
-          // Keep the local role aligned with the invite type without unlocking Alliances.
-          const allUsers = await storage.getAllUsers();
-          const candidatoUser = allUsers.find(u => u.membro_directus_id === convite.candidato_membro_id);
-          if (candidatoUser) {
-            await storage.updateUser(candidatoUser.id, { role: convite.tipo === "capital" ? "investidor" : "user" });
+          if (convite.tipo !== "capital" && convite.candidato_membro_id) {
+            const candidatoUser = (await storage.getAllUsers()).find(u => u.membro_directus_id === convite.candidato_membro_id);
+            if (candidatoUser) await storage.updateUser(candidatoUser.id, { role: "user" });
           }
           if (convite.candidato_email) {
             await enviarAprovacaoVitrine({
@@ -28407,27 +28397,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       // Update convite status
       await storage.updateConvite(convite.id, { status: "vitrine_ativo" });
 
-      if (convite.candidato_membro_id) {
-        const accessPatch: Record<string, any> = convite.tipo === "capital"
-          ? {
-              na_vitrine: false,
-              em_built_capital: true,
-              em_membros_built: false,
-            }
-          : {
-              na_vitrine: true,
-              em_built_capital: false,
-              em_membros_built: false,
-            };
-        if (convite.tipo === "capital") {
-          const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
-          const redesAtuais = Array.isArray(candidatoData?.Outras_redes_as_quais_pertenco)
-            ? candidatoData.Outras_redes_as_quais_pertenco
-            : [];
-          accessPatch.Outras_redes_as_quais_pertenco = redesAtuais.includes("BUILT_CAPITAL_PARTNER")
-            ? redesAtuais
-            : [...redesAtuais, "BUILT_CAPITAL_PARTNER"];
-        }
+      if (convite.tipo !== "capital" && convite.candidato_membro_id) {
+        const accessPatch = { na_vitrine: true, em_built_capital: false, em_membros_built: false };
         try {
           await directusUpdate("cadastro_geral", convite.candidato_membro_id, accessPatch);
         } catch (err: any) {
@@ -28436,11 +28407,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      // Keep the local role aligned with the invite type without unlocking Alliances.
-      const allUsers = await storage.getAllUsers();
-      const candidatoUser = allUsers.find(u => u.membro_directus_id === convite.candidato_membro_id);
-      if (candidatoUser) {
-        await storage.updateUser(candidatoUser.id, { role: convite.tipo === "capital" ? "investidor" : "user" });
+      if (convite.tipo !== "capital" && convite.candidato_membro_id) {
+        const candidatoUser = (await storage.getAllUsers()).find(u => u.membro_directus_id === convite.candidato_membro_id);
+        if (candidatoUser) await storage.updateUser(candidatoUser.id, { role: "user" });
       }
 
       // Send approval email to candidate and notify invitador
@@ -29108,13 +29077,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       redes.includes("BUILT_FOUNDING_MEMBER") ||
       redes.includes("BUILT_ALLIANCE_PARTNER");
     const canConsultAura =
+      areaChoices((req.session as any).permissions).aura === "permit" ||
       emMembrosBuilt ||
       ["membro", "aliado", "manager", "admin", "superadmin"].includes(role) ||
       hasMemberSeal;
-    const canRegisterAura = canConsultAura;
+    // Opening Aura does not grant a relationship for submitting a perception.
+    const canRegisterAura = emMembrosBuilt || hasMemberSeal || ["membro","aliado","manager","admin","superadmin"].includes(role);
     const isVitrineOnly =
       role === "user" &&
       naVitrine &&
+      areaChoices((req.session as any).permissions).aura !== "permit" &&
       !emMembrosBuilt &&
       !emBuiltCapital;
 

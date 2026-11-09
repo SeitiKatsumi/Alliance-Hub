@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "id": "2026-11-09-global-capital-profile",
+  "title": "Retirar BUILT Capital dos perfis globais concedidos",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/account-access-profiles.ts",
+    "shared/member-access-summary.ts"
+  ],
+  "searchTerms": [
+    "ACCOUNT_ACCESS_PRESETS",
+    "accountAccessPreset",
+    "memberAccessSummary",
+    "accountProfiles",
+    "ROLE_OPTIONS"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "client/src/lib/access-session.test.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "shared/account-access-profiles.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "shared/member-access-summary.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "shared/member-access-summary.test.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Escopo de concessão/relato de papéis globais da conta; ver contrato Administração e evidências por área."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.tsx",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.test.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/components/member-access-panel.tsx",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "shared/environment-access.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "shared/asaas.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "server/admin-member-access.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "server/bia-map-history.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Consome catálogo, schema ou relatório: leitura/compatibilidade contextual, papéis operacionais, cálculos e permissões existentes preservados."
+    },
+    {
+      "path": "server/auth-google.ts",
+      "decision": "preserved",
+      "reason": "Acesso, armazenamento e autenticação leem o papel persistido e os defaults históricos. O enum alterado valida entrada das rotas administrativas, não muda tabela, sessão ou provisionamento Google."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/bia-legacy-zero.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/bia-map-history.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/business-trace.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/contribution-cancellation.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/db.ts",
+      "decision": "preserved",
+      "reason": "Acesso, armazenamento e autenticação leem o papel persistido e os defaults históricos. O enum alterado valida entrada das rotas administrativas, não muda tabela, sessão ou provisionamento Google."
+    },
+    {
+      "path": "server/initial-contributions.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/invite-community-origin.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/live-account-access.test.ts",
+      "decision": "preserved",
+      "reason": "Acesso, armazenamento e autenticação leem o papel persistido e os defaults históricos. O enum alterado valida entrada das rotas administrativas, não muda tabela, sessão ou provisionamento Google."
+    },
+    {
+      "path": "server/live-account-access.ts",
+      "decision": "preserved",
+      "reason": "Acesso, armazenamento e autenticação leem o papel persistido e os defaults históricos. O enum alterado valida entrada das rotas administrativas, não muda tabela, sessão ou provisionamento Google."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/quota-correction.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo do schema/armazenamento. Verificadas referências: regras de BIA, convites de comunidade, finanças e cronogramas não usam o perfil de concessão removido. Suíte integral cobre esses fluxos."
+    },
+    {
+      "path": "server/replit_integrations/audio/index.ts",
+      "decision": "preserved",
+      "reason": "Integração usa tabelas de conversa/mensagem do mesmo módulo de schema, não o enum do cadastro de usuários."
+    },
+    {
+      "path": "server/replit_integrations/audio/routes.ts",
+      "decision": "preserved",
+      "reason": "Integração usa tabelas de conversa/mensagem do mesmo módulo de schema, não o enum do cadastro de usuários."
+    },
+    {
+      "path": "server/replit_integrations/chat/index.ts",
+      "decision": "preserved",
+      "reason": "Integração usa tabelas de conversa/mensagem do mesmo módulo de schema, não o enum do cadastro de usuários."
+    },
+    {
+      "path": "server/replit_integrations/chat/routes.ts",
+      "decision": "preserved",
+      "reason": "Integração usa tabelas de conversa/mensagem do mesmo módulo de schema, não o enum do cadastro de usuários."
+    },
+    {
+      "path": "server/replit_integrations/chat/storage.ts",
+      "decision": "preserved",
+      "reason": "Acesso, armazenamento e autenticação leem o papel persistido e os defaults históricos. O enum alterado valida entrada das rotas administrativas, não muda tabela, sessão ou provisionamento Google."
+    },
+    {
+      "path": "server/storage.ts",
+      "decision": "preserved",
+      "reason": "Acesso, armazenamento e autenticação leem o papel persistido e os defaults históricos. O enum alterado valida entrada das rotas administrativas, não muda tabela, sessão ou provisionamento Google."
+    },
+    {
+      "path": "shared/account-areas.ts",
+      "decision": "reviewed",
+      "reason": "Obtém a hierarquia do catálogo de perfis concedíveis e não atribui o antigo perfil Capital."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Preset, cartões, presença e controles acumuláveis/selos do editor perdem a concessão global. Resumo vincula conta antiga ao papel anterior. Descrições de gestor, superadmin e coproprietário agora explicam o alcance."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Criação/atualização administrativa usa o enum restrito. Registro novo usa papel comum; aprovações do convite de capital não atribuem investidor nem selo. Sem atualização em massa."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Campo, selo, termos, registro histórico e papéis de contas existentes são mantidos. Edição comum não envia a flag; troca explícita de perfil desativa o legado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Sem alteração de CPP, MAP, cálculo financeiro, gráfico ou carteira."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Fluxo de decisão e avisos de aprovação existente preservado; nenhuma mensagem enviada."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Catálogo funcional e relatório administrativo atualizados. Documentos e termos assinados preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Nenhuma operação bancária, tarefa, webhooks ou sincronização nova. Interesse em aporte e cargos da própria BIA são contextuais."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Sem fusão de papéis ou aumento de privilégios. Coproprietário consulta compartilhamentos; Asaas/admin de contas seguem exclusivos. APIs rejeitam atribuição do papel aposentado."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Leitura de investidor no domínio legado, defaults, rotas antigas e identificação de papel persistido preservados; um interesse capital não vira novo papel."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "18 regressões focadas aprovadas: seletor, schema, sessão, editor e resumo, sem transação em conta real. Verificação integral no log capital-role-verify."
+    }
+  ],
+  "regressionTests": [
+    "client/src/lib/access-session.test.ts",
+    "client/src/pages/membros-permissions.test.ts",
+    "shared/member-access-summary.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "no-global-built-capital-profile"
+  ]
+}

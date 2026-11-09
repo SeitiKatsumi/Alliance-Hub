@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "id": "2026-11-09-dossier-pdf",
+  "title": "Dossiê em PDF com sumário inicial e modelo visual do MOU",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/dossier.ts",
+    "server/dossier-layout.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "buildDossier",
+    "dossierLayout",
+    "DossierExport",
+    "DOSSIÊ ANUAL BUILT"
+  ],
+  "consumers": [
+    {
+      "path": "server/dossier.ts",
+      "decision": "updated",
+      "reason": "Extrato anual, resumo, anexos originais e prévias, MAP e manifesto no mesmo PDF."
+    },
+    {
+      "path": "server/dossier-layout.ts",
+      "decision": "updated",
+      "reason": "Usa página de fundo do MOU, sumário com destinos PDF e numeração contínua após paginação."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Duas rotas GET com mesmas permissões/dados; retornam application/pdf e nome .pdf. Opção de suprimir numeração só no fundo reutilizado."
+    },
+    {
+      "path": "server/dossier.test.ts",
+      "decision": "updated",
+      "reason": "Verifica estrutura navegável, quebras no extrato, originais recuperáveis, limites e autorização."
+    },
+    {
+      "path": "client/src/components/dossier-export.tsx",
+      "decision": "updated",
+      "reason": "Baixar PDF com tipo conferido na resposta e extensão .pdf em ambas as telas."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Contrato da exportação da BIA passa a PDF, com versões históricas do MAP."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Contrato do imóvel passa a PDF, sem MAP."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Protege o novo formato na interface e gerador de dossiês."
+    },
+    {
+      "path": "package.json",
+      "decision": "updated",
+      "reason": "pdf-lib substitui empacotador ZIP para compor PDF/anexos."
+    },
+    {
+      "path": "package-lock.json",
+      "decision": "updated",
+      "reason": "Versões instaladas da dependência e dependências transitivas."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor das páginas, rotas ou testes já existentes. Nenhuma decisão de permissão, vínculo ou fonte é alterada pelo novo formato."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "preserved",
+      "reason": "Documentos dos núcleos conserva suas fontes e permissões por BIA; o PDF usa somente os documentos permitidos ao Financeiro."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Prévia com componente real e dados fictícios: diálogo de imóvel no desktop, diálogo da BIA em390x844 sem overflow e download dossie-bia-2026.pdf confirmado no navegador."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET das duas áreas retorna application/pdf com download .pdf, cache privado; falha ao obter um original interrompe o download."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Fontes de extrato, documentos e snapshots versionados seguem existentes; não grava um dossiê ou altera registros."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Regra anual e totais em centavos de caixa pago preservados; resumo em moeda do recurso e extrato inclui pendências. Nenhum dashboard muda."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Download solicitado no navegador; não há envio SMTP ou notificações."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "PDF único no modelo de MOU com sumário inicial navegável e paginação real. Arquivos originais, CSV e manifesto continuam acessíveis como anexos. Prévias legíveis em PDF/JPEG/PNG; arquivo protegido/incompatível permanece íntegro."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Leitura dos mesmos arquivos pelo host configurado. Sem provedores, tarefas ou mutações financeiras novas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mesmas verificações de sessão, leitura do imóvel, financeiro e núcleos da BIA; regressões de negação e isolamento preservadas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "MAPs e MOUs existentes não são regravados; mesma rota e filtros. Formato do download muda conforme solicitação."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Regressões focadas de PDF, paginação, SHA/bytes e permissão; prova fictícia renderizada com funções reais do MOU. Suíte completa, tipos e build aprovados. Download do exemplo em UI isolada; exportação de conta real não exercitada."
+    }
+  ],
+  "regressionTests": [
+    "server/dossier.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "dossier-export-pdf"
+  ]
+}

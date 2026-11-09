@@ -33,7 +33,7 @@ function AllianceAccess({item,memberId,onSaved}:{item:MemberAccessSummary['allia
   </details>;
 }
 
-export function MemberAccessPanel({userId,profileControls}:{userId:string;profileControls?:ReactNode}) {
+export function MemberAccessPanel({userId,profileControls}:{userId:string;profileControls?:(summary: MemberAccessSummary)=>ReactNode}) {
   const cache=useQueryClient();
   const key=['/api/admin/member-access',userId];
   const query=useQuery<MemberAccessSummary>({queryKey:key,queryFn:async()=>(await apiRequest('GET',`/api/admin/member-access/${encodeURIComponent(userId)}`)).json(),retry:false});
@@ -44,13 +44,16 @@ export function MemberAccessPanel({userId,profileControls}:{userId:string;profil
     <div className="rounded-lg border border-border bg-background p-4">
       <h3 className="text-lg font-semibold">Quem é este usuário</h3>
       <p className="mt-3 font-medium">Membro BUILT: {data.profiles.includes('membro')?'Sim':'Não'}</p>
-      {profileControls}
+      {profileControls?.(data)}
       <div className="mt-3 flex flex-wrap gap-2">{[data.roleLabel,data.entitlement?'Benefícios de membro ativos':'Sem anuidade/plano ativo',data.professional?'Perfil profissional':null,data.active?'Conta ativa':'Conta inativa'].filter(Boolean).map(label=><span key={label} className="rounded-md border border-border px-2 py-1 text-sm">{label}</span>)}</div>
       {data.bootstrap && <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Esta conta é administradora de recuperação. Para testar um usuário comum, use outra conta.</p>}
-      {data.admin && <p className="mt-3 text-sm text-muted-foreground">Esta conta possui privilégios administrativos. Os cargos abaixo não limitam esses privilégios.</p>}
+      {data.admin && <p className="mt-3 text-sm text-muted-foreground">Este perfil tem acesso operacional às BIAs. As exceções da conta também se aplicam.</p>}
       {!data.active && <p className="mt-3 text-sm text-muted-foreground">A conta inativa não pode entrar, mesmo com permissões cadastradas.</p>}
     </div>
     <div><h3 className="font-semibold">Ambientes liberados</h3><div className="mt-3 grid gap-2 sm:grid-cols-3">{data.environments.map(env=><div key={env.key} className="rounded-lg border border-border p-3"><p className="font-medium">{env.label}</p><p className={`mt-1 text-sm ${env.allowed?'text-emerald-700 dark:text-emerald-300':'text-muted-foreground'}`}>{env.allowed?'Liberado':'Sem acesso'}</p></div>)}</div><p className="mt-2 text-sm text-muted-foreground">Vitrine: {data.published?'perfil publicado':'perfil não publicado'}. Entrar no ambiente e publicar um perfil são permissões diferentes.</p></div>
+    <div className="rounded-lg border border-border p-4"><h3 className="font-semibold">Copropriedade em imóveis</h3>
+      {data.sharedProperties?.length ? <ul className="mt-2 space-y-1">{data.sharedProperties.map(p=><li key={p.id}>{p.name}</li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">Nenhum vínculo de copropriedade aceito.</p>}
+    </div>
     <div className="space-y-3"><h3 className="font-semibold">Cargos e acessos por aliança</h3>
       <p className="text-sm text-muted-foreground">Estes cargos mudam as abas e ações dentro de cada BIA. Use “Alterar cargo na equipe da BIA” para testá-los.</p>
       <div className="flex flex-wrap gap-2" aria-label="Cargos disponíveis nas BIAs">{Object.entries(BIA_PARTICIPANT_ROLE_LABELS).map(([role,label])=><span key={role} className="rounded-md border border-border px-2 py-1 text-xs">{label}</span>)}</div>

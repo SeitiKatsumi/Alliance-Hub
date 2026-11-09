@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "id": "2026-11-09-account-access-binary",
+  "title": "Acessos Permitido ou Restrito e explicação do cargo",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/account-access-profiles.ts",
+    "client/src/components/account-profile-picker.tsx"
+  ],
+  "searchTerms": [
+    "AccountProfilePicker",
+    "ACCOUNT_ACCESS_PRESETS"
+  ],
+  "consumers": [
+    {
+      "path": "shared/account-access-profiles.ts",
+      "decision": "updated",
+      "reason": "Seletor de áreas binário, personalização inicialmente fechada e descrição individual do cargo no ícone de ajuda."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.tsx",
+      "decision": "updated",
+      "reason": "Seletor de áreas binário, personalização inicialmente fechada e descrição individual do cargo no ícone de ajuda."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.test.ts",
+      "decision": "updated",
+      "reason": "Seletor de áreas binário, personalização inicialmente fechada e descrição individual do cargo no ícone de ajuda."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Seletor de áreas binário, personalização inicialmente fechada e descrição individual do cargo no ícone de ajuda."
+    },
+    {
+      "path": "client/src/lib/access-session.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor do catálogo de perfis: valores e papéis permanecem idênticos. O campo description apenas fornece a ajuda do cargo selecionado; a matriz e a persistência existentes continuam em uso."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor do catálogo de perfis: valores e papéis permanecem idênticos. O campo description apenas fornece a ajuda do cargo selecionado; a matriz e a persistência existentes continuam em uso."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor do catálogo de perfis: valores e papéis permanecem idênticos. O campo description apenas fornece a ajuda do cargo selecionado; a matriz e a persistência existentes continuam em uso."
+    },
+    {
+      "path": "shared/account-areas.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor do catálogo de perfis: valores e papéis permanecem idênticos. O campo description apenas fornece a ajuda do cargo selecionado; a matriz e a persistência existentes continuam em uso."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor do catálogo de perfis: valores e papéis permanecem idênticos. O campo description apenas fornece a ajuda do cargo selecionado; a matriz e a persistência existentes continuam em uso."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Opções Permitido e Restrito, personalização fechada e ajuda conforme o perfil selecionado.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Alteração de apresentação e catálogo de descrições. Preserva representação das exceções, autorização, dados e fluxos externos.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Opções Permitido e Restrito, personalização fechada e ajuda conforme o perfil selecionado.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/account-profile-picker.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "./ui/button";
+import { BuiltValuationWorkbench } from './built-valuation-workbench';
 
 type Source = { titulo: string; url: string; trecho?: string };
 export interface PropertyAssessment {
@@ -31,7 +32,7 @@ export function PropertyValuation({ id, canManage, onEdit }: { id: string; canMa
       client.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     }).catch((e: Error) => setError(e.message)).finally(() => setResearch(false));
   }, [id, canManage, query.data?.precisa_atualizar, query.data?.pesquisa_chave, query.dataUpdatedAt, research, client]);
-  return <PropertyValuationReport data={query.data} loading={query.isLoading || research} error={error || (query.isError ? "Não foi possível consultar a avaliação." : "")} onEdit={canManage ? onEdit : undefined} />;
+  return <div className="min-w-0 space-y-6"><PropertyValuationReport data={query.data} loading={query.isLoading || research} error={error || (query.isError ? "Não foi possível consultar a avaliação." : "")} onEdit={canManage ? onEdit : undefined} /><BuiltValuationWorkbench id={id} canManage={canManage} /></div>;
 }
 export function PropertyValuationReport({ data, loading, error, onEdit }: { data?: PropertyAssessment; loading?: boolean; error?: string; onEdit?: () => void }) {
   const current = data?.status === "atualizada";

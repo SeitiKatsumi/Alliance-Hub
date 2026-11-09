@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {memberAccessSummary} from './member-access-summary';
 const base={user:{id:'u',membro_directus_id:'m',role:'user',ativo:true},member:{},biases:[],overrides:[],entitlement:false,employee:null,bootstrap:false};
-test('common account does not gain alliance or capital access by viewing the report',()=>{
+test('relatório de conta comum mostra apenas os ambientes ativos',()=>{
  const result=memberAccessSummary(base);
  assert.equal(result.roleLabel,'Usuário comum');
- assert.deepEqual(result.environments.map(e=>e.allowed),[true,false,false]);
+ assert.deepEqual(result.environments.map(e=>[e.key,e.allowed]),[['vitrine',true],['alliances',false]]);
+ assert.deepEqual(memberAccessSummary({...base,user:{...base.user,role:'investidor'},member:{em_built_capital:true,Outras_redes_as_quais_pertenco:['BUILT_CAPITAL_PARTNER']}}).profiles,[]);
  assert.equal(result.entitlement,false);
 });
 test('multiple contextual roles use the official matrix and do not leak another BIA',()=>{

@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "id": "2026-11-09-built-method-v2",
+  "title": "Método BUILT v2 com estudos de avaliação, estratégias, cenários e governança privada",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/built-valuation.ts",
+    "server/built-valuation.ts"
+  ],
+  "searchTerms": [
+    "BUILT_METHOD_VERSION",
+    "BuiltValuationWorkbench",
+    "metodo-built",
+    "builtReportHtml",
+    "calculateBuiltCase"
+  ],
+  "consumers": [
+    {
+      "path": "shared/built-valuation.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "shared/built-valuation.test.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "server/built-valuation.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "server/built-valuation-report.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "server/built-valuation.test.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "client/src/components/built-valuation-workbench.tsx",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "client/src/components/built-valuation-workbench.test.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "client/src/components/property-valuation.tsx",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "docs/platform/platform-contract.json",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "decision": "updated",
+      "reason": "Implementação do Método BUILT v2 descrita no contrato da Carteira; mudanças paralelas preservadas. Para server/routes.ts, alteração restrita ao import e registro das novas rotas."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "A aba Análise existente monta PropertyValuation e o novo editor. Fontes de cadastro, valores e dossiê paralelo mantidos; adoção invalida seus caches."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor da Carteira e do resumo. Referência adotada segue o resumo existente; cenários não entram nos totais automaticamente."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas da Carteira mantidas, sem exposição pública adicional."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo provedor React e cache; nenhuma configuração de acesso alterada."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Mesmo registro de rotas, parser e sessão. Não adiciona cron ou serviço externo."
+    },
+    {
+      "path": "server/property-market-evidence.ts",
+      "decision": "preserved",
+      "reason": "Reutiliza somente fingerprint para recusar adoção após mudança de cadastro; pesquisa e evidência residencial existentes mantidas."
+    },
+    {
+      "path": "shared/property-cib.ts",
+      "decision": "preserved",
+      "reason": "Normalização existente reutilizada para o CIB informado no estudo. Sem consulta ou certificação oficial."
+    },
+    {
+      "path": "shared/property-thesis.ts",
+      "decision": "preserved",
+      "reason": "Teses canônicas reutilizadas, sem nova taxonomia concorrente."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo/contrato de funcionalidades atualizado. Mantém apresentação/verificações existentes; não muda permissões, cálculos nem rotas desses consumidores. O teste do catálogo passou na verificação global."
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo/contrato de funcionalidades atualizado. Mantém apresentação/verificações existentes; não muda permissões, cálculos nem rotas desses consumidores. O teste do catálogo passou na verificação global."
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo/contrato de funcionalidades atualizado. Mantém apresentação/verificações existentes; não muda permissões, cálculos nem rotas desses consumidores. O teste do catálogo passou na verificação global."
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo/contrato de funcionalidades atualizado. Mantém apresentação/verificações existentes; não muda permissões, cálculos nem rotas desses consumidores. O teste do catálogo passou na verificação global."
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "decision": "preserved",
+      "reason": "Consumidor do catálogo/contrato de funcionalidades atualizado. Mantém apresentação/verificações existentes; não muda permissões, cálculos nem rotas desses consumidores. O teste do catálogo passou na verificação global."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componentes reais com API nova/PGlite isolado: desktop1280 e mobile390x844, sem overflow global; edição/salvar/reabrir/adoção, cenários, revisão com parecer e download de relatório conferidos. Capturas output/built-method. Sem imóveis/pareceres reais gravados."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Novas rotas usam resolvedor oficial antes dos dados; resultados recalculados no servidor, evidências limitadas ao imóvel, conflitos409 e histórico append-only. Teste SQL com PGlite aprovado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Somente tabelas existentes carteira_analises e carteira_eventos, além da adoção explícita na referência do inventário. Sem migração, Directus, novo campo físico ou backfill."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Helper único para métodos e cenários; mediana, NOI/taxa, DCF dias/365, perdas sucessivas e residual. Exemplos do manual, metas e separação do financiamento testados. Não altera séries/CPPs ou trata cenários como patrimônio realizado."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Nenhum novo envio, destinatário ou contador. SMTP/alertas mantidos. Adoção invalida consultas da Carteira e preserva a rotina patrimonial existente."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Relatório HTML UTF-8 autocontido, escapado, impressão/PDF, hash/snapshot privado, fontes e escopo de revisão. Sem modificar assinados ou dossiê paralelo."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem dependência, job ou conexão externa nova; busca de mercado residencial existente preservada. CIB, credenciais profissionais e dados de negócios não são certificados automaticamente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Leitura/administração oficiais em todas as rotas; documento de outra propriedade recusado; autoria/horário capturados do servidor. Campos calculados do cliente são ignorados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Preserva análises e pesquisa anteriores. Nova versão e tipos internos separados; adoção explícita altera apenas valor atual/origem/data, sem aquisição/participação/caixa. Mudanças paralelas não são atestadas por este registro."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "15 regressões novas de domínio/SQL/relatório/UI aprovadas; 18 testes focados com botão loading também passaram. Primeira verificação completa784testes/0falhas, tipos/tooling/contrato/consistência/build verdes. Rodada final depois das últimas correções registrada em .BUILT-tmp/built-method-verify-final.log; não declara acurácia de mercado nem revisão profissional real."
+    }
+  ],
+  "regressionTests": [
+    "shared/built-valuation.test.ts",
+    "server/built-valuation.test.ts",
+    "client/src/components/built-valuation-workbench.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

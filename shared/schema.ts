@@ -1,3 +1,4 @@
+import { ACCOUNT_ACCESS_PRESETS, normalizeAccountRole } from './account-access-profiles';
 import type { QuotaCorrectionRecord } from "./quota-correction";
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, uuid, boolean, jsonb, timestamp, serial, numeric, date, unique, uniqueIndex, integer } from "drizzle-orm/pg-core";
@@ -98,7 +99,19 @@ export const ROLE_PERMISSIONS: Record<string, ModulePermissions> = {
 };
 
 export function permissionsForRole(role?: string | null): ModulePermissions {
-  return ROLE_PERMISSIONS[role || "user"] || DEFAULT_PERMISSIONS;
+  // A higher account level includes each lower level's module capabilities.
+  const effectiveRole = normalizeAccountRole(role);
+  const rank = ACCOUNT_ACCESS_PRESETS.findIndex(preset => preset.value === effectiveRole);
+  if (rank < 0) return ROLE_PERMISSIONS[effectiveRole] || DEFAULT_PERMISSIONS;
+  if (['manager', 'admin'].includes(effectiveRole)) return {...ADMIN_PERMISSIONS};
+  const result = {...DEFAULT_PERMISSIONS};
+  for (const {role: level} of ACCOUNT_ACCESS_PRESETS.slice(0,rank+1)) {
+    for (const key of MODULE_KEYS) {
+      const permission = ROLE_PERMISSIONS[level][key];
+      if (permission === 'edit' || (permission === 'view' && result[key] === 'none')) result[key] = permission;
+    }
+  }
+  return result;
 }
 
 export const users = pgTable("users", {
@@ -954,7 +967,7 @@ export const createUserSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   membro_directus_id: z.string().optional().or(z.literal("")),
-  role: z.enum(["admin", "manager", "user", "membro", "investidor", "aliado", "coproprietario"]).default("user"),
+  role: z.enum(["admin", "manager", "user", "membro", "aliado"]).default("user"),
   permissions: z.record(z.enum(["none", "view", "edit"])).optional(),
   ativo: z.boolean().default(true),
 });

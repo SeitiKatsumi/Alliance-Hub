@@ -2,43 +2,115 @@
   "version": 1,
   "rules": [
     {
-      "id": "aura-no-registration-toggle",
-      "description": "Perfil Aura mostra o formulário autorizado diretamente, sem botão intermediário para abrir ou ocultar o registro.",
-      "terms": ["registrationOpen", "setRegistrationOpen", "\"Fechar registro\"", "\"Registrar percepção\""],
-      "roots": ["client/src/pages/aura.tsx"],
-      "regressionTests": ["client/src/pages/aura-direct-form.test.ts"],
+      "id": "no-global-built-capital-profile",
+      "description": "O perfil aposentado não volta a ser oferecido nos seletores administrativos.",
+      "terms": [
+        "Investidor · BUILT Capital",
+        "Acesso ao ambiente de capital",
+        "Aparece na seção de capital"
+      ],
+      "roots": [
+        "client/src/pages/membros.tsx",
+        "shared/account-access-profiles.ts"
+      ],
+      "regressionTests": [
+        "client/src/lib/access-session.test.ts",
+        "client/src/pages/membros-permissions.test.ts"
+      ],
       "exceptions": []
     },
     {
-      "id":"profile-aura-formation-label",
-      "description":"Prévia do Meu Perfil identifica explicitamente a Aura quando ainda não há score; outros usos de Em formação permanecem locais.",
-      "terms":[": \"Em formação\"}"],
-      "roots":["client/src/pages/meu-perfil.tsx"],
-      "regressionTests":["client/src/pages/meu-perfil-layout.test.ts"],
-      "exceptions":[]
+      "id": "dossier-export-pdf",
+      "description": "A exportação anual baixa um PDF com originais incorporados.",
+      "terms": [
+        "O ZIP inclui",
+        "dossie-${kind}-${year}.zip",
+        "zipSync("
+      ],
+      "roots": [
+        "client/src/components/dossier-export.tsx",
+        "server/dossier.ts"
+      ],
+      "regressionTests": [
+        "server/dossier.test.ts"
+      ],
+      "exceptions": []
     },
     {
-      "id":"home-aura-lookup-no-page-redirect",
-      "description":"Consultar Aura nas ações rápidas abre o modal local; link direto legado permanece permitido na página Aura.",
-      "terms":["/aura?registrar=1"],
-      "roots":["client/src/pages/painel.tsx"],
-      "regressionTests":["client/src/components/aura-lookup-dialog.test.ts"],
-      "exceptions":[]
+      "id": "aura-no-registration-toggle",
+      "description": "Perfil Aura mostra o formulário autorizado diretamente, sem botão intermediário para abrir ou ocultar o registro.",
+      "terms": [
+        "registrationOpen",
+        "setRegistrationOpen",
+        "\"Fechar registro\"",
+        "\"Registrar percepção\""
+      ],
+      "roots": [
+        "client/src/pages/aura.tsx"
+      ],
+      "regressionTests": [
+        "client/src/pages/aura-direct-form.test.ts"
+      ],
+      "exceptions": []
     },
     {
-      "id":"agenda-aporte-no-task-detour",
-      "description":"Aviso de aporte abre o lançamento pelo helper compartilhado; e-mail/calendário preservam URLs históricas.",
-      "terms":["href:contributionAgendaUrl(row.id)"],
-      "roots":["server/contribution-reminders.ts"],
-      "regressionTests":["server/contribution-reminders.test.ts","shared/agenda-action.test.ts"],
-      "exceptions":[]
+      "id": "profile-aura-formation-label",
+      "description": "Prévia do Meu Perfil identifica explicitamente a Aura quando ainda não há score; outros usos de Em formação permanecem locais.",
+      "terms": [
+        ": \"Em formação\"}"
+      ],
+      "roots": [
+        "client/src/pages/meu-perfil.tsx"
+      ],
+      "regressionTests": [
+        "client/src/pages/meu-perfil-layout.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "home-aura-lookup-no-page-redirect",
+      "description": "Consultar Aura nas ações rápidas abre o modal local; link direto legado permanece permitido na página Aura.",
+      "terms": [
+        "/aura?registrar=1"
+      ],
+      "roots": [
+        "client/src/pages/painel.tsx"
+      ],
+      "regressionTests": [
+        "client/src/components/aura-lookup-dialog.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "agenda-aporte-no-task-detour",
+      "description": "Aviso de aporte abre o lançamento pelo helper compartilhado; e-mail/calendário preservam URLs históricas.",
+      "terms": [
+        "href:contributionAgendaUrl(row.id)"
+      ],
+      "roots": [
+        "server/contribution-reminders.ts"
+      ],
+      "regressionTests": [
+        "server/contribution-reminders.test.ts",
+        "shared/agenda-action.test.ts"
+      ],
+      "exceptions": []
     },
     {
       "id": "agenda-extra-alert-sections",
       "description": "Alertas usa a lista existente de Aprovações pendentes, sem uma segunda camada Pendências/Convites e chamadas.",
-      "terms": ["Tipos de alertas", "showInvites", ">Convites e chamadas<"],
-      "roots": ["client/src/pages/agenda-alertas.tsx"],
-      "regressionTests": ["client/src/pages/agenda-pending-shortcut.test.ts", "client/src/pages/agenda-unified-approvals.test.ts"],
+      "terms": [
+        "Tipos de alertas",
+        "showInvites",
+        ">Convites e chamadas<"
+      ],
+      "roots": [
+        "client/src/pages/agenda-alertas.tsx"
+      ],
+      "regressionTests": [
+        "client/src/pages/agenda-pending-shortcut.test.ts",
+        "client/src/pages/agenda-unified-approvals.test.ts"
+      ],
       "exceptions": []
     },
     {
@@ -300,6 +372,21 @@
       ],
       "regressionTests": [
         "shared/bia-automatic-indicators.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "no-duplicate-account-profile-selector",
+      "description": "O editor atribui um nível global em um único campo por conta.",
+      "terms": [
+        "Adicionar ou remover perfis",
+        "applyRoleSelection("
+      ],
+      "roots": [
+        "client/src/pages/membros.tsx"
+      ],
+      "regressionTests": [
+        "client/src/pages/membros-permissions.test.ts"
       ],
       "exceptions": []
     }

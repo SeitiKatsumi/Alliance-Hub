@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "id": "2026-11-09-admin-top-navigation",
+  "title": "Ajustar as abas superiores da Administração",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/admin.tsx"
+  ],
+  "searchTerms": [
+    "Seções da administração"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "updated",
+      "reason": "Barra alinhada ao conteúdo, cores do tema, links com foco visível e rótulos que quebram no celular."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Contrato da navegação superior."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    },
+    {
+      "path": "shared/asaas.ts",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    },
+    {
+      "path": "client/src/components/admin-commercial-policies.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    },
+    {
+      "path": "client/src/components/bia-structuring-queue.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor ou dependência direta conferida; rotas, verificação do papel e conteúdo de cada seção preservados."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Página Admin real em prévia com painéis/dados fictícios. Desktop: quatro links na mesma linha, clique em Estruturação muda URL/painel e aria-current. A 360px: duas linhas sem overflow, cor ativa azul e rótulo completo. Perfil restrito: três links, Asaas direto nega acesso. Captura output/admin-tabs-qa/mobile.png."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Apenas links locais da página; nenhuma ação chama nova API."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Estado ativo continua vindo da query tab; não existem escritas ou migrações."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Somente a barra acima do conteúdo; indicadores e painéis permanecem com suas fontes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Links de navegação não enviam mensagens nem criam notificações."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Nenhuma exportação, PDF ou relatório alterado."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Navegação para Asaas conserva o componente e a integração atuais."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Condição canReadAsaasAdmin e ramo de acesso negado por URL direta preservados."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Links existentes membros, estruturacao-bias, politicas e asaas continuam válidos; valor desconhecido abre Membros."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Suíte completa 784 testes aprovados e build concluído. foundation.test.ts cobre a regra de visibilidade Asaas preservada. QA visual da navegação em prévia isolada."
+    }
+  ],
+  "regressionTests": [
+    "server/asaas/foundation.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

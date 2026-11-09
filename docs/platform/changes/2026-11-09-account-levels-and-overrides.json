@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "id": "2026-11-09-account-levels-and-overrides",
+  "title": "Perfil único com herança e exceções por pessoa",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/account-areas.ts",
+    "shared/account-access-profiles.ts"
+  ],
+  "searchTerms": [
+    "AccountProfilePicker",
+    "areaChoices",
+    "inheritsArea"
+  ],
+  "consumers": [
+    {
+      "path": "shared/account-areas.ts",
+      "reason": "Hierarquia de áreas, exceções individuais e correspondência de rotas.",
+      "decision": "updated"
+    },
+    {
+      "path": "shared/schema.ts",
+      "reason": "Níveis cumulativos e validação das atribuições de papel.",
+      "decision": "updated"
+    },
+    {
+      "path": "shared/account-access-profiles.ts",
+      "reason": "Catálogo dos seis níveis atribuíveis.",
+      "decision": "updated"
+    },
+    {
+      "path": "shared/environment-access.ts",
+      "reason": "Consulta e publicação aplicam as exceções e preservam escopo empresarial.",
+      "decision": "updated"
+    },
+    {
+      "path": "shared/member-access-summary.ts",
+      "reason": "Resumo de ambientes, papéis e copropriedades confirmadas.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/account-profile-picker.tsx",
+      "reason": "Um campo de perfil com ajuda e exceções independentes.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/member-access-panel.tsx",
+      "reason": "Exibe o editor e os imóveis com vínculo aceito.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "reason": "Edição e criação usam o mesmo seletor e gravam apenas escolhas explícitas.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "reason": "O atalho de carteira respeita a restrição pessoal.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/App.tsx",
+      "reason": "Verificação de navegação direta por área.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "reason": "Links e contador respeitam bloqueios por conta.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/live-account-access.ts",
+      "reason": "Verifica restrições persistidas a cada requisição autenticada.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/routes.ts",
+      "reason": "Valida conta e privilégios, resumo, publicação, leitura de Aura e agenda externa.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/storage.ts",
+      "reason": "Grava finalidade profissional e papel em uma transação.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/aura-access.ts",
+      "reason": "Consulta individual e registro com vínculo e papel habilitante.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "reason": "Descrição dos perfis e da copropriedade.",
+      "decision": "updated"
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "reason": "Contrato atualizado do editor e acesso efetivo.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/account-profile-picker.test.ts",
+      "reason": "Renderização das opções e exceções.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "reason": "Gravação de um perfil e remoção dos controles duplicados.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/live-account-access.test.ts",
+      "reason": "Leitura e escrita direta bloqueadas e restauração na sessão.",
+      "decision": "updated"
+    },
+    {
+      "path": "shared/account-areas.test.ts",
+      "reason": "Cobertura das áreas, herança e exceções.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/aura-lookup-dialog.test.ts",
+      "reason": "Cobre o botão e o modal com membros e consulta; consome a mesma autorização.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/aura-lookup-dialog.tsx",
+      "reason": "A lista usa o acesso à Aura para consulta e o vínculo individual para a ação de registro.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/aura-lookup.test.ts",
+      "reason": "Cobre classificação da lista e vínculo para registro.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "reason": "A abertura usa o helper comum de consulta e a avaliação depende dos vínculos confirmados.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/land-bank-detalhe.tsx",
+      "reason": "Usa environmentAccessFor ao navegar para Alianças.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/vitrine-demandas.tsx",
+      "reason": "Usa environmentAccessFor para Alianças na ação de interesse.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "reason": "Consulta e registro da Aura do profissional usam autorização e relacionamento.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "reason": "O diálogo de acesso respeita o ambiente da conta.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "reason": "Ações de Aura na vitrine continuam verificando vínculo.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "shared/environment-access.test.ts",
+      "reason": "Regressões de vínculos contextuais, papéis e matriz de funcionários.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/environment-access.tsx",
+      "reason": "A mensagem da Vitrine distingue o acesso da publicação.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "reason": "O switch de publicação usa a mesma regra do servidor.",
+      "decision": "updated"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Seletor único, ajuda acionável, opções herdadas e controles por área.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Cadastro e atualização aceitam finalidade profissional; acessos diretos verificam exceções antes do endpoint.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Exceções no campo JSON já existente. Finalidade e conta são salvas na mesma transação.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Nenhuma fórmula ou série é alterada; a consulta agregada do início respeita bloqueio de Alianças.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Contador e agenda respeitam bloqueios de área; templates e envios não são alterados.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Relatório funcional descreve o seletor; documentos persistidos não dependem do editor.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Autorização da sincronização da agenda verifica bloqueio. Integração Asaas continua reservada.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Exceções não substituem escopo da empresa, participação na BIA nem direitos de propriedade. Recuperação continua protegida.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Contas antigas são lidas, coproprietário permanece no fluxo de aceite e não pode ser concedido pelo seletor.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Testes de renderização, alterações de nível, persistência de exceções e acesso HTTP na mesma sessão.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "shared/account-areas.test.ts",
+    "server/live-account-access.test.ts",
+    "client/src/components/account-profile-picker.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "no-duplicate-account-profile-selector"
+  ]
+}

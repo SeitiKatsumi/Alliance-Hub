@@ -1,5 +1,55 @@
 # AI_HANDOFF.md
 
+## 09/11/2026 — Níveis de acesso da conta
+
+Cadastro Geral > Acessos usa um único seletor global com seis níveis cumulativos e exceções pessoais por área. A copropriedade é exibida por imóvel aceito. Regras compartilhadas em shared/account-areas.ts e shared/account-access-profiles.ts; servidor relê os bloqueios na sessão atual. Consulte docs/platform/modules/administracao.md.
+
+## 09/11/2026 — Guia da marca como referência futura
+
+- Usuário enviou BUILT_Guia_de_Aplicacao_da_Marca_v5.pdf e pediu usá-lo como exemplo nas próximas alterações. Cópia íntegra preservada em docs/brand, com resumo de consulta por assunto/páginas e link no índice da plataforma. AGENTS orienta os próximos trabalhos visuais/editoriais a consultar a referência, respeitando o pedido atual e sem impor confirmações extras a tarefas já autorizadas.
+- Lidas as25páginas e conferidas as renderizações, incluindo logos, paleta e tipografia. Arquivo recebido como v5, mas capa/rodapés identificam V1.4 de28/09/2026; distinção registrada. Manual completo mencionado pelo guia não foi fornecido. Somente documentação/cópia de referência; sem alteração de telas, cálculos, dados, permissões, publicação ou comunicações externas. Trabalhos paralelos preservados.
+
+## 09/11/2026 — Foto em Dados pessoais e formalização sem caixa interna
+
+- Revisão do escopo aprovada via checkChangeReview com fontes/grafo anterior reais (.BUILT-tmp/profile-photo-layout-scoped-review.log). Revisão global bloqueada por14 consumidores das alterações paralelas recentes de acesso/ambientes (App/sidebar/Aura/Vitrine etc.); não foram aprovadas ou revertidas por este trabalho. Log global preservado em profile-photo-layout-review.log; não há publicação solicitada nesta mudança.
+
+- Movidos a linha de Foto de perfil e o input oculto para Dados pessoais, preservando fotoInputRef, upload/recorte/posição/loading e handlers. Em mobile, avatar/texto dividem uma linha e botão ocupa a seguinte; desktop mantém a linha anterior. Cartão inferior fica somente com Dados para formalização, sem o título externo Formalização e foto e sem superfície/borda/padding internos da seção. Campos, condições de cônjuge/endereço, CEP, correções por link, salvamento e demais categorias mantidos. Nenhuma persistência/permissão/API alterada.
+-15 testes existentes aprovados; platform:verify784testes/0falhas, tipos/tooling/contrato/consistência/build. QA desktop1280/mobile390x844 com fragmentos reais em prévia isolada54763: input único no cartão pessoal, formalização sem foto e borda interna0/transparent, sem overflow. Ajustado aperto do texto da foto no mobile encontrado na primeira captura; capturas finais output/profile-photo-layout. Nenhum upload/alteração real. HMR sem reinício, sem commit/push/deploy; trabalhos paralelos de perfis globais/avaliações/dossiês preservados. Revisão em profile-photo-layout-review.log.
+
+## 09/11/2026 — Perfis globais da conta
+
+- Removido BUILT Capital das concessões administrativas, esquema de criação/edição, novas contas e aprovações de convites de capital. Relatório de ambientes, presença e cartões atualizados. Interesse de investimento e cargos financeiros de BIA seguem contextuais. Gestor, superadmin e coproprietário continuam distintos. Compatibilidade de leitura do papel antigo e termos históricos preservada; nenhuma migração ou alteração de conta real.
+- 18 regressões focadas e verificação completa com 784 testes aprovados. QA com seletor real e cartões extraídos do editor, desktop e móvel390px, opção antiga ausente e seleção de gestor visível. Revisão transversal aprovada. Sem publicação.
+
+
+## 09/11/2026 — Dados para formalização sempre visíveis
+
+- Verificação final784testes/0falhas, tipos app/tooling, contrato/consistência e build aprovados (.BUILT-tmp/profile-formalization-verify.log). Prévia encerrada; sessão real não foi alterada. Revisão do diff registrada em profile-formalization-review.log.
+
+- Pedido localizado no Meu Perfil > Identidade e contato: removidos disclosure, seta e estado/prop de expansão de DadosFormalizacaoSection; título estático acessível e campos imediatamente visíveis. Mesmos controles, valores, setField/setForm, condições de cônjuge/endereço, CEP, foto e salvamento geral. Metadados e foco dos atalhos de correção preservados. Não altera o formulário de BIA na Comunidade, permissões, API, persistência, cálculos, avisos ou documentos.
+-15 testes existentes de layout/completude aprovados. QA com componente real extraído em prévia isolada54762, dados fictícios: desktop1280/mobile390x844, campos visíveis/toggle ausente, Usar nome do perfil preenche normalmente e sem overflow global. Capturas output/profile-formalization/desktop.png e mobile.png; aba encerrada/viewport restaurado. Nenhuma informação real gravada. Contrato/registro atualizados; alterações anteriores de avaliações/dossiê/admin preservadas. HMR do frontend, sem reinício do servidor, commit/push/deploy.
+
+## 09/11/2026 — Método BUILT v2 com estudos e governança
+
+- Conclusão: platform:verify final784testes/0falhas, tipos app/tooling, contrato/consistência e build aprovados; revisão global --basef1eedc6 aprovada (sem atestar semanticamente trabalhos paralelos). Dois testes SQL/relatório repetidos após o último ajuste de texto também aprovados; diffcheck limpo. Servidor local3004 atualizado via launcher existente (PID14684), raiz200 e nova API anônima401 JSON. Possível novo login por sessão em memória. Prévia fictícia encerrada, abas temporárias fechadas e viewport restaurado. Nenhum imóvel/parecer/transação real foi criado, adotado ou enviado.
+
+- Pedido: completar o Manual de Avaliação v2 (30/10/2026). shared/built-valuation.ts centraliza comparação documentada por unidade de área, renda, DCF anual dias/365, reposição depreciada, residual e registro documental. Estudos por tese para categorias residenciais/comerciais/logísticas/terrenos/rurais/hospedagem/especializadas, com fontes/classificação/data/conferência, direito/fração, identificação, restrições, condições e características. Renda/custo/DCF/residual continuam simulações explícitas das premissas, sem taxas ou mercado inventados. Referências documentais hipotéticas não ganham classificação documentada. Valor condicionado não se torna atual nem diferença de preços se torna lucro.
+- Editor na aba Análise existente: alternativas, estratégia com custos/calendário, financiamento separado, cenários conservador/central/favorável e metas de equilíbrio/retorno, sem probabilidades. Relatório HTML UTF-8 autocontido para impressão/PDF, fontes legíveis, versão e hash/snapshot; revisões documentadas com parecer do imóvel e autoria/horário autenticados, sem validar credencial ou assinatura digital automaticamente. Validação de transações importadas mede erro/RMSE/viés/grupos/baseline/faixas, impede repetição/contaminação temporal e origem estimativa BUILT. Não treina ou certifica precisão por testes sintéticos.
+- server/built-valuation.ts usa autenticação e resolvedor oficial antes de dados; tipos novos append-only em carteira_analises, lock/anteriorId/409, documentos do próprio imóvel, paginação de revisões, resultado recalculado no servidor. Adoção explícita de valor atual salvo não negativo exige cadastro/valor compatíveis; atualiza apenas referência declarada/origem/data, trilha de análises/eventos e caches. Não movimenta dinheiro, muda MAP/CPP/dívida/participação/aquisição, publica ou envia avisos. Sem tabela/migração/dependência nova. Outros tipos são calculados com dados e justificativas fornecidos pelo responsável; a busca automática residencial existente não foi estendida sem fonte adequada.
+- 15 regressões novas aprovadas; primeira platform:verify784testes/0falhas, tipos/tooling/contrato/consistência/build. Conferência com componentes e API reais sobre PGlite fictício em127.0.0.1:54761: revisão monetária persiste, adoção só confirmada, revisão/parecer aparece e relatório baixa; desktop1280/mobile390x844 sem overflow. Capturas e relatório-exemplo em output/built-method. Dados reais, precisão empírica, certificação CIB e habilitação profissional não foram validados. Rodada final e revisão do diff nos logs built-method-verify-final/review-final. Sem commit/push/deploy.
+- Sobreposição consciente: somente import/registro em routes e conexão em property-valuation.tsx; contrato/catálogo/handoff atualizados preservando o dossiê e a referência declarada alterados em paralelo. Este registro não atesta semanticamente o trabalho paralelo. Leitores/colaboradores não ganham escrita. Testes exercitam autorização, concorrência, adoção e imutabilidade do histórico com banco isolado.
+
+## 09/11/2026 — Abas superiores da Administração
+
+- Alinhadas ao conteúdo, destaque de seleção nos temas, links com aria-current e foco visível. No celular, duas colunas com quebra dos rótulos. Asaas continua condicionado à permissão anterior. Confirmado desktop e 360px com componente real e painéis fictícios; 784 testes passaram na verificação integral. Sem commit/push/deploy.
+
+
+## 09/11/2026 — Dossiê em PDF no modelo do MOU
+
+- A Carteira e o Financeiro exportam um PDF único. Sumário inicial com links e números calculados após a paginação. Modelo institucional compartilhado com o MOU, originais incorporados, extrato em CSV e manifesto recuperáveis. Prévias de PDF/JPEG/PNG e MAPs autorizados aparecem nas páginas. Formatos sem prévia ficam anexos. Não altera fontes, versões ou registros.
+- Exemplo fictício renderizado e inspecionado em output/pdf/Dossie-BUILT-exemplo.pdf; sumário, extrato e comprovante conferidos. Download do PDF em tela mobile390x844 e diálogo no desktop com dados fictícios. Sem exportação de conta real, publicação ou atualização de arquivos externos.
+
+
 ## 05/11/2026 — Agenda com calendário em destaque, primeira opção com abas
 
 - Implementada a primeira imagem da segunda rodada (exec-72fb7323-288e-4f7c-86ee-871d5e2cc5da.png), que mantém Resumo/Agenda/Alertas. Calendário imediatamente abaixo das abas; uma toolbar com período/Hoje, Dashboard, Google Agenda e Nova ação; controles Mês/Semana/Lista e status agrupados. Dashboard abre os mesmos quatro contadores em diálogo e permite filtrar por status. Conexão Google abre diálogo compacto e conserva consultas quando fechado; abrir não autoriza/envia. Fonte/CRUD/origens/permissões/financeiro/alertas/SMTP/backend mantidos. Menu e URL sem view abrem Agenda para quem tem acesso; links explícitos Resumo/Alertas e funcionário restrito mantidos.

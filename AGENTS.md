@@ -2,6 +2,10 @@
 
 Este arquivo define o processo obrigatório para qualquer pessoa ou agente que altere a plataforma BUILT.
 
+## Referência visual e editorial da marca
+
+O usuário indicou o Guia de Aplicação da Marca como referência para futuras alterações. Antes de modificar identidade visual, cores, fontes, logotipos ou textos institucionais, consulte `docs/brand/README.md` e o PDF preservado `docs/brand/BUILT_Guia_de_Aplicacao_da_Marca_v5.pdf`. Use essa direção no escopo do pedido, com responsividade e legibilidade; não redesenhe módulos ou documentos existentes automaticamente. Orientações explícitas mais recentes do usuário prevalecem. O guia não cria exigências adicionais de confirmação para trabalhos já autorizados.
+
 ## Antes de editar
 
 1. Leia `AI_HANDOFF.md` e rode `git status --short`. Não reverta alterações existentes que não sejam suas.

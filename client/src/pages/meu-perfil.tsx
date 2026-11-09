@@ -1,3 +1,4 @@
+import { canPublishVitrineProfile } from '@shared/environment-access';
 import { useState, useEffect, useRef } from "react";
 import { resetContentScroll } from "@/lib/content-scroll";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -18,7 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -2018,6 +2018,47 @@ export default function MeuPerfilPage() {
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={User} label="Dados Pessoais" />
 
+                <input
+                  ref={fotoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={handleFotoChange}
+                  data-testid="input-foto-perfil"
+                />
+                <div className="profile-media-row grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg p-3 sm:flex sm:flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fotoInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-[#001D34]"
+                    title="Clique para trocar a foto"
+                    data-testid="btn-trocar-foto"
+                  >
+                    {uploadingFoto ?(
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    ) : foto ?(
+                      <img src={foto} alt={nome} className="h-full w-full object-cover" style={{ objectPosition: fotoPosition }} />
+                    ) : (
+                      <Camera className="h-5 w-5 text-blue-600" />
+                    )}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-[#001D34]">Foto de perfil</p>
+                    <p className="text-[11px] text-slate-500">Adicione uma imagem para aparecer no seu perfil.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fotoInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    className="col-span-2 shrink-0 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700 sm:col-auto"
+                  >
+                    {uploadingFoto ? "Enviando..." : foto ? "Trocar foto" : "Adicionar foto"}
+                  </Button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Nome que aparecerá no perfil">
                     <Input
@@ -2097,27 +2138,18 @@ export default function MeuPerfilPage() {
             {activeCategory !== "account" &&
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
-                <SectionLabel
-                  icon={activeCategory === "identity" ? User : activeCategory === "company" ? Building2 : Briefcase}
-                  label={activeCategory === "identity" ? "Formalização e foto" : activeCategory === "company" ? "Dados da empresa" : "Perfil profissional"}
-                />
+                {activeCategory !== "identity" && <SectionLabel
+                  icon={activeCategory === "company" ? Building2 : Briefcase}
+                  label={activeCategory === "company" ? "Dados da empresa" : "Perfil profissional"}
+                />}
 
                 {activeCategory === "identity" && <>
                 <DadosFormalizacaoSection
                   form={form}
                   setField={set}
                   setForm={setForm}
-                  openInitially={requestedProfileTarget?.formal === true}
                 />
 
-                <input
-                  ref={fotoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  className="hidden"
-                  onChange={handleFotoChange}
-                  data-testid="input-foto-perfil"
-                />
                 </>}
                 {activeCategory === "company" &&
                 <input
@@ -2128,41 +2160,6 @@ export default function MeuPerfilPage() {
                   onChange={handleLogoChange}
                   data-testid="input-logo-empresa"
                 />
-                }
-
-                {activeCategory === "identity" &&
-                <div className="profile-media-row flex flex-wrap items-center gap-3 rounded-lg p-3">
-                  <button
-                    type="button"
-                    onClick={() => fotoInputRef.current?.click()}
-                    disabled={uploadingFoto}
-                    className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-[#001D34]"
-                    title="Clique para trocar a foto"
-                    data-testid="btn-trocar-foto"
-                  >
-                    {uploadingFoto ?(
-                      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                    ) : foto ?(
-                      <img src={foto} alt={nome} className="h-full w-full object-cover" style={{ objectPosition: fotoPosition }} />
-                    ) : (
-                      <Camera className="h-5 w-5 text-blue-600" />
-                    )}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-[#001D34]">Foto de perfil</p>
-                    <p className="text-[11px] text-slate-500">Adicione uma imagem para aparecer no seu perfil.</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fotoInputRef.current?.click()}
-                    disabled={uploadingFoto}
-                    className="shrink-0 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                  >
-                    {uploadingFoto ? "Enviando..." : foto ? "Trocar foto" : "Adicionar foto"}
-                  </Button>
-                </div>
                 }
 
                 {activeCategory === "company" &&
@@ -2685,7 +2682,7 @@ export default function MeuPerfilPage() {
             </Card>}
 
             {/* Vitrine BUILT */}
-            {activeCategory === "company" && prestadorSelecionado && <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
+            {activeCategory === "company" && (form.na_vitrine || canPublishVitrineProfile({...user, account_purposes: accountPurposes})) && <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Globe} label="Vitrine BUILT" />
                 <div
@@ -2695,7 +2692,7 @@ export default function MeuPerfilPage() {
                   <div className="space-y-1">
                     <p className="flex items-center gap-2 text-sm font-medium text-white">
                       Aparecer na Vitrine
-                      <span title="Opção exclusiva para profissionais independentes, prestadores de serviços e fornecedores" aria-label="Opção exclusiva para profissionais independentes, prestadores de serviços e fornecedores">
+                      <span title="Tornar seu perfil visível na Vitrine" aria-label="Tornar seu perfil visível na Vitrine">
                         <Info className="h-4 w-4 text-white/45" />
                       </span>
                     </p>
@@ -3046,17 +3043,14 @@ function DadosFormalizacaoSection({
   form,
   setField,
   setForm,
-  openInitially = false,
 }: {
   form: Partial<Membro>;
   setField: (field: keyof Membro, value: string) => void;
   setForm: React.Dispatch<React.SetStateAction<Partial<Membro>>>;
-  openInitially?: boolean;
 }) {
   const estadoCivil = String(form.estado_civil || "").toLowerCase();
   const temConjuge = ["casado", "casada", "uniao_estavel", "união_estável"].includes(estadoCivil);
   const mesmoEndereco = form.mesmo_endereco !== false;
-  const [open, setOpen] = useState(openInitially);
   const [cepLoading, setCepLoading] = useState<string | null>(null);
 
   const applyCep = async (
@@ -3097,20 +3091,13 @@ function DadosFormalizacaoSection({
   };
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-slate-200 bg-white">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 px-4 py-3 text-left"
-          data-testid="toggle-dados-formalizacao"
-        >
+    <section aria-labelledby="dados-formalizacao-title" data-testid="section-dados-formalizacao" className="space-y-4">
+        <div className="flex w-full items-center gap-2 text-left">
           <ReceiptText className="w-3.5 h-3.5 text-[#9a7430]" />
-          <span className="text-sm font-semibold text-[#001D34]">Dados para formalização</span>
+          <h3 id="dados-formalizacao-title" className="text-sm font-semibold text-[#001D34]">Dados para formalização</h3>
           <div className="h-px flex-1 bg-slate-200" />
-          <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-4 px-4 pb-4">
+        </div>
+      <div className="space-y-4">
         <p className="text-xs text-slate-500">
           Estes dados serão exigidos somente quando você aceitar um papel de diretor ou sócio em uma BIA.
         </p>
@@ -3281,8 +3268,8 @@ function DadosFormalizacaoSection({
           </Field>
         </div>
       )}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </section>
   );
 }
 

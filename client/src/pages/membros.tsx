@@ -40,7 +40,9 @@ import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { PhoneInput } from "@/components/phone-input";
 import { MemberAccessPanel } from '@/components/member-access-panel';
-import { ACCOUNT_ROLE_LABELS, accountProfiles } from '@shared/member-access-summary';
+import { ACCOUNT_ROLE_LABELS } from '@shared/member-access-summary';
+import { areaChoices, withAreaChoices, type AreaChoices } from '@shared/account-areas';
+import { permissionsForRole } from '@shared/schema';
 import { accountAccessPreset, normalizeAccountRole, type AccountAccessPreset } from '@shared/account-access-profiles';
 import { AccountProfilePicker } from '@/components/account-profile-picker';
 import { notifyAccessChanged } from '@/lib/access-session';
@@ -294,28 +296,16 @@ function hashColor(str: string): string {
 }
 
 // ---- Membro Edit Page ----
-const ROLE_OPTIONS = [
-  { value: "user", label: "BUILT Vitrine", desc: "Usuário comum · não publica o perfil automaticamente", color: "#facc15" },
-  { value: "membro", label: "Membro BUILT", desc: "Perfil de membro e acesso a alianças", color: "#22c55e" },
-  { value: "investidor", label: "BUILT Capital", desc: "Acesso ao ambiente de capital", color: "#2563eb" },
-  { value: "aliado", label: "Aliado licenciado", desc: "Papel global; cargos em BIAs são definidos na equipe", color: "#a855f7" },
-  { value: "coproprietario", label: "Coproprietário", desc: "Consulta dos imóveis e alianças compartilhados", color: "#0891b2" },
-  { value: "manager", label: "Gestor da plataforma", desc: "Acesso operacional da plataforma", color: "#f97316" },
-  { value: "admin", label: "Superadmin", desc: "Administração completa da plataforma", color: "#D7BB7D" },
-];
-
 const ROLE_AUTO_SELOS: Record<string, string[]> = {
   membro: ["BUILT_PROUD_MEMBER"],
-  investidor: ["BUILT_CAPITAL_PARTNER"],
   aliado: ["BUILT_ALLIANCE_PARTNER"],
   admin: [],
 };
 
 const ROLE_MANAGED_SELOS = new Set(
-  Object.values(ROLE_AUTO_SELOS).flat(),
+  [...Object.values(ROLE_AUTO_SELOS).flat(), "BUILT_CAPITAL_PARTNER"],
 );
 
-const ROLE_PRIORITY = ["superadmin", "master", "admin", "manager", "aliado", "membro", "investidor", "coproprietario", "user"];
 const TERM_ACCEPTANCE_FIELDS = [
   {
     key: "codigo_etica",
@@ -459,10 +449,6 @@ function uniqueContributionAreas(tipos?: string[] | null): string[] {
   });
 }
 
-function hasAporteFinanceiro(tipos?: string[] | null): boolean {
-  const aporteKey = contributionKey("Aporte Financeiro");
-  return uniqueContributionAreas(tipos).some((tipo) => contributionKey(tipo) === aporteKey);
-}
 
 function TermAcceptanceReadOnly({ membro }: { membro: Membro }) {
   return (
@@ -519,8 +505,8 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   const [uploading, setUploading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [idiomaInput, setIdiomaInput] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedPreset,setSelectedPreset] = useState<AccountAccessPreset | null>(null);
+  const [choiceDraft,setChoiceDraft] = useState<AreaChoices | null>(null);
   const [newAccEmail, setNewAccEmail] = useState(membro.email || "");
   const [newAccUsername, setNewAccUsername] = useState("");
   const [newAccPassword, setNewAccPassword] = useState("");
@@ -534,7 +520,6 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
   const requestedCorrectionField = new URLSearchParams(window.location.search).get('campo');
   const [activeEditorTab, setActiveEditorTab] = useState<MemberEditorTab>("dados");
-  const [professionalAccess,setProfessionalAccess]=useState<boolean|null>(null);
   const [accessProfileTouched,setAccessProfileTouched]=useState(false);
   useEffect(() => {
     const targets: Record<string, string> = {nome:'input-edit-nome',cpf:'input-edit-cpf',cnpj:'input-edit-cnpj-empresa'};
@@ -630,7 +615,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
     return data?.id ? data : null;
   };
 
-  const { data: linkedUser, refetch: refetchLinkedUser, isError: linkedUserError } = useQuery<LinkedUser | null>({
+  const { data: linkedUser, refetch: refetchLinkedUser, isError: linkedUserError, isPending: linkedUserPending } = useQuery<LinkedUser | null>({
     queryKey: ["/api/users/by-membro", membro.id],
     queryFn: () => membro.id ?fetchLinkedUser(`/api/users/by-membro/${membro.id}`) : Promise.resolve(null),
     enabled: !!membro.id,
@@ -640,7 +625,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
 
   // When there's no linked account, search for an unlinked user by the membro's email
   const membroEmail = (membro as any).email || "";
-  const { data: matchedByEmail, isError: matchedByEmailError } = useQuery<LinkedUser | null>({
+  const { data: matchedByEmail, isError: matchedByEmailError, isPending: matchedByEmailPending } = useQuery<LinkedUser | null>({
     queryKey: ["/api/users/by-email", membroEmail],
     queryFn: () => membroEmail ?fetchLinkedUser(`/api/users/by-email?email=${encodeURIComponent(membroEmail)}`) : Promise.resolve(null),
     enabled: !linkedUser && !!membroEmail,
@@ -649,6 +634,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   });
 
   const accountLookupUnavailable = linkedUserError || matchedByEmailError;
+  const accountLookupPending = (!!membro.id && linkedUserPending) || (!linkedUser && !!membroEmail && matchedByEmailPending);
 
   // Only show the match suggestion if the found user is not linked to another membro
   const suggestedLink = !linkedUser && matchedByEmail && !matchedByEmail.membro_directus_id ?matchedByEmail : null;
@@ -708,17 +694,6 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   // Set initial role and email when linkedUser first loads (must be useEffect, not render body)
   useEffect(() => {
     if (!linkedUser) return;
-    if (selectedRole === null) {
-      const selos: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
-      const initialRoles = new Set<string>([linkedUser.role || "user", ...accountProfiles(linkedUser.role || "user", form)]);
-      if (linkedUser.permissions?.vitrine === "view") initialRoles.add("user");
-      if (linkedUser.permissions?.vitrine === "none") initialRoles.delete("user");
-      if (selos.includes("BUILT_PROUD_MEMBER")) initialRoles.add("membro");
-      if (selos.includes("BUILT_CAPITAL_PARTNER")) initialRoles.add("investidor");
-      if (selos.includes("BUILT_ALLIANCE_PARTNER")) initialRoles.add("aliado");
-      setSelectedRole(linkedUser.role);
-      setSelectedRoles(Array.from(initialRoles));
-    }
     if (linkedUser.email) setNewAccEmail(prev => prev === (membro.email || "") ?linkedUser.email! : prev);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedUser?.id]);
@@ -756,7 +731,6 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         tipo_alianca: next[0] || "",
         nucleos_alianca: getNucleosForTipos(next),
         nucleo_alianca: getNucleosForTipos(next)[0] || f.nucleo_alianca,
-        em_built_capital: hasAporteFinanceiro(next) ? true : f.em_built_capital,
       };
     });
   }
@@ -790,56 +764,13 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
     setIdiomaInput("");
   }
 
-  function getPrimaryRole(roles: string[]) {
-    return normalizeAccountRole(ROLE_PRIORITY.find(role => roles.includes(role)) || "user");
-  }
-
-  function mergeRolePermissions(roles: string[], rolePerms: Record<string, Record<string, string>>) {
-    const levels: Record<string, number> = { none: 0, view: 1, edit: 2 };
-    const byLevel: Record<number, string> = { 0: "none", 1: "view", 2: "edit" };
-    const merged: Record<string, string> = { ...rolePerms.user };
-    roles.forEach(role => {
-      const perms = rolePerms[role] || {};
-      Object.entries(perms).forEach(([key, value]) => {
-        const currentLevel = levels[merged[key] || "none"] ?? 0;
-        const nextLevel = levels[value] ?? 0;
-        if (nextLevel > currentLevel) merged[key] = byLevel[nextLevel];
-      });
-    });
-    merged.vitrine = roles.includes("user") ? "view" : "none";
-    return merged;
-  }
-
-  function applyRoleSelection(role: string) {
-    setAccessProfileTouched(true);
-    const nextRoles = selectedRoles.includes(role)
-      ? selectedRoles.filter(item => item !== role)
-      : [...selectedRoles, role];
-    const normalizedRoles = nextRoles.length > 0 ? nextRoles : ["user"];
-    setSelectedRoles(normalizedRoles);
-    setSelectedRole(getPrimaryRole(normalizedRoles));
-    const automaticSelos = normalizedRoles.flatMap(item => ROLE_AUTO_SELOS[item] || []);
-    setForm(f => {
-      const current: string[] = (f as any).Outras_redes_as_quais_pertenco || [];
-      const manualSelos = current.filter(selo => !ROLE_MANAGED_SELOS.has(selo));
-      return {
-        ...f,
-        em_membros_built: normalizedRoles.includes("membro"),
-        em_built_capital: normalizedRoles.includes("investidor"),
-        Outras_redes_as_quais_pertenco: Array.from(new Set([...manualSelos, ...automaticSelos])),
-      };
-    });
-  }
-
   function selectAccountProfile(profile: AccountAccessPreset) {
     const preset=accountAccessPreset(profile);
     if(!preset) return;
     setAccessProfileTouched(true);
+    setSelectedPreset(profile);
     const role=preset.role;
-    setSelectedRoles([role]);
-    setSelectedRole(role);
-    setProfessionalAccess(profile==='professional');
-    setForm(f=>({...f,em_membros_built:role==='membro',em_built_capital:role==='investidor',
+    setForm(f=>({...f,em_membros_built:role==='membro',em_built_capital:false,
       Outras_redes_as_quais_pertenco:[...((f as any).Outras_redes_as_quais_pertenco||[]).filter((s:string)=>!ROLE_MANAGED_SELOS.has(s)),...(ROLE_AUTO_SELOS[role]||[])],
     }));
   }
@@ -915,12 +846,11 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         tipo_alianca: tiposAlianca[0] || null,
         nucleos_alianca: nucleosAlianca,
         nucleo_alianca: nucleosAlianca[0] || form.nucleo_alianca || null,
-        em_built_capital: accessProfileTouched ? !!form.em_built_capital : hasAporteFinanceiro(tiposAlianca) ? true : !!form.em_built_capital,
         idiomas: form.idiomas || [],
       };
 
       for (const key of MEMBRO_EDITABLE_FIELDS) {
-        if (TERM_ACCEPTANCE_FIELD_NAMES.has(key)) continue;
+        if (TERM_ACCEPTANCE_FIELD_NAMES.has(key) || (key === "em_built_capital" && !accessProfileTouched)) continue;
         const value = normalizedForm[key];
         if (typeof value === "boolean") {
           payload[key] = value;
@@ -941,24 +871,16 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         await apiRequest("POST", "/api/membros", payload);
       }
 
-      const rolePerms: Record<string, Record<string, string>> = {
-        admin: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
-        manager: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
-        coproprietario: { aura: "none", bias: "view", admin: "none", painel: "none", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
-        membro: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "view" },
-        investidor: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "view", oportunidades: "view", cadastro_geral: "view" },
-        aliado: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "edit", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
-        user: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
-      };
-
       if (linkedUser?.id) {
         // Update role, email and/or password if changed
         const roleUpdate: Record<string, any> = {};
-        const rolesToSave = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser.role || "user"];
-        const primaryRole = getPrimaryRole(rolesToSave);
-        if (accessProfileTouched) {
-          roleUpdate.role = primaryRole;
-          roleUpdate.permissions = mergeRolePermissions(rolesToSave, rolePerms);
+        if (selectedPreset) {
+          roleUpdate.role = accountAccessPreset(selectedPreset)!.role;
+          roleUpdate.professional = selectedPreset === 'professional';
+        }
+        if (selectedPreset || choiceDraft) {
+          const base = selectedPreset ? permissionsForRole(String(roleUpdate.role)) : linkedUser.permissions || permissionsForRole(linkedUser.role);
+          roleUpdate.permissions = withAreaChoices(base, choiceDraft ?? areaChoices(linkedUser.permissions));
         }
         // Update email if it changed
         if (newAccEmail && newAccEmail !== linkedUser.email) {
@@ -968,8 +890,6 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         if (changePassword.length >= 4) {
           roleUpdate.password = changePassword;
         }
-        // Save the purpose before a self-demotion removes administrative access.
-        if(professionalAccess!==null) await apiRequest('PUT',`/api/admin/member-access/${linkedUser.id}/professional`,{enabled:professionalAccess});
         if (Object.keys(roleUpdate).length > 0) {
           await apiRequest("PATCH", `/api/users/${linkedUser.id}`, roleUpdate);
         }
@@ -981,8 +901,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
         // Create new user account linked to this membro
         if (newAccPassword !== newAccPassword2) throw new Error("As senhas não coincidem");
         const username = newAccUsername || newAccEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
-        const rolesToSave = selectedRoles.length > 0 ? selectedRoles : [selectedRole || "user"];
-        const role = getPrimaryRole(rolesToSave);
+        const role = accountAccessPreset(selectedPreset || 'user')!.role;
         await apiRequest("POST", "/api/users", {
           username,
           password: newAccPassword,
@@ -990,12 +909,13 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
           email: newAccEmail,
           membro_directus_id: membro.id,
           role,
-          permissions: mergeRolePermissions(rolesToSave, rolePerms),
+          professional: selectedPreset==='professional',
+          permissions: withAreaChoices(permissionsForRole(role), choiceDraft || {}),
           ativo: true,
         });
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
         refetchLinkedUser();
-      } else if (changePassword.length >= 4 || newAccPassword.length >= 4 || selectedRoles.length > 0 || selectedRole) {
+      } else if (changePassword.length >= 4 || newAccPassword.length >= 4 || !!selectedPreset || !!choiceDraft) {
         if (accountLookupUnavailable) {
           throw new Error("Dados do membro salvos, mas a senha/permissões não foram alteradas porque o banco local de usuários está indisponível.");
         }
@@ -1008,6 +928,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
       }
     },
     onSuccess: async () => {
+      setSelectedPreset(null); setChoiceDraft(null); setAccessProfileTouched(false);
       queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidades"] });
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
@@ -1026,13 +947,11 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   const acceptedTerms = TERM_ACCEPTANCE_FIELDS.filter(term => Boolean((membro as any)[term.acceptedAt])).length;
   const pendingTerms = TERM_ACCEPTANCE_FIELDS.length - acceptedTerms;
   const accessNeedsReview = accountLookupUnavailable || !linkedUser;
-  const effectiveRoles = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser?.role || "user"];
-  const primaryRole = getPrimaryRole(effectiveRoles);
+  const primaryRole = accountAccessPreset(selectedPreset || '')?.role || normalizeAccountRole(linkedUser?.role);
   const primaryRoleLabel = ACCOUNT_ROLE_LABELS[primaryRole] || primaryRole;
   const networkBadges = [
     form.na_vitrine ? "Vitrine" : null,
     form.em_membros_built ? "Alliances" : null,
-    form.em_built_capital ? "Capital" : null,
   ].filter(Boolean) as string[];
   const editorSectionClass = (tab: MemberEditorTab) =>
     activeEditorTab === tab
@@ -1706,7 +1625,6 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                 {[
                   { field: "na_vitrine" as keyof Membro, label: "BUILT Vitrine", desc: "Aparece na página de Vitrine pública" },
                   { field: "em_membros_built" as keyof Membro, label: "BUILT Alliances", desc: "Área de alianças" },
-                  { field: "em_built_capital" as keyof Membro, label: "BUILT Capital", desc: "Aparece na seção de capital" },
                 ].map(({ field, label, desc }) => {
                   const active = !!(form as any)[field];
                   return (
@@ -1751,7 +1669,6 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                   { value: "BUILT_PROUD_MEMBER", label: "Proud Member", img: "/built-proud-member.png" },
                   { value: "BUILT_FOUNDING_MEMBER", label: "Founding Member", img: "/built-founding-member.png" },
                   { value: "BUILT_ALLIANCE_PARTNER", label: "Alliance Partner", img: "/built-alliance-partner.png" },
-                  { value: "BUILT_CAPITAL_PARTNER", label: "Capital Partner", img: "/built-capital-partner.png" },
                   { value: "BNI", label: "BNI", img: "/bni-badge.png" },
                 ].map(selo => {
                   const selosAtivos: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
@@ -1778,13 +1695,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
               </div>
             </div>
 
-            {activeEditorTab === 'acessos' && linkedUser && <div className={editorSectionClass('acessos')}><MemberAccessPanel userId={linkedUser.id} profileControls={<div className="mt-4 space-y-3 border-t border-border pt-4">
-                <p className="font-medium">Adicionar ou remover perfis</p>
-                <div className="flex flex-wrap gap-3">{['membro','aliado','investidor'].map(role=><label key={role} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-sm"><input type="checkbox" checked={selectedRoles.includes(role)} disabled={saveMutation.isPending} onChange={()=>applyRoleSelection(role)}/>{ACCOUNT_ROLE_LABELS[role]}</label>)}</div>
-                <p className="text-sm text-muted-foreground">Os perfis podem ser acumulados. A anuidade é administrada separadamente.</p>
-                {accessProfileTouched && <p className="text-sm text-amber-700 dark:text-amber-300">Alterações de perfil ainda não salvas.</p>}
-                <Button type="button" loading={saveMutation.isPending} disabled={!accessProfileTouched} onClick={()=>saveMutation.mutate()}>Salvar alterações</Button>
-              </div>}/> </div>}
+            {activeEditorTab === 'acessos' && linkedUser && <div className={editorSectionClass('acessos')}><MemberAccessPanel userId={linkedUser.id} profileControls={summary => <AccountProfilePicker value={selectedPreset ?? (summary.professional && summary.role==='user' ? 'professional' : normalizeAccountRole(summary.role))} choices={choiceDraft ?? areaChoices(linkedUser.permissions)} locked={summary.employee || summary.bootstrap} dirty={!!selectedPreset || !!choiceDraft} saving={saveMutation.isPending} onSelect={selectAccountProfile} onChoices={setChoiceDraft} onApply={()=>saveMutation.mutate()}/>}/> </div>}
             {/* Permissões da Plataforma */}
             <div className={editorSectionClass("acessos")}>
               <div className="flex items-center gap-2 mb-3">
@@ -1835,38 +1746,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                     </div>
                   </div>
 
-                  <p className="text-sm text-muted-foreground">Selecione os perfis que deseja conceder e salve. Isso não muda cargos nas BIAs nem ativa uma anuidade.</p>
-                  <AccountProfilePicker value={accessProfileTouched&&selectedRoles.length===1?(professionalAccess?'professional':selectedRole||''):''} dirty={accessProfileTouched} saving={saveMutation.isPending} onSelect={selectAccountProfile} onApply={()=>saveMutation.mutate()}/>
-                  {/* Role selector */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    {ROLE_OPTIONS.map(opt => {
-                      const activeRoles = selectedRoles.length > 0 ? selectedRoles : [linkedUser.role || "user"];
-                      const isSelected = activeRoles.includes(opt.value);
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => applyRoleSelection(opt.value)}
-                          data-testid={`btn-role-${opt.value}`}
-                          aria-pressed={isSelected}
-                          className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
-                          style={{
-                            borderColor: isSelected ?opt.color : "hsl(var(--border))",
-                            background: isSelected ?`${opt.color}12` : "hsl(var(--background))",
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full" style={{ background: isSelected ?opt.color : "rgba(255,255,255,0.15)" }} />
-                            <span className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                              {opt.label}
-                            </span>
-                          </div>
-                          <span className="text-xs text-muted-foreground pl-3.5">{opt.desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {(accessProfileTouched || professionalAccess!==null || changePassword.length >= 4) && (
+                  {(accessProfileTouched || choiceDraft!==null || changePassword.length >= 4) && (
                     <div className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/5 px-3 py-2">
                       <Shield className="w-3 h-3 text-brand-gold/60 shrink-0" />
                       <span className="text-xs text-brand-gold/70">Alterações serão aplicadas ao salvar</span>
@@ -1905,7 +1785,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                   ) : (
                     <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.01] px-4 py-3 flex items-center gap-3">
                       <UserPlus className="w-4 h-4 text-white/20 flex-shrink-0" />
-                      <span className="text-xs text-white/25 font-mono">Sem conta. Preencha abaixo para criar acesso.</span>
+                      <span className="text-xs text-muted-foreground">{accountLookupPending ? "Conferindo conta de acesso…" : accountLookupUnavailable ? "Não foi possível conferir a conta. Tente novamente." : "Sem conta vinculada. Preencha abaixo para criar acesso."}</span>
                     </div>
                   )}
 
@@ -1968,36 +1848,15 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                     </div>
                   </div>
 
-                  {/* Role selector for new account */}
-                  {newAccEmail && newAccPassword.length >= 4 && (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      {ROLE_OPTIONS.map(opt => {
-                        const activeRoles = selectedRoles.length > 0 ? selectedRoles : [selectedRole || "user"];
-                        const isSelected = activeRoles.includes(opt.value);
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => applyRoleSelection(opt.value)}
-                            data-testid={`btn-role-new-${opt.value}`}
-                            className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
-                            style={{
-                              borderColor: isSelected ?opt.color : "rgba(255,255,255,0.07)",
-                              background: isSelected ?`${opt.color}12` : "rgba(255,255,255,0.02)",
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full" style={{ background: isSelected ?opt.color : "rgba(255,255,255,0.15)" }} />
-                              <span className="text-xs font-semibold font-mono" style={{ color: isSelected ?opt.color : "rgba(255,255,255,0.5)" }}>
-                                {opt.label}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-white/25 pl-3.5">{opt.desc}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <AccountProfilePicker
+                    value={selectedPreset || 'user'}
+                    choices={choiceDraft || {}}
+                    dirty={!!newAccEmail && newAccPassword.length >= 4 && newAccPassword === newAccPassword2 && !accountLookupPending && !accountLookupUnavailable && !matchedByEmail}
+                    saving={saveMutation.isPending}
+                    onSelect={selectAccountProfile}
+                    onChoices={setChoiceDraft}
+                    onApply={()=>saveMutation.mutate()}
+                  />
 
                   {newAccEmail && newAccPassword.length >= 4 && newAccPassword === newAccPassword2 && (
                     <div className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">

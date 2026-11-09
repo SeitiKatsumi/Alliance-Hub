@@ -48,6 +48,7 @@ import {
   type CarteiraView,
   type DashboardTab,
 } from "@/lib/dashboard-navigation";
+import { blockedArea } from '@shared/account-areas';
 import { CarteiraDashboardPanel } from "@/pages/carteira";
 import { DASHBOARD_CHART_COLORS as CHART_COLORS } from "@/lib/dashboard-chart-colors";
 import MemberBusinessFeed from "@/components/member-business-feed";
@@ -549,6 +550,7 @@ function deriveRole(user: any): string | null {
 
 export default function PainelPage() {
   const { user } = useAuth();
+  const canOpenPortfolio = !blockedArea(user?.permissions, 'carteira');
   const { toast } = useToast();
   const [location, navigate] = useLocation();
   const initialNavigation = resolveDashboardNavigation(window.location.search);
@@ -659,6 +661,7 @@ export default function PainelPage() {
 
   const { data: carteiraAlerts = [], isLoading: isLoadingCarteiraAlerts } = useQuery<CarteiraDashboardAlert[]>({
     queryKey: ["/api/carteira/alertas"],
+    enabled: canOpenPortfolio,
     queryFn: async () => {
       const response = await fetch("/api/carteira/alertas?limit=12", { credentials: "include" });
       if (!response.ok) return [];
@@ -1070,7 +1073,7 @@ export default function PainelPage() {
             <LayoutDashboard className="w-4 h-4 text-blue-600" />
             Início
           </TabsTrigger>
-          <TabsTrigger value="carteira" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-carteira">
+          <TabsTrigger value="carteira" disabled={!canOpenPortfolio} className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-carteira">
             <Landmark className="w-4 h-4 text-blue-600" />
             Carteira
           </TabsTrigger>

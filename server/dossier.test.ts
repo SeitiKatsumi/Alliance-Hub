@@ -1,35 +1,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { unzipSync, strFromU8 } from 'fflate';
+import { PDFDocument, PDFDict, PDFName, PDFArray, PDFHexString, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { buildDossier, dossierEntries, dossierYear } from './dossier';
 import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import * as dossierModule from './dossier';
 
-test('ZIP preserva bytes, rastreia arquivos e separa ano, pago, pendente e não caixa', async () => {
-  const entries = [
-    {id:'1',tipo:'entrada',valor:100.10,status:'pago',data:'2025-12-31',data_pagamento:'2026-01-01',descricao:'=HYPERLINK("bad")'},
-    {id:'2',tipo:'saida',valor:20.05,status:'pago',data:'2026-02-01'},
-    {id:'3',tipo:'saida',valor:500,status:'pendente',data:'2026-02-01'},
-    {id:'4',tipo:'entrada',valor:900,status:'pago',natureza:'nao_caixa',data:'2026-02-01'},
-    {id:'5',tipo:'entrada',valor:1000,status:'pago',data:'2027-02-01'},
-  ];
-  const bytes = new Uint8Array([1,2,3]);
-  const result = unzipSync(await buildDossier({name:'Teste',currency:'BRL',entries,notes:[],files:[{id:'file',name:'../../recibo.pdf',folder:'Documentos'}]}, 2026, async () => ({bytes}), (_,body) => new TextEncoder().encode(body)));
-  assert.match(strFromU8(result['Resumo.pdf']), /Entradas pagas: BRL 100.10/);
-  assert.match(strFromU8(result['Resumo.pdf']), /Resultado registrado: BRL 80.05/);
-  assert.equal(dossierEntries(entries, 2026).length,4);
-  assert.match(strFromU8(result['Extrato.csv']), /'=HYPERLINK/);
-  const manifest=JSON.parse(strFromU8(result['Manifesto.json']));
-  assert.deepEqual(result[manifest.arquivos[0].arquivo],bytes);
-  assert.equal(manifest.arquivos[0].sha256.length,64);
-  assert.ok(!Object.keys(result).some(k=>k.includes('../')));
+test('PDF com sumário navegável, paginação após quebra de extrato e arquivos originais íntegros', async () => {
+  const blank = await PDFDocument.create();
+  blank.addPage([595,842]).drawText('BUILT');
+  const template = await blank.save();
+  const entries = Array.from({length:45},(_,i)=>({id:String(i),descricao:'Lançamento de teste',tipo:'entrada',valor:10,status:'pago',data:'2025-01-01',data_pagamento:'2026-01-02'}));
+  const previous = {...entries[0],id:'excluido',data_pagamento:'2025-01-02'};
+  assert.equal(dossierEntries([...entries, previous],2026).length,45);
+  const source = {name:'BIA de teste',currency:'BRL',entries:[...entries,previous],notes:[],files:[{id:'r',name:'recibo.pdf',folder:'Documentos'},{id:'m',name:'MAP.pdf',folder:'MAP'}]};
+  const out = await buildDossier(source,2026,async()=>({bytes:template}),()=>template);
+  assert.equal(Buffer.from(out).subarray(0,5).toString(),'%PDF-');
+  const pdf = await PDFDocument.load(out);
+  const pages = pdf.getPages();
+  const links = pages[0].node.Annots()!;
+  assert.equal(links.size(),5);
+  const destinations = links.asArray().map(a=>{
+    const dest=pdf.context.lookup(a,PDFDict).lookup(PDFName.of('Dest'),PDFArray);
+    return pages.findIndex(p=>p.ref === dest.get(0));
+  });
+  assert.deepEqual(destinations.slice(0,2),[1,2]);
+  assert.ok(destinations[2]>3,'extrato de várias páginas altera a posição dos anexos');
+  assert.equal(destinations.at(-1),pages.length-1);
+  const names=pdf.catalog.lookup(PDFName.of('Names'),PDFDict).lookup(PDFName.of('EmbeddedFiles'),PDFDict).lookup(PDFName.of('Names'),PDFArray);
+  const files=new Map<string,Buffer>();
+  for(let i=0;i<names.size();i+=2){
+    const spec=names.lookup(i+1,PDFDict);
+    const stream=spec.lookup(PDFName.of('EF'),PDFDict).lookup(PDFName.of('F'),PDFRawStream);
+    files.set(names.lookup(i,PDFHexString).decodeText(),Buffer.from(decodePDFRawStream(stream).decode()));
+  }
+  assert.deepEqual(files.get('1-recibo.pdf'),Buffer.from(template));
+  assert.deepEqual(files.get('2-MAP.pdf'),Buffer.from(template));
+  assert.doesNotMatch(files.get('Extrato.csv')!.toString(),/excluido/);
+  assert.equal(JSON.parse(files.get('Manifesto.json')!.toString()).arquivos.length,2);
 });
 
-test('arquivo ausente ou limite não produz ZIP parcial; ano inválido é rejeitado', async () => {
+test('arquivo ausente ou limite não produz PDF parcial; ano inválido é rejeitado', async () => {
   assert.throws(()=>dossierYear('2026&other=1'));
   const source={name:'Teste',currency:'BRL',entries:[],notes:[],files:[{id:'1',name:'a',folder:'Docs'}]};
-  await assert.rejects(buildDossier(source,2026,async()=>{throw new Error('offline');},()=>new Uint8Array()),/offline/);
+  const base=await PDFDocument.create(); base.addPage().drawText('BUILT'); const bytes=await base.save();
+  await assert.rejects(buildDossier(source,2026,async()=>{throw new Error('offline');},()=>bytes),/offline/);
   await assert.rejects(buildDossier({...source,files:Array(301).fill(source.files[0])},2026,async()=>({bytes:new Uint8Array()}),()=>new Uint8Array()),/300/);
 });
 

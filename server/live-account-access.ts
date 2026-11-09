@@ -1,3 +1,4 @@
+import { areaChoices, areaForPath, blockedArea, withAreaChoices } from '../shared/account-areas';
 import type {Express} from 'express';
 import {normalizeAccountRole} from '../shared/account-access-profiles';
 
@@ -43,7 +44,10 @@ export function registerLiveAccountAccess(app:Express,deps:{
       delete session.companyOwnerMembroId;
       delete session.companyEmployeePermissions;
       session.role=deps.bootstrap(user.email)?'admin':normalizeAccountRole(user.role);
-      session.permissions=['admin','manager'].includes(session.role)?{...deps.adminPermissions}:{...(user.permissions as Record<string,string>||{})};
+      const choices=deps.bootstrap(user.email) ? {} : areaChoices(user.permissions);
+      const base=['admin','manager'].includes(session.role) ? deps.adminPermissions : user.permissions as Record<string,string> || {};
+      session.permissions=withAreaChoices(base,choices);
+      if(blockedArea(session.permissions,areaForPath('/api'+path))) return res.status(403).json({code:'ACCOUNT_AREA_DENIED',error:'Esta área foi bloqueada para a sua conta.'});
       session.membroId=user.membro_directus_id||null;
       session.email=user.email||null;
       session.nome=user.nome||session.nome;

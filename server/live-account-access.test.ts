@@ -16,10 +16,11 @@ async function fixture(run:(test:any)=>Promise<void>) {
     bootstrap:email=>email==='recovery@example.test',adminPermissions:{admin:'edit'},
   });
   app.get('/api/me',(req:any,res)=>res.json({role:req.session.role,permissions:req.session.permissions,member:req.session.membroId}));
+  app.all('/api/carteira/imoveis',(_req,res)=>res.sendStatus(200));
   app.get('/api/admin-test',(req:any,res)=>res.status(req.session.role==='admin'?200:403).json({role:req.session.role}));
   const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));
   const url=`http://127.0.0.1:${(server.address() as any).port}`;
-  try {await run({records,sessions,get:(path='/api/me',id='u')=>fetch(url+path,{headers:{'x-test-user':id}}),employee:(value:any)=>employee=value,offline:()=>unavailable=true});}
+  try {await run({records,sessions,get:(path='/api/me',id='u',method='GET')=>fetch(url+path,{method,headers:{'x-test-user':id}}),employee:(value:any)=>employee=value,offline:()=>unavailable=true});}
   finally {server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
 }
 
@@ -33,6 +34,24 @@ test('perfil salvo vale na próxima ação da mesma sessão, inclusive revogaç�
     records.get('u').role='manager';assert.equal((await (await get()).json()).role,'manager');
     records.get('u').role='admin';assert.equal((await get('/api/admin-test')).status,200);
     records.get('u').ativo=false;assert.equal((await get()).status,401);
+  });
+});
+
+test('exceção pessoal prevalece sobre perfil alto e a restauração vale na mesma sessão', async()=>{
+  await fixture(async({records,get}:any)=>{
+    const user = records.get('u');
+    for (const role of ['user','membro','aliado','manager','admin']) {
+      user.role = role;
+      user.permissions = {area_carteira:'none'};
+      for (const method of ['GET','POST']) {
+        const res = await get('/api/carteira/imoveis','u',method);
+        assert.equal(res.status,403);
+        assert.equal((await res.json()).code,'ACCOUNT_AREA_DENIED');
+      }
+      assert.equal((await (await get()).json()).permissions.area_carteira,'none');
+      user.permissions = {};
+      assert.equal((await get('/api/carteira/imoveis')).status,200);
+    }
   });
 });
 

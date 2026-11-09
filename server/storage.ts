@@ -26,6 +26,13 @@ import { eq, asc, desc, and, or, isNull, lte, gte, sql as sqlExpr } from "drizzl
 import { createHash, scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
+async function setAccountProfessional(tx: Pick<typeof db,'execute'>, user: User, enabled?: boolean) {
+  if (enabled === undefined) return;
+  await tx.execute(sqlExpr`INSERT INTO user_account_purposes (user_id,membro_id,purpose,source,active)
+    VALUES (${user.id},${user.membro_directus_id},'profissional','admin',${enabled})
+    ON CONFLICT (user_id,purpose) DO UPDATE SET active=EXCLUDED.active,source='admin',updated_at=now()`);
+}
+
 const scryptAsync = promisify(scrypt);
 
 export function hashInviteToken(token: string): string {
@@ -61,9 +68,9 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUsersByEmail(email: string): Promise<User[]>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser, professional?: boolean): Promise<User>;
   getAllUsers(): Promise<User[]>;
-  updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<InsertUser>, professional?: boolean): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
 
   getAllMembros(): Promise<Membro[]>;
@@ -208,36 +215,30 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const hashedPassword = await hashPassword(insertUser.password);
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...insertUser,
-        password: hashedPassword,
-        permissions: insertUser.permissions || permissionsForRole(insertUser.role),
-      })
-      .returning();
-    return user;
+  async createUser(insertUser: InsertUser, professional?: boolean): Promise<User> {
+    const password = await hashPassword(insertUser.password);
+    return db.transaction(async tx => {
+      const [user] = await tx.insert(users).values({
+        ...insertUser, password, permissions: insertUser.permissions || permissionsForRole(insertUser.role),
+      }).returning();
+      await setAccountProfessional(tx,user,professional);
+      return user;
+    });
   }
 
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users);
   }
 
-  async updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined> {
-    const updateData: Partial<InsertUser> = { ...data };
-    if (updateData.password) {
-      updateData.password = await hashPassword(updateData.password);
-    } else {
-      delete updateData.password;
-    }
-    const [user] = await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, id))
-      .returning();
-    return user;
+  async updateUser(id: string, data: Partial<InsertUser>, professional?: boolean): Promise<User | undefined> {
+    const updateData = {...data};
+    if (updateData.password) updateData.password = await hashPassword(updateData.password);
+    else delete updateData.password;
+    return db.transaction(async tx => {
+      const [user] = Object.keys(updateData).length ? await tx.update(users).set(updateData).where(eq(users.id, id)).returning() : await tx.select().from(users).where(eq(users.id,id)).limit(1);
+      if (user) await setAccountProfessional(tx,user,professional);
+      return user;
+    });
   }
 
   async deleteUser(id: string): Promise<boolean> {

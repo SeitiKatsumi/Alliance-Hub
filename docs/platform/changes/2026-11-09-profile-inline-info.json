@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "id": "2026-11-09-profile-inline-info",
+  "title": "Ajuda junto de cada cargo na lista de perfis",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/account-profile-picker.tsx"
+  ],
+  "searchTerms": [
+    "AccountProfilePicker"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/account-profile-picker.tsx",
+      "decision": "updated",
+      "reason": "Lista de perfis usa popover e botões de ajuda independentes da seleção."
+    },
+    {
+      "path": "client/src/components/account-profile-picker.test.ts",
+      "decision": "updated",
+      "reason": "Renderização e bloqueio do seletor durante gravação."
+    },
+    {
+      "path": "docs/platform/modules/administracao.md",
+      "decision": "updated",
+      "reason": "Documenta ajuda individual na lista."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "reviewed",
+      "reason": "Criação e edição usam o componente compartilhado com as mesmas propriedades."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "reviewed",
+      "reason": "Preserva regressões de seletor único e acesso antes de preencher credenciais."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Lista com ajuda por linha, seleção separada da consulta e adaptação a celular/desktop.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Mudança localizada no seletor visual. Contratos de gravação e autorização, dados, integrações e documentos permanecem os mesmos.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Lista com ajuda por linha, seleção separada da consulta e adaptação a celular/desktop.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/account-profile-picker.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

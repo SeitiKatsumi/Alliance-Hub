@@ -43,7 +43,7 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
       canAccess,
       target,
       title: "Vitrine",
-      description: "Todos os usuários podem consultar profissionais, fornecedores, demandas e OBAs. Somente perfis profissionais podem optar por aparecer na Vitrine.",
+      description: "Consulte profissionais, fornecedores, demandas e OBAs na Vitrine. A publicação do seu perfil depende dos acessos da sua conta.",
       actionLabel: "Abrir Vitrine",
     };
   }

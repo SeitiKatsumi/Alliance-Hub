@@ -288,9 +288,9 @@ A IA deve sugerir descrição factual (objeto/finalidade e fornecedor presentes)
 
 Prévia IA usa o próprio CategoriaCombobox do lançamento manual, injetado pelo Financeiro: mesmo catálogo, busca, grupos, filtro entrada/saída e criação contextual de categoria. O cartão usa stripPlanoContaCode, preservando o ID original. Sem mudança no servidor ou na persistência.
 
-## Dossiê por ano — 05/11/2026
+## Dossiê anual em PDF — 09/11/2026
 
-Exportar dossiê oferece ZIP com Resumo.pdf, Extrato.csv UTF-8, Leia-me e Manifesto.json com SHA256 dos arquivos. Data de pagamento tem precedência sobre data do lançamento/vencimento; apenas pago e caixa soma no resumo nominal da moeda do recurso. Pendentes e não caixa continuam no extrato. Documento cadastral entra independentemente do ano. Ausências de vínculo/arquivo são declaradas; erro ao baixar um arquivo aborta o pacote, sem sucesso parcial. Limites300arquivos/20MBporarquivo/100MBtotal.
+Exportar dossiê baixa um único PDF com sumário inicial navegável, páginas numeradas, resumo, extrato, documentos, MAP quando aplicável e observações. Todas as páginas usam o cabeçalho e rodapé do gerador do MOU. Originais, Extrato.csv e Manifesto.json com SHA256 ficam incorporados ao PDF. PDFs legíveis, JPEG e PNG recebem prévia paginada. Formatos não suportados, protegidos ou excessivos para prévia permanecem como arquivos originais no painel Anexos. Data de pagamento tem precedência sobre data do lançamento/vencimento; apenas pago e caixa soma no resumo nominal da moeda do recurso. Pendentes e não caixa continuam no extrato. Documento cadastral entra independentemente do ano. Ausências de vínculo/arquivo são declaradas; erro ao baixar um arquivo aborta o PDF, sem sucesso parcial. Limites300arquivos/20MBporarquivo/100MBtotal.
 
 Imóvel exige leitura e consulta SQL restrita ao ID, inclui documentos e anexos legados dos lançamentos; sem MAP. BIA exige capital_financeiro:view e consulta financeira sem fallback de logs; inclui só documentos de núcleos autorizados e versões MAP até o fim do ano, datadas e reproduzidas dos snapshots. MAP não presume posição anual; não é novo aceite. Arquivos resolvidos no servidor por IDs vinculados e host fixo, sem URL arbitrária.
 

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "id": "2026-11-09-profile-photo-layout",
+  "title": "Foto em Dados pessoais e formalização sem caixa interna",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/meu-perfil.tsx"
+  ],
+  "searchTerms": [
+    "DadosFormalizacaoSection",
+    "section-dados-formalizacao",
+    "fotoInputRef",
+    "input-foto-perfil"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "updated",
+      "reason": "Move exatamente o input e a linha da foto para Dados pessoais, mantém ref/handlers/recorte/upload e remove somente a superfície interna/título externo duplicado da formalização."
+    },
+    {
+      "path": "client/src/pages/meu-perfil-layout.test.ts",
+      "decision": "preserved",
+      "reason": "Cinco testes de layout existentes executados; hub, categorias, salvamento, segurança e Aura mantidos."
+    },
+    {
+      "path": "client/src/lib/profile-completion.test.ts",
+      "decision": "preserved",
+      "reason": "Regras e validações de completude/formalização permanecem iguais, com testes existentes aprovados."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo componente de perfil e rotas autenticadas, sem mudança de navegação ou acesso."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Mesmo bootstrap e providers da página; atualização é só apresentação local."
+    },
+    {
+      "path": "docs/platform/modules/perfil-rede-empresa.md",
+      "decision": "updated",
+      "reason": "Registra escopo visual da formalização, campos e fluxos preservados."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Prévia com fragmentos/componentes reais: foto/input únicos em Dados pessoais; formalização transparente sem borda interna/foto/título externo duplicado. Desktop1280 e mobile390x844 sem overflow. No celular, texto ao lado do avatar e botão em linha própria. Capturas output/profile-photo-layout."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Nenhum endpoint ou payload alterado; os mesmos setField/setForm e salvamento geral permanecem."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Não altera valor, campo, banco, Directus, migração ou persistência; edição continua na mesma estrutura."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Nenhuma fórmula ou gráfico utiliza o estado removido de expansão."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Disclosure não produz mensagens; regras e envios existentes não mudam."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Mesmos dados restritos de formalização usados pelos documentos; nenhum arquivo/aceite é regravado."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Mesma consulta CEP acionada ao digitar, foto e controles condicionais mantidos. Sem serviço ou tarefa nova."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "A seção continua somente na categoria identity do próprio perfil autenticado; não muda exposição pública ou autorização."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Mantém controles, valores, condição de cônjuge/endereço e atalhos de foco para nome/CPF. Não muda a formalização da BIA na Comunidade."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "15 testes existentes de layout/completude aprovados após a alteração. platform:verify784testes/0falhas, tipos app/tooling, contrato/consistência e build aprovados. QA sem upload ou edição de dados reais. Logs profile-photo-layout-tests/verify."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/meu-perfil-layout.test.ts",
+    "client/src/lib/profile-completion.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

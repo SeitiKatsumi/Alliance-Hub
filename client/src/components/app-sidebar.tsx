@@ -1,3 +1,4 @@
+import { blockedArea } from '@shared/account-areas';
 ﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
@@ -28,12 +29,12 @@ export function AppSidebar() {
   const { setOpenMobile } = useSidebar();
   const { user } = useAuth();
   const isLimitedCoOwner = user?.role === "coproprietario";
-  const isSuperAdmin = user?.role === "admin";
+  const isSuperAdmin = user?.role === "admin" && !blockedArea(user?.permissions,"admin");
   const [location, navigate] = useLocation();
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const canInicio = hasEmployeeModuleAccess(user, "inicio");
   const canVitrine = hasEmployeeModuleAccess(user, "vitrine") && environmentAccessFor(user, "vitrine").canAccess;
-  const canAlliances = isLimitedCoOwner || hasEmployeeModuleAccess(user, "alliances");
+  const canAlliances = isLimitedCoOwner || (!blockedArea(user?.permissions,"alliances") && hasEmployeeModuleAccess(user, "alliances"));
   const canCapital = !MEMBER_PORTFOLIO_V2_ENABLED && hasEmployeeModuleAccess(user, "capital");
   const { data: alertCount } = useQuery<{ pendencias_ativas: number; display: number | "99+" | null }>({
     queryKey: ["/api/agenda-alertas/contador"],
@@ -46,7 +47,7 @@ export function AppSidebar() {
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
     staleTime: 0,
-    enabled: !isLimitedCoOwner,
+    enabled: !isLimitedCoOwner && !blockedArea(user?.permissions,"agenda"),
   });
   const alertBadge = agendaAlertBadgeLabel(alertCount?.pendencias_ativas);
 
@@ -85,7 +86,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>}
 
-              {!isLimitedCoOwner && <SidebarMenuItem>
+              {!isLimitedCoOwner && !blockedArea(user?.permissions,"agenda") && <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location.startsWith("/agenda-alertas") || location === "/agenda" || location === "/notificacoes"} data-testid="nav-agenda-alertas" className="text-sm">
                   <Link href="/agenda-alertas">
                     <BellRing className="w-3.5 h-3.5" />

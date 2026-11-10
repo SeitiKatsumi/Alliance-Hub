@@ -1145,3 +1145,7 @@ Fechamento adicional: após enviar avaliação, invalida busca de membros; filtr
 ## 10/11/2026 — Traduções de textos derivados e marca Asaas
 
 Corrigida a marca Asaas em inglês, que aparecia como Wings. Indicadores calculados da Aura, níveis, núcleos, recomendações, etapas de criação de BIA, datas resumidas da agenda e metadados oficiais de OBAs passam pelo idioma ativo. Convites de diretoria/sócio na agenda usam a origem oficial para traduzir o título. Títulos livres de tarefas e de oportunidades permanecem cadastrados. A migração pt-PT continua reservada para a publicação conforme escolha do usuário. Sem deploy e sem alteração de base compartilhada.
+
+## 10/11/2026 — Uma despesa com aportes em grupo
+
+Novos pedidos em Gerar aportes para esta despesa conservam uma saída pelo valor integral e criam somente os aportes individuais do rateio. Todos os aportes referenciam a mesma despesa. Anexos comuns e individuais são reunidos na saída. Marca mirrorExpenses continua aceita para clientes antigos, mas o snapshot já persistido define a retomada, preservando lotes espelhados históricos. Sem consolidação ou exclusão de lançamentos existentes. Teste HTTP cobre R$2.000,01 entre dez membros, centavos, perda de resposta e retomada do formato anterior. Alterações paralelas do formulário para rateio Guardião foram preservadas.

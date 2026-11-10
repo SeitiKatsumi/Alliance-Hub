@@ -48,7 +48,7 @@ test("despesa/aportes: autorização, lote atômico, resposta perdida, retomada 
     access: async (req, res, bia, level) => { if (bia !== "bia" || req.headers["x-access"] !== "edit" && !(level === "view" && req.headers["x-access"] === "view")) { res.status(403).json({ error: "Negado" }); return null; } return { bia: { id: bia } }; },
     phase: async () => {}, members: () => ["a", "b"], map: async () => map,
     lock: async (_id, work) => { const previous = tail; let release!: () => void; tail = new Promise<void>(r => release = r); await previous; try { return await work(); } finally { release(); } },
-    one: async (collection, id) => collection === "fluxo_caixa" ? entries.get(id) || null : ["a", "b", "capital"].includes(id) ? { id } : null,
+    one: async (collection, id) => collection === "fluxo_caixa" ? entries.get(id) || null : (["a", "b", "capital"].includes(id) || map.some(m => m.memberId === id)) ? { id } : null,
     createBatch: async items => { calls++; if (mode === "fail") throw new Error("rollback fixture"); for (const item of items) { assert.ok(!entries.has(item.id)); entries.set(item.id, structuredClone(item)); } if (mode === "lost") { mode = "ok"; throw new Error("lost response"); } },
   });
   const server = app.listen(0, "127.0.0.1"); await new Promise<void>(resolve => server.once("listening", resolve));
@@ -85,17 +85,19 @@ test("despesa/aportes: autorização, lote atômico, resposta perdida, retomada 
     const mirrored = { ...input, requestId: randomUUID(), mirrorExpenses: true, mode: "manual", participants: [{ memberId: "a", value: 30 }, { memberId: "b", value: 70 }], expected: [{ memberId: "a", amount: 30 }, { memberId: "b", amount: 70 }] };
     const created = await post(mirrored); assert.equal(created.status, 200);
     const pairs = created.body.movimentos;
-    assert.equal(pairs.length, 4);
+    assert.equal(pairs.length, 3);
+    assert.equal(pairs.filter((m: any) => m.tipo === "saida").length, 1);
+    const outgoing = pairs.find((m: any) => m.tipo === "saida");
+    assert.equal(Number(outgoing.valor), 100);
     for (const memberId of ["a", "b"]) {
-      const outgoing = pairs.find((m: any) => m.tipo === "saida" && m.favorecido_id === memberId);
       const incoming = pairs.find((m: any) => m.tipo === "entrada" && m.favorecido_id === memberId);
-      assert.equal(incoming.valor, outgoing.valor);
-      assert.deepEqual(incoming.tipo_de_cpp, outgoing.tipo_de_cpp);
+      assert.equal(Number(incoming.valor), memberId === "a" ? 30 : 70);
+      assert.deepEqual(outgoing.tipo_de_cpp, []);
       assert.equal(incoming.despesa_origem_id, outgoing.id);
       assert.equal(incoming.status, "pago"); assert.equal(incoming.data_pagamento, "2026-10-26");
       assert.equal(outgoing.status, "pago");
       const links = await (await fetch(`${base}/api/fluxo-caixa/${incoming.id}/vinculos`, { headers: { "x-access": "view" } })).json();
-      assert.equal(links.despesaId, outgoing.id); assert.equal(links.movimentos.length, 2);
+      assert.equal(links.despesaId, outgoing.id); assert.equal(links.movimentos.length, 3);
       assert.equal(entries.get(incoming.id).despesa_origem_id, undefined, "metadata fica no lote, não em coluna Directus inexistente");
     }
     const beforeRetry = calls;
@@ -107,14 +109,34 @@ test("despesa/aportes: autorização, lote atômico, resposta perdida, retomada 
       const result = await post(pending); assert.equal(result.status, 200);
       assert.ok(result.body.movimentos.every((m: any) => m.status === status && m.data_pagamento === null));
     }
+    map.splice(0, map.length, ...Array.from({ length: 10 }, (_, i) => ({ memberId: "participant-" + i, percent: 10 })));
+    const tenParticipants = map.map(m => ({ memberId: m.memberId }));
+    const ten = { ...input, requestId: randomUUID(), mode: "map", participants: tenParticipants,
+      expense: { ...input.expense, valor: 2000.01 }, expected: splitExpense(2000.01, "map", tenParticipants, map) };
+    const tenResult = await post(ten); assert.equal(tenResult.status, 200);
+    const tenMovements = tenResult.body.movimentos;
+    assert.equal(tenMovements.filter((m: any) => m.tipo === "saida").length, 1);
+    assert.equal(tenMovements.filter((m: any) => m.tipo === "entrada").length, 10);
+    assert.equal(Number(tenMovements[0].valor), 2000.01);
+    assert.equal(tenMovements.filter((m: any) => m.tipo === "entrada").reduce((n: number, m: any) => n + Math.round(Number(m.valor) * 100), 0), 200001);
+    map.splice(0, map.length, { memberId: "a", percent: 60 }, { memberId: "b", percent: 40 });
     // A previously persisted pending lot must never become paid when replayed after upgrade.
     const historical = { ...mirrored, requestId: randomUUID() };
     mode = "fail"; assert.equal((await post(historical)).status, 503);
     const saved = (await db.execute(sql`SELECT movimentos FROM bia_despesa_aportes WHERE id=${historical.requestId}`)).rows[0].movimentos as any[];
+    // Simulate an intent persisted by an older version before remote creation.
+    const originalExpense = saved[0];
+    const legacyPairs = saved.filter(m => m.tipo === "entrada").flatMap(incoming => {
+      const outgoing = { ...originalExpense, id: randomUUID(), valor: incoming.valor, favorecido_id: incoming.favorecido_id };
+      return [outgoing, { ...incoming, despesa_origem_id: outgoing.id }];
+    });
+    saved.splice(0, saved.length, ...legacyPairs);
     for (const item of saved) if (item.tipo === "entrada") { item.status = "pendente"; item.data_pagamento = null; }
     await db.execute(sql`UPDATE bia_despesa_aportes SET movimentos=${JSON.stringify(saved)}::jsonb WHERE id=${historical.requestId}`);
     mode = "ok";
     const replay = await post(historical); assert.equal(replay.status, 200);
+    assert.equal(replay.body.movimentos.filter((m: any) => m.tipo === "saida").length, 2);
+    assert.deepEqual(replay.body.movimentos.map((m: any) => m.id), saved.map(m => m.id));
     assert.ok(replay.body.movimentos.filter((m: any) => m.tipo === "entrada").every((m: any) => m.status === "pendente" && m.data_pagamento === null));
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); await pg.close(); }
 });

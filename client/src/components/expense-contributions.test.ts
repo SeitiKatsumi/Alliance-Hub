@@ -18,7 +18,7 @@ test("prévia da despesa mostra cada aporte, conserva centavos e informa total i
   assert.match(inherited, /Pessoa a: R\$\s*100,00/);
   assert.doesNotMatch(inherited, /Divisão dos aportes|Adicionar participante|Tipo de CPP dos aportes|registrados como pendentes/);
   const page = readFileSync("client/src/pages/fluxo-caixa.tsx", "utf8");
-  assert.match(page, /mirrorExpenses: true/);
+  assert.doesNotMatch(page, /mirrorExpenses: true/);
   assert.match(page, /cppType: formTiposCpp == null \? null : String\(formTiposCpp\)/);
   assert.doesNotMatch(page, /singleExpense=\{/);
 });

@@ -16,6 +16,7 @@ export const expenseRequest = z.object({
     membro_responsavel: z.string().nullable(), status: z.enum(["pendente", "agendado", "pago", "vencido", "parcial"]), data_vencimento: date,
     data_pagamento: date.nullable(), Categoria: ids, Favorecido: z.array(z.string().min(1)).max(1).default([]), anexos: z.array(z.string().uuid()).max(30).default([]) }),
   mode: z.enum(["equal", "map", "manual"]), participants: z.array(z.object({ memberId: z.string().min(1), value: z.number().optional(), attachmentIds: z.array(z.string().uuid()).max(30).optional() })).min(1).max(100),
+  // Accepted for recovery of requests saved by older clients. New lots always have one expense.
   mirrorExpenses: z.literal(true).optional(),
   dueDate: date, cppType: z.string().min(1).nullable(),
   expected: z.array(z.object({ memberId: z.string(), amount: z.number() })).min(1).max(100),
@@ -85,24 +86,11 @@ export function registerExpenseContributions(app: any, deps: ExpenseContribution
           const movements: any[] = [{ ...input.expense, id: expenseId, bia: biaId, tipo: "saida", valor: String(input.expense.valor),
             favorecido_id: input.expense.Favorecido[0] || null,
             Categoria: input.expense.Categoria.map(id => ({ categorias_id: id })), tipo_de_cpp: [],
-            Anexos: input.expense.anexos.map(id => ({ directus_files_id: id })) },
-            ...split.map(p => ({ id: randomUUID(), bia: biaId, tipo: "entrada", valor: String(p.amount), data: input.expense.data,
+            Anexos: [...new Set([...input.expense.anexos, ...input.participants.flatMap(p => p.attachmentIds || [])])].map(id => ({ directus_files_id: id })) },
+            ...split.map(p => ({ id: randomUUID(), despesa_origem_id: expenseId, bia: biaId, tipo: "entrada", valor: String(p.amount), data: input.expense.data,
               descricao: `Aporte para: ${input.expense.descricao}`, membro_responsavel: p.memberId, favorecido_id: p.memberId,
               ...payment, data_vencimento: input.dueDate, Categoria: [],
               tipo_de_cpp: input.cppType ? [{ tipos_cpp_id: input.cppType }] : [], Anexos: [] }))];
-          if (input.mirrorExpenses) {
-            if (input.mode !== "manual") throw fault("Os aportes devem herdar os valores da saída.", 400);
-            const expenseBase = movements[0];
-            const pairs = split.flatMap(p => {
-              const id = randomUUID();
-              const contribution = movements.find(m => m.tipo === "entrada" && m.favorecido_id === p.memberId);
-              return [{ ...expenseBase, id, valor: String(p.amount), favorecido_id: p.memberId, Favorecido: [p.memberId],
-                tipo_de_cpp: input.cppType ? [{ tipos_cpp_id: input.cppType }] : [],
-                Anexos: [...new Set([...input.expense.anexos, ...(input.participants.find(row => row.memberId === p.memberId)?.attachmentIds || [])])].map(file => ({ directus_files_id: file })) },
-                { ...contribution, despesa_origem_id: id }];
-            });
-            movements.splice(0, movements.length, ...pairs);
-          }
           // Persist the intent before remote I/O. IDs remain identical after a lost response.
           canRevise = false;
           await deps.db.execute(sql`INSERT INTO bia_despesa_aportes (id,bia_id,autor,pedido_hash,movimentos) VALUES (${input.requestId},${biaId},${actor},${hash},${JSON.stringify(movements)}::jsonb)`);

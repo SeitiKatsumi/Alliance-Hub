@@ -15,7 +15,8 @@ test("dois blocos patrimoniais separam CPP aportada do saldo e mantêm dois grá
   const metrics = portfolioDashboard([{ id: "p", valor_aquisicao_brl: 100, estimativa_dashboard: { min: 200, max: 300, value: 250 } }], [{ id: "b", cpp_base_brl: 50, cpp_contributed_brl: 20, cpp_remaining_brl: 30, valor_participacao_brl: -10 }]);
   const render = (props = {}) => renderToStaticMarkup(React.createElement(Component, { metrics, observations: [{ day: "2026-10-22", observedAt: "2026-10-22T00:00:00Z", metrics }], ...props }));
   const propertiesOnly = render({showAlliances:false,onViewAlliances:()=>{}});
-  assert.match(propertiesOnly, /Meus imóveis/);
+  assert.match(propertiesOnly, /aria-label="Meus imóveis"/);
+  assert.doesNotMatch(propertiesOnly, /<h[23][^>]*>Meus imóveis<\/h[23]>/);
   assert.doesNotMatch(propertiesOnly, /Minhas alianças|Evolução das CPPs|Teses das alianças|Ver alianças|lg:grid-cols-2/);
   assert.equal((propertiesOnly.match(/role="img"/g) || []).length, 1);
   const cppOnly = render({showProperties:false,showTheses:false});

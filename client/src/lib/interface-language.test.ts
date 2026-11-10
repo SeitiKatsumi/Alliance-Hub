@@ -52,3 +52,13 @@ test('brand names, BIA steps and computed Aura labels follow the language contra
   }
   assert.equal(translateInterface('Aguardar novas avaliações antes de recomendar uma aplicabilidade predominante por núcleo.','en').includes('Aguardar'),false);
 });
+
+test('financial category and attachment captions are concise and the catalog has no artificial repetition', () => {
+  assert.equal(translateInterface('Categoria','es'),'Categoría');
+  assert.equal(translateInterface('Anexo','es'),'Adjunto');
+  const catalog = JSON.parse(readFileSync(new URL('./interface-catalog.json',import.meta.url),'utf8')) as Record<string,string[]>;
+  const repeated = /(.{3,50})(?:\s*\1){3,}/i;
+  for(const [source,values] of Object.entries(catalog)) {
+    if(!repeated.test(source)) for(const value of values) assert.equal(repeated.test(value),false,source);
+  }
+});

@@ -15,7 +15,7 @@ export type PortfolioChartFilter = {
 function PortfolioItemFilter({ kind, filter }: { kind: "properties" | "cpps"; filter?: PortfolioChartFilter }) {
   if (!filter) return null;
   const label = kind === "properties" ? "Filtrar por imóvel" : "Filtrar por aliança";
-  return <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">{label}
+  return <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium"><span className={kind === "properties" ? "sr-only" : undefined}>{label}</span>
     <select aria-label={label} className="h-11 w-full min-w-0 rounded-md border bg-background px-3 text-foreground sm:max-w-sm" value={filter.value} onChange={e => filter.onChange(e.target.value)}>
       <option value="">{kind === "properties" ? "Todos os imóveis" : "Todas as alianças"}</option>
       {filter.items.map(item => <option key={item.id} value={item.id}>{item.nome || (kind === "properties" ? "Imóvel" : "Aliança")}</option>)}
@@ -103,8 +103,11 @@ export function PortfolioPatrimonyDashboard({ metrics, observations, historyErro
   return <div className="space-y-4" data-testid="portfolio-patrimony-dashboard">
     <div className={`grid items-stretch gap-5 ${showAlliances && showProperties ? "lg:grid-cols-2" : ""}`}>
       {showProperties && <section aria-label="Meus imóveis" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card/50 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-xl font-semibold">Meus imóveis</h3>{onCreateProperty && <Button onClick={onCreateProperty}>Cadastrar imóvel</Button>}</div>
-        <PortfolioItemFilter kind="properties" filter={propertyFilter} />
+        {showAlliances && <h3 className="text-xl font-semibold">Meus imóveis</h3>}
+        {(propertyFilter || onCreateProperty) && <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {propertyFilter && <div className="min-w-0 flex-1"><PortfolioItemFilter kind="properties" filter={propertyFilter} /></div>}
+          {onCreateProperty && <Button className="h-11 shrink-0 sm:ml-auto" onClick={onCreateProperty}>Cadastrar imóvel</Button>}
+        </div>}
         <div className="grid min-w-0 grid-cols-2 gap-3">
           <MetricLine label="Valor total estimado dos imóveis próprios" displayLabel="Valor estimado" metric={metrics.propertyEstimate} incompleteLabel="Estimativa incompleta" help="Soma das avaliações atuais dos imóveis, proporcional à sua propriedade. Método comparativo BUILT: mesma natureza de área e referências de anúncios em até 10 km. Valores informados e simulações não substituem avaliações ausentes. A faixa de anúncios não é um intervalo estatístico de confiança." />
           <MetricLine label="Valor total de aquisição" displayLabel="Valor de aquisição" metric={metrics.acquisition} help="Somatório dos valores de aquisição dos imóveis de sua propriedade que foram declarados por você no momento do cadastro." />

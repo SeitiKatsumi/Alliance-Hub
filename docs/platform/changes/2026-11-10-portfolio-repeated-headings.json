@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "id": "2026-11-10-portfolio-repeated-headings",
+  "title": "Simplificar e alinhar a carteira, mostrando todo o período",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/pages/carteira.tsx",
+    "client/src/components/portfolio-patrimony-dashboard.tsx"
+  ],
+  "searchTerms": [
+    "PortfolioPatrimonyDashboard"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "updated",
+      "reason": "Ajuste da apresentação dos títulos e rótulos, mantendo filtros, botões e estrutura acessível."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Ajuste da apresentação dos títulos e rótulos, mantendo filtros, botões e estrutura acessível."
+    },
+    {
+      "path": "client/src/components/portfolio-patrimony-dashboard.test.ts",
+      "decision": "updated",
+      "reason": "Ajuste da apresentação dos títulos e rótulos, mantendo filtros, botões e estrutura acessível."
+    },
+    {
+      "path": "client/src/lib/interface-catalog.json",
+      "decision": "updated",
+      "reason": "Ajuste da apresentação dos títulos e rótulos, mantendo filtros, botões e estrutura acessível."
+    },
+    {
+      "path": "docs/platform/modules/carteira.md",
+      "decision": "updated",
+      "reason": "Ajuste da apresentação dos títulos e rótulos, mantendo filtros, botões e estrutura acessível."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/appearance-settings.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/contribution-area-info.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/platform-preferences.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/agenda-interface-copy.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/environment-nomenclature.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/interface-language.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/interface-language.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/interface-locale-runtime.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/interface-taxonomy.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/lib/platform-localization.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo ou painel de carteira. Não contém a chave de período acrescentada. O componente mantém propriedades, filtros, consultas e callbacks; apenas suprime títulos no modo compacto ou só de imóveis."
+    },
+    {
+      "path": "client/src/pages/carteira-chart-filters.test.ts",
+      "decision": "updated",
+      "reason": "Renderiza o painel real em modos compacto e alianças, verificando filtros, composição e histórico. As alterações visuais mantêm suas propriedades e consultas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Retirados títulos e período redundantes. Resumo e histórico usam all. Filtro de imóvel e cadastro alinhados com mesma altura no desktop e empilhados no celular."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Utiliza o parâmetro all já suportado no resumo e histórico. Métricas e filtro de imóveis/alianças preservam as fontes existentes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Alteração localizada em JSX e classes. Contratos e dados das consultas, valores financeiros, gráficos, documentos, integrações e autorização mantêm as chamadas e fontes existentes."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Utiliza o parâmetro all já suportado no resumo e histórico. Métricas e filtro de imóveis/alianças preservam as fontes existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Alteração localizada em JSX e classes. Contratos e dados das consultas, valores financeiros, gráficos, documentos, integrações e autorização mantêm as chamadas e fontes existentes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Alteração localizada em JSX e classes. Contratos e dados das consultas, valores financeiros, gráficos, documentos, integrações e autorização mantêm as chamadas e fontes existentes."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Alteração localizada em JSX e classes. Contratos e dados das consultas, valores financeiros, gráficos, documentos, integrações e autorização mantêm as chamadas e fontes existentes."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Alteração localizada em JSX e classes. Contratos e dados das consultas, valores financeiros, gráficos, documentos, integrações e autorização mantêm as chamadas e fontes existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Alteração localizada em JSX e classes. Contratos e dados das consultas, valores financeiros, gráficos, documentos, integrações e autorização mantêm as chamadas e fontes existentes."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Retirados títulos e período redundantes. Resumo e histórico usam all. Filtro de imóvel e cadastro alinhados com mesma altura no desktop e empilhados no celular."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/portfolio-patrimony-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

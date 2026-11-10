@@ -46,6 +46,7 @@ test("filtros dos blocos compactos alimentam métricas, composição e chave/URL
   assert.deepEqual(selected.properties,[properties[1]]);
   assert.equal(selected.metrics.acquisition.value,700);
   assert.equal(request.queryKey[2],"p2");
+  assert.equal(request.queryKey[1],"all");
   return request.queryFn().then((body:any)=>{
     assert.equal(new URL(body.url,"http://localhost").searchParams.get("propertyId"),"p2");
     const cpp=render({alliancesOnly:true});

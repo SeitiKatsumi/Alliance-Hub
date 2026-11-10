@@ -1027,6 +1027,7 @@ function LancamentoFormFields({
   membros, tiposCpp, categorias,
   favorecidos,
   allocationItems = [],
+  guardianMemberIds = [],
   selectedBiaId,
   prefix,
   pendingFiles, setPendingFiles,
@@ -1069,6 +1070,7 @@ function LancamentoFormFields({
   membros: Membro[];
   favorecidos?: Membro[];
   allocationItems?: AportePorMembro[];
+  guardianMemberIds?: string[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
   selectedBiaId?: string;
@@ -1105,10 +1107,11 @@ function LancamentoFormFields({
     setRateioItems(rateioItems.map((item) => item.id === id ?{ ...item, [field]: value } : item));
   }
 
-  function applyAllocationMapToRateio() {
-    const validItems = allocationItems.filter((item) => item.membroId && item.percentual > 0);
+  function applyAllocationMapToRateio(items = allocationItems) {
+    const validItems = items.filter((item) => item.membroId && Number.isFinite(item.percentual) && item.percentual > 0);
     if (validItems.length === 0) return;
-    const rounded = validItems.map((item) => Number(item.percentual.toFixed(5)));
+    const total = validItems.reduce((sum, item) => sum + item.percentual, 0);
+    const rounded = validItems.map((item) => Number(((item.percentual / total) * 100).toFixed(5)));
     const roundedTotal = rounded.reduce((sum, value) => sum + value, 0);
     const diff = Number((100 - roundedTotal).toFixed(5));
     if (Math.abs(diff) > 0 && rounded.length > 0) {
@@ -1120,6 +1123,20 @@ function LancamentoFormFields({
       membroId: item.membroId,
       valor: rounded[index].toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 5 }),
       anexos: [],
+    })));
+  }
+
+  function applyGuardianRateio() {
+    const amount = parseBRLToNumber(formValor);
+    const participants = [...new Set(guardianMemberIds)].filter(Boolean).map(memberId => ({ memberId }));
+    if (!participants.length || amount <= 0 || Math.round(amount * 100) < participants.length) return;
+    const shares = splitExpense(amount, "equal", participants);
+    setRateioModo("valor");
+    setRateioItems(shares.map(share => ({
+      id: `guardian-${share.memberId}`,
+      membroId: share.memberId,
+      valor: share.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      anexos: rateioItems.find(item => item.membroId === share.memberId)?.anexos || [],
     })));
   }
 
@@ -1307,7 +1324,7 @@ function LancamentoFormFields({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={applyAllocationMapToRateio}
+                onClick={() => applyAllocationMapToRateio()}
                 disabled={allocationItems.length === 0}
                 className="h-8 gap-1.5 text-xs"
                 data-testid={`${prefix}-rateio-usar-mapa-alocacao`}
@@ -1334,6 +1351,19 @@ function LancamentoFormFields({
                 </button>
               </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={applyGuardianRateio}
+              disabled={!guardianMemberIds.length || guardianMemberIds.length > 100 || Math.round(valorTotal * 100) < guardianMemberIds.length}
+              title="Dividir o valor em partes iguais entre os sócios guardiões"
+              className="h-auto min-h-8 max-w-full gap-1.5 whitespace-normal text-left text-xs"
+              data-testid={`${prefix}-rateio-socios-guardioes`}
+            >
+              <Users className="h-3.5 w-3.5 shrink-0" />
+              Ratear entre sócios guardiões
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -2168,6 +2198,11 @@ export default function FluxoCaixaPage({
     };
   }, [aportesComTransferencias]);
 
+  const guardianMemberIds = useMemo(() => [...new Set([
+    ...parseMemberList(selectedBia?.socios_guardioes),
+    ...alocacaoPorPapel.guardioes.map(item => item.membroId),
+  ])].filter(Boolean), [selectedBia?.socios_guardioes, alocacaoPorPapel.guardioes]);
+
   const allocationLegalText = MAP_DYNAMIC_FOOTER;
 
   function escapePdfHtml(value: unknown): string {
@@ -2585,7 +2620,7 @@ export default function FluxoCaixaPage({
             const expected = inheritedFundingPreview();
             const participants = await Promise.all(expected.map(async p => ({ memberId: p.memberId, value: p.amount,
               attachmentIds: await uploadFiles(rateioTipo === "grupo" ? rateioItems.find(row => row.membroId === p.memberId)?.anexos || [] : []) })));
-            request = { requestId: crypto.randomUUID(), bia: selectedBiaId, mirrorExpenses: true,
+            request = { requestId: crypto.randomUUID(), bia: selectedBiaId,
               expense: { ...payload, Categoria: (payload.Categoria as any[]).map(String), Favorecido: (payload.Favorecido as any[]).map(String) },
               mode: "manual", participants,
               dueDate: expenseFunding.dueDate || formDataVencimento, cppType: formTiposCpp == null ? null : String(formTiposCpp),
@@ -3086,7 +3121,7 @@ export default function FluxoCaixaPage({
                   formStatus={formStatus} setFormStatus={setFormStatus}
                   formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                   formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                  membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} tiposCpp={tiposCpp}
+                  membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} guardianMemberIds={guardianMemberIds} tiposCpp={tiposCpp}
                   categorias={categoriasFormulario}
                   selectedBiaId={selectedBiaId}
                   prefix="create"
@@ -4412,7 +4447,7 @@ export default function FluxoCaixaPage({
                 formStatus={formStatus} setFormStatus={setFormStatus}
                 formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                 formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} tiposCpp={tiposCpp}
+                membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} guardianMemberIds={guardianMemberIds} tiposCpp={tiposCpp}
                 categorias={categoriasFormulario}
                 selectedBiaId={selectedBiaId}
                 prefix="edit"

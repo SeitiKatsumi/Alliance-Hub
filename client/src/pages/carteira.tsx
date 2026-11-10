@@ -1049,7 +1049,7 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
   const isPlatformAdmin = ["admin", "superadmin"].includes(String(user?.role || "").toLowerCase());
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("todos");
-  const [period, setPeriod] = useState<"12m" | "all">("12m");
+  const period = "all";
   const [propertyFilter, setPropertyFilter] = useState("");
   const [allianceFilter, setAllianceFilter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -1228,7 +1228,6 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
   const propertyChartFilter = { value: propertyId, items: data?.imoveis || [], onChange: setPropertyFilter };
   const allianceChartFilter = { value: allianceId, items: data?.aliancas || [], onChange: setAllianceFilter };
   if (alliancesOnly) return <div className="space-y-4" data-testid="alliance-cpp-dashboard">
-    <div className="flex justify-end"><Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40" aria-label="Período das CPPs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select></div>
     {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
     {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics} showProperties={false} showTheses={false} allianceFilter={allianceChartFilter}
       observations={historyQuery.data?.observations || []} historyLoading={historyQuery.isLoading || recordObservation.isPending}
@@ -1239,21 +1238,13 @@ export function CarteiraDashboardPanel({ compact = false, showAlliances = true, 
     <div className="space-y-5">
       {showAlliances && !!data?.aliancas.some(item=>item.estimativa_patrimonial?.partial) && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Patrimônio parcial · há dados pendentes nas alianças.</p>}
       {!!excludedCurrencies.length && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">Valores em {excludedCurrencies.join(", ")} fora dos totais por falta de cotação.</p>}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      {(!compact || showAlliances) && <div>
           <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>{showAlliances ? "Carteira Patrimonial" : "Meus imóveis"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{showAlliances ? "Imóveis próprios e participações econômicas em alianças, consolidados em um só lugar." : "Acompanhe o valor e a evolução dos seus imóveis."}</p>
 
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select>
+      </div>}
 
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
-      </div>
+      {(historyQuery.isError || recordObservation.isError) && <Button variant="outline" onClick={() => { historyQuery.refetch(); recordObservation.mutate(); }}>Tentar histórico novamente</Button>}
       {selectedMetrics && <PortfolioPatrimonyDashboard metrics={selectedMetrics}
         properties={selectedPortfolio?.imoveis || []} showAlliances={showAlliances} showTheses={!allianceId} thesisAllocation={thesisAllocation}
         propertyFilter={propertyChartFilter} allianceFilter={showAlliances ? allianceChartFilter : undefined}

@@ -12,7 +12,7 @@ if (process.argv[2] === '--check') {
   const missing = [...keys].filter(key => {
     const row = catalog[key];
     return !Array.isArray(row) || row.length !== 2 ||
-      row.some(value => typeof value !== 'string' || !value.trim() || tokens(key) !== tokens(value));
+      row.some(value => typeof value !== 'string' || !value.trim() || tokens(key) !== tokens(value) || /(.{3,50})(?:\s*\1){3,}/i.test(value) && !/(.{3,50})(?:\s*\1){3,}/i.test(key));
   });
   if (missing.length) {
     console.error('Mensagens sem tradução válida em inglês ou espanhol:', missing);

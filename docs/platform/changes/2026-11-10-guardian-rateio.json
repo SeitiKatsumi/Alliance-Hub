@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "id": "2026-11-10-guardian-rateio",
+  "title": "Ratear igualmente entre os sócios guardiões",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/fluxo-caixa.tsx"
+  ],
+  "searchTerms": [
+    "guardianMemberIds"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "updated",
+      "reason": "Atalho usa a lista de guardiões cadastrados e classificados no MAP; criação e edição compartilham o mesmo formulário."
+    },
+    {
+      "path": "client/src/pages/guardian-rateio.test.ts",
+      "decision": "updated",
+      "reason": "Atalho usa a lista de guardiões cadastrados e classificados no MAP; criação e edição compartilham o mesmo formulário."
+    },
+    {
+      "path": "client/src/lib/interface-catalog.json",
+      "decision": "updated",
+      "reason": "Atalho usa a lista de guardiões cadastrados e classificados no MAP; criação e edição compartilham o mesmo formulário."
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "decision": "updated",
+      "reason": "Atalho usa a lista de guardiões cadastrados e classificados no MAP; criação e edição compartilham o mesmo formulário."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor do módulo Financeiro: usa a página compartilhada ou utilitário de arquivos. O atalho não altera exports, navegação, documentos nem escopo financeiro."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor do módulo Financeiro: usa a página compartilhada ou utilitário de arquivos. O atalho não altera exports, navegação, documentos nem escopo financeiro."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor do módulo Financeiro: usa a página compartilhada ou utilitário de arquivos. O atalho não altera exports, navegação, documentos nem escopo financeiro."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/appearance-settings.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/contribution-area-info.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/platform-preferences.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/agenda-interface-copy.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/environment-nomenclature.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/interface-language.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/interface-language.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/interface-locale-runtime.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/interface-taxonomy.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/lib/platform-localization.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor transitivo do catálogo de traduções. Busca neste arquivo não encontrou os rótulos do atalho. O diff isolado do catálogo apenas acrescenta essas chaves; as traduções usadas por este consumidor mantêm os valores anteriores."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Divisão igual em reais com splitExpense equal, distribuição determinística dos centavos, inclusão de guardiões sem aporte positivo e deduplicação de membros."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Divisão igual em reais com splitExpense equal, distribuição determinística dos centavos, inclusão de guardiões sem aporte positivo e deduplicação de membros."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Revisado o fluxo existente: ação só prepara o rascunho. Gravação, identidade dos sócios, autorizações, cobrança, anexos, relatórios e mensagens persistidas usam os consumidores existentes; traduções do novo rótulo incluídas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Divisão igual em reais com splitExpense equal, distribuição determinística dos centavos, inclusão de guardiões sem aporte positivo e deduplicação de membros."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/guardian-rateio.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

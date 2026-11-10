@@ -404,6 +404,11 @@
       "path": "client/src/pages/agenda-pending-shortcut.test.ts",
       "reason": "O teste de navegação mantém a preferência de idioma padrão no ambiente isolado.",
       "decision": "updated"
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "A entrada monta o mesmo App com as preferências e recebe o catálogo corrigido pelo empacotamento."
     }
   ],
   "areas": [
@@ -454,7 +459,7 @@
     },
     {
       "area": "testes",
-      "evidence": "Testes de renderização nos três idiomas, origem de tarefa, links e persistência de valores. Ajustado o contrato de build para o compilador presente. O seletor contempla quatro idiomas. O catálogo pt-PT, a migração e a preferência persistida têm testes próprios.",
+      "evidence": "Testes de renderização nos três idiomas, origem de tarefa, links e persistência de valores. Ajustado o contrato de build para o compilador presente. O seletor contempla quatro idiomas. O catálogo pt-PT, a migração e a preferência persistida têm testes próprios. Regressão impede repetição artificial no catálogo e verifica Categoria/Anexo em espanhol.",
       "status": "verified"
     }
   ],

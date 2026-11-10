@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "id": "2026-11-10-single-expense-contributions",
+  "title": "Preservar uma despesa única ao gerar aportes em grupo",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/expense-contributions.ts"
+  ],
+  "searchTerms": [
+    "mirrorExpenses"
+  ],
+  "consumers": [
+    {
+      "path": "server/expense-contributions.ts",
+      "reason": "Novos lotes geram uma saída total, entradas por participante e um vínculo comum. Snapshot salvo governa retomadas antigas.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/expense-contributions.test.ts",
+      "reason": "Cobre dez participantes, centavos, resposta perdida, vínculos e snapshot espelhado anterior.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "reason": "O novo pedido herda o rateio e deixa de solicitar saídas espelhadas. Alterações paralelas de rateio Guardião foram mantidas.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/expense-contributions.test.ts",
+      "reason": "Prévia mostra uma despesa e os aportes; cliente não solicita espelhamento.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "reason": "Prévia e consulta já exibem total da despesa e lista de aportes.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/expense-contributions.ts",
+      "reason": "Mantém o rateio em centavos, inclusive a distribuição do resto.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/expense-contributions.test.ts",
+      "reason": "Regressões da proporcionalidade e centavos mantidas.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "reason": "Fluxo de despesa existente já cria somente aportes, independente do novo lote.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/existing-expense-contributions.test.ts",
+      "reason": "Retomada e proteção da despesa existente continuam cobertas.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/contribution-edit.ts",
+      "reason": "Mesma origem agora relaciona todos os aportes à única despesa; snapshots antigos continuam por par.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/contribution-edit.test.ts",
+      "reason": "Proteção de alterações e aplicação de categoria verificam os vínculos do lote.",
+      "decision": "preserved"
+    },
+    {
+      "path": "shared/existing-expense-contributions.ts",
+      "reason": "Regras de elegibilidade continuam sem alteração.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/routes.ts",
+      "reason": "createBatch continua validando o MAP antes da escrita e atualizando as projeções.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/index.ts",
+      "reason": "Registra os mesmos endpoints e tarefas.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/data/platform-functional-report.ts",
+      "reason": "Descrição atualizada para uma saída e múltiplas entradas.",
+      "decision": "updated"
+    },
+    {
+      "path": "docs/platform/modules/capital-financeiro.md",
+      "reason": "Contrato corrige o exemplo e documenta a compatibilidade histórica.",
+      "decision": "updated"
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "reason": "Jornada usa um participante e a marca antiga aceita pela API; continua gerando uma saída e uma entrada.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/data/platform-functional-report.test.ts",
+      "reason": "Valida o catálogo funcional com a descrição corrigida.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/relatorio-funcionalidades.tsx",
+      "reason": "Renderiza a descrição atualizada pela fonte do catálogo.",
+      "decision": "preserved"
+    },
+    {
+      "path": "scripts/platform-impact.ts",
+      "reason": "Consome o catálogo funcional para mapear impacto.",
+      "decision": "preserved"
+    },
+    {
+      "path": "scripts/platform-verify.ts",
+      "reason": "Verifica o mesmo catálogo sem depender da quantidade anterior de saídas.",
+      "decision": "preserved"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Formulário mantém rateio, anexos, prévia e consulta dos aportes.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Mesmo endpoint valida o total esperado e mantém a marca antiga somente por compatibilidade.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Intenção persistida mantém IDs originais. Sem alterações de dados reais ou migração.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Uma saída conserva o total, e os aportes somam o mesmo valor em centavos. CPP fica nas entradas.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Avisos e cobranças continuam vinculados às entradas individuais.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Anexos comuns e individuais ficam reunidos na saída, sem duplicação de arquivo. Relatório funcional atualizado.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Mesmo createBatch preserva projeção MAP e evento recuperável antes da escrita externa.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Guardas de acesso, fase e identidade mantidos.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Snapshot espelhado previamente gravado retoma com os IDs, quantidade e valores originais.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Testes HTTP simulam 10 participantes, centavos, falhas e retomada legada.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "server/expense-contributions.test.ts",
+    "client/src/components/expense-contributions.test.ts",
+    "shared/expense-contributions.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

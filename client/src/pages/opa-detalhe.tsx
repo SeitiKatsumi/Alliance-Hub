@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
@@ -154,6 +155,7 @@ function relationId(value: unknown): string | null {
 }
 
 export default function OpaDetalhePage() {
+  const term = useTaxonomyLabel();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -418,7 +420,7 @@ export default function OpaDetalhePage() {
               style={{ borderColor: "rgba(215,187,125,0.3)", color: "#D7BB7D99", background: "rgba(215,187,125,0.06)" }}>
               <span style={{ color: "#D7BB7D60" }}>◆</span> OBA
             </span>
-            {opa.tipo && <Badge variant="secondary" className="text-[10px]">{getTipoDisplayName(opa.tipo)}</Badge>}
+            {opa.tipo && <Badge variant="secondary" className="text-[10px]">{term(getTipoDisplayName(opa.tipo))}</Badge>}
             {isClosed && opa.status === "concluida" && (
               <Badge className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/15">
                 <CheckCircle2 className="w-3 h-3 mr-1" /> Concluída

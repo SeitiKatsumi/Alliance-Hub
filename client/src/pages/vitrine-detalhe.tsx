@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -115,6 +116,7 @@ interface MinhasComunidades {
 }
 
 export default function VitrineDetalhePage() {
+  const term = useTaxonomyLabel();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -468,7 +470,7 @@ export default function VitrineDetalhePage() {
                       {membro.segmento && (
                         <div>
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
-                          <p className="text-sm text-gray-800 leading-relaxed">{formatSegmentosDisplay(membro.segmento)}</p>
+                          <p className="text-sm text-gray-800 leading-relaxed">{formatSegmentosDisplay(membro.segmento, term)}</p>
                         </div>
                       )}
                       {membro.area_atuacao && (
@@ -501,7 +503,7 @@ export default function VitrineDetalhePage() {
                         {tipos.length > 0 && (
                           <div>
                             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">O que pode oferecer</p>
-                            <p className="text-sm text-gray-800 leading-relaxed">{tipos.map(getTipoDisplayName).join(", ")}</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{tipos.map(getTipoDisplayName).map(term).join(", ")}</p>
                           </div>
                         )}
                       </div>
@@ -516,7 +518,7 @@ export default function VitrineDetalhePage() {
                       <div className="flex flex-wrap gap-1.5">
                         {(membro.idiomas || []).map(idioma => (
                           <span key={idioma} className="px-2.5 py-1 rounded-full text-xs border border-gray-200 text-gray-600 bg-gray-50" data-testid={`card-idioma-${idioma}`}>
-                            {idioma}
+                            {term(idioma)}
                           </span>
                         ))}
                       </div>

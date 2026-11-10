@@ -1,3 +1,4 @@
+import { useLocale } from "@/components/preferences-provider";
 import { BiaOrganizationChart } from '@/components/bia-organization-chart';
 import { biaBusinessTypeLabel, opportunityScopeLabel } from "@shared/bia-business-type";
 import { BiaGovernancePanel } from "@/components/bia-setup-panel";
@@ -536,6 +537,7 @@ function normalizeDetailTab(search: string) {
 
 // ---- Main page ----
 export default function BiaDetalhePage() {
+  const { t } = useLocale();
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
   const search = useSearch();
@@ -1078,7 +1080,7 @@ export default function BiaDetalhePage() {
                 <div className="space-y-2.5">
                   {cpp.map((row, i) => (
                     <div key={i} className="flex items-start justify-between gap-2">
-                      <BiaMemberLink memberId={row.memberId} name={row.label} members={membrosRaw} className="min-w-0 break-words text-sm text-muted-foreground" />
+                      <BiaMemberLink memberId={row.memberId} name={bia.map_inicial ? row.label : t(row.label)} members={membrosRaw} className="min-w-0 break-words text-sm text-muted-foreground" />
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-brand-gold/80">{pct(row.perc)}</p>
                         <p className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(row.cpp, bia.moeda || "BRL")}</p>

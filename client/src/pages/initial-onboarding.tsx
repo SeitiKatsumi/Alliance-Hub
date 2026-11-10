@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useEffect, useMemo, useState } from "react";
 import { formatBusinessThesisLabel } from "@shared/strategic-cells";
 import { useLocation } from "wouter";
@@ -363,6 +364,7 @@ function ProfileStep({ forms, setForms, purposes }: any) {
 }
 
 function ConfigurationStep({ forms, setForms, purposes }: any) {
+  const term = useTaxonomyLabel();
   const publicLabel = usePublicLabels();
   const config = forms.configuracao || {};
   const set = (patch: any) => setForms((current: any) => ({ ...current, configuracao: { ...(current.configuracao || {}), ...patch } }));
@@ -391,7 +393,7 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
         <h1 className="text-2xl font-bold md:text-3xl">Configuração</h1>
         <p className="mt-2 text-sm text-slate-500">Escolha interesses e privacidade. Nada será publicado automaticamente.</p>
       </div>
-      {requiresContributionAreas(purposes) && <Panel title={publicLabel("ContributionArea")} subtitle="Selecione as áreas em que você pode contribuir.">
+      {requiresContributionAreas(purposes) && <Panel title={term(publicLabel("ContributionArea"))} subtitle="Selecione as áreas em que você pode contribuir.">
         <ContributionAreaSelector value={config.areas} onChange={(areas) => set({ areas })} />
       </Panel>}
       <Panel title="Áreas de atuação" subtitle="Use a mesma classificação do seu perfil BUILT.">
@@ -400,10 +402,10 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
       <Panel title="Quais teses interessam a você?" subtitle="Selecione quantas quiser, organizadas por Célula. O sistema vinculará automaticamente cada escolha à Célula correspondente da sua Comunidade.">
         <div className="space-y-5">
           {cellTypes.map((cell) => <div key={cell.code}>
-            <p className="text-xs font-semibold text-slate-500">{cell.public_name}</p>
+            <p className="text-xs font-semibold text-slate-500">{term(cell.public_name)}</p>
             <div className="mt-2 grid gap-2 md:grid-cols-2">{cell.business_types.map((businessType) => {
               const selected = selectedBusinessTypeCodes.includes(businessType.code);
-              return <button type="button" key={businessType.code} aria-pressed={selected} onClick={() => toggleBusinessType(businessType.code)} className={`relative rounded-md border p-3 text-left text-sm transition ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "bg-white hover:border-blue-300"}`}><span className="block pr-6 font-semibold">{formatBusinessThesisLabel(businessType.public_name)}</span>{selected && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-blue-600" />}</button>;
+              return <button type="button" key={businessType.code} aria-pressed={selected} onClick={() => toggleBusinessType(businessType.code)} className={`relative rounded-md border p-3 text-left text-sm transition ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "bg-white hover:border-blue-300"}`}><span className="block pr-6 font-semibold">{term(formatBusinessThesisLabel(businessType.public_name))}</span>{selected && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-blue-600" />}</button>;
             })}</div>
           </div>)}
         </div>
@@ -496,6 +498,7 @@ function TermsStep({ terms, accepted, setAccepted, active, setActive, beforeOnbo
 }
 
 function JourneySummary({ purposes, objectives, configuration, start, comunidade }: any) {
-  const configurationSummary = buildOnboardingConfigurationSummary(configuration);
+  const term = useTaxonomyLabel();
+  const configurationSummary = buildOnboardingConfigurationSummary(configuration, term);
   return <div className="mt-3 rounded-md border bg-white p-4 lg:sticky lg:top-24 lg:mt-0"><h2 className="font-bold">Resumo da sua jornada</h2><div className="mt-5"><small className="font-semibold text-slate-500">Perfis selecionados</small><div className="mt-2 space-y-2">{purposes.length ? purposes.map((purpose: string) => <div key={purpose} className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />{PURPOSES.find((item) => item.key === purpose)?.title}</div>) : <span className="text-sm text-slate-400">Nenhum ainda</span>}</div></div>{Object.values(objectives || {}).flat().length > 0 && <div className="mt-5 border-t pt-4"><small className="font-semibold text-slate-500">Intenções</small><p className="mt-2 text-sm">{Object.values(objectives).flat().slice(0, 4).join(" · ")}</p></div>}{requiresContributionAreas(purposes) && configurationSummary.contributionAreas.length > 0 && <div className="mt-5 border-t pt-4"><small className="font-semibold text-slate-500">Áreas de contribuição</small><div className="mt-2 flex flex-wrap gap-1.5">{configurationSummary.contributionAreas.map((area) => <span key={area} className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{area}</span>)}</div></div>}{configurationSummary.activity.length > 0 && <div className="mt-5 border-t pt-4"><small className="font-semibold text-slate-500">Atuação</small><div className="mt-2 space-y-2">{configurationSummary.activity.map((item) => <p key={item.label} className="text-xs leading-relaxed"><strong className="text-slate-700">{item.label}:</strong> <span className="text-slate-600">{item.value}</span></p>)}</div></div>}<div className="mt-5 border-t pt-4"><small className="font-semibold text-slate-500">Comunidade de origem</small><p className="mt-2 text-sm">{comunidade?.nome || "Definida pelo convite"}</p></div>{start && <div className="mt-5 rounded bg-blue-50 p-3"><small className="font-semibold text-blue-700">Próximo ambiente</small><p className="mt-1 text-sm">{start === "imovel" ? "Cadastro de imóvel" : start === "profissional" ? "Perfil profissional" : "Capital"}</p></div>}</div>;
 }

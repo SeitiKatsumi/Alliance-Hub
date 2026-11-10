@@ -1,3 +1,4 @@
+import { useLocale } from "@/components/preferences-provider";
 import { biaBusinessTypeCode } from "@shared/bia-business-type";
 import { draftSectionStep, takeDraftHandoff } from '@/lib/bia-draft-handoff';
 import { BIA_CREATION_STEPS, emptyBiaSetup, legacyBiaSetup, legalBlockers, setupWarnings } from "@shared/bia-setup";
@@ -30,6 +31,7 @@ import { BiaBusinessType } from "@/components/bia-business-type";
 const steps=BIA_CREATION_STEPS;
 const empty={estrutura_bia:emptyBiaSetup(),nome_bia:"",objetivo_alianca:"",destinacao:"",moeda:"BRL",localizacao:"",latitude:null as number|null,longitude:null as number|null,observacoes:"",imagem_directus_id:"",anexos:[] as string[],selo_certified_alliance:false,info_comercial:EMPTY_BIA_INFO,valor_geral_venda_vgv:NaN,valor_realizado_venda:NaN,comissao_prevista_corretor:NaN,ir_previsto:NaN,inss_previsto:NaN,manutencao_pos_obra_prevista:NaN,map_inicial:{modeloCalculo:5,estrutura:emptyEconomicStructure,valorOrigem:NaN,participantes:[] as InitialMapParticipantInput[]}};
 export default function BiaNovaPage(){
+  const { t } = useLocale();
   const params=useParams<{id?:string}>();
   const [id,setId]=useState(params.id || "");
   const creationKey=useRef(crypto.randomUUID());
@@ -82,7 +84,7 @@ export default function BiaNovaPage(){
   return <main className="mx-auto max-w-[1500px] space-y-8 px-4 py-6 sm:px-8">
     <Link href="/area-aliancas?tab=bias" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="h-4 w-4"/>Voltar para BIAs</Link>
     <header className="flex flex-wrap items-center gap-4"><div><p className="text-xs uppercase tracking-widest text-muted-foreground">Nova aliança</p><h1 className="mt-2 text-3xl font-bold">{form.nome_bia || "Nova Base Econômica Inicial"}</h1></div><span className="rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-800">Em estruturação</span></header>
-    <nav aria-label="Etapas da criação" className="grid grid-cols-2 gap-2 border-b pb-6 sm:grid-cols-4 2xl:grid-cols-8">{steps.map((label,n)=><button key={label} type="button" aria-current={step===n?"step":undefined} className={`flex items-center gap-2 rounded-lg p-3 text-left text-sm ${step===n?"bg-blue-50 font-semibold text-blue-600":"text-muted-foreground"}`} onClick={()=>setStep(n)}><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${step===n?"bg-blue-600 text-white":"bg-muted"}`}>{n+1}</span>{label}</button>)}</nav>
+    <nav aria-label="Etapas da criação" className="grid grid-cols-2 gap-2 border-b pb-6 sm:grid-cols-4 2xl:grid-cols-8">{steps.map((label,n)=><button key={label} type="button" aria-current={step===n?"step":undefined} className={`flex items-center gap-2 rounded-lg p-3 text-left text-sm ${step===n?"bg-blue-50 font-semibold text-blue-600":"text-muted-foreground"}`} onClick={()=>setStep(n)}><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${step===n?"bg-blue-600 text-white":"bg-muted"}`}>{n+1}</span>{t(label)}</button>)}</nav>
     <div className={`grid min-w-0 items-start gap-8 ${step<=1 || form.map_inicial.modeloCalculo===5 && step>=2?"":"xl:grid-cols-[minmax(0,1fr)_320px]"}`}>
       <fieldset disabled={busy || concluding} className="min-w-0 space-y-6">
         {concluding && <p role="status" className="rounded border p-3">A conclusão já foi iniciada. Os dados estão preservados; use Concluir estruturação para recuperar a operação sem duplicar convites.</p>}

@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type React from "react";
@@ -219,6 +220,7 @@ function SectionTitle({ icon: Icon, children }: { icon: any; children: React.Rea
 }
 
 export default function ComunidadeDetalhePage() {
+  const term = useTaxonomyLabel();
   const { id, cellId } = useParams<{ id: string; cellId?: string }>();
   const [location, navigate] = useLocation();
   const search = useSearch();
@@ -410,8 +412,8 @@ export default function ComunidadeDetalhePage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-widest text-brand-gold/60">Célula · {comunidade.nome}</p>
-              <h1 className="mt-2 text-2xl font-bold text-white">{cell.name || cell.type_public_name}</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/50">{cell.description || cell.type_short_description}</p>
+              <h1 className="mt-2 text-2xl font-bold text-white">{cell.name || term(cell.type_public_name)}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/50">{cell.description || term(cell.type_short_description)}</p>
             </div>
             <Badge variant="outline" className="w-fit border-emerald-400/30 text-emerald-300">{CELL_STATUS_LABELS[cell.status]}</Badge>
           </div>
@@ -633,7 +635,7 @@ export default function ComunidadeDetalhePage() {
                   key={cell.id}
                   role="link"
                   tabIndex={0}
-                  aria-label={`Abrir Célula ${cell.name || cell.type_public_name}`}
+                  aria-label={`Abrir Célula ${cell.name || term(cell.type_public_name)}`}
                   onClick={() => navigate(`/comunidade/${id}/celulas/${cell.id}`)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -648,8 +650,8 @@ export default function ComunidadeDetalhePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-widest text-brand-gold/60">Célula</p>
-                      <h3 className="mt-1 text-sm font-bold text-white break-words">{cell.name || cell.type_public_name}</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-white/45">{cell.description || cell.type_short_description}</p>
+                      <h3 className="mt-1 text-sm font-bold text-white break-words">{cell.name || term(cell.type_public_name)}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-white/45">{cell.description || term(cell.type_short_description)}</p>
                     </div>
                     <Badge
                       variant="outline"

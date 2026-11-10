@@ -1,3 +1,4 @@
+import { canonicalProfileLanguage, useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { PROPERTY_THESIS_OPTIONS } from "@shared/property-thesis";
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
@@ -143,7 +144,8 @@ const AREA_INFO_CONFIG: Record<string, { nucleo: string; cpp: string; descriptio
   "Gestão Financeira": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Profissionais e empresas responsáveis pelo planejamento financeiro, fluxo de caixa, controladoria, projeções, acompanhamento orçamentário, gestão financeira da operação e suporte à tomada de decisão econômica da BIA.", footer: "Garante gestão econômica, financeira, contábil e tributária com controle de caixa, transparência, conformidade fiscal e apuração segura dos resultados." },
 };
 
-function ContributionAreaInfo({ label }: { label: string }) {
+function ContributionAreaInfo({ areaName: label }: { areaName: string }) {
+  const term = useTaxonomyLabel();
   const [open, setOpen] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const info = AREA_INFO_CONFIG[label];
@@ -169,7 +171,7 @@ function ContributionAreaInfo({ label }: { label: string }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Informações sobre ${label}`}
+          aria-label={`Informações sobre ${term(label)}`}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -200,7 +202,7 @@ function ContributionAreaInfo({ label }: { label: string }) {
           <p className="text-[10px] font-semibold text-blue-600">{info.cpp}</p>
         </div>
         <div>
-          <p className="text-sm font-bold text-[#001D34]">{label}</p>
+          <p className="text-sm font-bold text-[#001D34]">{term(label)}</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">{info.description}</p>
         </div>
         {info.footer && <p className="border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-500">{info.footer}</p>}
@@ -231,6 +233,7 @@ function getInteressesFromConvite(info?: ConviteInfo | null): string[] {
 }
 
 export default function LoginPage() {
+  const term = useTaxonomyLabel();
   const [, navigate] = useLocation();
   const { login, loginPending, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -621,7 +624,7 @@ export default function LoginPage() {
   }
 
   function addRegIdioma(idioma?: string) {
-    const value = (idioma || regIdiomaInput).trim();
+    const value = canonicalProfileLanguage(idioma || regIdiomaInput, term);
     if (!value) return;
     const atuais = getRegIdiomasList();
     if (!atuais.some(item => item.toLowerCase() === value.toLowerCase())) {
@@ -1258,7 +1261,7 @@ export default function LoginPage() {
                     )}
 
                     <section className={`${temPerfilProfissional ? "" : "hidden"} rounded-xl border border-slate-200 bg-white p-3.5 md:p-4`}>
-                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">{temFinalidadeImoveis ? "3" : "2"}. {publicLabel("ContributionArea")}</h3>
+                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">{temFinalidadeImoveis ? "3" : "2"}. {term(publicLabel("ContributionArea"))}</h3>
                       <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{somenteFinalidadeCapital ? "Para BUILT Capital, Aporte Financeiro é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
                       <div className="mt-3 grid max-h-[18rem] gap-2 overflow-y-auto pr-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
                         {sortContributionAreas(somenteFinalidadeCapital ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {
@@ -1283,10 +1286,10 @@ export default function LoginPage() {
                                 <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${iconConfig.bg} ${iconConfig.color}`}>
                                   <AreaIcon className="h-4 w-4" />
                                 </span>
-                                <span className="truncate">{label}</span>
+                                <span className="truncate">{term(label)}</span>
                               </span>
                               <span className="flex shrink-0 items-center gap-1">
-                                <ContributionAreaInfo label={label} />
+                                <ContributionAreaInfo areaName={label} />
                                 {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
                               </span>
                             </div>
@@ -1353,7 +1356,7 @@ export default function LoginPage() {
                                           onCheckedChange={() => toggleRegRamo(ramo.nome)}
                                           className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
                                         />
-                                        <span className="leading-5">{ramo.nome}</span>
+                                        <span className="leading-5">{term(ramo.nome)}</span>
                                       </label>
                                     );
                                   })
@@ -1368,8 +1371,8 @@ export default function LoginPage() {
                             <div className="flex flex-wrap gap-2">
                               {selectedRegRamos.map(ramo => (
                                 <span key={ramo} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                  <span className="truncate">{ramo}</span>
-                                  <button type="button" onClick={() => toggleRegRamo(ramo)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700" aria-label={`Remover ${ramo}`}>
+                                  <span className="truncate">{term(ramo)}</span>
+                                  <button type="button" onClick={() => toggleRegRamo(ramo)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700" aria-label={`Remover ${term(ramo)}`}>
                                     <X className="h-3 w-3" />
                                   </button>
                                 </span>
@@ -1435,7 +1438,7 @@ export default function LoginPage() {
                                           onCheckedChange={() => toggleRegSegmento(segmento.nome)}
                                           className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
                                         />
-                                        <span className="leading-5">{segmento.nome}</span>
+                                        <span className="leading-5">{term(segmento.nome)}</span>
                                       </label>
                                     );
                                   })
@@ -1450,8 +1453,8 @@ export default function LoginPage() {
                             <div className="flex flex-wrap gap-2">
                               {selectedRegSegmentos.map(segmento => (
                                 <span key={segmento} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                  <span className="truncate">{segmento}</span>
-                                  <button type="button" onClick={() => toggleRegSegmento(segmento)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700" aria-label={`Remover ${segmento}`}>
+                                  <span className="truncate">{term(segmento)}</span>
+                                  <button type="button" onClick={() => toggleRegSegmento(segmento)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700" aria-label={`Remover ${term(segmento)}`}>
                                     <X className="h-3 w-3" />
                                   </button>
                                 </span>
@@ -1528,7 +1531,7 @@ export default function LoginPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {PROFILE_AREA_SCOPE_OPTIONS.map(option => (
-                              <SelectItem key={option} value={option}>{option}</SelectItem>
+                              <SelectItem key={option} value={option}>{term(option)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -1538,7 +1541,7 @@ export default function LoginPage() {
                             <div className="flex flex-wrap gap-1.5">
                               {getRegIdiomasList().map(idioma => (
                                 <span key={idioma} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                  {idioma}
+                                  {term(idioma)}
                                   <button type="button" onClick={() => removeRegIdioma(idioma)} className="text-blue-500 hover:text-blue-800">×</button>
                                 </span>
                               ))}
@@ -1564,7 +1567,7 @@ export default function LoginPage() {
                       <datalist id="cadastro-cidades">{CIDADE_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
                       <datalist id="cadastro-estados">{ESTADO_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
                       <datalist id="cadastro-paises">{PAIS_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
-                      <datalist id="cadastro-idiomas">{PROFILE_LANGUAGE_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
+                      <datalist id="cadastro-idiomas">{PROFILE_LANGUAGE_OPTIONS.map(option => <option key={option} value={term(option)} />)}</datalist>
                     </section>
                   </div>
                   <aside className="space-y-4">
@@ -1595,8 +1598,8 @@ export default function LoginPage() {
                           <p className={regCpf ? "text-slate-600" : "font-semibold text-red-600"}>{regCpf || "Pendente"}</p>
                         </div>}
                         <div><p className="font-bold text-slate-700">Como quero usar a BUILT</p><p className="mt-1 text-slate-600">{finalidadesSelecionadasLabel || "Nenhuma opção selecionada"}</p></div>
-                        {temPerfilProfissional && <div><p className="font-bold text-slate-700">Áreas de contribuição ({regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{regTiposAlianca.map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>}
-                        {temPerfilProfissional && <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{formatRamosDisplay(regRamoAtuacao) || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>}
+                        {temPerfilProfissional && <div><p className="font-bold text-slate-700">Áreas de contribuição ({regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{regTiposAlianca.map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{term(getTipoDisplayName(tipo))}</span>)}</div></div>}
+                        {temPerfilProfissional && <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{formatRamosDisplay(regRamoAtuacao, term) || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento, term) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>}
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">

@@ -1,3 +1,4 @@
+import { canonicalProfileLanguage, useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -485,6 +486,7 @@ function TermAcceptanceReadOnly({ membro }: { membro: Membro }) {
 }
 
 function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => void }) {
+  const term = useTaxonomyLabel();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -754,7 +756,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
   }
 
   function addIdioma(idioma: string) {
-    const value = idioma.trim();
+    const value = canonicalProfileLanguage(idioma, term);
     if (!value) return;
     setForm(f => {
       const current = f.idiomas || [];
@@ -1488,7 +1490,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                           }`}
                           data-testid={`toggle-edit-tipo-${tipo.nome}`}
                         >
-                          {getTipoDisplayName(tipo.nome)}
+                          {term(getTipoDisplayName(tipo.nome))}
                         </button>
                       );
                     })}
@@ -1503,7 +1505,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                       return (
                         <label key={ramo.codigo} className={`flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm ${checked ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>
                           <Checkbox checked={checked} onCheckedChange={() => toggleRamo(ramo.nome)} />
-                          <span>{ramo.nome}</span>
+                          <span>{term(ramo.nome)}</span>
                         </label>
                       );
                     })}
@@ -1521,7 +1523,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                         return (
                           <label key={segmento.codigo} className={`flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm ${checked ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>
                             <Checkbox checked={checked} onCheckedChange={() => toggleSegmentoMulti(segmento.nome)} />
-                            <span>{segmento.nome}</span>
+                            <span>{term(segmento.nome)}</span>
                           </label>
                         );
                       })
@@ -1538,7 +1540,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                       </SelectTrigger>
                       <SelectContent>
                       {PROFILE_AREA_SCOPE_OPTIONS.map(option => (
-                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                          <SelectItem key={option} value={option}>{term(option)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1566,7 +1568,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                     <div className="mb-2 flex flex-wrap gap-1.5">
                       {(form.idiomas || []).map(idioma => (
                         <span key={idioma} className="inline-flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
-                          {idioma}
+                          {term(idioma)}
                           <button type="button" onClick={() => setForm(f => ({ ...f, idiomas: (f.idiomas || []).filter(item => item !== idioma) }))}>
                             <X className="h-3 w-3" />
                           </button>
@@ -1589,7 +1591,7 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {PROFILE_LANGUAGE_OPTIONS
                       .filter(idioma => !(form.idiomas || []).includes(idioma))
-                      .filter(idioma => !idiomaInput || idioma.toLowerCase().includes(idiomaInput.toLowerCase()))
+                      .filter(idioma => !idiomaInput || term(idioma).toLowerCase().includes(idiomaInput.toLowerCase()))
                       .slice(0, 8)
                       .map(idioma => (
                         <button
@@ -1598,10 +1600,10 @@ function MembroEditPage({ membro, onClose }: { membro: Membro; onClose: () => vo
                           onClick={() => addIdioma(idioma)}
                           className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:border-brand-gold/40 hover:text-brand-navy"
                         >
-                          {idioma}
+                          {term(idioma)}
                         </button>
                       ))}
-                    {idiomaInput.trim() && !PROFILE_LANGUAGE_OPTIONS.some(idioma => idioma.toLowerCase() === idiomaInput.trim().toLowerCase()) && (
+                    {idiomaInput.trim() && !PROFILE_LANGUAGE_OPTIONS.some(idioma => idioma === canonicalProfileLanguage(idiomaInput, term)) && (
                       <button
                         type="button"
                         onClick={() => addIdioma(idiomaInput)}

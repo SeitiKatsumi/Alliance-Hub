@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { interfaceLocalization } from "./scripts/interface-localization.mjs";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [interfaceLocalization(), react()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

@@ -1,3 +1,4 @@
+import { useLocale } from '@/components/preferences-provider';
 ﻿import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -1009,6 +1010,7 @@ interface ComunidadePageProps {
 }
 
 export default function ComunidadePage({ convitesOnly = false, embedded = false }: ComunidadePageProps) {
+  const { t } = useLocale();
   const { toast } = useToast();
   const { user } = useAuth();
   const isLimitedCoOwner = user?.role === "coproprietario";
@@ -2043,7 +2045,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
             <p className={`text-sm mt-0.5 ${convitesOnly ?"text-slate-500" : "text-white/40 font-mono"}`}>
               {convitesOnly
                 ?"Acompanhe aprovações, chamadas para aliança e novas ofertas públicas"
-                : `${comunidades.length} comunidade${comunidades.length !== 1 ?"s" : ""} ativa${comunidades.length !== 1 ?"s" : ""}`}
+                : comunidades.length === 1 ? "1 comunidade ativa" : `${comunidades.length} comunidades ativas`}
             </p>
           </div>
         </div>
@@ -2691,7 +2693,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                           {opa.nome_oportunidade || "OBA sem título"}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-slate-500">
-                          {[opa.tipo, opa.nucleo_alianca, opa.status].filter(Boolean).join(" · ") || "OBA"}
+                          {[opa.tipo, opa.nucleo_alianca, opa.status].filter(Boolean).map(value => t(String(value))).join(" · ") || "OBA"}
                         </p>
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
@@ -3671,6 +3673,7 @@ function ComunidadeCard({ comunidade: c, membership, canEdit, onEdit, onDelete }
   onDelete: () => void;
 }) {
   const [, navigate] = useLocation();
+  const { t: uiText } = useLocale();
   const aliado = resolveAliado(c);
   const membros = resolveMembros(c);
   const bias = resolveBias(c);
@@ -3707,7 +3710,7 @@ function ComunidadeCard({ comunidade: c, membership, canEdit, onEdit, onDelete }
             </h3>
           </div>
           <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] border ${c.status === "ativa" ?"border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : "border-white/10 text-white/30"}`}>
-            {c.status || "ativa"}
+            {uiText(c.status || "ativa")}
           </span>
         </div>
 

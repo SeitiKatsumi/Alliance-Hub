@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -111,7 +112,8 @@ const AREA_INFO_CONFIG: Record<string, { nucleo: string; cpp: string; descriptio
   },
 };
 
-export function ContributionAreaInfo({ label }: { label: string }) {
+export function ContributionAreaInfo({ areaName: label }: { areaName: string }) {
+  const term = useTaxonomyLabel();
   const [open, setOpen] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const info = AREA_INFO_CONFIG[label];
@@ -137,7 +139,7 @@ export function ContributionAreaInfo({ label }: { label: string }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Informações sobre ${label}`}
+          aria-label={`Informações sobre ${term(label)}`}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -172,7 +174,7 @@ export function ContributionAreaInfo({ label }: { label: string }) {
           <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">{info.cpp}</p>
         </div>
         <div>
-          <p className="text-sm font-bold text-popover-foreground">{label}</p>
+          <p className="text-sm font-bold text-popover-foreground">{term(label)}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{info.description}</p>
         </div>
         {info.footer && <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">{info.footer}</p>}

@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import type { LucideIcon } from "lucide-react";
 import {
   BriefcaseBusiness,
@@ -53,6 +54,11 @@ const TONES: Record<ContributionAreaTone, { icon: string; background: string }> 
   orange: { icon: "text-orange-600", background: "bg-orange-50" },
 };
 
+function AreaLabel({ name }: { name: string }) {
+  const term = useTaxonomyLabel();
+  return <span className="min-w-0 flex-1 break-words leading-snug">{term(name)}</span>;
+}
+
 export function ContributionAreaSelector({
   value,
   onChange,
@@ -60,6 +66,7 @@ export function ContributionAreaSelector({
   value: unknown;
   onChange: (value: string[]) => void;
 }) {
+
   const selected = normalizeContributionAreaValues(value);
   const selectedSet = new Set(selected);
 
@@ -87,10 +94,10 @@ export function ContributionAreaSelector({
                 <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${tone.background} ${tone.icon}`}>
                   <AreaIcon className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 flex-1 break-words leading-snug">{area.displayName}</span>
+                <AreaLabel name={area.displayName} />
                 {active && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
               </button>
-              <ContributionAreaInfo label={area.displayName} />
+              <ContributionAreaInfo areaName={area.displayName} />
             </div>
           );
         })}

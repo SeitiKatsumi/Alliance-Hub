@@ -1,3 +1,4 @@
+import { canonicalProfileLanguage, useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useMemo, useState } from "react";
 import { Check, ChevronDown, Languages, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,12 +60,13 @@ function MultiSelectField({
   onClear: () => void;
   testId: string;
 }) {
+  const term = useTaxonomyLabel();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => {
     const query = searchKey(search.trim());
-    return query ? items.filter((item) => searchKey(item.label).includes(query)) : items;
-  }, [items, search]);
+    return query ? items.filter((item) => searchKey(term(item.label)).includes(query)) : items;
+  }, [items, search, term]);
 
   return (
     <div className="space-y-2" data-testid={testId}>
@@ -84,7 +86,7 @@ function MultiSelectField({
               {disabled
                 ? disabledPlaceholder
                 : selected.length
-                  ? `${selected.length} ${selected.length > 1 ? itemLabelPlural : itemLabel} selecionado${selected.length > 1 ? "s" : ""}`
+                  ? (selected.length === 1 ? `1 ${itemLabel} selecionado` : `${selected.length} ${itemLabelPlural} selecionados`)
                   : placeholder}
             </span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-slate-400" />
@@ -113,7 +115,7 @@ function MultiSelectField({
               return (
                 <label key={item.key} className={`flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 text-sm ${checked ? "bg-blue-50 text-slate-950" : "text-slate-700 hover:bg-slate-50"}`}>
                   <Checkbox checked={checked} onCheckedChange={() => onToggle(item.label)} className="mt-0.5" />
-                  <span className="leading-5">{item.label}</span>
+                  <span className="leading-5">{term(item.label)}</span>
                 </label>
               );
             }) : <p className="px-3 py-6 text-center text-sm text-slate-500">Nenhuma opção encontrada.</p>}
@@ -125,8 +127,8 @@ function MultiSelectField({
         <div className="flex flex-wrap gap-2">
           {selected.map((item) => (
             <span key={item} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-              <span className="truncate">{item}</span>
-              <button type="button" onClick={() => onToggle(item)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100" aria-label={`Remover ${item}`}>
+              <span className="truncate">{term(item)}</span>
+              <button type="button" onClick={() => onToggle(item)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100" aria-label={`Remover ${term(item)}`}>
                 <X className="h-3 w-3" />
               </button>
             </span>
@@ -144,6 +146,7 @@ export function ProfileActivityFields({
   value: ProfileActivityValue;
   onChange: (patch: Partial<ProfileActivityValue>) => void;
 }) {
+  const term = useTaxonomyLabel();
   const [languageInput, setLanguageInput] = useState("");
   const selectedRamos = parseRamosValue(value.ramo_atuacao);
   const selectedSegmentos = parseSegmentosValue(value.segmento);
@@ -170,7 +173,7 @@ export function ProfileActivityFields({
   };
 
   const addLanguage = () => {
-    const language = languageInput.trim();
+    const language = canonicalProfileLanguage(languageInput, term);
     if (!language) return;
     onChange({ idiomas: normalizeProfileLanguages([...idiomas, language]) });
     setLanguageInput("");
@@ -208,7 +211,7 @@ export function ProfileActivityFields({
         <Label>Área de atuação</Label>
         <Select value={value.area_atuacao || ""} onValueChange={(area_atuacao) => onChange({ area_atuacao })}>
           <SelectTrigger data-testid="onboarding-area-atuacao"><SelectValue placeholder="Selecione a área" /></SelectTrigger>
-          <SelectContent>{PROFILE_AREA_SCOPE_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+          <SelectContent>{PROFILE_AREA_SCOPE_OPTIONS.map((option) => <SelectItem key={option} value={option}>{term(option)}</SelectItem>)}</SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
@@ -226,8 +229,8 @@ export function ProfileActivityFields({
           <div className="flex flex-wrap gap-2">
             {idiomas.map((idioma) => (
               <span key={idioma} className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                {idioma}
-                <button type="button" onClick={() => onChange({ idiomas: idiomas.filter((item) => item !== idioma) })} aria-label={`Remover ${idioma}`}>
+                {term(idioma)}
+                <button type="button" onClick={() => onChange({ idiomas: idiomas.filter((item) => item !== idioma) })} aria-label={`Remover ${term(idioma)}`}>
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -249,7 +252,7 @@ export function ProfileActivityFields({
           />
           <Button type="button" variant="outline" onClick={addLanguage} className="shrink-0"><Check className="mr-1 h-4 w-4" />Adicionar</Button>
         </div>
-        <datalist id="onboarding-profile-languages">{PROFILE_LANGUAGE_OPTIONS.map((option) => <option key={option} value={option} />)}</datalist>
+        <datalist id="onboarding-profile-languages">{PROFILE_LANGUAGE_OPTIONS.map(option => <option key={option} value={term(option)} />)}</datalist>
       </div>
     </div>
   );

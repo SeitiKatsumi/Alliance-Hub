@@ -16,17 +16,17 @@ export type OnboardingActivitySummaryItem = {
   value: string;
 };
 
-export function buildOnboardingConfigurationSummary(configuration?: OnboardingConfigurationSummaryInput | null) {
+export function buildOnboardingConfigurationSummary(configuration?: OnboardingConfigurationSummaryInput | null, term = (value: string) => value) {
   const config = configuration || {};
   const contributionAreas = normalizeContributionAreaValues(config.areas)
-    .map(getContributionAreaDisplayName);
+    .map(getContributionAreaDisplayName).map(term);
 
   const activity: OnboardingActivitySummaryItem[] = [
-    { label: "Ramo", value: formatRamosDisplay(config.ramo_atuacao) },
-    { label: "Segmento", value: formatSegmentosDisplay(config.segmento) },
-    { label: "Área de atuação", value: String(config.area_atuacao || "").trim() },
+    { label: "Ramo", value: formatRamosDisplay(config.ramo_atuacao, term) },
+    { label: "Segmento", value: formatSegmentosDisplay(config.segmento, term) },
+    { label: "Área de atuação", value: term(String(config.area_atuacao || "").trim()) },
     { label: "Especialidade", value: String(config.especialidade_livre || "").trim() },
-    { label: "Idiomas", value: normalizeProfileLanguages(config.idiomas).join(", ") },
+    { label: "Idiomas", value: normalizeProfileLanguages(config.idiomas).map(term).join(", ") },
   ].filter((item) => item.value);
 
   return { contributionAreas, activity };

@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, Edit3, Loader2, Plus, RefreshCw, Send, Target } from "lucide-react";
@@ -121,6 +122,7 @@ function toForm(demand: BiaDemand): DemandForm {
 }
 
 export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit: boolean }) {
+  const term = useTaxonomyLabel();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BiaDemand | null>(null);
@@ -300,7 +302,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
               <div className="space-y-2"><Label>Responsável</Label><SearchableNameSelect ariaLabel="Responsável pela demanda" value={form.responsavel_membro_id || "automatico"} options={[{value:"automatico",label:"Pessoa criadora",pinned:true},...members.map((member)=>({value:member.id,label:memberName(member)}))]} onValueChange={(value) => setForm({ ...form, responsavel_membro_id: value === "automatico" ? "" : value })} /></div>
               <div className="space-y-2"><Label>Distribuição</Label><Select value={form.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setForm({ ...form, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Célula, Comunidade e rede a cada 4h</SelectItem></SelectContent></Select></div>
               <div className="space-y-2"><Label>Célula da Comunidade</Label><Select disabled={cellsQuery.isPending || cellsQuery.isError} value={form.strategic_cell_id || "_none"} onValueChange={(value) => setForm({ ...form, strategic_cell_id: value === "_none" ? "" : value, market_code: "" })}><SelectTrigger><SelectValue placeholder="Contexto opcional" /></SelectTrigger><SelectContent><SelectItem value="_none">Sem Célula específica</SelectItem>{(cellsQuery.data || []).map((cell) => <SelectItem key={cell.id} value={cell.id}>{cell.name || cell.type_public_name}</SelectItem>)}</SelectContent></Select>{cellsQuery.isError && <div role="alert" className="text-sm text-destructive">Não foi possível carregar as células. <Button type="button" variant="ghost" className="h-auto p-0 text-inherit hover:bg-transparent hover:underline" onClick={() => cellsQuery.refetch()}>Tentar novamente</Button></div>}</div>
-              {selectedCell && <div className="space-y-2"><Label>Tese de interesse</Label><Select value={form.market_code || "_none"} onValueChange={(value) => setForm({ ...form, market_code: value === "_none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="_none">Todas as teses da Célula</SelectItem>{selectedCell.markets.map((market) => <SelectItem key={market.code} value={market.code}>{market.public_name}</SelectItem>)}</SelectContent></Select></div>}
+              {selectedCell && <div className="space-y-2"><Label>Tese de interesse</Label><Select value={form.market_code || "_none"} onValueChange={(value) => setForm({ ...form, market_code: value === "_none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="_none">Todas as teses da Célula</SelectItem>{selectedCell.markets.map((market) => <SelectItem key={market.code} value={market.code}>{term(market.public_name)}</SelectItem>)}</SelectContent></Select></div>}
             </div>
             <div className="space-y-2"><Label>Especialidades</Label><Input value={form.especialidades} onChange={(event) => setForm({ ...form, especialidades: event.target.value })} placeholder="Jurídico, Engenharia, Avaliação..." /><p className="text-xs text-muted-foreground">Separe por vírgulas.</p></div>
             {!editing && <label className="flex items-start gap-3 rounded-md border p-3 text-sm"><Checkbox checked={form.publicar} onCheckedChange={(checked) => setForm({ ...form, publicar: checked === true })} /><span>Autorizo a publicação do resumo na rede. Endereço exato, documentos e contatos permanecem privados.</span></label>}

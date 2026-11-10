@@ -1,5 +1,7 @@
 # Aura Percebida
 
+- 09/11/2026: a própria Aura oferece um guia opcional do índice, da consulta e das dimensões. A decisão de iniciar ou dispensar fica neste navegador, por membro. O ⓘ reabre o guia. A etapa final abre a consulta existente somente com acesso à rede. O guia não registra percepções nem altera o índice ou as permissões. No perfil alheio, o ⓘ mantém a ajuda sobre o módulo.
+
 - 04/11/2026: Consultar Aura das ações rápidas do Início abre `AuraLookupDialog` sobre o próprio Início, mantendo URL/aba e restaurando o foco ao fechar. A página Aura usa o mesmo componente, busca, filtros Todos/Posso avaliar, permissões e expansão10a10 ordenada por nome. Selecionar pessoa mantém navegação para sua Aura; `/aura?registrar=1` continua compatível como link direto legado. Gate de membro e diálogo de acesso do Início preservados; leituras só quando modal aberto, sem avaliar/gravar automaticamente. Refatoração não muda endpoints, cadastro, vínculos ou autorização de registro.
 
 ## Objetivo e usuarios

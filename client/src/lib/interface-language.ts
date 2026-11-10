@@ -1,7 +1,15 @@
 import type { Language } from '../../../shared/user-preferences';
+import generated from './interface-catalog.json';
+import europeanPortuguese from './interface-catalog-pt-pt.json';
+const portugal: Record<string, string> = europeanPortuguese;
+const catalog: Record<string, readonly string[]> = generated;
 
 // Only curated interface copy belongs here. Never translate user data or legal evidence.
 export const interfaceCopy: Record<string, readonly [string,string]> = {
+  'Pagar aporte':['Pay contribution','Pagar aporte'],
+  'Aporte de {0}':['Contribution of {0}','Aporte de {0}'],
+  'Ler e aceitar MOU · revisão {0}':['Read and accept MOU · revision {0}','Leer y aceptar el MOU · revisión {0}'],
+  'O MAP Inicial da BIA {0} mudou para a revisão {1}. Leia o documento atualizado e confirme seu aceite antes da ativação.':['The initial MAP for BIA {0} has changed to revision {1}. Read the updated document and confirm your acceptance before activation.','El MAP inicial de la BIA {0} ha cambiado a la revisión {1}. Lee el documento actualizado y confirma tu aceptación antes de la activación.'],
   'Configurações':['Settings','Configuración'],
   'Aparência':['Appearance','Apariencia'],
   'Aparência e preferências de uso da plataforma.':['Appearance and platform preferences.','Apariencia y preferencias de uso de la plataforma.'],
@@ -30,8 +38,9 @@ export const interfaceCopy: Record<string, readonly [string,string]> = {
   'Mensagens essenciais continuam ativas: recuperação de senha, acesso à conta, termos, decisões cadastrais e comunicações de pagamento.':['Essential messages remain active: password recovery, account access, terms, account decisions and payment communications.','Los mensajes esenciales siguen activos: recuperación de contraseña, acceso a la cuenta, términos, decisiones de registro y comunicaciones de pago.'],
   'Idioma':['Language','Idioma'],
   'Idioma da interface':['Interface language','Idioma de la interfaz'],
+  'Português (Portugal)':['Português (Portugal)','Português (Portugal)'],
   'Português (Brasil)':['Português (Brasil)','Português (Brasil)'],
-  'Tradução disponível em Configurações, navegação e categorias do Perfil. Demais telas podem aparecer em português. Textos de usuários, e-mails e documentos não são traduzidos.':['Translation is available in Settings, navigation and Profile categories. Other screens may appear in Portuguese. User content, emails and documents are not translated.','La traducción está disponible en Configuración, navegación y categorías del Perfil. Otras pantallas pueden aparecer en portugués. Los textos de usuarios, correos y documentos no se traducen.'],
+  'O idioma escolhido se aplica aos textos da interface.':['The selected language applies to the interface.','El idioma seleccionado se aplica a la interfaz.'],
   'Salvar preferências':['Save preferences','Guardar preferencias'],
   'Salvando…':['Saving…','Guardando…'],
   'Preferências salvas.':['Preferences saved.','Preferencias guardadas.'],
@@ -59,5 +68,10 @@ export const interfaceCopy: Record<string, readonly [string,string]> = {
   'Alianças compartilhadas':['Shared alliances','Alianzas compartidas'],
 };
 export function translateInterface(source: string, language: Language): string {
-  return language === 'pt-BR' ? source : interfaceCopy[source]?.[language === 'en' ? 0 : 1] || source;
+  if (language === 'pt-BR' || !source.trim()) return source;
+  const key = source.trim().replace(/\s+/g, ' ');
+  const row = Object.hasOwn(interfaceCopy, key) ? interfaceCopy[key] : Object.hasOwn(catalog, key) ? catalog[key] : undefined;
+  const value = language === 'pt-PT' ? (Object.hasOwn(portugal, key) ? portugal[key] : undefined) : row?.[language === 'en' ? 0 : 1];
+  if (!value || (key.match(/\{\d+\}/g) || []).sort().join() !== (value.match(/\{\d+\}/g) || []).sort().join()) return source;
+  return source.slice(0,source.length-source.trimStart().length) + value + source.slice(source.trimEnd().length);
 }

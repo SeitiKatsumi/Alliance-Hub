@@ -1,7 +1,9 @@
+import { localizedTaskTitle, localizedTaskDescription } from '@/lib/agenda-interface-copy';
+import { useLocale } from '@/components/preferences-provider';
 import {AuraLookupDialog} from '@/components/aura-lookup-dialog';
 import { BiaCardIndicators } from "@/components/bia-card-indicators";
 import { biaBusinessTypeLabel, buildBiaThesisAllocation } from "@shared/bia-business-type";
-import { agendaTaskHref, agendaTaskTitle } from "@shared/agenda-action";
+import { agendaTaskHref } from "@shared/agenda-action";
 ﻿import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { biaAllowsFinance, biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
@@ -549,6 +551,7 @@ function deriveRole(user: any): string | null {
 }
 
 export default function PainelPage() {
+  const { language, t: uiText } = useLocale();
   const { user } = useAuth();
   const canOpenPortfolio = !blockedArea(user?.permissions, 'carteira');
   const { toast } = useToast();
@@ -655,8 +658,8 @@ export default function PainelPage() {
     && profileCompletion.percentage < 100;
   const visibleProfileMissing = profileCompletion.missing.slice(0, 2);
   const remainingProfileMissing = Math.max(0, profileCompletion.missing.length - visibleProfileMissing.length);
-  const profileMissingText = visibleProfileMissing.map((item) => item.label).join(", ");
-  const allProfileMissingText = profileCompletion.missing.map((item) => item.label).join(", ");
+  const profileMissingText = visibleProfileMissing.map((item) => uiText(item.label)).join(", ");
+  const allProfileMissingText = profileCompletion.missing.map((item) => uiText(item.label)).join(", ");
   const profileCompletionPath = getProfileCompletionPath(profileDetails, user?.account_purposes);
 
   const { data: carteiraAlerts = [], isLoading: isLoadingCarteiraAlerts } = useQuery<CarteiraDashboardAlert[]>({
@@ -988,15 +991,15 @@ export default function PainelPage() {
       const date = new Date(year, month - 1, day);
       return {
         id: acao.id,
-        dia: date.toLocaleDateString("pt-BR", { day: "2-digit" }),
-        mes: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase(),
-        titulo: agendaTaskTitle(acao),
+        dia: date.toLocaleDateString(language, { day: "2-digit" }),
+        mes: date.toLocaleDateString(language, { month: "short" }).replace(".", "").toUpperCase(),
+        titulo: localizedTaskTitle(acao, language),
         href: agendaTaskHref(acao),
-        subtitulo: acao.descricao || (acao.status === "em_andamento" ? "Em andamento" : "Pendente"),
+        subtitulo: localizedTaskDescription(acao, language) || uiText(acao.status === "em_andamento" ? "Em andamento" : "Pendente"),
         hora: acao.hora || "--:--",
         prioridade: acao.prioridade || "media",
       };
-    }), [agendaTarefas]);
+    }), [agendaTarefas, language]);
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -1040,7 +1043,7 @@ export default function PainelPage() {
               className="text-[11px] text-[#005BFF] border-[#005BFF]/35 bg-[#005BFF]/10"
               data-testid="badge-role"
             >
-              {roleLabel}
+              {uiText(roleLabel)}
             </Badge>
           )}
           {comunidadeLabel && (
@@ -1454,7 +1457,7 @@ export default function PainelPage() {
                       <div className="flex min-w-0 items-center gap-2">
                         <p className="truncate text-xs font-semibold text-foreground">{acao.titulo}</p>
                         <Badge variant="outline" className={`h-5 shrink-0 px-1.5 text-[10px] ${PRIORIDADE_CLASS[acao.prioridade]}`}>
-                          {PRIORIDADE_LABEL[acao.prioridade]}
+                          {uiText(PRIORIDADE_LABEL[acao.prioridade] || acao.prioridade)}
                         </Badge>
                       </div>
                       <p className="truncate text-[11px] text-muted-foreground">{acao.subtitulo}</p>

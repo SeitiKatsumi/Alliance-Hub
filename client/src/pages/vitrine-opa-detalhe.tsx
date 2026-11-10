@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -117,6 +118,7 @@ function getOpaImage(opa?: OportunidadePublica | null) {
 type OpaDetalheMode = "vitrine" | "capital";
 
 export function VitrineOpaDetalhePage(props: any = {}) {
+  const term = useTaxonomyLabel();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -247,7 +249,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
               <span className="inline-flex items-center gap-1 rounded-sm border border-blue-300/30 bg-blue-300/10 px-2 py-0.5 font-mono text-[9px] text-blue-100">
                 {badgeLabel}
               </span>
-              {opa.tipo && <Badge variant="secondary">{getTipoDisplayName(opa.tipo)}</Badge>}
+              {opa.tipo && <Badge variant="secondary">{term(getTipoDisplayName(opa.tipo))}</Badge>}
               {opa.status && (
                 <Badge className="bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
                   {String(opa.status).replace(/_/g, " ")}

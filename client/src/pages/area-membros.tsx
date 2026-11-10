@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -382,6 +383,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
 }
 
 function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean }) {
+  const term = useTaxonomyLabel();
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
@@ -433,7 +435,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
             </span>
           )}
           {(m.segmento || m.especialidade || m.cargo) && (
-            <span className="truncate max-w-[220px]">{formatSegmentosDisplay(m.segmento) || m.especialidade || m.cargo}</span>
+            <span className="truncate max-w-[220px]">{formatSegmentosDisplay(m.segmento, term) || m.especialidade || m.cargo}</span>
           )}
           {m.cidade && (
             <span className="inline-flex items-center gap-1">
@@ -477,6 +479,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
 
 // ===== MEMBER CARD =====
 function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean }) {
+  const term = useTaxonomyLabel();
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
@@ -565,7 +568,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
           <div className="text-center space-y-1.5">
             <p className="text-sm font-semibold text-white font-mono leading-tight">{nome}</p>
             {(m.segmento || m.especialidade) && (
-              <p className="text-xs text-brand-gold/60 font-mono truncate">{formatSegmentosDisplay(m.segmento) || m.especialidade}</p>
+              <p className="text-xs text-brand-gold/60 font-mono truncate">{formatSegmentosDisplay(m.segmento, term) || m.especialidade}</p>
             )}
             {m.empresa && (
               <div className="flex items-center justify-center gap-2 min-w-0">

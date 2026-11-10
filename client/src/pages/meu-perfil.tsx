@@ -1,3 +1,4 @@
+import { canonicalProfileLanguage, useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { canPublishVitrineProfile } from '@shared/environment-access';
 import { useState, useEffect, useRef } from "react";
 import { resetContentScroll } from "@/lib/content-scroll";
@@ -610,6 +611,7 @@ function hasAporteFinanceiro(tipos?: string[] | null): boolean {
 }
 
 export default function MeuPerfilPage() {
+  const term = useTaxonomyLabel();
   const { t } = useLocale();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -1086,11 +1088,11 @@ export default function MeuPerfilPage() {
   const availableSegmentos = getSegmentosForRamos(selectedRamos);
   const normalizedRamoSearch = ramoSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filteredRamos = RAMOS_SEGMENTOS.filter((ramo) =>
-    ramo.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedRamoSearch)
+    term(ramo.nome).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedRamoSearch)
   );
   const normalizedSegmentoSearch = segmentoSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filteredSegmentos = availableSegmentos.filter((segmento) =>
-    segmento.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedSegmentoSearch)
+    term(segmento.nome).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedSegmentoSearch)
   );
 
   function toggleRamo(ramo: string) {
@@ -1551,7 +1553,7 @@ export default function MeuPerfilPage() {
 
             {contributionAreasRequired && <div className="mt-4 flex flex-wrap gap-2" aria-label="Áreas de contribuição selecionadas">
               {tiposAliancaSelecionados.length > 0 ? tiposAliancaSelecionados.slice(0, 4).map((tipo) => (
-                <span key={tipo} className="rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
+                <span key={tipo} className="rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{term(getTipoDisplayName(tipo))}</span>
               )) : <span className="text-xs text-slate-500">Nenhuma área selecionada</span>}
             </div>}
           </div>
@@ -1723,13 +1725,13 @@ export default function MeuPerfilPage() {
           <p className="font-bold text-slate-700">Áreas de contribuição ({tiposAliancaSelecionados.length})</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tiposAliancaSelecionados.length > 0 ? tiposAliancaSelecionados.map(tipo => (
-              <span key={tipo} className="max-w-full rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
+              <span key={tipo} className="max-w-full rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{term(getTipoDisplayName(tipo))}</span>
             )) : <span className="text-slate-500">-</span>}
           </div>
         </div>}
         <div className="grid grid-cols-[minmax(88px,110px)_minmax(0,1fr)] gap-2">
-          <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{formatRamosDisplay(form.ramo_atuacao) || "-"}</p>
-          <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{formatSegmentosDisplay(form.segmento) || "-"}</p>
+          <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{formatRamosDisplay(form.ramo_atuacao, term) || "-"}</p>
+          <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{formatSegmentosDisplay(form.segmento, term) || "-"}</p>
           <p className="font-bold text-slate-700">Área de atuação</p><p className="break-words text-slate-600">{form.area_atuacao || "-"}</p>
           <p className="font-bold text-slate-700">Localização</p><p className="break-words text-slate-600">{[form.cidade, form.estado].filter(Boolean).join(", ") || "-"}</p>
         </div>
@@ -1935,7 +1937,7 @@ export default function MeuPerfilPage() {
                 </section>
 
                 {contributionAreasRequired && <section className="profile-section p-4" data-testid="section-areas-contribuicao">
-                  <h3 className="text-sm font-bold text-[#001D34]">2. {publicLabel("ContributionArea")}</h3>
+                  <h3 className="text-sm font-bold text-[#001D34]">2. {term(publicLabel("ContributionArea"))}</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                     {sortContributionAreas(getAllTipos(), (tipo) => tipo.nome).map((tipo) => {
@@ -1971,10 +1973,10 @@ export default function MeuPerfilPage() {
                             <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${iconConfig.bg} ${iconConfig.color}`}>
                               <AreaIcon className="h-4 w-4" />
                             </span>
-                            <span className="truncate">{label}</span>
+                            <span className="truncate">{term(label)}</span>
                           </span>
                           <span className="flex shrink-0 items-center gap-1">
-                            <ContributionAreaInfo label={label} />
+                            <ContributionAreaInfo areaName={label} />
                             {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
                           </span>
                         </div>
@@ -1989,7 +1991,7 @@ export default function MeuPerfilPage() {
                   <p className="mt-1 text-xs text-slate-500">Selecione as teses que interessam a você, organizadas por Célula. O sistema vincula automaticamente cada escolha à Célula correspondente em todas as suas Comunidades.</p>
                   <div className="mt-4 space-y-4">
                     {strategicCellTypes.map((cell) => <div key={cell.code}>
-                      <p className="mb-2 text-[11px] font-semibold text-slate-500">{cell.public_name}</p>
+                      <p className="mb-2 text-[11px] font-semibold text-slate-500">{term(cell.public_name)}</p>
                       <div className="flex flex-wrap gap-2">{cell.business_types.map((businessType) => {
                         const selected = strategicCellDraft.business_type_codes.includes(businessType.code);
                         return <button key={businessType.code} type="button" aria-pressed={selected} onClick={() => setStrategicCellDraft((current) => {
@@ -1998,7 +2000,7 @@ export default function MeuPerfilPage() {
                             business_type_codes: businessTypeCodes,
                             strategic_cell_type_codes: normalizeStrategicCellPreferences([], businessTypeCodes).cellTypeCodes,
                           };
-                        })} className={`rounded-full border px-3 py-2 text-xs ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"}`}>{formatBusinessThesisLabel(businessType.public_name)}</button>;
+                        })} className={`rounded-full border px-3 py-2 text-xs ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"}`}>{term(formatBusinessThesisLabel(businessType.public_name))}</button>;
                       })}</div>
                     </div>)}
                     {getRetiredBusinessTypes(strategicCellDraft.business_type_codes).length > 0 && <div>
@@ -2006,7 +2008,7 @@ export default function MeuPerfilPage() {
                       <div className="flex flex-wrap gap-2">{getRetiredBusinessTypes(strategicCellDraft.business_type_codes).map((item) => <button key={item.code} type="button" className="rounded-full border px-3 py-2 text-xs" aria-label={`Remover escolha anterior: ${item.publicName}`} onClick={() => setStrategicCellDraft((current) => {
                         const businessTypeCodes = current.business_type_codes.filter((code) => code !== item.code);
                         return { business_type_codes: businessTypeCodes, strategic_cell_type_codes: normalizeStrategicCellPreferences([], businessTypeCodes).cellTypeCodes };
-                      })}>{item.publicName} ×</button>)}</div>
+                      })}>{term(item.publicName)} ×</button>)}</div>
                     </div>}
                   </div>
                 </section>
@@ -2252,7 +2254,7 @@ export default function MeuPerfilPage() {
                           >
                             <span className="min-w-0 flex-1 truncate">
                               {selectedRamos.length
-                                ? `${selectedRamos.length} ramo${selectedRamos.length > 1 ? "s" : ""} selecionado${selectedRamos.length > 1 ? "s" : ""}`
+                                ? (selectedRamos.length === 1 ? "1 ramo selecionado" : `${selectedRamos.length} ramos selecionados`)
                                 : "Buscar e selecionar ramos"}
                             </span>
                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-white/60" />
@@ -2303,7 +2305,7 @@ export default function MeuPerfilPage() {
                                       onCheckedChange={() => toggleRamo(r.nome)}
                                       className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
                                     />
-                                    <span className="leading-5">{r.nome}</span>
+                                    <span className="leading-5">{term(r.nome)}</span>
                                   </label>
                                 );
                               })
@@ -2321,12 +2323,12 @@ export default function MeuPerfilPage() {
                               key={ramo}
                               className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
                             >
-                              <span className="truncate">{ramo}</span>
+                              <span className="truncate">{term(ramo)}</span>
                               <button
                                 type="button"
                                 onClick={() => toggleRamo(ramo)}
                                 className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
-                                aria-label={`Remover ${ramo}`}
+                                aria-label={`Remover ${term(ramo)}`}
                               >
                                 <X className="h-3 w-3" />
                               </button>
@@ -2361,7 +2363,7 @@ export default function MeuPerfilPage() {
                               {selectedRamos.length === 0
                                 ? "Selecione ao menos um ramo primeiro"
                                 : selectedSegmentos.length
-                                  ? `${selectedSegmentos.length} segmento${selectedSegmentos.length > 1 ? "s" : ""} selecionado${selectedSegmentos.length > 1 ? "s" : ""}`
+                                  ? (selectedSegmentos.length === 1 ? "1 segmento selecionado" : `${selectedSegmentos.length} segmentos selecionados`)
                                   : "Buscar e selecionar segmentos"}
                             </span>
                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-white/60" />
@@ -2412,7 +2414,7 @@ export default function MeuPerfilPage() {
                                       onCheckedChange={() => toggleSegmento(s.nome)}
                                       className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
                                     />
-                                    <span className="leading-5">{s.nome}</span>
+                                    <span className="leading-5">{term(s.nome)}</span>
                                   </label>
                                 );
                               })
@@ -2430,12 +2432,12 @@ export default function MeuPerfilPage() {
                               key={segmento}
                               className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
                             >
-                              <span className="truncate">{segmento}</span>
+                              <span className="truncate">{term(segmento)}</span>
                               <button
                                 type="button"
                                 onClick={() => toggleSegmento(segmento)}
                                 className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
-                                aria-label={`Remover ${segmento}`}
+                                aria-label={`Remover ${term(segmento)}`}
                               >
                                 <X className="h-3 w-3" />
                               </button>
@@ -2463,7 +2465,7 @@ export default function MeuPerfilPage() {
                             value={option}
                             className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
                           >
-                            {option}
+                            {term(option)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2500,7 +2502,7 @@ export default function MeuPerfilPage() {
                           style={{ background: "rgba(215,187,125,0.12)", borderColor: "rgba(215,187,125,0.35)", color: "#D7BB7D" }}
                           data-testid={`chip-idioma-${idioma}`}
                         >
-                          {idioma}
+                          {term(idioma)}
                           <button
                             type="button"
                             onClick={() => setForm(f => ({ ...f, idiomas: (f.idiomas || []).filter(i => i !== idioma) }))}
@@ -2520,7 +2522,7 @@ export default function MeuPerfilPage() {
                       onChange={e => setIdiomaInput(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === "Enter" && idiomaInput.trim()) {
-                          const val = idiomaInput.trim();
+                          const val = canonicalProfileLanguage(idiomaInput, term);
                           if (!(form.idiomas || []).includes(val)) {
                             setForm(f => ({ ...f, idiomas: [...(f.idiomas || []), val] }));
                           }
@@ -2540,9 +2542,9 @@ export default function MeuPerfilPage() {
                       >
                         {[
                           ...PROFILE_LANGUAGE_OPTIONS.filter(i =>
-                            i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
+                            term(i).toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
                           ),
-                          ...(PROFILE_LANGUAGE_OPTIONS.some(i => i.toLowerCase() === idiomaInput.trim().toLowerCase()) || (form.idiomas || []).includes(idiomaInput.trim())
+                          ...(PROFILE_LANGUAGE_OPTIONS.some(i => i === canonicalProfileLanguage(idiomaInput, term)) || (form.idiomas || []).includes(idiomaInput.trim())
                             ?[]
                             : [idiomaInput.trim()]
                           ),
@@ -2561,11 +2563,11 @@ export default function MeuPerfilPage() {
                           >
                             {sugestao === idiomaInput.trim() && !PROFILE_LANGUAGE_OPTIONS.some(i => i.toLowerCase() === sugestao.toLowerCase())
                               ?`+ Adicionar "${sugestao}"`
-                              : sugestao}
+                              : term(sugestao)}
                           </button>
                         ))}
                         {PROFILE_LANGUAGE_OPTIONS.filter(i =>
-                          i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
+                          term(i).toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
                         ).length === 0 && (form.idiomas || []).includes(idiomaInput.trim()) && (
                           <p className="px-3 py-2 text-xs text-white/30 font-mono">Idioma já adicionado</p>
                         )}
@@ -2582,7 +2584,7 @@ export default function MeuPerfilPage() {
                         className="px-2 py-0.5 rounded text-[11px] font-mono border border-white/10 text-white/40 hover:border-brand-gold/30 hover:text-white/70 transition-colors"
                         data-testid={`btn-quick-idioma-${i}`}
                       >
-                        {i}
+                        {term(i)}
                       </button>
                     ))}
                   </div>

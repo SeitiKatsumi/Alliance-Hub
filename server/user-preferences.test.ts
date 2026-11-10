@@ -14,12 +14,16 @@ test('preferences: isolated migration, account isolation, partial merges and ema
   await pg.exec("CREATE TABLE users(id varchar PRIMARY KEY,email text,ativo boolean DEFAULT true); INSERT INTO users VALUES ('a','owner@example.test',true),('b','employee@example.test',true),('c','OWNER@example.test',true)");
   const migration=readFileSync(new URL('../migrations/20261015_user_preferences.sql',import.meta.url),'utf8');
   await pg.exec(migration);await pg.exec(migration);
+  const portuguesePortugal=readFileSync(new URL('../migrations/20261110_preferences_pt_pt.sql',import.meta.url),'utf8');
+  await pg.exec(portuguesePortugal);await pg.exec(portuguesePortugal);
   const store=new UserPreferencesStore(db);
   assert.deepEqual(await store.read('a'),defaultPreferences());
   await store.patch('a',{language:'es',email:{invites:false}});
   await Promise.all([store.patch('a',{email:{agenda:false}}),store.patch('a',{email:{bia:false}})]);
   assert.deepEqual(await store.read('a'),{language:'es',email:{invites:false,agenda:false,bia:false,opportunities:true,ro_pulses:true,community:true}});
   assert.deepEqual(await store.read('b'),defaultPreferences());
+  await store.patch('b',{language:'pt-PT'});
+  assert.deepEqual(await store.read('b'),{...defaultPreferences(),language:'pt-PT'});
   assert.equal(await store.allowsEmail(' OWNER@example.test ','invites'),false);
   assert.equal(await store.allowsEmail('new@example.test','invites'),true);
   assert.equal(await store.allowsEmail('owner@example.test','essential'),true);

@@ -57,13 +57,13 @@ test("ajuda compartilha explicações do Perfil e não aciona seleção por cliq
   assert.match(profile, /import \{ ContributionAreaInfo \} from "@\/components\/contribution-area-info"/);
   assert.doesNotMatch(profile, /const AREA_INFO_CONFIG/);
   let opened = false;
-  const scope = { React, useState: () => [false, (v: any) => { opened = typeof v === "function" ? v(opened) : v; }],
+  const scope = { React, useTaxonomyLabel: () => (value: string) => value, useState: () => [false, (v: any) => { opened = typeof v === "function" ? v(opened) : v; }],
     useRef: () => ({ current: null }), useEffect: () => {}, Info: "svg",
     Popover: "section", PopoverTrigger: "span", PopoverContent: "aside" };
   const helpCode = transformSync(source.slice(source.indexOf("const AREA_INFO_CONFIG")).replace("export function", "function"), { loader: "tsx" }).code;
   const Help = new Function(...Object.keys(scope), helpCode + ";return ContributionAreaInfo;")(...Object.values(scope));
   for (const area of getAllContributionAreas()) {
-    const tree = Help({ label: area.displayName });
+    const tree = Help({ areaName: area.displayName });
     const nodes = elements(tree);
     const button = nodes.find(node => node.type === "button");
     opened = false;

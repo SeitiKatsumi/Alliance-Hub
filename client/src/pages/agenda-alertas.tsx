@@ -1,3 +1,4 @@
+import { useLocale } from "@/components/preferences-provider";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
@@ -70,13 +71,13 @@ const VIEW_LABELS: Array<{ key: AgendaAlertsView; label: string; icon: typeof Ca
   { key: "alertas", label: "Alertas", icon: BellRing },
 ];
 
-function formatPreviewDate(date?: string | null, time?: string | null) {
+function formatPreviewDate(date?: string | null, time?: string | null, language = "pt-BR") {
   if (!date) return "Sem data definida";
   const parsed = new Date(`${date}T12:00:00`);
   const label = Number.isNaN(parsed.getTime())
     ? date
-    : parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
-  return time ? `${label} às ${time}` : label;
+    : parsed.toLocaleDateString(language, { day: "2-digit", month: "short" });
+  return time ? label + (language === "en" ? " at " : language === "es" ? " a las " : " às ") + time : label;
 }
 
 function priorityClass(priority: string) {
@@ -86,6 +87,7 @@ function priorityClass(priority: string) {
 }
 
 export default function AgendaAlertasPage() {
+  const { t, language } = useLocale();
   const { user } = useAuth();
   const search = useSearch();
   const [, navigate] = useLocation();
@@ -226,7 +228,7 @@ export default function AgendaAlertasPage() {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold text-foreground">{item.title}</span>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{formatPreviewDate(item.date, item.time)}</span>
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{formatPreviewDate(item.date, item.time, language)}</span>
                         </span>
                         {item.overdue && <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Atrasada</Badge>}
                       </button>

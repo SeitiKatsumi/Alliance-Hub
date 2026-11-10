@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -403,6 +404,7 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
 
 // ===== CARD =====
 function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
+  const term = useTaxonomyLabel();
   const [, navigate] = useLocation();
   const foto = fotoUrl(parceiro);
   const initials = getInitials(parceiro.nome);
@@ -460,7 +462,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
           <div className="pt-1">
             <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono border border-brand-gold/20 text-brand-gold/60"
               style={{ background: "rgba(37,99,235,0.08)" }}>
-              {formatSegmentosDisplay(parceiro.segmento) || parceiro.ramo_atuacao}
+              {formatSegmentosDisplay(parceiro.segmento, term) || parceiro.ramo_atuacao}
             </span>
           </div>
         )}
@@ -511,6 +513,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
 }
 
 function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
+  const term = useTaxonomyLabel();
   const [, navigate] = useLocation();
   const foto = fotoUrl(parceiro);
   const logo = logoEmpresaUrl(parceiro);
@@ -541,7 +544,7 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
 
         <div className="text-center space-y-1.5">
           <p className="text-sm font-semibold text-foreground font-mono leading-tight line-clamp-2">{nome}</p>
-          {parceiro.segmento && <p className="text-xs text-blue-600 font-mono truncate">{formatSegmentosDisplay(parceiro.segmento)}</p>}
+          {parceiro.segmento && <p className="text-xs text-blue-600 font-mono truncate">{formatSegmentosDisplay(parceiro.segmento, term)}</p>}
 
           {parceiro.empresa && (
             <div className="flex items-center justify-center gap-2 min-w-0">
@@ -609,6 +612,7 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
 }
 
 function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
+  const term = useTaxonomyLabel();
   const [, navigate] = useLocation();
   const foto = fotoUrl(parceiro);
   const logo = logoEmpresaUrl(parceiro);
@@ -638,7 +642,7 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
             </span>
           )}
           {(parceiro.segmento || parceiro.ramo_atuacao || parceiro.cargo) && (
-            <span className="truncate max-w-[260px]">{formatSegmentosDisplay(parceiro.segmento) || parceiro.ramo_atuacao || parceiro.cargo}</span>
+            <span className="truncate max-w-[260px]">{formatSegmentosDisplay(parceiro.segmento, term) || parceiro.ramo_atuacao || parceiro.cargo}</span>
           )}
           {(parceiro.cidade || parceiro.estado) && (
             <span className="inline-flex items-center gap-1">

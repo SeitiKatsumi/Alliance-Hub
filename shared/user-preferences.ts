@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const languages = ['pt-BR', 'en', 'es'] as const;
+export const languages = ['pt-BR', 'pt-PT', 'en', 'es'] as const;
 export const emailCategories = ['invites', 'agenda', 'bia', 'opportunities', 'ro_pulses', 'community'] as const;
 export type Language = typeof languages[number];
 export type EmailCategory = typeof emailCategories[number];

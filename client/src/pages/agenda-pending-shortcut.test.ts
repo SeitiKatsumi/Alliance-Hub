@@ -16,7 +16,7 @@ test("cartão e links antigos abrem a mesma área existente de aprovações", as
   const navigation:string[]=[];let search="?view=resumo&section=convites",writes=0;
   const passthrough=({children}:any)=>React.createElement(React.Fragment,null,children);
   const ConvitesPage=()=>React.createElement("div",null,"Aprovações pendentes");
-  const scope={React,AGENDA_ALERTS_REFRESH_MS,normalizeAgendaAlertsView,agendaAlertDestination,
+  const scope={React,useLocale:()=>({t:(value:string)=>value,language:"pt-BR"}),AGENDA_ALERTS_REFRESH_MS,normalizeAgendaAlertsView,agendaAlertDestination,
     useAuth:()=>({user:{role:"admin"}}),useEffect:()=>{},useSearch:()=>search,
     useLocation:()=>["/agenda-alertas",(href:string)=>navigation.push(href)],hasEmployeeModuleAccess:()=>true,
     useQuery:(options:any)=>({data:options.queryKey[0].endsWith("resumo")?{pending_count:activeAgendaAlertCount(items),pending_display:2,agenda:{today_count:0,overdue_count:7,preview:[]},alerts:{preview:items},updates:{preview:[]}}:items,isLoading:false,isError:false,refetch:()=>{}}),

@@ -48,7 +48,7 @@ test("perfil exclusivo de imóvel oculta áreas de contribuição no onboarding 
   const onboarding = readFileSync(new URL("./initial-onboarding.tsx", import.meta.url), "utf8");
 
   assert.match(profile, /contributionAreasRequired && <section[^>]+data-testid="section-areas-contribuicao"/);
-  assert.match(onboarding, /requiresContributionAreas\(purposes\) && <Panel title=\{publicLabel\("ContributionArea"\)\}/);
+  assert.match(onboarding, /requiresContributionAreas\(purposes\) && <Panel title=\{term\(publicLabel\("ContributionArea"\)\)\}/);
 });
 
 test("Configurações é categoria própria sem pendência nem salvamento cadastral", () => {

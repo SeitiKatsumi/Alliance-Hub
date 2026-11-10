@@ -7,8 +7,12 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $dbTunnelScript = Join-Path $PSScriptRoot 'ensure-local-db-tunnel.ps1'
 $directusTunnelScript = Join-Path $PSScriptRoot 'ensure-local-directus-tunnel.ps1'
 
-if (-not (Get-NetTCPConnection -State Listen -LocalPort 5433 -ErrorAction SilentlyContinue)) {
-  & $dbTunnelScript
+# Resolve the port from the same environment that will launch the application.
+$projectEnv = Join-Path $projectRoot '.env'
+$dbPort = & node.exe "--env-file=$projectEnv" -e "try { const u=new URL(process.env.DATABASE_URL); console.log(['localhost','127.0.0.1'].includes(u.hostname) ? u.port || '5432' : 'remote'); } catch { process.exit(1); }"
+if ($LASTEXITCODE -ne 0 -or -not $dbPort) { throw 'DATABASE_URL local inválida.' }
+if ($dbPort -ne 'remote') {
+  & $dbTunnelScript -LocalPort ([int]$dbPort)
 }
 
 if (-not (Get-NetTCPConnection -State Listen -LocalPort 8055 -ErrorAction SilentlyContinue)) {
@@ -26,22 +30,19 @@ $env:NODE_ENV = 'development'
 $stdoutLog = Join-Path $projectRoot "app-server-$Port-live.out.log"
 $stderrLog = Join-Path $projectRoot "app-server-$Port-live.err.log"
 
-Start-Process -FilePath 'node.exe' `
+$appProcess = Start-Process -FilePath 'node.exe' `
   -ArgumentList @('--env-file=.env', '--import', 'tsx', 'scripts/start-local-app.ts') `
   -WorkingDirectory $projectRoot `
   -RedirectStandardOutput $stdoutLog `
   -RedirectStandardError $stderrLog `
-  -WindowStyle Hidden | Out-Null
+  -WindowStyle Hidden -PassThru
 
-for ($attempt = 0; $attempt -lt 30; $attempt++) {
+$deadline = [DateTime]::UtcNow.AddSeconds(90)
+while ([DateTime]::UtcNow -lt $deadline -and -not $appProcess.HasExited) {
   Start-Sleep -Milliseconds 500
   if (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue) {
     return
   }
 }
 
-if (Test-Path -LiteralPath $stderrLog) {
-  Get-Content -LiteralPath $stderrLog -Tail 30 | Write-Error
-}
-
-throw "Nao foi possivel iniciar a aplicacao local na porta $Port."
+throw "A aplicação ainda não está disponível na porta $Port. Consulte $stderrLog."

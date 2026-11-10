@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Globe2, Layers3, Pause, Play, SkipForward } from "lucide-react";
@@ -19,6 +20,7 @@ interface DistributionFlow {
 interface ActiveCell { id: string; name: string; type_public_name: string; }
 
 export default function OpportunityDistributionControls({ code, onUpdated }: { code: string; onUpdated?: () => void }) {
+  const term = useTaxonomyLabel();
   const { toast } = useToast();
   const flowQuery = useQuery<DistributionFlow | null>({
     queryKey: ["/api/rede/oportunidades", code, "disparo"],
@@ -68,7 +70,7 @@ export default function OpportunityDistributionControls({ code, onUpdated }: { c
       </div>}
       {(cellsQuery.data || []).length > 0 && <details className="rounded-md border p-3">
         <summary className="cursor-pointer text-sm font-medium"><Layers3 className="mr-2 inline h-4 w-4" />Incluir outras Células na primeira onda</summary>
-        <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">{(cellsQuery.data || []).map((cell) => <label key={cell.id} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={selectedCells.includes(cell.id)} onCheckedChange={(checked) => setSelectedCells((current) => checked ? (current.includes(cell.id) ? current : [...current, cell.id]) : current.filter((id) => id !== cell.id))} /><span>{cell.name}</span><span className="text-xs text-muted-foreground">{cell.type_public_name}</span></label>)}</div>
+        <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">{(cellsQuery.data || []).map((cell) => <label key={cell.id} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={selectedCells.includes(cell.id)} onCheckedChange={(checked) => setSelectedCells((current) => checked ? (current.includes(cell.id) ? current : [...current, cell.id]) : current.filter((id) => id !== cell.id))} /><span>{cell.name}</span><span className="text-xs text-muted-foreground">{term(cell.type_public_name)}</span></label>)}</div>
         <Button className="mt-3" size="sm" disabled={!selectedCells.length || distributeMutation.isPending} onClick={() => distributeMutation.mutate()}>{flow ? "Atualizar Células e reiniciar Pulso" : "Iniciar Pulso com estas Células"}</Button>
       </details>}
     </div>

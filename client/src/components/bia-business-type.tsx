@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -6,6 +7,7 @@ import { STRATEGIC_CELL_TYPES, STRATEGIC_CELL_BUSINESS_TYPES, formatBusinessThes
 
 type Preferences = { business_type_codes: string[] };
 export function BiaBusinessType({ value, onChange, disabled }: { value: string; onChange: (code: string) => void; disabled?: boolean }) {
+  const term = useTaxonomyLabel();
   const preferences = useQuery<Preferences>({ queryKey: ["/api/me/celulas-preferencias"], staleTime: 0, refetchOnWindowFocus: true });
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
@@ -26,11 +28,11 @@ export function BiaBusinessType({ value, onChange, disabled }: { value: string; 
     </div>
     {preferences.isPending ? <p role="status">Carregando suas teses de interesse…</p> : preferences.isError ? <div role="alert"><p>Não foi possível carregar suas teses de interesse</p><Button type="button" variant="outline" onClick={() => preferences.refetch()}>Tentar novamente</Button></div> : !available.length ? <p className="text-sm text-muted-foreground">Você ainda não selecionou nenhuma tese do catálogo atual. Use “Revisar teses de interesse” para escolher antes de continuar</p> : <div className="space-y-4">{STRATEGIC_CELL_TYPES.map((cell) => {
       const items = available.filter(([cellCode]) => cellCode === cell.code);
-      return items.length > 0 && <div key={cell.code}><h3 className="mb-2 text-sm font-medium text-muted-foreground">{cell.publicName}</h3><div className="flex flex-wrap gap-2">{items.map(([, code, , label]) => <Button key={code} type="button" variant={value === code ? "default" : "outline"} aria-pressed={value === code} disabled={disabled} className="h-auto max-w-full whitespace-normal text-left" onClick={() => onChange(code)}>{formatBusinessThesisLabel(label)}</Button>)}</div></div>;
+      return items.length > 0 && <div key={cell.code}><h3 className="mb-2 text-sm font-medium text-muted-foreground">{term(cell.publicName)}</h3><div className="flex flex-wrap gap-2">{items.map(([, code, , label]) => <Button key={code} type="button" variant={value === code ? "default" : "outline"} aria-pressed={value === code} disabled={disabled} className="h-auto max-w-full whitespace-normal text-left" onClick={() => onChange(code)}>{term(formatBusinessThesisLabel(label))}</Button>)}</div></div>;
     })}</div>}
     {open && <div id="bia-business-review" className="space-y-4 rounded-lg border bg-muted/30 p-4">
         <h4 className="font-medium">Revisar teses de interesse</h4>
-        {STRATEGIC_CELL_TYPES.map((cell) => <div key={cell.code} className="space-y-2"><h3 className="font-medium">{cell.publicName}</h3><div className="flex flex-wrap gap-2">{STRATEGIC_CELL_BUSINESS_TYPES.filter(([cellCode]) => cellCode === cell.code).map(([, code, , label]) => <Button key={code} type="button" variant={draft.includes(code) ? "default" : "outline"} aria-pressed={draft.includes(code)} disabled={save.isPending} className="h-auto max-w-full whitespace-normal text-left" onClick={() => setDraft((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code])}>{formatBusinessThesisLabel(label)}</Button>)}</div></div>)}
+        {STRATEGIC_CELL_TYPES.map((cell) => <div key={cell.code} className="space-y-2"><h3 className="font-medium">{term(cell.publicName)}</h3><div className="flex flex-wrap gap-2">{STRATEGIC_CELL_BUSINESS_TYPES.filter(([cellCode]) => cellCode === cell.code).map(([, code, , label]) => <Button key={code} type="button" variant={draft.includes(code) ? "default" : "outline"} aria-pressed={draft.includes(code)} disabled={save.isPending} className="h-auto max-w-full whitespace-normal text-left" onClick={() => setDraft((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code])}>{term(formatBusinessThesisLabel(label))}</Button>)}</div></div>)}
         {save.isError && <p role="alert" className="text-sm text-destructive">Não foi possível salvar suas escolhas. Tente novamente</p>}
         <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button><Button type="button" disabled={save.isPending} onClick={() => save.mutate()} loading={save.isPending}>{save.isPending ? "Salvando…" : "Salvar teses de interesse"}</Button></div>
     </div>}

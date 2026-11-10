@@ -1,3 +1,4 @@
+import { useLocale } from "@/components/preferences-provider";
 import { BiaCardIndicators } from "@/components/bia-card-indicators";
 import { BiaTrackingFields } from '@/components/bia-tracking-fields';
 import { emptyBiaTracking, parseTrackingChanges, type BiaTracking, type BiaThesis } from '@shared/bia-tracking';
@@ -1576,7 +1577,8 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
     return map;
   }, [membros]);
 
-  const situacaoLabel = biaPhaseLabel(bia.situacao);
+  const { t: uiText } = useLocale();
+  const situacaoLabel = uiText(biaPhaseLabel(bia.situacao));
   const situacaoClass = bia.situacao === "em_formacao"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-blue-200 bg-blue-50 text-blue-700";
@@ -1619,7 +1621,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPen
               )}
               {bia.destinacao && (
                 <Badge variant="secondary" className="h-5 bg-blue-500 px-2 text-[9px] font-medium text-white">
-                  {bia.destinacao}
+                  {uiText(bia.destinacao)}
                 </Badge>
               )}
             </div>
@@ -3516,7 +3518,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
             </div>
             BIAs
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Alianças Integradas BUILT — {total} BIA{total !== 1 ?"s" : ""} cadastrada{total !== 1 ?"s" : ""}</p>
+          <p className="text-sm text-muted-foreground mt-1">{total === 1 ? "Alianças Integradas BUILT — 1 BIA cadastrada" : `Alianças Integradas BUILT — ${total} BIAs cadastradas`}</p>
         </div>
         {canCreateBia && (
           <Button

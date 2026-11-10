@@ -1,0 +1,469 @@
+{
+  "version": 1,
+  "id": "2026-11-10-platform-interface-languages",
+  "title": "Aplicar o idioma da conta à interface da plataforma",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/lib/interface-language.ts",
+    "client/src/components/preferences-provider.tsx",
+    "scripts/interface-localization.mjs"
+  ],
+  "searchTerms": [
+    "__builtLocalizedView",
+    "InterfaceLocale",
+    "localizedTaskDescription"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/App.tsx",
+      "reason": "Usa termos canônicos no cadastro e resolve o idioma profissional digitado.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "reason": "Indicadores usam o idioma para formatar valores e exibir a tese selecionada.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "reason": "O texto de idioma descreve a aplicação da preferência à interface.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "reason": "Mantém a preferência por conta, contexto e cache inicial do navegador.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/agenda-interface-copy.ts",
+      "reason": "Traduz modelos de tarefas oficiais e preserva títulos manuais.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/build-config.test.ts",
+      "reason": "Confere React e o plugin de localização no build com aliases e proxies usuais.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/interface-catalog.json",
+      "reason": "Catálogo de textos de apresentação em inglês e espanhol com termos revisados.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/interface-language.ts",
+      "reason": "Consulta traduções explícitas e catálogo, preservando argumentos e espaços de composição.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/interface-locale-runtime.tsx",
+      "reason": "Renderiza a cópia no idioma corrente com metadados de origem, sem manipular a árvore DOM.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/platform-localization.test.ts",
+      "reason": "Exercita a saída do compilador em três idiomas, dados, opções e contagens.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "reason": "Títulos de tarefas oficiais e descrições são apresentados no idioma da sessão.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "reason": "Plural de BIAs, situação e destinação são apresentados conforme a preferência.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "reason": "Traduz metadados oficiais das OBAs preservando títulos cadastrados.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/mou-navigation.test.ts",
+      "reason": "Verifica que Agenda e Início usam a mesma apresentação baseada no título oficial.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "reason": "Saudação, ações, papel, campos do perfil e tarefas acompanham a conta.",
+      "decision": "updated"
+    },
+    {
+      "path": "scripts/interface-copy-inventory.mjs",
+      "reason": "Inventário de textos de apresentação extraídos do código pelo mesmo compilador.",
+      "decision": "updated"
+    },
+    {
+      "path": "scripts/interface-localization.d.mts",
+      "reason": "Declara o contrato TypeScript do plugin de localização.",
+      "decision": "updated"
+    },
+    {
+      "path": "scripts/interface-localization.mjs",
+      "reason": "Aplica o catálogo nas folhas de apresentação das páginas e componentes do cliente.",
+      "decision": "updated"
+    },
+    {
+      "path": "vite.config.ts",
+      "reason": "Registra a transformação antes de React para o desenvolvimento e o build.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "reason": "O menu continua usando as traduções explícitas da preferência.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/components/appearance-settings.tsx",
+      "reason": "Configurações de aparência consomem o mesmo idioma e mantêm as opções.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/components/platform-preferences.test.ts",
+      "reason": "Controles e retorno em caso de falha continuam protegidos pela regressão existente.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/lib/environment-nomenclature.test.ts",
+      "reason": "Nomenclatura da navegação conserva as traduções explícitas.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/lib/interface-language.test.ts",
+      "reason": "Valida as traduções explícitas e o fallback para uma entrada desconhecida.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "reason": "Traduz convites com origem oficial e usa o idioma para a data resumida.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "reason": "A área compartilhada usa a transformação global e incorpora Comunidades e BIAs.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "reason": "O formulário compartilhado utiliza a preferência mantendo valores enviados.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "reason": "Traduz os rótulos importados de etapas sem alterar índices.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "reason": "Convites continuam sendo exibidos pelo módulo compartilhado.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "reason": "Revê opções, contagens, idiomas, pesquisa e resumo no idioma ativo.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/vite.ts",
+      "reason": "O servidor de desenvolvimento utiliza a mesma configuração Vite que o build de produção.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/lib/interface-catalog-pt-pt.json",
+      "reason": "Vocabulário e mensagens específicas de Portugal, com texto português comum como alternativa.",
+      "decision": "updated"
+    },
+    {
+      "path": "migrations/20261110_preferences_pt_pt.sql",
+      "reason": "Amplia os idiomas permitidos sem regravar preferências existentes.",
+      "decision": "updated"
+    },
+    {
+      "path": "shared/user-preferences.ts",
+      "reason": "Inclui pt-PT na validação de leitura e escrita das preferências.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "reason": "Exercita a atualização da restrição e a persistência de pt-PT por conta.",
+      "decision": "updated"
+    },
+    {
+      "path": "server/user-preferences.ts",
+      "reason": "O mesmo PATCH aceita o novo valor pelo schema partilhado e lê a preferência persistida.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/email-preference-policy.ts",
+      "reason": "A política usa a categoria de e-mail, que continua independente da variante de português.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/mailer.ts",
+      "reason": "O envio consulta a categoria de e-mail, sem consultar o idioma da interface.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/routes.ts",
+      "reason": "O registo das rotas usa o mesmo store autenticado de preferências.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/index.ts",
+      "reason": "O agendamento dos lembretes não depende do idioma da interface.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "reason": "Os testes de envio exercitam a política de e-mails independentemente do idioma.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "reason": "Os lembretes usam a política de envio por categoria.",
+      "decision": "preserved"
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "reason": "A cobertura de lembretes inclui a supressão por preferência de e-mail.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "reason": "Apresenta células e teses traduzidas preservando o código da seleção.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "reason": "Apresenta a tese da demanda segundo o idioma.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/contribution-area-info.tsx",
+      "reason": "A consulta da ajuda usa a chave original e o título segue o idioma.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.tsx",
+      "reason": "A seleção mantém o valor canônico e a ajuda recebe a área original.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.test.ts",
+      "reason": "Exercita a seleção e abertura da explicação pelo identificador original.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "reason": "Mostra o tipo oficial localizado e conserva o nome da comunidade.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "reason": "Busca e seleções de áreas, ramos, segmentos e idiomas usam termos oficiais.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/interface-taxonomy.ts",
+      "reason": "Relaciona exclusivamente as opções oficiais aos textos traduzíveis.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/ramos-segmentos.ts",
+      "reason": "Permite formatar cada termo selecionado antes de juntar as opções para leitura.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/lib/onboarding-summary.ts",
+      "reason": "Resumo admite tradução dos valores oficiais e mantém o texto livre.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "reason": "A lista estática de abas com desestruturação é reconhecida pelo compilador.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "reason": "Apresentação do segmento do membro segue o idioma.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "reason": "Traduz papéis da projeção legada de CPP e mantém nomes dos participantes do MAP.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "reason": "Ficha do parceiro usa o formato localizado dos segmentos.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "reason": "Configuração e resumo traduzem teses e escolhas oficiais.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "reason": "Cadastro usa seleções localizadas e envia valores canônicos.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "reason": "Traduz segmentos, áreas e idiomas exibidos no detalhe.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "reason": "Administração apresenta termos oficiais ao editar o membro.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/meu-perfil-layout.test.ts",
+      "reason": "Mantém a exigência da seção condicional de contribuição no título localizado.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "reason": "O rótulo público oficial de contribuição segue o idioma.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "reason": "Traduz áreas em badges e filtros, conserva chaves e regras de busca.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "reason": "Apresenta a área da oportunidade no idioma ativo.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "reason": "Apresenta o tipo e descrição oficial da célula quando não há texto personalizado.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "reason": "Exibe o segmento e as áreas no perfil público do parceiro.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "reason": "Exibe o tipo de contribuição na oportunidade.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "reason": "Traduz o tipo de área no cartão da oportunidade.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "reason": "Rótulos de contribuição e setor na vitrine usam o vocabulário selecionado.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "reason": "A prévia usa os componentes de cadastro e mantém os dados ilustrativos.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/lib/onboarding-summary.test.ts",
+      "reason": "O comportamento padrão conserva os dados canônicos usados pelos testes de resumo.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/lib/vitrine-partner-search.test.ts",
+      "reason": "Busca por parceiro continua cobrindo a taxonomia original.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/lib/vitrine-partner-search.ts",
+      "reason": "O mecanismo de afinidade usa os IDs e nomes originais.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "reason": "Carteira mantém o cálculo original e recebe o mesmo compilador de interface.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "reason": "Gestão continua usando os componentes de oportunidades e seus IDs.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "reason": "Traduz indicadores calculados, níveis, núcleos, leitura e recomendação.",
+      "decision": "updated"
+    },
+    {
+      "path": "client/src/pages/agenda-pending-shortcut.test.ts",
+      "reason": "O teste de navegação mantém a preferência de idioma padrão no ambiente isolado.",
+      "decision": "updated"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Comunidades, BIAs e Início exercitados em dados isolados no navegador. Verificados rótulos, botão, mapa, contagens, saudação, campos do perfil e retorno ao português.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Preferências utilizam a mesma API autenticada e o PATCH validado. Sem API de tradução externa.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Idioma oficial na conta e cópia local para a primeira renderização. Chaves de controles e nomes cadastrados não são traduzidos na persistência.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Formatação de apresentação usa o idioma. Moeda e valor vêm da fonte financeira, sem conversão ou alteração de cálculos.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Avisos visíveis usam o contexto, inclusive portais. Mensagens SMTP mantêm geração e preferências já existentes.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Documentos e nomes oficiais recebidos da API mantêm conteúdo. Textos da interface de consulta usam tradução.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Tarefas com origem oficial permitem tradução de mensagens no cliente. Links, baixas e serviços continuam independentes da preferência.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Prefere o idioma do usuário autenticado e mantém os guards originais de cada página e API.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "A conta sem preferência retorna ao português. A tradução explícita antiga tem prioridade no catálogo.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Testes de renderização nos três idiomas, origem de tarefa, links e persistência de valores. Ajustado o contrato de build para o compilador presente. O seletor contempla quatro idiomas. O catálogo pt-PT, a migração e a preferência persistida têm testes próprios.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "client/src/lib/platform-localization.test.ts",
+    "client/src/lib/interface-language.test.ts",
+    "client/src/components/platform-preferences.test.ts",
+    "client/src/pages/mou-navigation.test.ts",
+    "server/user-preferences.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

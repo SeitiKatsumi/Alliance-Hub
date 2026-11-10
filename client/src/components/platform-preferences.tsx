@@ -33,9 +33,9 @@ export function PlatformPreferences() {
       <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg sm:text-xl"><Languages className="h-5 w-5 shrink-0"/>{t('Idioma')}</CardTitle></CardHeader><CardContent className="space-y-3">
         <label htmlFor="interface-language" className="block text-sm font-medium">{t('Idioma da interface')}</label>
         <select id="interface-language" className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-foreground" disabled={saving} value={draft.language} onChange={event=>change({...draft,language:event.target.value as UserPreferences['language']})}>
-          <option value="pt-BR">Português (Brasil)</option><option value="en">English</option><option value="es">Español</option>
+          <option value="pt-BR">Português (Brasil)</option><option value="pt-PT">Português (Portugal)</option><option value="en">English</option><option value="es">Español</option>
         </select>
-        <p className="text-sm text-muted-foreground">{t('Tradução disponível em Configurações, navegação e categorias do Perfil. Demais telas podem aparecer em português. Textos de usuários, e-mails e documentos não são traduzidos.')}</p>
+        <p className="text-sm text-muted-foreground">{t('O idioma escolhido se aplica aos textos da interface.')}</p>
       </CardContent></Card>
       <div className="space-y-3"><p className="text-sm text-muted-foreground">{t('As preferências de e-mail e idioma ficam salvas na sua conta.')}</p>
         {feedback && <p role={feedback==='error'?'alert':'status'} className={feedback==='error'?'text-sm text-destructive':'text-sm text-foreground'}>{t(feedback==='saved'?'Preferências salvas.':'Não foi possível salvar. Suas preferências anteriores foram mantidas.')}</p>}

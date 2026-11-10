@@ -1,3 +1,4 @@
+import { canonicalProfileLanguage, useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { areaForPath, blockedArea } from '@shared/account-areas';
 import { useSearch as useAccountSearch } from 'wouter';
 ﻿import { Switch, Route, useLocation } from "wouter";
@@ -543,6 +544,7 @@ function PerfilOnboardingModal({
   membroId?: string | null;
   fallbackUser?: AppUser | null;
 }) {
+  const term = useTaxonomyLabel();
   const { toast } = useToast();
   const publicLabel = usePublicLabels();
   const [location, navigate] = useLocation();
@@ -902,7 +904,7 @@ function PerfilOnboardingModal({
               </SelectTrigger>
               <SelectContent className="max-h-72">
                 {RAMOS_SEGMENTOS.map(ramo => (
-                  <SelectItem key={ramo.codigo} value={ramo.nome}>{ramo.nome}</SelectItem>
+                  <SelectItem key={ramo.codigo} value={ramo.nome}>{term(ramo.nome)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -923,7 +925,7 @@ function PerfilOnboardingModal({
                         checked={selectedSegmentos.includes(segmento.nome)}
                         onCheckedChange={() => toggleSegmento(segmento.nome)}
                       />
-                      <span>{segmento.nome}</span>
+                      <span>{term(segmento.nome)}</span>
                     </label>
                   ))}
                 </div>
@@ -953,11 +955,11 @@ function PerfilOnboardingModal({
             <Input value={form.especialidade_livre || ""} onChange={e => setField("especialidade_livre", e.target.value)} data-testid="input-onboarding-especialidade" />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label>{publicLabel("ContributionArea")}</Label>
+            <Label>{term(publicLabel("ContributionArea"))}</Label>
             {form.em_built_capital ? (
               <div className="flex flex-wrap gap-1.5">
                 <span className="rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
-                  {getTipoDisplayName(BUILT_CAPITAL_TIPO)}
+                  {term(getTipoDisplayName(BUILT_CAPITAL_TIPO))}
                 </span>
               </div>
             ) : (
@@ -966,7 +968,7 @@ function PerfilOnboardingModal({
                   <div className="flex flex-wrap gap-1.5">
                     {(form.tipos_alianca || []).map(tipo => (
                       <span key={tipo} className="flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
-                        {getTipoDisplayName(tipo)}
+                        {term(getTipoDisplayName(tipo))}
                         <button
                           type="button"
                           onClick={() => {
@@ -994,7 +996,7 @@ function PerfilOnboardingModal({
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
                     {getAllTipos().filter(tipo => !(form.tipos_alianca || []).includes(tipo.nome)).map(tipo => (
-                      <SelectItem key={tipo.nome} value={tipo.nome}>{getTipoDisplayName(tipo.nome)}</SelectItem>
+                      <SelectItem key={tipo.nome} value={tipo.nome}>{term(getTipoDisplayName(tipo.nome))}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1010,7 +1012,7 @@ function PerfilOnboardingModal({
               <div className="flex flex-wrap gap-1.5">
                 {(form.idiomas || []).map(idioma => (
                   <span key={idioma} className="flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
-                    {idioma}
+                    {term(idioma)}
                     <button type="button" onClick={() => setForm(current => ({ ...current, idiomas: (current.idiomas || []).filter(item => item !== idioma) }))}>
                       <X className="h-3 w-3" />
                     </button>
@@ -1023,7 +1025,7 @@ function PerfilOnboardingModal({
               onChange={event => setIdiomaInput(event.target.value)}
               onKeyDown={event => {
                 if (event.key !== "Enter" || !idiomaInput.trim()) return;
-                const idioma = idiomaInput.trim();
+                const idioma = canonicalProfileLanguage(idiomaInput, term);
                 if (!(form.idiomas || []).includes(idioma)) {
                   setForm(current => ({ ...current, idiomas: [...(current.idiomas || []), idioma] }));
                 }
@@ -1036,7 +1038,7 @@ function PerfilOnboardingModal({
             <div className="flex flex-wrap gap-1.5">
               {IDIOMAS_DISPONIVEIS
                 .filter(idioma => !(form.idiomas || []).includes(idioma))
-                .filter(idioma => !idiomaInput || idioma.toLowerCase().includes(idiomaInput.toLowerCase()))
+                .filter(idioma => !idiomaInput || term(idioma).toLowerCase().includes(idiomaInput.toLowerCase()))
                 .slice(0, 8)
                 .map(idioma => (
                   <button
@@ -1045,7 +1047,7 @@ function PerfilOnboardingModal({
                     onClick={() => setForm(current => ({ ...current, idiomas: [...(current.idiomas || []), idioma] }))}
                     className="rounded border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:border-brand-gold/40 hover:text-foreground"
                   >
-                    {idioma}
+                    {term(idioma)}
                   </button>
                 ))}
             </div>
@@ -1425,7 +1427,6 @@ function ProtectedApp() {
   };
 
   return (
-    <PreferencesProvider key={user?.id} userId={String(user?.id || '')}>
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         {!user?.company_employee && <PerfilOnboardingModal membroId={user?.membro_directus_id} fallbackUser={user} />}
@@ -1552,14 +1553,20 @@ function ProtectedApp() {
         </div>
       </div>
     </SidebarProvider>
-    </PreferencesProvider>
   );
+}
+
+function AccountPreferences({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const id = String(user?.id || '');
+  return <PreferencesProvider key={id} userId={id}>{children}</PreferencesProvider>;
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AccessSessionSync />
+      <AccountPreferences>
       <TooltipProvider>
         <Switch>
           <Route path="/convite/:token" component={ConvitePage} />
@@ -1573,6 +1580,7 @@ function App() {
         </Switch>
         <Toaster />
       </TooltipProvider>
+      </AccountPreferences>
     </QueryClientProvider>
   );
 }

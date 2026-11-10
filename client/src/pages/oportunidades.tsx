@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -716,6 +717,7 @@ function OpaCard({
   bia?: BiasProjeto;
   onViewDetail: () => void;
 }) {
+  const term = useTaxonomyLabel();
   const valor = n(opa.valor_origem_opa);
   const currentStatus = (opa.status || "ativa") as OpaStatus;
   const statusBadge = OPA_STATUS_BADGES[currentStatus] || OPA_STATUS_BADGES.ativa;
@@ -746,7 +748,7 @@ function OpaCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap gap-1.5">
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-              {getTipoDisplayName(opa.tipo || "") || "OBA"}
+              {term(getTipoDisplayName(opa.tipo || "")) || "OBA"}
             </span>
             {opa.ramo_atuacao && (
               <span className="max-w-[180px] truncate rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
@@ -1486,6 +1488,7 @@ export function OpaFormDialog({
 
 // ---- Main Page ----
 export default function OportunidadesPage() {
+  const term = useTaxonomyLabel();
   const [, navigate] = useLocation();
   const searchParams = useSearch();
   const [search, setSearch] = useState("");
@@ -1614,7 +1617,7 @@ export default function OportunidadesPage() {
             <SelectContent>
               <SelectItem value="__all__">Todas as áreas</SelectItem>
               {tipoOptions.map(t => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
+                <SelectItem key={t} value={t}>{term(t)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

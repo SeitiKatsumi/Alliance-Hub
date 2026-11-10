@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -70,6 +71,7 @@ function getOpaImage(opa: OportunidadeVitrine) {
 }
 
 function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () => void }) {
+  const term = useTaxonomyLabel();
   const image = getOpaImage(opa);
   return (
     <button
@@ -93,7 +95,7 @@ function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () =
       <CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-            {getTipoDisplayName(opa.tipo || "") || "OBA"}
+            {term(getTipoDisplayName(opa.tipo || "")) || "OBA"}
           </Badge>
           {opa.status && (
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">

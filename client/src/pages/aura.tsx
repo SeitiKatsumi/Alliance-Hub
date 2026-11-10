@@ -1,3 +1,4 @@
+import { useLocale } from "@/components/preferences-provider";
 import {AuraLookupDialog,AvatarImage,fixMojibakeDeep,fotoUrl,getInitials,type MembroBusca} from '@/components/aura-lookup-dialog';
 ﻿import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -35,7 +36,7 @@ import {
 } from "@/lib/aura-audio";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { BrowserPermissionHelp } from "@/components/browser-permission-help";
-import { ModuleInfo } from "@/components/module-info";
+import { AuraGuide } from "@/components/aura-guide";
 
 interface AuraResult {
   score: number | null;
@@ -391,6 +392,7 @@ function faixaDescricao(score: number | null): string {
 
 
 export default function AuraPage() {
+  const { t } = useLocale();
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const { membroId: routeMembroId } = useParams<{ membroId: string }>();
@@ -937,26 +939,14 @@ export default function AuraPage() {
     <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:gap-8 sm:p-6">
       {/* Header */}
       <div className="order-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-[#D7BB7D]" />
-          Aura Percebida
-          <ModuleInfo
-            title="Aura Percebida"
-            description="Registra percepções reputacionais entre pessoas vinculadas na rede e consolida as evidências nas dimensões Técnica, Relacional e Comportamental."
-          />
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Reputação construída pela percepção da comunidade sobre você.
-        </p>
-        </div>
+        <AuraGuide key={isOwnAura && canViewRequestedAura ? myId : "other"} memberId={isOwnAura && canViewRequestedAura ? myId || null : null} hasScore={score !== null} canConsult={canConsultAura} onConsult={handleConsultAndRegisterAura} />
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           {myId && (
             <Button
               type="button"
               onClick={handleConsultAndRegisterAura}
               className="w-full gap-2 border border-[#005BFF] bg-[#005BFF] text-white shadow-sm hover:bg-[#004FE0] hover:text-white sm:w-auto"
-              data-testid="btn-consultar-registrar-aura"
+              id="aura-guide-lookup" data-testid="btn-consultar-registrar-aura"
             >
               <Sparkles className="w-4 h-4" />
               Consultar Aura
@@ -1020,7 +1010,7 @@ export default function AuraPage() {
               <div className="grid grid-cols-1 lg:grid-cols-[150px_1fr_260px] gap-5 items-center">
                 <AuraScore score={score} size="lg" />
                 <div className="space-y-3">
-                  <div>
+                  <div id="aura-guide-score" className="scroll-mt-4">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Índice de Aura</p>
                     <h2 className="text-2xl font-semibold" style={{ color: getFaixaColor(score) }}>{faixaDescricao(score)}</h2>
                     <p className="text-sm text-muted-foreground">
@@ -1093,7 +1083,7 @@ export default function AuraPage() {
           )}
 
           <Card className="border border-border/60 xl:col-span-5">
-            <CardHeader className="pb-2">
+            <CardHeader id="aura-guide-dimensions" className="scroll-mt-4 pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Target className="w-4 h-4 text-[#D7BB7D]" />
                 Dimensões da Aura
@@ -1264,7 +1254,7 @@ export default function AuraPage() {
                         </Popover>
                       </div>
                       <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                      <p className="text-sm font-semibold" style={{ color: item.color }}>{item.value}</p>
+                      <p className="text-sm font-semibold" style={{ color: item.color }}>{typeof item.value === "string" ? t(item.value) : item.value}</p>
                     </div>
                   );
                 })}
@@ -1289,22 +1279,22 @@ export default function AuraPage() {
                   return (
                     <div key={item.nucleo} className="rounded-lg border border-border/50 p-3 bg-background/40" data-testid={`convergencia-nucleo-${item.nucleo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}>
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-foreground">{item.nucleo}</p>
+                        <p className="text-sm font-semibold text-foreground">{t(item.nucleo)}</p>
                         <Badge variant="outline" className="text-[11px]" style={{ color: nivelColor, borderColor: `${nivelColor}55`, background: `${nivelColor}12` }}>
-                          {item.nivel}
+                          {t(item.nivel)}
                         </Badge>
                       </div>
-                      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{item.justificativa}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{item.justificativa.startsWith("Ainda há baixa evidência reputacional específica para aplicabilidade em ") ? t("Ainda há baixa evidência reputacional específica para aplicabilidade em {0}.").replace("{0}", t(item.nucleo)) : t(item.justificativa)}</p>
                     </div>
                   );
                 })}
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {leituraAplicabilidade}
+                {t(leituraAplicabilidade)}
               </p>
               <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-blue-600">Aplicação recomendada</p>
-                <p className="mt-1 text-sm font-medium text-foreground leading-relaxed">{aplicacaoRecomendada}</p>
+                <p className="mt-1 text-sm font-medium text-foreground leading-relaxed">{t(aplicacaoRecomendada)}</p>
               </div>
               <p className="text-[10px] text-muted-foreground/70">
                 Essa leitura não altera o score da Aura; ela orienta onde a percepção recebida parece ter maior aplicabilidade prática dentro da BUILT.

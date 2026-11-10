@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "id": "2026-11-09-aura-guide",
+  "title": "Guia opcional de primeiro acesso à própria Aura",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/aura-guide.tsx",
+    "client/src/pages/aura.tsx"
+  ],
+  "searchTerms": [
+    "hasSeenAuraGuide",
+    "aura-guide-score",
+    "Abrir guia da Aura"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/aura-guide.tsx",
+      "decision": "updated",
+      "reason": "Exibe convite, três passos e reabertura pelo ícone de ajuda. Armazena somente a decisão local do membro."
+    },
+    {
+      "path": "client/src/components/aura-guide.test.ts",
+      "decision": "updated",
+      "reason": "Cobre convite, dispensa isolada por membro e acesso ao guia após a dispensa."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "updated",
+      "reason": "Vincula os passos aos elementos da própria Aura e reutiliza a mesma ação Consultar Aura."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "As rotas existentes continuam carregando a página Aura com o mesmo usuário autenticado."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Inicialização React e provedores da aplicação continuam os mesmos. O guia usa as permissões já resolvidas na página."
+    },
+    {
+      "path": "client/src/lib/interface-catalog.json",
+      "decision": "reviewed",
+      "reason": "O catálogo da alteração paralela de idiomas inclui os rótulos do guia. Não modifica a decisão de exibir ou dispensar o convite."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Convite dispensável, reabertura pelo ícone e três passos verificados no componente em navegador. No viewport de 390x844 o painel ficou abaixo do botão destacado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Somente a consulta existente pode ser aberta pelo usuário ao concluir. Não foi criada uma chamada de registro ou endpoint."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Uma preferência local versionada é isolada por membro e navegador, com fallback na sessão quando o armazenamento não está disponível."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Índice, dimensões e critérios de evidência continuam vindo dos resultados oficiais da Aura."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "O convite é exibido na página. Nenhum template de comunicação ou envio está envolvido."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "O guia explica os elementos presentes na tela. Não produz documentos nem altera indicadores."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Guia interativo no navegador, sem processamento agendado e sem dependência externa."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Somente a própria Aura acessível oferece o guia. A consulta usa a autorização existente, e perfis sem acesso à consulta finalizam sem abri-la."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "URLs antigas, consulta de outras pessoas, cálculo de Aura e acesso via ações rápidas preservados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Teste de preferência e convite por membro. Navegador em ambiente isolado confirmou dispensa após recarga, reabertura, navegação nos três passos e disparo da ação de consulta."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/aura-guide.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

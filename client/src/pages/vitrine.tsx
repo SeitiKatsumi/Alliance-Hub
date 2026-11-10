@@ -1,3 +1,4 @@
+import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 ﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -883,6 +884,7 @@ function AnuncioHeroCard({
 }
 
 export default function VitrinePage() {
+  const term = useTaxonomyLabel();
   const { user } = useAuth();
   const { toast } = useToast();
   const publicLabel = usePublicLabels();
@@ -2198,7 +2200,7 @@ export default function VitrinePage() {
               </Field>
             </div>
 
-            <Field label={publicLabel("ContributionArea")}>
+            <Field label={term(publicLabel("ContributionArea"))}>
               <Select
                 value={form.tipo_alianca || undefined}
                 onValueChange={v => setForm(f => ({
@@ -2216,7 +2218,7 @@ export default function VitrinePage() {
                 <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
                   {getPublicTipos().map(t => (
                     <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                      {getTipoDisplayName(t.nome)}
+                      {term(getTipoDisplayName(t.nome))}
                     </SelectItem>
                   ))}
                 </SelectContent>

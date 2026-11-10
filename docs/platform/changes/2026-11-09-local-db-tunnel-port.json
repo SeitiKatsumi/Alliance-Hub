@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "id": "2026-11-09-local-db-tunnel-port",
+  "title": "Iniciar o ambiente local usando a porta PostgreSQL configurada para a BUILT",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "scripts/start-local-app.ps1"
+  ],
+  "searchTerms": [
+    "$dbTunnelScript -LocalPort"
+  ],
+  "consumers": [
+    {
+      "path": "scripts/start-local-app.ps1",
+      "decision": "updated",
+      "reason": "Lê somente a porta local da configuração efetiva do processo, encaminha essa porta ao túnel e aguarda o processo de inicialização."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Login real mostrou Email, Senha e Entrar após recarregar a aba no localhost."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "A rota local de login respondeu 200 e a consulta de sessão sem autenticação respondeu 401."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Teste de leitura da tabela de usuários no banco da BUILT pela porta dedicada 55433. Sem mudança de esquema."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "A correção de porta local não envolve cálculos ou gráficos da plataforma."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Nenhuma alteração em mensagens ou envio de notificações no reparo do ambiente local."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Nenhum relatório ou documento é produzido pelo lançador do ambiente local."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Directus retornou HTTP 200 em server/health. Os túneis locais foram restabelecidos."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "A autenticação continua exigindo as credenciais normais do usuário, sem criação artificial de sessão."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Preserva o endereço público local na porta 3004 e o processo PostgreSQL do outro projeto na porta 5433."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Lançador executado com a nova porta, conexão PostgreSQL validada e tela de login conferida na aba existente."
+    }
+  ],
+  "regressionTests": [
+    "scripts/local-smtp-environment.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -34,5 +34,7 @@ test("Agenda, painel e resumo usam destino e título compartilhados", () => {
   assert.match(painel, /href: agendaTaskHref\(acao\)/);
   assert.match(painel, /navigate\(acao.href\)/);
   assert.match(routes, /href: agendaTaskHref\(task\)/);
-  for (const source of [agenda, painel, routes]) assert.match(source, /agendaTaskTitle\(/);
+  for (const source of [agenda, painel]) assert.match(source, /localizedTaskTitle\(/);
+  assert.match(fs.readFileSync("client/src/lib/agenda-interface-copy.ts","utf8"), /agendaTaskTitle\(task\)/);
+  assert.match(routes, /agendaTaskTitle\(/);
 });

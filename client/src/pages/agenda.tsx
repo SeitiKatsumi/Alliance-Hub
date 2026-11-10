@@ -1,6 +1,8 @@
+import { localizedTaskTitle, localizedTaskDescription } from '@/lib/agenda-interface-copy';
+import { useLocale } from '@/components/preferences-provider';
 import { useEffect, useMemo, useState } from "react";
 import {useSearch, useLocation} from 'wouter';
-import { agendaSourceAction, agendaTaskTitle } from "@shared/agenda-action";
+import { agendaSourceAction } from "@shared/agenda-action";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -173,6 +175,7 @@ function membroSearchText(membro: MembroOption) {
 }
 
 export default function AgendaPage({ embedded = false }: { embedded?: boolean }) {
+  const { language } = useLocale();
   const [, navigate] = useLocation();
   const taskId=new URLSearchParams(useSearch()).get('task');
   const [openedTask,setOpenedTask]=useState<string|null>(null);
@@ -552,9 +555,9 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                               type="button"
                               onClick={(event) => { event.stopPropagation(); openAction(tarefa); }}
                               className={`w-full rounded border px-2 py-1 text-left text-[11px] leading-tight transition-colors hover:border-blue-300 ${STATUS_CLASS[tarefa.status]}`}
-                              title={agendaTaskTitle(tarefa)}
+                              title={localizedTaskTitle(tarefa, language)}
                             >
-                              <span className="block truncate font-semibold"><span className="hidden sm:inline">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}</span>{agendaTaskTitle(tarefa)}</span>
+                              <span className="block truncate font-semibold"><span className="hidden sm:inline">{tarefa.hora ? `${String(tarefa.hora).slice(0, 5)} · ` : ""}</span>{localizedTaskTitle(tarefa, language)}</span>
                             </button>
                           ))}
                           {day.tarefas.length > 3 && (
@@ -597,8 +600,8 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                             + Nova ação
                           </button>
                           {allDayTasks.map((tarefa) => (
-                            <button key={tarefa.id} type="button" onClick={() => openAction(tarefa)} className={`w-full rounded border px-1.5 py-1 text-left text-[10px] font-semibold ${STATUS_CLASS[tarefa.status]}`} title={agendaTaskTitle(tarefa)}>
-                              <span className="block truncate">{agendaTaskTitle(tarefa)}</span>
+                            <button key={tarefa.id} type="button" onClick={() => openAction(tarefa)} className={`w-full rounded border px-1.5 py-1 text-left text-[10px] font-semibold ${STATUS_CLASS[tarefa.status]}`} title={localizedTaskTitle(tarefa, language)}>
+                              <span className="block truncate">{localizedTaskTitle(tarefa, language)}</span>
                             </button>
                           ))}
                         </div>
@@ -629,10 +632,10 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                                   type="button"
                                   onClick={() => openAction(tarefa)}
                                   className={`pointer-events-auto w-full rounded border px-1.5 py-1 text-left text-[10px] leading-tight shadow-sm ${STATUS_CLASS[tarefa.status]}`}
-                                  title={`${String(tarefa.hora || "").slice(0, 5)} · ${agendaTaskTitle(tarefa)}`}
+                                  title={`${String(tarefa.hora || "").slice(0, 5)} · ${localizedTaskTitle(tarefa, language)}`}
                                 >
                                   <span className="block truncate font-bold">{String(tarefa.hora || "").slice(0, 5)}</span>
-                                  <span className="block truncate font-semibold">{agendaTaskTitle(tarefa)}</span>
+                                  <span className="block truncate font-semibold">{localizedTaskTitle(tarefa, language)}</span>
                                 </button>
                               ))}
                             </div>
@@ -674,7 +677,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                               </span>
                             )}
                           </div>
-                          <p className="mt-3 break-words text-sm font-bold text-foreground">{agendaTaskTitle(tarefa)}</p>
+                          <p className="mt-3 break-words text-sm font-bold text-foreground">{localizedTaskTitle(tarefa, language)}</p>
                           {(tarefa.atribuido_por_nome || (tarefa.compartilhada_com ?? 0) > 0) && (
                             <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                               <Users className="h-3 w-3" />
@@ -685,7 +688,7 @@ export default function AgendaPage({ embedded = false }: { embedded?: boolean })
                             </p>
                           )}
                           {tarefa.descricao && (
-                            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{tarefa.descricao}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{localizedTaskDescription(tarefa, language)}</p>
                           )}
                           {agendaSourceAction(tarefa) && <a className="mt-2 inline-block text-xs text-primary underline" href={agendaSourceAction(tarefa)!.href}>{agendaSourceAction(tarefa)!.label}</a>}
                         </div>

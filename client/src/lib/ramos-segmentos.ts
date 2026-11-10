@@ -1060,12 +1060,12 @@ export function formatRamosValue(ramos: string[]): string | null {
   return unique.length ? unique.join(SEGMENTOS_MULTI_SEPARATOR) : null;
 }
 
-export function formatSegmentosDisplay(value?: string | null): string {
-  return parseSegmentosValue(value).join(", ");
+export function formatSegmentosDisplay(value?: string | null, label = (item: string) => item): string {
+  return parseSegmentosValue(value).map(label).join(", ");
 }
 
-export function formatRamosDisplay(value?: string | null): string {
-  return parseRamosValue(value).join(", ");
+export function formatRamosDisplay(value?: string | null, label = (item: string) => item): string {
+  return parseRamosValue(value).map(label).join(", ");
 }
 
 // ========== N?CLEOS DE ALIAN?A ? TIPOS ==========

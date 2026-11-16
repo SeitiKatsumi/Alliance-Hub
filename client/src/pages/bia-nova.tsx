@@ -2,10 +2,13 @@ import { useLocale } from "@/components/preferences-provider";
 import { biaBusinessTypeCode } from "@shared/bia-business-type";
 import { draftSectionStep, takeDraftHandoff } from '@/lib/bia-draft-handoff';
 import { BIA_CREATION_STEPS, emptyBiaSetup, legacyBiaSetup, legalBlockers, setupWarnings } from "@shared/bia-setup";
+import { BiaObaPrompt, biaObaCreationUrl, hasAddedBiaVacancies } from "@/components/bia-oba-prompt";
+import { BiaPaymentPlanEditor } from "@/components/bia-payment-plan-editor";
+import { emptyBiaBudget } from "@shared/bia-budget";
 import { BiaBudgetFields } from "@/components/bia-budget-fields";
 import { BiaLegalFields, BiaAssetFields, BiaSetupSummary } from "@/components/bia-setup-fields";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "wouter";
+import { Link, useLocation, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,16 +36,20 @@ const empty={estrutura_bia:emptyBiaSetup(),nome_bia:"",objetivo_alianca:"",desti
 export default function BiaNovaPage(){
   const { t } = useLocale();
   const params=useParams<{id?:string}>();
+  const [,navigate]=useLocation();
+  const [obaDestination,setObaDestination]=useState("");
   const [id,setId]=useState(params.id || "");
   const creationKey=useRef(crypto.randomUUID());
   const reviewRef=useRef<HTMLDivElement>(null);
   const [concluding,setConcluding]=useState(false);
+  const [offerPrompt,setOfferPrompt]=useState(false);
   const [locationOpen,setLocationOpen]=useState(false);
   const [form,setForm]=useState({...empty,business_type_code:""}),[saved,setSaved]=useState(JSON.stringify({...empty,business_type_code:""}));
   const [revision,setRevision]=useState(0),[step,setStep]=useState(()=>draftSectionStep(new URLSearchParams(window.location.search).get('section'))),[busy,setBusy]=useState(false),[error,setError]=useState(""),[done,setDone]=useState(false);
   const dirty=JSON.stringify(form)!==saved;
   const generalPending=[!form.nome_bia?.trim() && "Nome",!form.destinacao && "Destinação",!form.business_type_code && "Tese de interesse",!form.localizacao?.trim() && "Localização",!form.observacoes?.trim() && "Descrição"].filter(Boolean);
   useUnsavedChanges(dirty || busy);
+  useEffect(()=>{if(obaDestination && !dirty && !busy)navigate(obaDestination);},[obaDestination,dirty,busy,navigate]);
   const members=useQuery<any[]>({queryKey:["/api/membros"]});
   const cppTypes=useQuery<Array<{id:string;Nome:string}>>({queryKey:["/api/tipos-cpp"]});
   const defaults=useQuery<any>({queryKey:["/api/bias-criacao/contexto"]});
@@ -58,8 +65,9 @@ export default function BiaNovaPage(){
     validateInitialClassifications(map.participantes);return {map,error:"",teamPending:!hasRequiredBiaTeam(team)};
   }catch(e:any){return {map:null,error:e.message,teamPending:true};}},[form.map_inicial,cppTypes.data]);
   const money=(n:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:form.moeda}).format(n);
-  async function save(conclude=false){
+  async function save(conclude=false, openOba=false){
     setBusy(true);setError("");
+    const previousParticipants=(JSON.parse(saved) as typeof form).map_inicial.participantes;
     try{
       const data=await (await (concluding && id
         ? apiRequest("GET",`/api/bias/${id}/rascunho`)
@@ -67,7 +75,13 @@ export default function BiaNovaPage(){
       const restored={...empty,...data.dados,estrutura_bia:legacyBiaSetup(data.dados),business_type_code:biaBusinessTypeCode(data.dados)};setId(data.bia_id);setRevision(data.revisao);setForm(restored);setSaved(JSON.stringify(restored));setConcluding(!!data.conclusao_iniciada);
       queryClient.invalidateQueries({queryKey:["/api/bias"]});queryClient.invalidateQueries({queryKey:["/api/bias-rascunhos"]});
       if(data.apresentacao_pendente)throw new Error("Rascunho salvo, mas não foi possível atualizar o nome e a capa na lista de BIAs. Clique em Salvar rascunho novamente para tentar sincronizar.");
-      if(conclude){try{await apiRequest("POST",`/api/bias/${data.bia_id}/concluir-estruturacao`,{revisaoEsperada:data.revisao});setDone(true);}catch(error){const fresh=await (await apiRequest("GET",`/api/bias/${data.bia_id}/rascunho`)).json();setConcluding(!!fresh.conclusao_iniciada);throw error;}}
+      if(conclude){try{await apiRequest("POST",`/api/bias/${data.bia_id}/concluir-estruturacao`,{revisaoEsperada:data.revisao});setOfferPrompt(hasAddedBiaVacancies([],restored.map_inicial.participantes));setDone(true);}catch(error){const fresh=await (await apiRequest("GET",`/api/bias/${data.bia_id}/rascunho`)).json();setConcluding(!!fresh.conclusao_iniciada);throw error;}}
+      else if(openOba){
+        const created=await (await apiRequest("POST",`/api/bias/${encodeURIComponent(data.bia_id)}/oba-aquisicao`)).json();
+        await queryClient.invalidateQueries({queryKey:["/api/oportunidades"]});
+        setObaDestination(`/opas/${encodeURIComponent(created.id)}?gestao=1`);
+      }
+      else if(hasAddedBiaVacancies(previousParticipants,restored.map_inicial.participantes))setOfferPrompt(true);
     }catch(e:any){setError(e.message);}finally{setBusy(false);}
   }
   const field=(name:keyof Omit<typeof empty,"map_inicial">,value:string)=>setForm(f=>({...f,[name]:value}));
@@ -80,8 +94,10 @@ export default function BiaNovaPage(){
   }
   if(params.id && draft.isPending)return <p className="p-8">Carregando estruturação…</p>;
   if(params.id && draft.isError)return <div className="p-8" role="alert">Não foi possível abrir o rascunho. <Button onClick={()=>draft.refetch()}>Tentar novamente</Button></div>;
-  if(done)return <div className="mx-auto max-w-3xl space-y-5 p-8"><Check className="h-10 w-10 text-emerald-600"/><h1 className="text-3xl font-bold">Estruturação concluída</h1><p>A BIA segue para captação e aceite dos participantes. Nenhum lançamento financeiro foi criado.</p><div className="flex flex-wrap gap-3"><Button asChild><Link href={`/bias/${id}`}>Abrir BIA</Link></Button><Button variant="outline" asChild><Link href={`/bias/${id}?tab=capital&capital=financeiro&financeiro=aportes`}>Configurar aportes e parcelas</Link></Button></div></div>;
+  const hasVacancies=hasAddedBiaVacancies([],form.map_inicial.participantes);
+  if(done)return <div className="mx-auto max-w-3xl space-y-5 p-8"><Check className="h-10 w-10 text-emerald-600"/><h1 className="text-3xl font-bold">Estruturação concluída</h1><p>A BIA segue para captação e aceite dos participantes. Nenhum lançamento financeiro foi criado.</p><div className="flex flex-wrap gap-3"><Button asChild><Link href={`/bias/${id}`}>Abrir BIA</Link></Button><Button variant="outline" asChild><Link href={`/bias/${id}?tab=capital&capital=financeiro&financeiro=aportes`}>Configurar aportes e parcelas</Link></Button>{hasVacancies && <Button variant="outline" asChild><Link href={biaObaCreationUrl(id)}>Gerar OBA</Link></Button>}</div><BiaObaPrompt biaId={id} open={offerPrompt} onOpenChange={setOfferPrompt}/></div>;
   return <main className="mx-auto max-w-[1500px] space-y-8 px-4 py-6 sm:px-8">
+    <BiaObaPrompt biaId={id} open={offerPrompt} onOpenChange={setOfferPrompt} onPrepare={()=>void save(false,true)}/>
     <Link href="/area-aliancas?tab=bias" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="h-4 w-4"/>Voltar para BIAs</Link>
     <header className="flex flex-wrap items-center gap-4"><div><p className="text-xs uppercase tracking-widest text-muted-foreground">Nova aliança</p><h1 className="mt-2 text-3xl font-bold">{form.nome_bia || "Nova Base Econômica Inicial"}</h1></div><span className="rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-800">Em estruturação</span></header>
     <nav aria-label="Etapas da criação" className="grid grid-cols-2 gap-2 border-b pb-6 sm:grid-cols-4 2xl:grid-cols-8">{steps.map((label,n)=><button key={label} type="button" aria-current={step===n?"step":undefined} className={`flex items-center gap-2 rounded-lg p-3 text-left text-sm ${step===n?"bg-blue-50 font-semibold text-blue-600":"text-muted-foreground"}`} onClick={()=>setStep(n)}><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${step===n?"bg-blue-600 text-white":"bg-muted"}`}>{n+1}</span>{t(label)}</button>)}</nav>
@@ -99,7 +115,7 @@ export default function BiaNovaPage(){
           <label className="text-sm sm:col-span-2">Descrição *<textarea className="mt-2 min-h-28 w-full rounded border bg-background p-3" value={form.observacoes} onChange={e=>field("observacoes",e.target.value)}/></label>
           <div className="space-y-2 sm:col-span-2"><p className="text-sm">Anexos</p><Input aria-label="Adicionar anexos" type="file" multiple onChange={e=>{if(e.target.files?.length)void upload(Array.from(e.target.files));e.target.value="";}}/>{form.anexos.map((id,n)=><div className="flex items-center justify-between" key={id}><a href={`/api/assets/${id}`} target="_blank" rel="noopener noreferrer">Anexo {n+1}</a><Button variant="ghost" onClick={()=>setForm(f=>({...f,anexos:f.anexos.filter(x=>x!==id)}))}>Remover anexo {n+1}</Button></div>)}</div>
         </div></>}
-        {step===1 && form.map_inicial.modeloCalculo===5 && <><div><h2 className="text-xl font-semibold">{steps[1]}</h2><p className="mt-1 text-sm text-muted-foreground">Estruture o capital, as CIs, a integralização e os direitos econômicos para gerar o MAP Inicial.</p></div><BiaEconomicStructureFields biaName={form.nome_bia} value={form.map_inicial} moeda={form.moeda} members={members.data || []} onChange={value=>setForm(f=>({...f,map_inicial:{...f.map_inicial,...value,estrutura:value.estrutura!}}))}/></>}
+        {step===1 && form.map_inicial.modeloCalculo===5 && <><div><h2 className="text-xl font-semibold">{steps[1]}</h2><p className="mt-1 text-sm text-muted-foreground">Estruture o capital, as CIs, a integralização e os direitos econômicos para gerar o MAP Inicial.</p></div><BiaEconomicStructureFields biaName={form.nome_bia} onGenerateOba={hasVacancies ? ()=>setOfferPrompt(true) : undefined} value={form.map_inicial} moeda={form.moeda} members={members.data || []} onChange={value=>setForm(f=>({...f,map_inicial:{...f.map_inicial,...value,estrutura:value.estrutura!}}))}/></>}
         {step===1 && form.map_inicial.modeloCalculo!==5 && <>
           <div><h2 className="text-xl font-semibold">{steps[1]}</h2><p className="mt-1 text-sm text-muted-foreground">Informe o valor de origem, os participantes e o DM de cada cargo. O capital é informado uma única vez por pessoa.</p></div>
           <section aria-label="Totais da composição" className="rounded-lg border bg-card p-5">
@@ -113,6 +129,7 @@ export default function BiaNovaPage(){
           </section>
           <BiaRoleComposition compact valorOrigem={form.map_inicial.valorOrigem} moeda={form.moeda} participants={form.map_inicial.participantes} members={members.data || []} onChange={participantes=>setForm(f=>({...f,map_inicial:{...f.map_inicial,participantes}}))}/>
         </>}
+        {step===1 && <fieldset disabled={busy || concluding}><BiaPaymentPlanEditor budget={form.estrutura_bia.orcamento ?? emptyBiaBudget(form.moeda)} total={form.map_inicial.valorOrigem} onChange={orcamento=>setForm(f=>({...f,estrutura_bia:{...f.estrutura_bia,orcamento}}))}/></fieldset>}
         {(step===2 || step===6) && <div ref={reviewRef} className="space-y-5"><h2 data-print-hide className="text-xl font-semibold">{step===2?"Prévia do MAP Inicial":"Revisar estruturação"}</h2>{step===6 && preview.map && <BiaReviewSummary form={form} map={preview.map}/>} {form.map_inicial.modeloCalculo===5 && <p data-print-hide className="text-sm text-muted-foreground">CPPs calculadas, somente leitura. Para alterar, volte à etapa {steps[1]}. Equivalentes monetários não são capital adicional.</p>}{preview.map && form.map_inicial.modeloCalculo===5 && <EconomicMapPreview map={preview.map} moeda={form.moeda}/>} {form.map_inicial.modeloCalculo!==5 && preview.map?.participantes.map(p=><div key={p.participantId} data-pdf-section="map" className="space-y-3 border-b pb-4"><h3 className="font-semibold">{p.nome} · {p.tipo === "guardiao"?"Guardião":"Multiplicador"}</h3><div className="flex flex-wrap gap-5 text-sm"><span>Capital: {money(p.capitalComprometido ?? p.cppCapital)}</span>{p.modeloCalculo===5?<><span>CIs: {formatBiaNumber(p.cotasInvestimento!,5)}</span><span>CPP do capital: {formatBiaPercent(p.cppCapitalPercentual!)}</span><span>Direitos: {formatBiaPercent(p.indiceContribuicao)}</span></>:<span>CPP total: {money(p.cppTotal)}</span>}<strong>CPP total: {formatBiaPercent(p.mapPercentual)}</strong></div>{p.contribuicoes?.map(c=><p key={c.cargo} className="text-sm text-muted-foreground">{c.cargo} · {formatBiaPercent(c.indice)} · {c.tipoCpp?.nome || "Sem contribuição"} · {money(c.valor || 0)}</p>)}</div>)}{step===6 && <BiaSetupSummary value={form.estrutura_bia} moeda={form.moeda} valorOrigem={form.map_inicial.valorOrigem} anexos={form.anexos}/>} {step===6 && <p data-print-hide className="rounded-lg bg-blue-50 p-4 text-sm text-blue-900">Concluir inicia os convites e documentos dos participantes. Não ativa movimentações financeiras nem gera parcelas.</p>}</div>}
         {step===3 && <BiaLegalFields biaName={form.nome_bia} disabled={busy || concluding} value={form.estrutura_bia} participants={form.map_inicial.participantes} onChange={estrutura_bia=>setForm(f=>({...f,estrutura_bia}))}/>}
         {step===5 && <BiaBudgetFields value={form.estrutura_bia} moeda={form.moeda} valorOrigem={form.map_inicial.valorOrigem} disabled={busy || concluding} onChange={estrutura_bia=>setForm(f=>({...f,estrutura_bia}))}/>}

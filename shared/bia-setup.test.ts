@@ -17,9 +17,9 @@ test('eight steps and legacy adapter preserve unknowns and do not duplicate metr
   assert.deepEqual(legacyBiaSetup({estrutura_bia:value}),value);
 });
 test('legal and assets pending are warnings; legal responsible and modality required',()=>{
-  const value=emptyBiaSetup();assert.equal(legalBlockers(value).length,3);
+  const value=emptyBiaSetup();assert.equal(legalBlockers(value).length,2);
   Object.assign(value.juridico,{modalidade:'societaria',responsavel:'Responsável',documentoResponsavel:'12345678901',situacao:'A constituir'});
-  assert.deepEqual(legalBlockers(value),['Informe a OAB do responsável jurídico.']);
+  assert.deepEqual(legalBlockers(value),[]);
   value.juridico.oabResponsavel='SP 123456';
   assert.deepEqual(legalBlockers(value),[]);assert.equal(setupWarnings(value).length,4);
   const draft=validateBiaDraft({nome_bia:'Teste',moeda:'BRL',estrutura_bia:value});

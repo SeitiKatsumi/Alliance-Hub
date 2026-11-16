@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "id": "bia-edicao-rascunho-cotas",
+  "title": "Editar BIA abre a composição do rascunho autorizado",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/bia-editar.tsx",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "checkDraft",
+    "draftSectionStep"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "updated",
+      "reason": "Consulta rascunho em estruturação e redireciona antes de montar editor publicado."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.ts",
+      "decision": "updated",
+      "reason": "Conserva a etapa selecionada no redirecionamento."
+    },
+    {
+      "path": "client/src/pages/bia-editar.test.ts",
+      "decision": "updated",
+      "reason": "Verifica seleção do rascunho e o tratamento de ausência e erro."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.test.ts",
+      "decision": "updated",
+      "reason": "Verifica a entrada da etapa de capitalização."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta o roteamento de Editar BIA."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "A consulta usa a autorização do endpoint existente."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "preserved",
+      "reason": "A etapa do handoff preserva o mapeamento existente."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Abre a etapa de rascunho pelo mapeamento compartilhado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Sessão autenticada no localhost abriu o rascunho da Veneto Gramado por Editar BIA e mostrou Cota disponível no seletor Sócio Aliado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "GET de rascunho existente distingue 404 de erro de consulta."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Usa o rascunho PostgreSQL via ID canônico."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Alteração de rota de edição, sem mudar cálculo, publicação, notificações ou histórico."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Alteração de rota de edição, sem mudar cálculo, publicação, notificações ou histórico."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Alteração de rota de edição, sem mudar cálculo, publicação, notificações ou histórico."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Alteração de rota de edição, sem mudar cálculo, publicação, notificações ou histórico."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "A consulta exige permissão de edição no cliente e no endpoint existente."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Rascunho ausente, concluído ou outra fase mantém o editor anterior."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify concluído com tipos, testes e build. 5 testes focados passaram."
+    }
+  ],
+  "regressionTests": [
+    "client/src/pages/bia-editar.test.ts",
+    "client/src/lib/bia-draft-handoff.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

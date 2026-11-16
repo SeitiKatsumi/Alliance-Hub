@@ -1,3 +1,5 @@
+export const OBA_AVAILABLE_QUOTA_LABEL = "Cota disponível";
+
 export const BUILT_MEMBER_ANNUAL_FEE_BRL = 3197;
 
 export type MembershipStatus = "pending" | "active" | "expired" | "canceled" | "refunded" | "disputed";
@@ -38,6 +40,7 @@ export const BIA_MAP_ECONOMIC_FIELDS = [
 export const MAP_DYNAMIC_FOOTER = "Este Mapa de Alocação Patrimonial é anexo acessório ao MoU Padrão BUILT e/ou ao instrumento jurídico pertinente à respectiva aliança. Possui finalidade exclusivamente informativa, estratégica e de governança, não constituindo contrato autônomo, promessa de participação, garantia de retorno, cessão de direitos ou obrigação definitiva, nem substituindo ou prevalecendo sobre contratos, atos societários, deliberações formais ou instrumentos jurídicos assinados. Qualquer participação, direito patrimonial, CPP, alocação econômica ou obrigação dependerá da validação e formalização previstas no instrumento jurídico aplicável. Em caso de dúvidas, divergências ou necessidade de interpretação, prevalecerão o instrumento jurídico pertinente, as deliberações formais da aliança e a orientação da Diretoria da Aliança.";
 
 export type InitialMapParticipantInput = {
+  titular?: "vaga" | "externo";
   modeloCalculo?: 4 | 5;
   cotasInvestimento?: number;
   contribuicoes?: Array<{ cargo: string; indice: number; tipoCpp?: { id: string; nome: string }; valor?: number }>;
@@ -180,6 +183,11 @@ export function calculateInitialMap(
     const institutionCode = String(item.institutionCode || "").trim().toUpperCase() || null;
     const participantId = String(item.participantId || (memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : "")).trim();
     if (!participantId) throw new Error("Todo participante precisa de uma identidade válida.");
+    if (item.titular !== undefined) {
+      if (memberId || institutionCode || !["vaga", "externo"].includes(item.titular) || !/^draft:[a-zA-Z0-9-]{1,64}$/.test(participantId)) throw new Error("Titular da cota inválido.");
+      if (item.titular === "externo" && (!item.nome?.trim() || item.nome.trim().length > 200)) throw new Error("Digite o nome do sócio externo (até 200 caracteres).");
+      if (item.cargos?.length || item.contribuicoes?.some(c => c.cargo !== "Contribuição individual")) throw new Error("Vagas e sócios externos não podem ter funções de governança.");
+    }
     const identity = memberId ? `member:${memberId}` : institutionCode ? `institution:${institutionCode}` : participantId;
     if (seen.has(identity)) throw new Error("A mesma pessoa não pode aparecer mais de uma vez no MAP Inicial.");
     seen.add(identity);
@@ -213,7 +221,8 @@ export function calculateInitialMap(
       participantId,
       memberId,
       institutionCode,
-      nome: String(item.nome || "").trim() || (institutionCode === "BUILT" ? "BUILT" : "Participante"),
+      ...(item.titular ? { titular: item.titular } : {}),
+      nome: item.titular === "vaga" ? OBA_AVAILABLE_QUOTA_LABEL : String(item.nome || "").trim() || (institutionCode === "BUILT" ? "BUILT" : "Participante"),
       cargos: Array.from(new Set((item.cargos || []).map((role) => String(role).trim()).filter(Boolean))),
       tipo: item.tipo,
       ...(byRole ? { modeloCalculo: model, contribuicoes } : {}),

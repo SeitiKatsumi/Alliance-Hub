@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "id": "oba-distribuicao-entregas",
+  "title": "Distribuição da OBA, Cota disponível e acompanhamento de entregas",
+  "status": "complete",
+  "kind": "rename",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "server/oba-deliveries.ts",
+    "shared/member-portfolio.ts"
+  ],
+  "searchTerms": [
+    "Cota disponível",
+    "Vaga aberta",
+    "oba_entregas",
+    "distribuicao_explicita"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/components/bia-existing-composition.test.ts",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/components/bia-vacancy-interests.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/components/oba-deliveries.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/components/oba-quota-select.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "server/oba-deliveries.ts",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "server/oba-deliveries.test.ts",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "shared/member-portfolio.ts",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "migrations/20261116_oba_deliveries.sql",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Participa da nomenclatura, distribuição, registro de entregas ou validação da oportunidade."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "A distribuição contextual vem do endpoint da lista; a comunidade preserva a apresentação e não publica automaticamente."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "reviewed",
+      "reason": "O diálogo compartilhado leva à Gestão da OBA criada; o quadro continua gerindo as manifestações gerais."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "reviewed",
+      "reason": "A lista da rede usa a audiência do registro canônico e mantém o feed público separado do Pulso e de convites."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "A página móvel respeita a distribuição da OBA e envia a manifestação por cota com a revisão publicada."
+    },
+    {
+      "path": "client/src/components/bia-oba-prompt.test.ts",
+      "reason": "Testa o atalho de criação de OBA vinculada à BIA.",
+      "decision": "reviewed"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Gestão abre após cadastrar OBA. Convite por pessoa, Pulso, escolha opcional da cota e painel de aliados e entregas.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Novas OBAs usam audiência contextual. Entregas são criadas e validadas na OBA canônica.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Registro aditivo de entregas registra escopo, relato, aliado, atores e timestamps. Metadados preservam a escolha de distribuição.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Nenhum valor de CPP nasce ao validar uma entrega. Cotas continuam com os valores do MAP.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Usa o Pulso e o link individual existentes, bem como a fila atual de manifestações por cota.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Histórico e aceites anteriores são preservados. Nenhuma assinatura é criada ao registrar uma entrega.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "O Pulso usa as audiências e registros de entrega existentes. Convites são compartilhados pela pessoa que gerencia a OBA.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "A audiência autoriza consulta à OBA. A diretoria da BIA é autorizada separadamente a atribuir e validar entregas.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Autorizações de distribuição explícita valem para novas OBAs. O identificador técnico da cota permanece e snapshots históricos são preservados.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Acesso contextual por convite e Pulso, criação sem titulares, consistência da decisão de cota e validação de entregas concorrente com persistência isolada.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "server/oba-deliveries.test.ts",
+    "server/bia-vacancies.test.ts",
+    "client/src/components/bia-existing-composition.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "oba-cota-disponivel"
+  ]
+}

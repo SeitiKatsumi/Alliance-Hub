@@ -1,3 +1,4 @@
+import { hasLegalContribution, optionalOab } from "./profile-oab";
 import {
   getContributionNuclei,
   normalizeContributionAreaValues,
@@ -229,6 +230,11 @@ export function buildInitialOnboardingProfileFields(profile: any, config: any): 
   if (String(profile?.cpf || "").trim()) fields.cpf = String(profile.cpf).trim();
 
   const contributionAreas = normalizeContributionAreaValues(config?.areas);
+  if (hasLegalContribution(contributionAreas) && config?.oab !== undefined) {
+    const parsed = optionalOab.safeParse(config.oab);
+    if (!parsed.success) throw Object.assign(new Error("Informe uma OAB com até 100 caracteres."), { status: 400 });
+    fields.oab = parsed.data || null;
+  }
   if (contributionAreas.length) {
     const contributionNuclei = getContributionNuclei(contributionAreas);
     fields.tipos_alianca = contributionAreas;
@@ -288,6 +294,9 @@ export function validateOnboardingStepPayload(step: InitialOnboardingStep, paylo
     if (purposes.includes("profissional") && !String(payload.professional?.role || "").trim()) {
       return "Informe sua função profissional.";
     }
+  }
+  if (step === "configuracao" && hasLegalContribution(payload.areas) && payload.oab !== undefined && !optionalOab.safeParse(payload.oab).success) {
+    return "Informe uma OAB com até 100 caracteres.";
   }
   if (step === "configuracao" && !String(payload.visibility || "").trim()) {
     return "Defina a visibilidade inicial.";

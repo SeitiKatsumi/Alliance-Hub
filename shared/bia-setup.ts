@@ -71,7 +71,7 @@ export function legacyBiaSetup(data:any):BiaSetup {
   return setup;
 }
 export function legalBlockers(setup:BiaSetup):string[] {
-  return [!setup.juridico.modalidade && "Escolha a estrutura Societária ou Contratual.",!setup.juridico.responsavel.trim() && "Informe o responsável jurídico.",!setup.juridico.oabResponsavel?.trim() && "Informe a OAB do responsável jurídico."].filter(Boolean) as string[];
+  return [!setup.juridico.modalidade && "Escolha a estrutura Societária ou Contratual.",!setup.juridico.responsavel.trim() && "Informe o responsável jurídico."].filter(Boolean) as string[];
 }
 
 // Old clients may omit new identifiers; omission must not erase a stored value.

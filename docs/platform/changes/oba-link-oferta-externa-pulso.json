@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "id": "oba-link-oferta-externa-pulso",
+  "title": "Link externo da oferta e Pulso na gestão da OBA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "shared/bia-offer.ts"
+  ],
+  "searchTerms": [
+    "ObaGuestOfferPage",
+    "X-Oba-Invite",
+    "oferta-convidado",
+    "offerInvite"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Gera link explícito após publicação e valida o token antes de servir a revisão publicada."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "updated",
+      "reason": "Omite conteúdos das respostas de convite e oferta no log de API."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Cobre leitura externa, token usado ou vencido, isolamento por OBA e audiência do Pulso."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "updated",
+      "reason": "Expõe a página de consulta externa fora da área autenticada."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "Reutiliza a exibição da versão publicada para convidados."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Agrupa a publicação, convites externos e Pulso."
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "decision": "preserved",
+      "reason": "As ondas e reenvios usam o fluxo já existente."
+    },
+    {
+      "path": "shared/bia-offer.ts",
+      "decision": "preserved",
+      "reason": "A mesma projeção sanitizada representa a oferta."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta alcance e ciclo de acesso do link."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "A rota de oferta externa reutiliza a página responsiva de leitura. Teste HTTP cobre a cota publicada por link e pelo Pulso. Convite real não enviado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Rota testada com convite válido, vencido, usado, de outra OBA e destinatário do Pulso."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Reutiliza convites com hash e revisão de oferta. Sem migração."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Agenda e parcelas são lidas da versão publicada sem recálculo."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Pulso usa as mesmas ondas e destinatários. Geração oferece link para o gestor compartilhar."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Convidado consulta anexos da mesma versão publicada, sem projeção dos dados da BIA."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Conserva a distribuição e o resgate do convite."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Emissão exige gestão. Leitura externa requer token ativo, escopo correto e oferta publicada. Ações continuam autenticadas."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Links antigos continuam seguindo o formato atual de login."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "841 testes passaram, incluindo 4 focados em oferta e cotas. Tipos e build aprovados por platform:verify."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-offer.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

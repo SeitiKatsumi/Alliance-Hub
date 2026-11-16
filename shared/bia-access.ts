@@ -144,13 +144,13 @@ export function collectBiaParticipantRoles(bia: Record<string, any>): Map<string
 
 /** Project the single creation roster onto the existing Directus role fields. */
 export function biaTeamFromMapParticipants(participants: Array<{
-  memberId?: string | null; institutionCode?: string | null; cargos?: string[]; tipo: string;
+  memberId?: string | null; institutionCode?: string | null; titular?: "vaga" | "externo"; cargos?: string[]; tipo: string;
 }>) {
   const fields = Object.fromEntries(Object.values(BIA_PARTICIPANT_ROLE_FIELDS).map(field => [field, null])) as Record<(typeof BIA_PARTICIPANT_ROLE_FIELDS)[keyof typeof BIA_PARTICIPANT_ROLE_FIELDS], string | null>;
   const socios_guardioes: string[] = [], socios_multiplicadores: string[] = [];
   const seen = new Set<string>();
   for (const participant of participants) {
-    if (participant.institutionCode === "BUILT" && !participant.memberId) continue;
+    if (!participant.memberId && (participant.institutionCode === "BUILT" || participant.titular === "vaga" || participant.titular === "externo")) continue;
     const id = relationId(participant.memberId);
     if (!id) throw new Error("Selecione a pessoa de cada ficha da Equipe.");
     if (seen.has(id)) throw new Error("Cada pessoa deve ter apenas uma ficha na Equipe.");

@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "id": "bia-cota-disponivel-fases",
+  "title": "Cota disponível na edição do MAP de BIAs ativas",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "shared/member-portfolio.ts"
+  ],
+  "searchTerms": [
+    "Cota disponível",
+    "allowVacancies",
+    "allowUnlinked",
+    "bia-vacancies",
+    "map-inicial"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "updated",
+      "reason": "Apresenta a opção no MAP editável independentemente da ativação."
+    },
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "updated",
+      "reason": "Mostra Cota disponível nas opções fixadas de Sócio Aliado."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "updated",
+      "reason": "Mostra Cota disponível no seletor da estrutura econômica."
+    },
+    {
+      "path": "client/src/components/bia-existing-composition.test.ts",
+      "decision": "updated",
+      "reason": "Cobre a opção sem habilitar cadastro de nome externo."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Aceita vagas na revisão ativa e mantém autorização, compatibilidade financeira e versionamento."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta a revisão de composição ativa."
+    },
+    {
+      "path": "server/bia-vacancies.ts",
+      "decision": "preserved",
+      "reason": "Manifestação de interesse e aprovação mantêm seu fluxo de captação."
+    },
+    {
+      "path": "shared/member-portfolio.ts",
+      "decision": "reviewed",
+      "reason": "A revisão usa o cálculo de vagas já compartilhado."
+    },
+    {
+      "path": "client/src/components/bia-vacancy-interests.tsx",
+      "decision": "reviewed",
+      "reason": "Administração de manifestações permanece vinculada ao fluxo de oferta."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "reviewed",
+      "reason": "A apresentação da oferta continua vinculada à versão publicada."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Navegação para o MAP permanece igual."
+    },
+    {
+      "path": "client/src/pages/dm-map-navigation.test.ts",
+      "decision": "reviewed",
+      "reason": "As rotas de navegação mantêm o mesmo contrato."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta e manifestação de interesse nas ofertas permanecem iguais."
+    },
+    {
+      "path": "server/bia-composition-invites.test.ts",
+      "decision": "reviewed",
+      "reason": "Sincronização de convites da formação permanece igual."
+    },
+    {
+      "path": "server/bia-legacy-zero.test.ts",
+      "decision": "reviewed",
+      "reason": "Reconstrução do MAP histórico mantém titulares identificados."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Testes da rota revisados e executados."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "reviewed",
+      "reason": "Publicação e visibilidade de ofertas permanecem iguais."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "reviewed",
+      "reason": "Testes de aprovação da vaga executados."
+    },
+    {
+      "path": "client/src/components/bia-oba-prompt.test.ts",
+      "reason": "Testa sugestões apenas para novas cotas abertas ou ampliação.",
+      "decision": "reviewed"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Renderização da composição ativa inclui Cota disponível nas opções. Revisão do mesmo seletor responsivo e verificação autenticada de Cota disponível no rascunho da Veneto Gramado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Rota de revisão preserva validação e permite titular vaga em BIA ativa."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Persistência na revisão do MAP usa o campo titular existente. Sem migração."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Reutiliza o cálculo da composição e as verificações de compatibilidade."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "A revisão ativa continua notificando pelo fluxo de correção do MAP."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "A revisão cria uma nova versão e preserva versões assinadas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem mudança de contrato de integração, publicação ou processamento de manifestações."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mantém autorização de edição e exigência de motivo no backend."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "A revisão histórica mantém a exigência de titulares vinculados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify concluiu com 841 testes aprovados, tipos e build. As quatro suítes focadas aprovaram 19 testes."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-existing-composition.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

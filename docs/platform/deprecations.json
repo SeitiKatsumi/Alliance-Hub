@@ -417,6 +417,26 @@
         "client/src/pages/membros-permissions.test.ts"
       ],
       "exceptions": []
+    },
+    {
+      "id": "oba-cota-disponivel",
+      "description": "Cotas oferecidas publicamente usam o rótulo Cota disponível; o identificador técnico e o histórico permanecem compatíveis.",
+      "terms": [
+        "Vaga aberta",
+        "vaga aberta"
+      ],
+      "roots": [
+        "client/src/components/bia-economic-structure.tsx",
+        "client/src/components/bia-role-composition.tsx",
+        "client/src/components/bia-vacancy-interests.tsx",
+        "client/src/pages/vitrine-opa-detalhe.tsx",
+        "shared/member-portfolio.ts",
+        "server/routes.ts"
+      ],
+      "regressionTests": [
+        "server/bia-vacancies.test.ts"
+      ],
+      "exceptions": []
     }
   ]
 }

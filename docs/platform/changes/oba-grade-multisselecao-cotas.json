@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "id": "oba-grade-multisselecao-cotas",
+  "title": "Grade, seleção e soma de cotas nas OBAs de aquisição",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "server/bia-vacancies.ts",
+    "shared/bia-offer.ts"
+  ],
+  "searchTerms": [
+    "ObaQuotaAvailability",
+    "vaga_ids",
+    "allowAdditional",
+    "minhasCandidaturas",
+    "aquisicao_cotas"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/oba-quota-availability.tsx",
+      "decision": "updated",
+      "reason": "Renderiza grade, seleção, valor unitário e total."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "Reusa grade e seleção na oferta autenticada."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Seleciona na tela e no modal e apresenta as condições sem MEM."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "updated",
+      "reason": "Oculta a exigência de MEM no editor e na lista da aquisição."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "updated",
+      "reason": "Oculta o indicador MEM na aquisição."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Oculta o indicador MEM na aquisição."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Registra posições em lote, remove aplicação de MEM, preserva decisões individuais."
+    },
+    {
+      "path": "server/bia-vacancies.ts",
+      "decision": "updated",
+      "reason": "Agrega cotas compatíveis após decisão anterior na mesma OBA."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Confere persistência, deduplicação e rejeição sem gravação."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Confere soma das CIs e bloqueia condições incompatíveis."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "O armazenamento permite uma linha por posição."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta seleção e decisões."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Verificado no localhost: 9 de 10 disponíveis, modal de duas cotas com R$ 234.000,00 e campo MEM ausente. Sem envio real."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Lote transacional com revisão, retirada dos registros pendentes e decisão por cota."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Índices permitem múltiplas posições por comprador. Teste usa PGlite."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Valor de referência usa proporção do Valor de Origem. Aprovações compatíveis somam CIs."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Um aviso por confirmação. Gestão e agenda leem posições individuais."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Aprovações usam a revisão existente do MAP e MOU."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Convite e Pulso usam a mesma oferta."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Mantém autorização de interesse, decisão de cota e escopo da OBA."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Ofertas gerais e o interesse em uma cota permanecem compatíveis."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Verificação completa e build passaram. 5 testes focados passaram após os últimos ajustes e typecheck foi reexecutado. Localhost voltou com HTTP 200."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-offer.test.ts",
+    "server/bia-vacancies.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

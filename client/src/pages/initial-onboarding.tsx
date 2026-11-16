@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { hasLegalContribution } from "@shared/profile-oab";
 import { ContributionAreaSelector } from "@/components/contribution-area-selector";
 import { ProfileActivityFields } from "@/components/profile-activity-fields";
 import {
@@ -395,6 +396,10 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
       </div>
       {requiresContributionAreas(purposes) && <Panel title={term(publicLabel("ContributionArea"))} subtitle="Selecione as áreas em que você pode contribuir.">
         <ContributionAreaSelector value={config.areas} onChange={(areas) => set({ areas })} />
+        {hasLegalContribution(config.areas) && <label className="mt-4 block space-y-1 text-sm">
+          <span>OAB (UF e número)</span>
+          <Input value={config.oab || ""} onChange={(event) => set({ oab: event.target.value })} maxLength={100} placeholder="Ex.: SP 123456" />
+        </label>}
       </Panel>}
       <Panel title="Áreas de atuação" subtitle="Use a mesma classificação do seu perfil BUILT.">
         <ProfileActivityFields value={config} onChange={set} />

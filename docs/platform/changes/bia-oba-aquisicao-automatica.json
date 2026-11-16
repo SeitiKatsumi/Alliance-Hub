@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "id": "bia-oba-aquisicao-automatica",
+  "title": "Criar oferta de aquisição de cotas diretamente do rascunho",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "shared/bia-offer.ts"
+  ],
+  "searchTerms": [
+    "oba-aquisicao",
+    "quotaAcquisitionObaId",
+    "allowPendingPlan"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Criação automática vinculada à BIA e persistência da versão de oferta. Usa identidade estável e visibilidade inicial restrita."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Valida autorização, criação sem cronograma, quantidade, versão e repetição sem duplicidade."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Salva rascunho e abre gestão da OBA criada."
+    },
+    {
+      "path": "client/src/components/bia-oba-prompt.tsx",
+      "decision": "updated",
+      "reason": "Confirma criação da oferta com as cotas."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "Exibe posição e condições a definir quando não há cronograma."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Mostra quantidade disponível junto ao convite e ao Pulso."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Atualiza fluxo e contrato."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Modal de confirmação verificado na Veneto Gramado. Criação e leitura por convite verificadas em integração com dados fictícios."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Integração cobre criação, acesso negado e repetição."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Identidade por BIA evita duplicar no retry. Revisão usa hash. Visibilidade inicial restrita."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Cotas e parcelas usam o cronograma e as posições já calculadas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Divulgação continua usando convite individual e Pulso sob ação do gestor."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Oferta publica a projeção existente; não altera anexos ou MOU da BIA."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Reusa registro Directus e sincronização de oportunidades com visibilidade restrita."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Verificação autenticada de gestão reaplicada sob lock antes de criar."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Ofertas manuais continuam exigindo cronograma CAPEX válido."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "844 testes, tipos e build passaram. Seis testes focados passaram após ampliar as assertivas de convite. Endpoint novo respondeu 401 sem sessão no localhost."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-offer.test.ts",
+    "client/src/components/bia-oba-prompt.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

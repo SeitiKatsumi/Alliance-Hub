@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "id": "oba-cota-abre-modal",
+  "title": "Cota clicada abre Manifestar interesse",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/opa-detalhe.tsx"
+  ],
+  "searchTerms": [
+    "openInterest"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "A grade externa abre a manifestação com a cota escolhida. Seleções adicionais ocorrem na grade do modal."
+    },
+    {
+      "path": "client/src/components/oba-quota-availability.tsx",
+      "decision": "preserved",
+      "reason": "O componente continua aceitando callback e refletindo seleção."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra o atalho de abertura."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "No localhost autenticado, clicar na cota 3 da Veneto Gramado abriu o modal com ela selecionada. A cota 4 foi selecionada no modal e o total passou a R$ 234.000,00. Sem envio real."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "O clique usa a mesma verificação de adesão do botão Manifestar Interesse."
+    },
+    {
+      "area": "legado",
+      "status": "not-applicable",
+      "evidence": "A alteração abre um modal. Submissão, valores, armazenamento e integrações seguem o fluxo existente."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify completou tipos, testes e build."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-offer.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

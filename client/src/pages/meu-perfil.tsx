@@ -12,6 +12,7 @@ import { InviteQrCode } from "@/components/invite-qr-code";
 import { PlatformPreferences } from "@/components/platform-preferences";
 import { useLocale } from '@/components/preferences-provider';
 import { ModuleInfo } from "@/components/module-info";
+import { hasLegalContribution } from "@shared/profile-oab";
 import { ContributionAreaInfo } from "@/components/contribution-area-info";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import { Input } from "@/components/ui/input";
@@ -386,6 +387,7 @@ interface Membro {
   nome_pai?: string | null;
   data_nascimento?: string | null;
   profissao?: string | null;
+  oab?: string | null;
   cpf?: string | null;
   rg?: string | null;
   estado_civil?: string | null;
@@ -466,6 +468,7 @@ const PROFILE_EDITABLE_FIELDS: Array<keyof Membro> = [
   "nome_pai",
   "data_nascimento",
   "profissao",
+  "oab",
   "cpf",
   "rg",
   "estado_civil",
@@ -3120,6 +3123,9 @@ function DadosFormalizacaoSection({
         <Field label="Profissão">
           <Input value={form.profissao || ""} onChange={e => setField("profissao", e.target.value)} data-testid="input-perfil-profissao" />
         </Field>
+        {hasLegalContribution(form.tipos_alianca) && <Field label="OAB (UF e número)">
+          <Input value={form.oab || ""} onChange={e => setField("oab", e.target.value)} maxLength={100} placeholder="Ex.: SP 123456" data-testid="input-perfil-oab" />
+        </Field>}
         <Field label="Nome da mãe">
           <Input value={form.nome_mae || ""} onChange={e => setField("nome_mae", e.target.value)} data-testid="input-perfil-nome-mae" />
         </Field>

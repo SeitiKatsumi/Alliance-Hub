@@ -28,6 +28,7 @@ import BiasPage from "@/pages/bias";
 import BiaNovaPage from "@/pages/bia-nova";
 import BiaEditarPage from "@/pages/bia-editar";
 import BiaDetalhePage from "@/pages/bia-detalhe";
+import { ObaGuestOfferPage, ObaOfferPage } from "@/components/oba-offer";
 import OpaDetalhePage from "@/pages/opa-detalhe";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
@@ -1495,6 +1496,7 @@ function ProtectedApp() {
               <Route path="/bias/:id/editar" component={BiaEditarPage} />
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias">{() => <BiasPage />}</Route>
+              <Route path="/opas/:id/oferta" component={ObaOfferPage} />
               <Route path="/opas/:id" component={OpaDetalhePage} />
               <Route path="/opas" component={LegacyOpasRedirect} />
               <Route path="/demandas/nova" component={NovaDemandaPage} />
@@ -1569,6 +1571,7 @@ function App() {
       <AccountPreferences>
       <TooltipProvider>
         <Switch>
+          <Route path="/oferta-convidado/:id" component={ObaGuestOfferPage} />
           <Route path="/convite/:token" component={ConvitePage} />
           <Route path="/convite-imovel/:token" component={ConviteImovelPage} />
           <Route path="/ro-convite/:token" component={RoGuestConfirmationPage} />

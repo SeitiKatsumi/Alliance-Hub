@@ -46,3 +46,13 @@ test('edição reutiliza oito áreas, mantém editores montados e salva somente 
   assert.match(page,/hasBiaAccess\(permissions,"configuracao_bia","view"\)/);
   assert.match(page,/readOnly=\{!hasBiaAccess\(permissions,"configuracao_bia","edit"\)\}/);
 });
+
+test("edição de BIA em estruturação consulta o rascunho antes do formulário legado",()=>{
+  const page=readFileSync(new URL("./bia-editar.tsx",import.meta.url),"utf8");
+  assert.ok(page.includes('bia.data.situacao==="em_estruturacao" && canEdit'));
+  assert.ok(page.includes('response.status===404'));
+  assert.ok(page.includes('checkDraft && draft.isError'));
+  assert.ok(page.includes('checkDraft && draft.data?.concluido===false'));
+  assert.ok(page.includes('/estruturacao${section}'));
+  assert.ok(page.indexOf('<Redirect to=') < page.indexOf('<BiaFormSheet'));
+});

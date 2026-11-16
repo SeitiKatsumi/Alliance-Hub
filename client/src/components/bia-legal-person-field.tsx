@@ -9,14 +9,21 @@ import { Input } from "./ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "./ui/command";
 
-export function BiaLegalPersonField({label,value,onChange,disabled=false}:{label:string;value:string;onChange:(name:string)=>void;disabled?:boolean}) {
+export function BiaLegalPersonField({label,value,onChange,disabled=false}:{label:string;value:string;onChange:(name:string,oab?:string)=>void;disabled?:boolean}) {
   const id=useId();
   const [open,setOpen]=useState(false),[search,setSearch]=useState(""),[inviteOpen,setInviteOpen]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [invite,setInvite]=useState<{link:string;expires_at:string}|null>(null);
   const members=useQuery<any[]>({queryKey:["/api/membros"],...MEMBER_DIRECTORY_QUERY_OPTIONS,enabled:open && !disabled});
-  const names=Array.from(new Set((members.data || []).map(getMemberDirectoryDisplayName).filter(name=>name!=="—"))).sort((a,b)=>a.localeCompare(b,"pt-BR",{sensitivity:"base"}));
+  const choices = Array.from(new Map((members.data || []).flatMap(member => {
+    const name = getMemberDirectoryDisplayName(member);
+    if (name === "—") return [];
+    const id = String(member.id || name);
+    const company = typeof member.empresa === "string" ? member.empresa : "";
+    const oab = typeof member.oab === "string" ? member.oab.trim() : "";
+    return [[id, { id, name, company, oab }] as const];
+  })).values()).sort((a,b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
   const expired=!!invite && new Date(invite.expires_at).getTime()<=Date.now();
-  const select=(name:string)=>{if(!disabled){onChange(name);setOpen(false);}};
+  const select=(name:string,oab?:string)=>{if(!disabled){onChange(name,oab);setOpen(false);}};
   async function generate() {
     if(disabled || busy)return;
     setBusy(true);setMessage("");setInvite(null);
@@ -35,7 +42,9 @@ export function BiaLegalPersonField({label,value,onChange,disabled=false}:{label
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0">
         <Command filter={memberSearchFilter}><CommandInput aria-label={`Buscar ${label.replace(' *','')}`} placeholder="Buscar por nome…" value={search} onValueChange={setSearch} maxLength={4000}/><CommandList>
           <CommandEmpty>{members.isFetching?"Carregando nomes…":members.isError?"Não foi possível carregar os nomes.":"Nenhum nome encontrado na rede."}</CommandEmpty>
-          {names.map(name=><CommandItem key={name} value={name} keywords={[name]} onSelect={()=>select(name)}>{name}</CommandItem>)}
+          {choices.map(({ id, name, company, oab }) => <CommandItem key={id} value={id} keywords={[name, company]} onSelect={() => select(name, oab)}>
+            {name}{company && <span className="ml-2 truncate text-muted-foreground">{company}</span>}
+          </CommandItem>)}
         </CommandList></Command>
         <div className="space-y-2 border-t p-2">
           {members.isError && <Button type="button" variant="ghost" size="sm" onClick={()=>members.refetch()}>Tentar novamente</Button>}

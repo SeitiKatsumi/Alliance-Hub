@@ -1,3 +1,7 @@
+import { OBA_OFFER_SQL } from "./bia-offer";
+import type { BiaOffer, OfferQuota } from "@shared/bia-offer";
+import { biaBudgetSchema } from "@shared/bia-budget";
+import { makePaymentSchedule, quotePaymentShare, toPaymentCents } from "@shared/bia-payment-plan";
 import { z } from 'zod';
 import { typedAreaSearchMessages, marketSearchModelOptions, hasExplicitAreaEvidence, MARKET_AREA_SEARCH_VERSION } from './market-area-search';
 import { acquireMapFinancialLock, createMapRecoveryJob } from './map-recovery-job';
@@ -44,6 +48,8 @@ import { selectPortfolio } from "../shared/portfolio-selection";
 import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_VERSION, confirmedMarketEvidence, marketRetryDelay, researchIndicativePropertyValue, INDICATIVE_MARKET_METHOD, reusableMarketAnalysis } from "./property-market-evidence";
 import { BUILT_VALUATION_VERSION, sanitizeValuationAreas, propertyValuationReadiness, valuationObservationReason } from "../shared/property-valuation";
 import { registerBuiltValuationRoutes } from './built-valuation';
+import { OBA_DELIVERIES_SQL, obaDeliveryCreateSchema, obaDeliveryValidationSchema } from "./oba-deliveries";
+import { assignMapVacancy, openMapVacancies } from "./bia-vacancies";
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { agendaTaskHref, agendaTaskTitle, matchesMouRevision, MOU_REVIEW_LABEL } from "../shared/agenda-action";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
@@ -91,7 +97,7 @@ import {
   reconcileValorOrigemEntries,
 } from "./valor-origem-sync";
 import { normalizeCarteiraAlertUpdate } from "./carteira-alertas";
-import { biaActivationRequirements, biaDeletionTargets, biaFormalParticipantIds, canCreateObaForBia } from "./bia-lifecycle";
+import { biaActivationRequirements, biaDeletionTargets, biaFormalParticipantIds, canCreateObaForBia, isBiaDirector } from "./bia-lifecycle";
 import {
   activeAgendaAlertCount,
   agendaAlertBadge,
@@ -222,6 +228,7 @@ import {
   INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
   type InitialOnboardingStep,
 } from "@shared/initial-onboarding";
+import { optionalOab } from "@shared/profile-oab";
 import { selectLedCommunity, shouldStartMembershipPaymentAfterApproval, statusAfterConnectorAura } from "@shared/community-approval";
 import {
   buildCarteiraAlternativas,
@@ -931,6 +938,7 @@ async function ensureVitrineFields() {
     { field: "nome_mae", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome da mae para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "nome_pai", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome do pai para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "data_nascimento", type: "date", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de nascimento para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "oab", type: "string", meta: { interface: "input", display: "raw", note: "Inscrição profissional na OAB" }, schema: { is_nullable: true, max_length: 100 } },
     { field: "profissao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Profissao para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "cpf", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "CPF para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "cnpj", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "CNPJ da empresa vinculada ao perfil" }, schema: { is_nullable: true } },
@@ -3705,6 +3713,12 @@ async function ensureFluxoPagamentoFields() {
 }
 
 async function ensureOpaInteressesCrmFields() {
+  await db.execute(sql`ALTER TABLE opa_interesses
+    ADD COLUMN IF NOT EXISTS vaga_id text,
+    ADD COLUMN IF NOT EXISTS vaga_bia_id text,
+    ADD COLUMN IF NOT EXISTS vaga_status text,
+    ADD COLUMN IF NOT EXISTS oferta_revisao integer`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS opa_interesses_vaga_idx ON opa_interesses (vaga_bia_id, vaga_id, vaga_status) WHERE vaga_id IS NOT NULL`);
   await db.execute(sql`
     ALTER TABLE opa_interesses
     ADD COLUMN IF NOT EXISTS status_crm text NOT NULL DEFAULT 'interesse_recebido'
@@ -6266,6 +6280,11 @@ export async function registerRoutes(
       );
       const sessionRole = String((req.session as any).role || "user");
       const accountPermissions = (req.session as any).permissions;
+      if (payload.oab !== undefined) {
+        const parsed = optionalOab.nullable().safeParse(payload.oab);
+        if (!parsed.success) return res.status(400).json({ error: "Informe uma OAB com até 100 caracteres." });
+        payload.oab = parsed.data || null;
+      }
       if (payload.na_vitrine === true && blockedArea(accountPermissions, 'publicar')) {
         const current = await directusFetchOne("cadastro_geral", req.params.id, "fields=na_vitrine");
         if (!current?.na_vitrine) return res.status(403).json({error:'Publicação na Vitrine bloqueada para esta conta.'});
@@ -6350,6 +6369,7 @@ export async function registerRoutes(
         "nome_pai",
         "data_nascimento",
         "profissao",
+        "oab",
         "cpf",
         "cnpj",
         "rg",
@@ -7669,6 +7689,7 @@ export async function registerRoutes(
     if (!base || base.ativado_em) return operation();
     const bia = { ...await directusFetchOne("bias_projetos", biaId, "fields=*"), ...data };
     calculateInitialMap(Number(base.valor_origem), base.participantes, base.estrutura_economica);
+    if (base.participantes.some((p: InitialMapParticipantInput) => p.titular)) throw Object.assign(new Error("Vincule um membro a cada vaga ou sócio externo antes da ativação."), { statusCode: 409 });
     if(Number(base.modelo_calculo)>=3)validateInitialClassifications(base.participantes);
     const signers = Array.from(new Set([...(base.origem_id ? [] : biaFormalParticipantIds(bia)), ...base.participantes.map((p: any) => p.memberId).filter(Boolean)])) as string[];
     for (const memberId of signers) if (!await hasBiaMouAceito(biaId, memberId)) throw Object.assign(new Error("Todos os participantes precisam aceitar a revisão vigente do MAP Inicial antes da ativação."), { statusCode: 409 });
@@ -7974,8 +7995,10 @@ export async function registerRoutes(
       const participantes: InitialMapParticipantInput[] = await Promise.all(rawParticipants.map(async (item: any) => {
         const memberId = String(item?.memberId || "").trim() || null;
         const institutionCode = String(item?.institutionCode || "").trim().toUpperCase() || null;
-        if (!memberId && institutionCode !== "BUILT") {
-          const invalid: any = new Error("Escolha um membro ou a instituição BUILT para cada participante.");
+        const titular = item?.titular;
+        if ((!memberId && institutionCode !== "BUILT" && titular !== "vaga" && titular !== "externo") ||
+            (titular !== undefined && (memberId || institutionCode || !["vaga", "externo"].includes(titular) || !String(item.participantId || "").trim()))) {
+          const invalid: any = new Error("Escolha um membro, uma cota disponível ou informe o nome do sócio externo.");
           invalid.statusCode = 400;
           throw invalid;
         }
@@ -7992,10 +8015,11 @@ export async function registerRoutes(
           if(!Array.isArray(item.contribuicoes) || item.contribuicoes.some((c:any)=>c.cargo!=="Contribuição individual" && !roles.includes(c.cargo)))throw new Error("Escolha um cargo válido para cada contribuição.");
         }
         return {
-          participantId: memberId ? `member:${memberId}` : "institution:BUILT",
+          participantId: memberId ? `member:${memberId}` : titular ? String(item.participantId) : "institution:BUILT",
+          titular,
           memberId,
           institutionCode,
-          nome: member?.nome || (institutionCode === "BUILT" ? "BUILT" : String(item?.nome || "Participante")),
+          nome: member?.nome || (institutionCode === "BUILT" ? "BUILT" : String(item?.nome || "")),
           cargos: Array.isArray(item?.cargos) ? item.cargos : [],
           ...(modeloCalculo >= 4 ? {modeloCalculo, contribuicoes:(Array.isArray(item.contribuicoes) ? item.contribuicoes : []).map((c:any)=>({cargo:c.cargo,indice:c.indice == null || c.indice === "" ? NaN : Number(c.indice),tipoCpp:resolveCpp(c.tipoCpp,Number(c.indice)>0)}))} : {}),
           ...(modeloCalculo === 5 ? {cotasInvestimento: item.cotasInvestimento} : {}),
@@ -10629,7 +10653,7 @@ export async function registerRoutes(
         }
       };
 
-      const [allBias, allOpas, comunidades, fluxoCaixa] = await Promise.all([
+      const [allBias, rawOpas, comunidades, fluxoCaixa] = await Promise.all([
         directusFetchScoped("bias_projetos",
           "fields=id,codigo_publico,nome_bia,situacao,objetivo_alianca,destinacao,localizacao,latitude,longitude,observacoes,imagem_directus_id," +
           "valor_origem,valor_geral_venda_vgv,valor_realizado_venda,custo_final_previsto,resultado_liquido,moeda," +
@@ -10642,6 +10666,7 @@ export async function registerRoutes(
         directusFetchScoped("fluxo_caixa", DASHBOARD_CAPITAL_QUERY).catch(() => null),
       ]);
 
+      const allOpas = await filterObasByAudience(req,rawOpas);
       const userBias = await Promise.all(
         (allBias as any[])
           .filter(b => isUserLinkedToBia(b, membroId))
@@ -10989,6 +11014,7 @@ export async function registerRoutes(
       const reason = String(req.body?.motivo || "").trim();
       if (req.body?.confirmarRevisao !== true || !reason) return res.status(400).json({ error: "Revise a composição original, confirme a revisão e informe a fonte dos dados." });
       const calculation = await calculateSubmittedInitialMap(req.body, 3);
+      if (calculation.participantes.some(p => p.titular)) return res.status(400).json({ error: "A revisão histórica exige membros vinculados." });
       const moeda = String(req.body?.moeda || bia.moeda || "BRL").toUpperCase();
       if (moeda !== String(bia.moeda || "BRL").toUpperCase()) return res.status(400).json({ error: "Use a moeda cadastrada na BIA." });
       const base = { valor_origem: calculation.valorOrigem, moeda,
@@ -11053,6 +11079,7 @@ export async function registerRoutes(
         const active = mapIsActive(freshBia, current);
         if (!canEditMapComposition(freshBia, (req.session as any).membroId, (req.session as any).role, active, true))
           throw Object.assign(new Error(freshBia.situacao === "encerrada" ? "BIA encerrada: composição disponível somente para consulta." : "Correção não autorizada."), { statusCode: freshBia.situacao === "encerrada" ? 409 : 403 });
+        if (active && calculation.participantes.some(p => p.titular === "externo")) throw Object.assign(new Error("Sócios externos estão disponíveis antes da ativação da BIA."), { statusCode: 409 });
         const reason = String(req.body?.motivo || "").trim();
         if (active && !reason) throw Object.assign(new Error("Informe o motivo da correção."), { statusCode: 400 });
         await reconcilePendingMapEvents(tx, freshBia, current);
@@ -14027,6 +14054,7 @@ export async function registerRoutes(
       ramo_atuacao: o.ramo_atuacao || null,
       bia: o.bia,
       bia_id: o.bia,
+      aquisicao_cotas: !!directusRelationId(o.bia) && String(o.id)===quotaAcquisitionObaId(String(directusRelationId(o.bia))),
       valor_origem_opa: o.valor_origem_opa,
       Minimo_esforco_multiplicador: o.Minimo_esforco_multiplicador,
       objetivo_alianca: o.objetivo_alianca || null,
@@ -14061,11 +14089,75 @@ export async function registerRoutes(
     }));
   }
 
+  function obaExplicitDistribution(row: any) {
+    return row?.source_type === "oba" && row.metadata?.distribuicao_explicita === true;
+  }
+
+  async function obaAudience(req: Request, registryIds: string[]) {
+    const session = req.session as any;
+    const userIds = new Set([session.directusUserId, session.userId, session.accessUserId].filter(Boolean).map(String));
+    if (!userIds.size && !session.membroId) return {invited:new Set<string>(),delivered:new Set<string>()};
+    const local = session.email ? await storage.getUserByEmail(String(session.email)) : null;
+    if (local?.id) userIds.add(String(local.id));
+    const result = await db.execute(sql`
+      SELECT source_id AS id, 'invite' AS channel FROM convites_link
+      WHERE source_type = 'oba' AND status = 'usado'
+        AND source_id = ANY(${sqlTextArray(registryIds)})
+        AND usado_por_user_id = ANY(${sqlTextArray([...userIds])})
+      UNION
+      SELECT r.source_id AS id, 'pulse' AS channel FROM opportunity_distribution_deliveries d
+      JOIN opportunity_registry r ON r.id = d.registry_id
+      WHERE r.source_type = 'oba' AND r.source_id = ANY(${sqlTextArray(registryIds)})
+        AND d.status IN ('enviado','lida')
+        AND (d.user_id = ANY(${sqlTextArray([...userIds])}) OR d.membro_id = ${session.membroId ? String(session.membroId) : null})
+    `);
+    return {
+      invited:new Set(result.rows.filter((row:any)=>row.channel==="invite").map((row:any)=>String(row.id))),
+      delivered:new Set(result.rows.filter((row:any)=>row.channel==="pulse").map((row:any)=>String(row.id))),
+    };
+  }
+
+  async function filterObasByAudience<T extends { id: string }>(req: Request, items: T[]): Promise<T[]> {
+    if (!items.length) return items;
+    await ensureBusinessOpportunityTables();
+    const result = await db.execute(sql`
+      SELECT * FROM opportunity_registry
+      WHERE source_type='oba' AND source_id=ANY(${sqlTextArray(items.map(item=>item.id))})
+        AND metadata->>'distribuicao_explicita' = 'true'
+    `);
+    const entries = result.rows as any[];
+    const restricted = new Map(entries.filter(row=>!isOpportunityPublic(row.status,row.visibilidade,row.expira_em)).map(row=>[String(row.source_id),row]));
+    if (!restricted.size) return items;
+    const audience = await obaAudience(req,[...restricted.keys()]);
+    const allowed = await Promise.all(items.map(async item=>{
+      const id=String(item.id);
+      const row=restricted.get(id);
+      if (!row) return true;
+      if (isOpportunityEditable(row.status) && (audience.invited.has(id) || audience.delivered.has(id))) return true;
+      return canManageOpa(req,id).catch(()=>false);
+    }));
+    return items.filter((_,index)=>allowed[index]);
+  }
+
+  async function obaInterestAudience(req: Request, opaId: string) {
+    const registry=await getOpportunityRegistry(opaId);
+    if (!obaExplicitDistribution(registry)) return {allowed:true,invited:false,registry};
+    if (!isOpportunityEditable(registry.status) || (registry.expira_em && new Date(registry.expira_em) <= new Date())) {
+      return {allowed:false,invited:false,registry};
+    }
+    const audience=await obaAudience(req,[opaId]);
+    const invited=audience.invited.has(opaId);
+    const allowed=invited || audience.delivered.has(opaId) ||
+      isOpportunityPublic(registry.status,registry.visibilidade,registry.expira_em) || await canManageOpa(req,opaId);
+    return {allowed,invited,registry};
+  }
+
+
   app.get("/api/oportunidades", async (req, res) => {
     try {
       const items = await directusFetch("tipos_oportunidades", "fields=*,anexos.directus_files_id.*");
       const canSeeAnexos = await canAccessProtectedOpaActions(req);
-      res.json(resolveAnexosOpa(items, canSeeAnexos));
+      res.json(resolveAnexosOpa(await filterObasByAudience(req,items), canSeeAnexos));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -14213,7 +14305,7 @@ export async function registerRoutes(
     const sessionMembroId = (req.session as any).membroId as string | undefined;
     const role = (req.session as any).role;
     if (!sessionUserId) return false;
-    if (role === "admin" || role === "manager") return true;
+    if (["admin","manager","superadmin"].includes(role)) return true;
 
     const opa = await directusFetchOne("tipos_oportunidades", opaId);
     if (!opa) return false;
@@ -14224,8 +14316,8 @@ export async function registerRoutes(
 
     const biaId = directusRelationId(opa.bia) || opa.bia || null;
     if (!biaId || !sessionMembroId) return false;
-    const bia = await directusFetchOne("bias_projetos", String(biaId), "fields=id,aliado_built");
-    return String(directusRelationId(bia?.aliado_built) || bia?.aliado_built || "") === String(sessionMembroId);
+    const bia = await directusFetchOne("bias_projetos", String(biaId), "fields=id,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital");
+    return !!bia && canDecideVacancy(req,bia);
   }
 
   async function ensureCanLinkOpaToBia(req: Request, payload: Record<string, any>) {
@@ -14249,12 +14341,11 @@ export async function registerRoutes(
       error.statusCode = 404;
       throw error;
     }
-    if (!biaAllowsFinance(bia.situacao || "ativa")) {
-      const error: any = new Error("A BIA precisa estar ativa antes de criar OBAs.");
-      error.statusCode = 409;
-      throw error;
-    }
     const isPlatformAdmin = ["admin", "superadmin"].includes(String((req.session as any).role || "").toLowerCase());
+    if (["em_estruturacao", "em_captacao"].includes(bia.situacao) && canDecideVacancy(req,bia)) return;
+    if (!biaAllowsFinance(bia.situacao || "ativa")) {
+      throw Object.assign(new Error("A criação de OBA exige gestão da BIA e está disponível em estruturação, captação ou em uma fase ativa."),{statusCode:409});
+    }
     if (!canCreateObaForBia(bia, sessionMembroId, isPlatformAdmin)) {
       const error: any = new Error("Somente os Diretores desta BIA podem criar uma OBA.");
       error.statusCode = 403;
@@ -14283,7 +14374,7 @@ export async function registerRoutes(
         delete payload.criado_por_membro_id;
         item = await directusCreate("tipos_oportunidades", payload);
       }
-      const registry = await syncOpaRegistry(item);
+      const registry = await syncOpaRegistry(item,true);
       if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "OBA criada", { bia_id: biaId });
       res.json(item);
     } catch (error: any) {
@@ -14348,13 +14439,403 @@ export async function registerRoutes(
   });
 
   // ========== OBA INTERESSES ==========
+  function quotaApplicationsOpen(phase: string) {
+    return phase==="em_estruturacao" || phase==="em_captacao" || biaAllowsFinance(phase);
+  }
+
+  async function canManageQuotaApplications(req: Request, bia:any, tx:any=db) {
+    const session=req.session as any;
+    const member=String(session?.membroId || "");
+    if(!session?.directusUserId || session.companyEmployeeId)return false;
+    if(isBiaPlatformAdminRole(session.role))return true;
+    if(!member)return false;
+    if([bia.aliado_built,bia.diretor_alianca,bia.autor_bia].some(value=>directusRelationId(value)===member))return true;
+    if(bia.situacao!=="em_estruturacao")return false;
+    const draft=await readObaDraftBase(String(bia.id),tx);
+    const roles=Object.entries(BIA_PARTICIPANT_ROLE_FIELDS).filter(([,field])=>["aliado_built","diretor_alianca","autor_bia"].includes(field))
+      .map(([role])=>BIA_PARTICIPANT_ROLE_LABELS[role as keyof typeof BIA_PARTICIPANT_ROLE_LABELS]);
+    return !!draft?.participantes.some((p:InitialMapParticipantInput)=>p.memberId===member && p.cargos?.some(role=>roles.includes(role)));
+  }
+
+  async function opportunityVacancyContext(req: Request, opaId: string, lockedBase?: any, tx:any=db) {
+    const {allowed,registry} = await obaInterestAudience(req,opaId);
+    if (!registry || registry.source_type !== "oba" || String(registry.source_id) !== opaId ||
+        !registry.bia_id || (!obaExplicitDistribution(registry) && registry.visibilidade !== "publicada") || !allowed || !isOpportunityEditable(registry.status) ||
+        (registry.expira_em && new Date(registry.expira_em) <= new Date())) return null;
+    const biaId = String(registry.bia_id);
+    const bia = await resolveBiaByIdOrPublicCode(biaId, "*");
+    if (!bia || !quotaApplicationsOpen(bia.situacao)) return null;
+    const savedBase = lockedBase === undefined ? await loadInitialMapSnapshot(biaId) : lockedBase;
+    const base = savedBase ?? (bia.situacao==="em_estruturacao" ? await readObaDraftBase(biaId,tx) : null);
+    if (!base || base.draftFrozen) return null;
+    return {biaId,base,registryId:String(registry.id),vagas:openMapVacancies(base.participantes)};
+  }
+
+  function canDecideVacancy(req: Request, bia: any) {
+    const session = req.session as any;
+    return !!session.directusUserId && !session.companyEmployeeId && (
+      isBiaPlatformAdminRole(session.role) || isBiaDirector(bia,session.membroId) ||
+      (!!session.membroId && directusRelationId(bia.aliado_built) === String(session.membroId))
+    );
+  }
+
+  async function syncActiveQuotaInvite(biaId:string, memberId:string, req:Request):Promise<"ok"|"pending"> {
+    try{
+      return await withMapLock<"ok">(biaId,async(_tx,base)=>{
+        const bia=await resolveBiaByIdOrPublicCode(biaId,"*");
+        const participant=base?.participantes.find((p:InitialMapParticipantInput)=>p.memberId===memberId);
+        if(!bia || !biaAllowsFinance(bia.situacao) || !participant)return "ok";
+        const config=SOCIO_SOLICITACAO_CONFIG.find(item=>item.campoSocios===(participant.tipo==="guardiao"?"socios_guardioes":"socios_multiplicadores"))!;
+        if(parseBiaMemberList(bia[config.campoSocios]).includes(memberId))return "ok";
+        const pending=await storage.getBiaSocioSolicitacoesPendentesByBia(biaId);
+        if(!pending.some(item=>item.campo_socios===config.campoSocios && item.socio_membro_id===memberId)){
+          await createSocioSolicitacao({biaId,biaNome:bia.nome_bia,socioId:memberId,papel:config.papel,campoSocios:config.campoSocios,req});
+        }
+        return "ok";
+      });
+    }catch{return "pending";}
+  }
+
+  async function vacancyAgendaAlerts(req: Request): Promise<AgendaAlertItem[]> {
+    const result = await db.execute(sql`
+      SELECT i.vaga_bia_id, i.vaga_id, max(slot.numero)::int AS numero, count(*)::int AS total, max(i.criado_em) AS created_at
+      FROM opa_interesses i
+      LEFT JOIN bia_map_inicial_snapshots m ON m.bia_id = i.vaga_bia_id
+      LEFT JOIN bia_estruturacao_rascunhos d ON d.bia_id = i.vaga_bia_id AND NOT d.concluido AND m.bia_id IS NULL
+      JOIN LATERAL jsonb_array_elements(COALESCE(m.participantes,d.dados->'map_inicial'->'participantes','[]'::jsonb)) WITH ORDINALITY AS slot(data,numero)
+        ON slot.data->>'participantId' = i.vaga_id AND slot.data->>'titular' = 'vaga'
+      WHERE i.vaga_status = 'pendente'
+      GROUP BY i.vaga_bia_id,i.vaga_id ORDER BY max(i.criado_em) DESC
+    `);
+    const alerts: AgendaAlertItem[] = [];
+    const bias = new Map<string, any>();
+    for (const row of result.rows as any[]) {
+      const biaId = String(row.vaga_bia_id);
+      if (!bias.has(biaId)) bias.set(biaId,await resolveBiaByIdOrPublicCode(biaId,"*").catch(()=>null));
+      const bia = bias.get(biaId);
+      if (!bia || !quotaApplicationsOpen(bia.situacao) || !await canManageQuotaApplications(req,bia)) continue;
+      const sourceId = biaId + ":" + row.vaga_id;
+      alerts.push({
+        id:"vaga:"+sourceId,source_type:"bia_vaga",source_id:sourceId,group:"pendencias",category:"convite_bia",
+        title:row.total === 1 ? "1 manifestação pendente" : row.total + " manifestações pendentes",
+        description:"Cota "+row.numero+" · "+(bia.nome_bia || "BIA"),priority:"alta",status:"pendente",created_at:agendaAlertDate(row.created_at),
+        action_required:true,active:true,href:"/bias/"+encodeURIComponent(biaId)+"/editar?section=equipe&vaga="+encodeURIComponent(row.vaga_id),
+        actions:[],metadata:{bia_id:biaId,vaga_id:row.vaga_id},
+      });
+    }
+    return alerts;
+  }
+
+  app.get("/api/bias/:id/vagas-interesses", async (req,res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id,"*");
+      if (!bia || !await canManageQuotaApplications(req,bia)) return res.status(403).json({error:"Gestão das vagas não autorizada."});
+      const biaId = String(bia.id);
+      const base = await loadInitialMapSnapshot(biaId) ?? await readObaDraftBase(biaId);
+      const items = await db.select().from(opaInteresses)
+        .where(eq(opaInteresses.vaga_bia_id,biaId)).orderBy(desc(opaInteresses.criado_em));
+      const vagas = openMapVacancies(base?.participantes);
+      const ids = [...new Set([...vagas.map(({slot})=>slot.participantId!), ...items.map(item=>item.vaga_id!).filter(Boolean)])];
+      res.json(ids.map((id,index)=>({
+        id, numero:vagas.find(item=>item.slot.participantId === id)?.index ?? index,
+        aberta:quotaApplicationsOpen(bia.situacao) && !base?.draftFrozen && vagas.some(({slot})=>slot.participantId === id),
+        conviteDisponivel:bia.situacao!=="em_estruturacao" && quotaApplicationsOpen(bia.situacao),
+        candidatos:items.filter(item=>item.vaga_id === id).map(({id,membro_id,membro_nome,mensagem,criado_em,vaga_status,oferta_revisao})=>({id,membro_id,membro_nome,mensagem,criado_em,vaga_status,oferta_revisao})),
+      })));
+    } catch(error:any) {res.status(error.statusCode || 500).json({error:error.message});}
+  });
+
+  app.patch("/api/bias/:id/vagas-interesses/:interestId", async (req,res) => {
+    try {
+      const decision = req.body?.decisao;
+      if (decision !== "aprovar" && decision !== "recusar") return res.status(400).json({error:"Escolha aprovar ou recusar."});
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id,"*");
+      if (!bia || !await canManageQuotaApplications(req,bia)) return res.status(403).json({error:"Gestão das vagas não autorizada."});
+      const biaId = String(bia.id);
+      const approved=await withMapLock(biaId,async (tx,snapshot) => {
+        const freshBia = await resolveBiaByIdOrPublicCode(biaId,"*");
+        if (!freshBia || !await canManageQuotaApplications(req,freshBia,tx)) throw Object.assign(new Error("Gestão das vagas não autorizada."),{statusCode:403});
+        const [candidate] = await tx.select().from(opaInteresses)
+          .where(and(eq(opaInteresses.id,req.params.interestId),eq(opaInteresses.vaga_bia_id,biaId)));
+        if (!candidate?.vaga_id) throw Object.assign(new Error("Manifestação não encontrada."),{statusCode:404});
+        if (candidate.vaga_status === (decision === "aprovar" ? "aprovada" : "recusada"))
+          return decision==="aprovar" ? {phase:freshBia.situacao,member:candidate.membro_id} : null;
+        const base=snapshot ?? await readObaDraftBase(biaId,tx);
+        const vacancy = openMapVacancies(base?.participantes).find(({slot})=>slot.participantId === candidate.vaga_id);
+        if (!vacancy || !quotaApplicationsOpen(freshBia.situacao) || base.draftFrozen || candidate.vaga_status !== "pendente")
+          throw Object.assign(new Error("A manifestação já foi decidida ou a vaga não está aberta."),{statusCode:409});
+        const now = new Date();
+        if (decision === "recusar") {
+          await tx.update(opaInteresses).set({vaga_status:"recusada",atualizado_em:now}).where(eq(opaInteresses.id,candidate.id));
+          return;
+        }
+        if (!candidate.membro_id) throw Object.assign(new Error("O candidato não possui um perfil vinculado."),{statusCode:409});
+        const alreadyInMap=base.participantes.some((slot:InitialMapParticipantInput)=>slot.memberId===candidate.membro_id);
+        const priorApproved=alreadyInMap && Number(base.modelo_calculo)===5 &&
+          candidate.opa_id===quotaAcquisitionObaId(biaId) && (await tx.select({id:opaInteresses.id}).from(opaInteresses).where(and(
+            eq(opaInteresses.opa_id,candidate.opa_id),eq(opaInteresses.user_id,candidate.user_id),
+            eq(opaInteresses.membro_id,candidate.membro_id),eq(opaInteresses.vaga_status,"aprovada"),
+          )).limit(1)).length>0;
+        const member = await directusFetchOne("cadastro_geral",candidate.membro_id,"fields=id,nome");
+        if (!member) throw Object.assign(new Error("Perfil do candidato indisponível."),{statusCode:409});
+        const participants = assignMapVacancy(base.participantes, candidate.vaga_id, {id:candidate.membro_id,nome:member.nome || candidate.membro_nome || "Membro BUILT"},priorApproved);
+        if(!snapshot){
+          await tx.execute(sql`UPDATE bia_estruturacao_rascunhos
+            SET dados=jsonb_set(dados,'{map_inicial,participantes}',${JSON.stringify(participants)}::jsonb),
+                revisao=revisao+1, atualizado_em=now() WHERE bia_id=${biaId}`);
+        }else{
+          const calculation = calculateInitialMap(Number(base.valor_origem),participants,base.estrutura_economica);
+          if (Number(base.modelo_calculo) >= 3) validateInitialClassifications(calculation.participantes);
+          const active=biaAllowsFinance(freshBia.situacao);
+          if(active){
+            await reconcilePendingMapEvents(tx,freshBia,base);
+            const next={...base,participantes:calculation.participantes};
+            await assertInitialCommitmentsCompatible(tx,biaId,next,await directusFetchScoped("fluxo_caixa",`filter[bia][_eq]=${encodeURIComponent(biaId)}&fields=*`));
+            await getBiaAllocationMap(freshBia,biaId,{base:next,strict:true,executor:tx});
+          }
+          if (!base.revisao && base.snapshot_hash) await archiveMapBase(tx,freshBia,base,"preservado:"+base.id,"MAP Inicial assinado preservado");
+          const snapshotHash = initialMapHash(calculation,base.moeda);
+          await tx.execute(sql`UPDATE bia_map_inicial_snapshots
+            SET participantes=${JSON.stringify(calculation.participantes)}::jsonb,
+                snapshot_hash=${snapshotHash}, atualizado_em=now()
+            WHERE id=${String(base.id)}`);
+          const updated = {...base,participantes:calculation.participantes,snapshot_hash:snapshotHash};
+          const eventId=randomUUID(), reason="Seleção de sócio para vaga da OBA";
+          await archiveMapBase(tx,freshBia,updated,eventId,reason);
+          if(active)await captureCurrentMap(tx,freshBia,updated,eventId,reason);
+          await notifyMapRevision(tx,freshBia,updated,active);
+        }
+        await tx.update(opaInteresses).set({vaga_status:"vaga_preenchida",atualizado_em:now}).where(and(
+          eq(opaInteresses.vaga_bia_id,biaId),eq(opaInteresses.vaga_id,candidate.vaga_id),eq(opaInteresses.vaga_status,"pendente"),
+        ));
+        await tx.update(opaInteresses).set({vaga_status:"aprovada",atualizado_em:now}).where(eq(opaInteresses.id,candidate.id));
+        return {phase:freshBia.situacao,member:candidate.membro_id};
+      });
+      const inviteSync=approved?.phase==="em_captacao" ? await syncFormationMapInvites(biaId,req)
+        : approved?.member && biaAllowsFinance(approved.phase) ? await syncActiveQuotaInvite(biaId,approved.member,req) : "ok";
+      res.json({success:true,inviteSync});
+    } catch(error:any) {res.status(error.statusCode || 500).json({error:error.message});}
+  });
+
+
+  let obaOfferReady:Promise<unknown>|undefined;
+  function ensureObaOfferStorage() {
+    return obaOfferReady ??= db.execute(sql.raw(OBA_OFFER_SQL)).catch(error=>{obaOfferReady=undefined;throw error;});
+  }
+
+  const offerError=(message:string,statusCode=409)=>Object.assign(new Error(message),{statusCode});
+  async function obaOfferHead(registryId:string,tx:any=db) {
+    await ensureObaOfferStorage();
+    return (await tx.execute(sql`SELECT revisao,oferta,assinatura,bia_id FROM oba_ofertas_versoes WHERE registry_id=${registryId} ORDER BY revisao DESC LIMIT 1`)).rows[0] || null;
+  }
+
+  async function canReadObaOffer(req:Request,registry:any) {
+    const id=String(registry.source_id);
+    if(isOpportunityPublic(registry.status,registry.visibilidade,registry.expira_em))return true;
+    if(await canManageOpa(req,id))return true;
+    if(!isOpportunityEditable(registry.status) || (registry.expira_em && new Date(registry.expira_em)<=new Date()))return false;
+    const audience=await obaAudience(req,[id]);
+    return audience.invited.has(id) || audience.delivered.has(id);
+  }
+
+  async function readObaDraftBase(biaId:string, tx:any=db) {
+    const bia=await resolveBiaByIdOrPublicCode(biaId,"id,situacao");
+    if(bia?.situacao!=="em_estruturacao")return null;
+    const row=(await tx.execute(sql`SELECT dados,conclusao_iniciada FROM bia_estruturacao_rascunhos WHERE bia_id=${biaId} AND concluido=false`)).rows[0];
+    const draft=row?.dados;
+    const map=draft?.map_inicial;
+    if(map?.modeloCalculo!==5 || !Array.isArray(map.participantes))return null;
+    return {estrutura_economica:map.estrutura,participantes:map.participantes,
+      valor_origem:map.valorOrigem,moeda:draft.moeda,modelo_calculo:5,draftFrozen:!!row.conclusao_iniciada,draftBudget:draft.estrutura_bia?.orcamento};
+  }
+
+  function quotaAcquisitionObaId(biaId:string) {
+    const hex=createHash("sha256").update("built:oba:aquisicao:"+biaId).digest("hex");
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-8${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
+  }
+
+  async function buildObaOffer(registry:any,base:any,tx:any,initialOpa?:Record<string,any>):Promise<BiaOffer> {
+    const biaId=String(registry.bia_id);
+    const draft=base ? null : await readObaDraftBase(biaId,tx);
+    base ??= draft;
+    const totalQuotas=Number(base?.estrutura_economica?.totalCotas);
+    const valorOrigem=Number(base?.valor_origem);
+    const budgetInput=draft ? draft.draftBudget : (await readBiaSetup(tx,biaId))?.dados?.orcamento;
+    const parsed=biaBudgetSchema.safeParse(budgetInput);
+    const allowPendingPlan=String(registry.source_id)===quotaAcquisitionObaId(biaId);
+    const budget=parsed.success ? parsed.data : null;
+    const plan=budget?.planoPagamento;
+    let schedule:ReturnType<typeof makePaymentSchedule>=[];
+    try {
+      if(!budget || !plan)throw offerError("Monte e salve o plano de pagamento no CAPEX da BIA.");
+      if(budget.moeda!==base?.moeda)throw offerError("A moeda do CAPEX deve coincidir com a moeda da BIA.");
+      const planned=makePaymentSchedule(plan,valorOrigem);
+      const recorded=budget.capex.find(item=>item.geradoDoPlano)?.pagamentos;
+      if(recorded?.length!==planned.length || planned.some((row,i)=>row.mes!==recorded[i].mes || row.centavos!==toPaymentCents(recorded[i].valor ?? NaN)))
+        throw offerError("Gere novamente os pagamentos do CAPEX e salve o orçamento antes de preparar a oferta.");
+      schedule=planned;
+    } catch(error) {
+      if(!allowPendingPlan)throw error;
+    }
+    if(!base?.moeda || !Number.isFinite(valorOrigem) || valorOrigem<=0)
+      throw offerError("Informe o Valor de Origem da BIA antes de gerar a oferta.");
+    if(!Number.isSafeInteger(totalQuotas) || totalQuotas<1 || !Array.isArray(base?.participantes))
+      throw offerError("A oferta precisa de uma composição com cotas iniciais inteiras.");
+    let offset=0;
+    const quotas:OfferQuota[]=[];
+    for(const [index,participant] of (base.participantes as InitialMapParticipantInput[]).entries()){
+      const quantity=Number(participant.cotasInvestimento ?? 0);
+      if(!Number.isSafeInteger(quantity) || quantity<0)throw offerError("Use uma quantidade inteira de cotas por participante.");
+      if(participant.titular==="vaga" && !participant.memberId && participant.participantId && quantity>0)quotas.push({
+        id:participant.participantId,numero:index+1,quantidade:quantity,tipo:participant.tipo,pagamentos:quotePaymentShare(schedule,totalQuotas,offset,quantity),
+      });
+      offset+=quantity;
+    }
+    if(offset!==totalQuotas || !quotas.length)throw offerError("Feche a composição e deixe pelo menos uma Cota Disponível.");
+    const raw=initialOpa ?? await directusFetchOne("tipos_oportunidades",String(registry.source_id),"fields=*,anexos.directus_files_id.*");
+    if(!raw)throw offerError("OBA não encontrada.",404);
+    const [opa]=resolveAnexosOpa([raw]);
+    return {titulo:opa.nome_oportunidade,descricao:opa.descricao || "",localizacao:opa.localizacao || "",imagem:opa.imagem_url || null,
+      moeda:base.moeda,totalQuotas,valorOrigem,correcao:schedule.length ? plan!.correcao : "",quotas,
+      documentos:(opa.Anexos || []).filter((item:any)=>item.url).map((item:any)=>({id:String(item.id),titulo:item.title,url:item.url})).sort((a:any,b:any)=>a.id.localeCompare(b.id)),
+    };
+  }
+
+  app.get("/api/oportunidades/:id/oferta",async(req,res)=>{
+    try{
+      const id=String(req.params.id);
+      const registry=await getOpportunityRegistry(id);
+      if(!registry || registry.source_type!=="oba")return res.status(404).json({error:"OBA não encontrada."});
+      if(req.query.previa==="1"){
+        if(!await canManageOpa(req,id))return res.status(403).json({error:"Prévia disponível à gestão da OBA."});
+        const head=await obaOfferHead(String(registry.id));
+        const oferta=await buildObaOffer(registry,await loadInitialMapSnapshot(String(registry.bia_id)),db);
+        return res.json({oferta,revisao:Number(head?.revisao || 0),assinatura:createHash("sha256").update(JSON.stringify(oferta)).digest("hex"),validade:registry.expira_em});
+      }
+      const inviteToken=req.get("X-Oba-Invite");
+      if(inviteToken !== undefined){
+        res.set("Cache-Control","private, no-store");
+        const invite=/^oferta_[A-Za-z0-9_-]{43}$/.test(inviteToken) ? await storage.getConviteLinkByToken(inviteToken) : null;
+        if(invite?.source_type!=="oba" || String(invite.source_id)!==String(registry.source_id) ||
+          invite.status!=="ativo" || !(new Date(invite.expires_at)>new Date()) ||
+          !isOpportunityEditable(registry.status) || (registry.expira_em && new Date(registry.expira_em)<=new Date()))
+          return res.status(404).json({error:"Oferta indisponível."});
+      }else if(!await canReadObaOffer(req,registry))return res.status(404).json({error:"Oferta indisponível."});
+      const head=await obaOfferHead(String(registry.id));
+      if(!head || String(head.bia_id)!==String(registry.bia_id))return res.status(404).json({error:"Oferta ainda não publicada."});
+      const base=await loadInitialMapSnapshot(String(registry.bia_id));
+      const liveBase=base ?? await readObaDraftBase(String(registry.bia_id));
+      const vacancies=new Map(openMapVacancies(liveBase?.participantes).map(({slot})=>[slot.participantId,slot]));
+      const oferta={...(head.oferta as BiaOffer),quotas:(head.oferta as BiaOffer).quotas.filter(quota=>{
+        const slot=vacancies.get(quota.id);
+        return slot?.tipo===quota.tipo && Number(slot.cotasInvestimento)===quota.quantidade;
+      })};
+      return res.json({revisao:head.revisao,assinatura:head.assinatura,oferta,validade:registry.expira_em,
+        aquisicaoCotas:String(registry.source_id)===quotaAcquisitionObaId(String(registry.bia_id))});
+    }catch(error:any){res.status(error.statusCode || 500).json({error:error.message});}
+  });
+
+  app.post("/api/oportunidades/:id/oferta",async(req,res)=>{
+    try{
+      const id=String(req.params.id), registry=await getOpportunityRegistry(id);
+      if(!registry || registry.source_type!=="oba" || !registry.bia_id)return res.status(404).json({error:"OBA não encontrada."});
+      if(!await canManageOpa(req,id))return res.status(403).json({error:"Publicação disponível à gestão da OBA."});
+      if(!isOpportunityEditable(registry.status))return res.status(409).json({error:"A OBA está encerrada."});
+      await ensureObaOfferStorage();
+      const result=await withMapLock(String(registry.bia_id),async(tx,base)=>{
+        const current=(await tx.execute(sql`SELECT * FROM opportunity_registry WHERE id=${registry.id} FOR UPDATE`)).rows[0];
+        if(!current || String(current.bia_id)!==String(registry.bia_id) || !isOpportunityEditable(current.status))throw offerError("A OBA mudou. Reabra a oferta.");
+        const head=await obaOfferHead(String(registry.id),tx);
+        const oferta=await buildObaOffer(registry,base,tx);
+        const signature=createHash("sha256").update(JSON.stringify(oferta)).digest("hex");
+        if(req.body?.assinatura!==signature || req.body?.revisao!==Number(head?.revisao || 0))throw offerError("A oferta mudou. Abra a prévia atualizada antes de publicar.");
+        if(head?.assinatura===signature && String(head.bia_id)===String(registry.bia_id))return {revisao:head.revisao};
+        const revision=Number(head?.revisao || 0)+1;
+        await tx.execute(sql`INSERT INTO oba_ofertas_versoes (registry_id,bia_id,revisao,oferta,assinatura,criado_por)
+          VALUES (${registry.id},${String(registry.bia_id)},${revision},${JSON.stringify(oferta)}::jsonb,${signature},${String((req.session as any).directusUserId)})`);
+        return {revisao:revision};
+      });
+      return res.json(result);
+    }catch(error:any){res.status(error.statusCode || 500).json({error:error.message});}
+  });
+
+  app.post("/api/bias/:id/oba-aquisicao",async(req,res)=>{
+    try {
+      const session=req.session as any;
+      if(!session?.directusUserId)return res.status(401).json({error:"Não autenticado."});
+      const bia=await resolveBiaByIdOrPublicCode(req.params.id,"id,nome_bia,situacao,imagem_directus_id,localizacao");
+      if(!bia?.id)return res.status(404).json({error:"BIA não encontrada."});
+      const biaId=String(bia.id);
+      await ensureCanLinkOpaToBia(req,{bia:biaId});
+      await ensureObaOfferStorage();
+      const id=quotaAcquisitionObaId(biaId);
+      const result=await withMapLock(biaId,async(tx,base)=>{
+        await ensureCanLinkOpaToBia(req,{bia:biaId});
+        const liveBase=base ?? await readObaDraftBase(biaId,tx);
+        if(!openMapVacancies(liveBase?.participantes).some(({slot})=>Number(slot.cotasInvestimento)>0))
+          throw offerError("Informe pelo menos uma cota disponível com quantidade positiva.");
+        let opa=await directusFetchOne("tipos_oportunidades",id);
+        if(opa && directusRelationId(opa.bia)!==biaId)throw offerError("A OBA está vinculada a outra BIA.");
+        const title="Oportunidade de aquisição de cotas";
+        const description="Cotas disponíveis na "+String(bia.nome_bia || "BIA")+".";
+        const raw={
+          id,bia:biaId,nome_oportunidade:title,descricao:description,tipo:"Aporte Financeiro",status:"ativa",
+          valor_origem_opa:Number(liveBase.valor_origem),localizacao:bia.localizacao || null,
+          imagem_directus_id:directusRelationId(bia.imagem_directus_id),
+          criado_por_user_id:String(session.directusUserId),criado_por_membro_id:session.membroId || null,
+        };
+        const offer=await buildObaOffer({bia_id:biaId,source_id:id},base,tx,opa ? undefined : raw);
+        if(!opa){
+          await ensureOpaMediaFields();
+          opa=await directusCreate("tipos_oportunidades",raw);
+        }
+        let registry=await getOpportunityRegistry(id);
+        if(!registry)registry=await syncOpaRegistry(opa,true);
+        if(!registry || !isOpportunityEditable(registry.status))throw offerError("Esta OBA está encerrada.");
+        const head=await obaOfferHead(String(registry.id),tx);
+        const signature=createHash("sha256").update(JSON.stringify(offer)).digest("hex");
+        if(head?.assinatura!==signature){
+          const revision=Number(head?.revisao || 0)+1;
+          await tx.execute(sql`INSERT INTO oba_ofertas_versoes (registry_id,bia_id,revisao,oferta,assinatura,criado_por)
+            VALUES (${registry.id},${biaId},${revision},${JSON.stringify(offer)}::jsonb,${signature},${String(session.directusUserId)})`);
+        }
+        return {id,cotasDisponiveis:offer.quotas.reduce((sum,cota)=>sum+cota.quantidade,0)};
+      });
+      res.json(result);
+    }catch(error:any){res.status(error.statusCode || 500).json({error:error.message});}
+  });
+
+  app.post("/api/oportunidades/:id/oferta/duvidas",async(req,res)=>{
+    try{
+      const session=req.session as any;
+      if(!session.directusUserId)return res.status(401).json({error:"Entre na sua conta para enviar a dúvida."});
+      const id=String(req.params.id), registry=await getOpportunityRegistry(id);
+      if(registry?.source_type!=="oba" || !registry?.bia_id || !isOpportunityEditable(registry.status) || !await canReadObaOffer(req,registry) || !await obaOfferHead(String(registry.id)))return res.status(404).json({error:"Oferta indisponível."});
+      const question=typeof req.body?.mensagem==="string"?req.body.mensagem.trim():"";
+      if(!question || question.length>2000)return res.status(400).json({error:"Escreva sua dúvida em até 2.000 caracteres."});
+      const bia=await resolveBiaByIdOrPublicCode(String(registry.bia_id),"*");
+      const director=directusRelationId(bia?.diretor_alianca) || directusRelationId(bia?.aliado_built);
+      const result=await db.execute(sql`INSERT INTO agenda_tarefas (user_id,membro_id,titulo,descricao,data,contexto_tipo,contexto_id,atribuido_por_user_id,atribuido_por_membro_id,atribuido_por_nome)
+        SELECT id,${director},${"Dúvida sobre a OBA · "+registry.titulo},${question},CURRENT_DATE,'oba',${id},${String(session.directusUserId)},${session.membroId || null},${session.nome || null}
+        FROM users WHERE membro_directus_id=${director} ORDER BY id LIMIT 1 RETURNING id`);
+      if(!result.rows.length)return res.status(409).json({error:"O responsável pela OBA ainda não tem uma conta para receber a mensagem."});
+      return res.status(201).json({success:true});
+    }catch(error:any){res.status(error.statusCode || 500).json({error:error.message});}
+  });
+
+
   app.get("/api/oportunidades/:id/interesse", async (req, res) => {
     try {
       const { id } = req.params;
+      const audience = await obaInterestAudience(req,id);
+      if (!audience.allowed && !await canManageOpa(req,id)) return res.status(403).json({error:"OBA indisponível."});
       const interesses = await storage.getInteressesByOpa(id);
       const directusUserId = (req.session as any).directusUserId as string | undefined;
       const meuInteresse = directusUserId ? await storage.getUserInteresseByOpa(id, directusUserId) : null;
-      res.json({ interesses, meuInteresse: meuInteresse || null, total: interesses.length });
+      const context = await opportunityVacancyContext(req,id);
+      const vagas = (context?.vagas || []).map(({slot, index})=>({id:slot.participantId, numero:index+1, tipo:slot.tipo, aporte:slot.capitalComprometido ?? null, cotas:slot.cotasInvestimento ?? null, moeda:context!.base.moeda}));
+      const minhasCandidaturas=directusUserId ? interesses.filter(item=>item.user_id===directusUserId && item.vaga_id).map(({vaga_id,vaga_status})=>({vaga_id,vaga_status})) : [];
+      res.json({ interesses: interesses.filter(item=>!item.vaga_id), meuInteresse: meuInteresse || null, minhasCandidaturas, total: interesses.length, vagas, oferta_vagas: !!context && (vagas.length > 0 || interesses.some(item=>!!item.vaga_id)) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -14375,6 +14856,10 @@ export async function registerRoutes(
       if (!allowedStatuses.has(statusCrm)) {
         return res.status(400).json({ error: "Status invÃ¡lido" });
       }
+      if (!await canManageOpa(req, req.params.id)) return res.status(403).json({ error: "Gestão da OBA não autorizada." });
+      const target = (await storage.getInteressesByOpa(req.params.id)).find(item=>item.id === req.params.interesseId);
+      if (!target) return res.status(404).json({ error: "Manifestação não encontrada." });
+      if (target.vaga_id) return res.status(409).json({ error: "Decida a manifestação na vaga da BIA." });
       const item = await storage.updateOpaInteresse(req.params.interesseId, {
         status_crm: statusCrm,
         observacao_crm: req.body.observacao_crm ? String(req.body.observacao_crm) : null,
@@ -14390,6 +14875,9 @@ export async function registerRoutes(
     try {
       const directusUserId = (req.session as any).directusUserId as string | undefined;
       if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+      const { id } = req.params;
+      const audience = await obaInterestAudience(req,id);
+      if (!audience.allowed) return res.status(403).json({error:"OBA indisponível."});
       const canManifestar = await canAccessProtectedOpaActions(req);
       if (!canManifestar) {
         return res.status(403).json({
@@ -14398,10 +14886,10 @@ export async function registerRoutes(
       }
       const membroId = (req.session as any).membroId as string | undefined;
       const nome = (req.session as any).nome as string | undefined;
-      const { id } = req.params;
       const existing = await storage.getUserInteresseByOpa(id, directusUserId);
       if (existing) return res.status(409).json({ error: "Interesse jÃ¡ registrado" });
-      const multiplicador = req.body.multiplicador != null ? String(req.body.multiplicador) : null;
+      const acquisition=!!audience.registry?.bia_id && id===quotaAcquisitionObaId(String(audience.registry.bia_id));
+      const multiplicador = !acquisition && req.body.multiplicador != null ? String(req.body.multiplicador) : null;
       // Validate submitted multiplicador against OBA minimum
       if (multiplicador != null) {
         const opaFields = await directusFetchOne("tipos_oportunidades", id, "fields=Minimo_esforco_multiplicador");
@@ -14410,16 +14898,46 @@ export async function registerRoutes(
           return res.status(400).json({ error: `O multiplicador deve ser de no mÃ­nimo ${minMult}%.` });
         }
       }
-      const item = await storage.createOpaInteresse({
+      const selection=req.body.vaga_ids;
+      if(selection !== undefined && (!Array.isArray(selection) || !selection.length || selection.some(id=>typeof id!=="string" || !id.trim()) || req.body.vaga_id!=null))
+        return res.status(400).json({error:"Selecione as cotas disponíveis."});
+      const vacancyId = typeof req.body.vaga_id === "string" ? req.body.vaga_id.trim() : "";
+      const vacancyIds:string[]=Array.isArray(selection) ? [...new Set(selection.map(id=>id.trim()))] : vacancyId ? [vacancyId] : [];
+      const context = await opportunityVacancyContext(req,id);
+      if (!vacancyId && req.body.vaga_id != null) return res.status(400).json({ error: "Selecione a cota." });
+      if (vacancyIds.length && (!membroId || !context)) return res.status(409).json({ error: "Cota indisponível." });
+      if (selection !== undefined && (!context || id!==quotaAcquisitionObaId(context.biaId)))
+        return res.status(400).json({error:"Esta oportunidade não aceita seleção múltipla."});
+      const payload = {
         opa_id: id,
         user_id: directusUserId,
         membro_id: membroId || null,
         membro_nome: nome || directusUserId,
         mensagem: req.body.mensagem || null,
         multiplicador,
-      });
+      };
+      if(vacancyIds.length && context)await ensureObaOfferStorage();
+      const item = vacancyIds.length && context ? await withMapLock(context.biaId, async (tx, base) => {
+        const fresh = await opportunityVacancyContext(req,id,base,tx);
+        if (fresh?.biaId !== context.biaId || !vacancyIds.every(id=>fresh.vagas.some(({slot})=>slot.participantId === id))) throw offerError("Uma das cotas selecionadas não está mais disponível.");
+        if (fresh.base.participantes.some((slot:InitialMapParticipantInput)=>slot.memberId === membroId)) throw Object.assign(new Error("Você já consta no MAP Inicial."), {statusCode:409});
+        const [duplicate] = await tx.select({id:opaInteresses.id}).from(opaInteresses).where(and(eq(opaInteresses.opa_id,id),eq(opaInteresses.user_id,directusUserId))).limit(1);
+        if (duplicate) throw Object.assign(new Error("Interesse já registrado."), {statusCode:409});
+        const head=await obaOfferHead(String(fresh.registryId),tx);
+        const publishedQuotas=(head?.oferta as BiaOffer | undefined)?.quotas;
+        const matchesOffer=vacancyIds.every(id=>{
+          const published=publishedQuotas?.find(quota=>quota.id===id);
+          const live=fresh.vagas.find(({slot})=>slot.participantId===id)?.slot;
+          return published && published.tipo===live?.tipo && published.quantidade===Number(live?.cotasInvestimento);
+        });
+        if(((!base || selection !== undefined) && !head) || (req.body.oferta_revisao != null && req.body.oferta_revisao!==head?.revisao) ||
+          (head && (String(head.bia_id)!==context.biaId || !matchesOffer)))
+          throw offerError("A oferta mudou. Consulte a revisão disponível antes de manifestar interesse.");
+        const [created] = await tx.insert(opaInteresses).values(vacancyIds.map(id=>({...payload,vaga_id:id,vaga_bia_id:context.biaId,vaga_status:"pendente",oferta_revisao:head?.revisao ?? null}))).returning();
+        return created;
+      }) : await storage.createOpaInteresse(payload);
       const registry = await getOpportunityRegistry(id).catch(() => null);
-      if (registry) {
+      if (registry && !vacancyIds.length) {
         await db.execute(sql`
           UPDATE opportunity_distribution_flows
           SET status = 'pausado', pausa_motivo = 'interesse_recebido', atualizado_em = now()
@@ -14517,7 +15035,7 @@ export async function registerRoutes(
         }
       })();
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -14526,10 +15044,16 @@ export async function registerRoutes(
       const directusUserId = (req.session as any).directusUserId as string | undefined;
       if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const { id } = req.params;
-      await storage.deleteOpaInteresse(id, directusUserId);
+      const current = await storage.getUserInteresseByOpa(id, directusUserId);
+      if (current?.vaga_bia_id) {
+        await withMapLock(current.vaga_bia_id, async tx => {
+          const result = await tx.delete(opaInteresses).where(and(eq(opaInteresses.opa_id,id),eq(opaInteresses.user_id,directusUserId),eq(opaInteresses.vaga_bia_id,current.vaga_bia_id!),eq(opaInteresses.vaga_status,"pendente"))).returning({id:opaInteresses.id});
+          if (!result.length) throw Object.assign(new Error("A manifestação já foi decidida."), {statusCode:409});
+        });
+      } else await storage.deleteOpaInteresse(id, directusUserId);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -18755,7 +19279,7 @@ Deixe claro que premissas precisam de validação profissional.`,
     return upsert.rows?.[0] || null;
   }
 
-  async function syncOpaRegistry(opaOrId: any) {
+  async function syncOpaRegistry(opaOrId: any, explicitDistribution=false) {
     const opa = typeof opaOrId === "string"
       ? await directusFetchOne("tipos_oportunidades", opaOrId, "fields=*")
       : opaOrId;
@@ -18778,8 +19302,9 @@ Deixe claro que premissas precisam de validação profissional.`,
     const directusStatus = normalizeOpportunityStatus(opa.status, "aberta");
     const status = existing && !isOpportunityEditable(existing.status) ? existing.status : directusStatus;
     const isClosed = ["concluida", "convertida", "encerrada_sem_acordo", "cancelada", "arquivada"].includes(status);
-    const existingVisibility = normalizeOpportunityVisibility(existing?.visibilidade, "publicada");
-    const visibility = isClosed ? "privada" : ["restrita", "pausada"].includes(existingVisibility) ? existingVisibility : "publicada";
+    const acquisition = !!biaId && String(opa.id)===quotaAcquisitionObaId(String(biaId));
+    const existingVisibility = explicitDistribution || (acquisition && !existing) ? "restrita" : normalizeOpportunityVisibility(existing?.visibilidade, "publicada");
+    const visibility = isClosed ? "privada" : ["restrita", "pausada"].includes(existingVisibility) || obaExplicitDistribution(existing) && existingVisibility === "privada" ? existingVisibility : "publicada";
     const createdAt = opa.date_created ? new Date(opa.date_created) : new Date();
     const location = resolveOpaLocation(opa.localizacao) || "";
     const upsert = await db.execute(sql`
@@ -18801,6 +19326,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         ${opa.cidade || location || null}, ${opa.estado || null}, ${opa.pais || "Brasil"},
         ${createdAt}, ${opportunityExpiry(createdAt)}, 'imediato',
         ${JSON.stringify({
+          ...(explicitDistribution || acquisition ? {distribuicao_explicita:true} : {}),
           bia_nome: bia?.nome_bia || null,
           tipo: opa.tipo || null,
           nucleo_alianca: opa.nucleo_alianca || null,
@@ -19226,12 +19752,16 @@ Deixe claro que premissas precisam de validação profissional.`,
             WHERE membro_id = ${membroId} AND status = 'ACTIVE'
           `)).rows.map((row: any) => String(row.id)))
         : null;
-      const items = (result.rows || []).filter((item: any) => {
+      const rawItems = result.rows as any[];
+      const explicitObas = rawItems.filter(obaExplicitDistribution).map(item=>({id:String(item.source_id)}));
+      const visibleExplicitObas = new Set(!publicOnly ? (await filterObasByAudience(req,explicitObas)).map(item=>item.id) : []);
+      const items = rawItems.filter((item: any) => {
         if (tipo !== "todos" && item.tipo !== tipo) return false;
         const expired = item.expira_em && new Date(item.expira_em).getTime() <= Date.now();
         const closed = ["concluida", "convertida", "encerrada_sem_acordo", "expirada", "cancelada", "arquivada"].includes(String(item.status));
         if (publicOnly && (item.visibilidade !== "publicada" || expired || closed)) return false;
-        if (!publicOnly && item.visibilidade !== "publicada" && !canReadRestrictedOpportunity({
+        if (!publicOnly && obaExplicitDistribution(item) && !visibleExplicitObas.has(String(item.source_id))) return false;
+        if (!publicOnly && !obaExplicitDistribution(item) && item.visibilidade !== "publicada" && !canReadRestrictedOpportunity({
           isAdmin,
           actorUserId: actorId,
           actorMemberId: membroId,
@@ -21176,6 +21706,71 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
+  let obaDeliveriesReady: Promise<unknown> | undefined;
+  function ensureObaDeliveries() {
+    return obaDeliveriesReady ??= db.execute(sql.raw(OBA_DELIVERIES_SQL)).catch(error=>{obaDeliveriesReady=undefined;throw error;});
+  }
+
+  async function getObaDeliveryAccess(req: Request, res: Response) {
+    const session=req.session as any;
+    if (!session.directusUserId) {res.status(401).json({error:"Entre na sua conta."});return null;}
+    const registry=await getOpportunityRegistry(String(req.params.codigo));
+    if (registry?.source_type !== "oba" || !registry.bia_id) {res.status(404).json({error:"OBA não encontrada."});return null;}
+    const bia=await resolveBiaByIdOrPublicCode(String(registry.bia_id),"*");
+    if (!bia || !canDecideVacancy(req,bia)) {res.status(403).json({error:"A diretoria da BIA acompanha as entregas da OBA."});return null;}
+    await ensureObaDeliveries();
+    return {registry,actorId:String(session.directusUserId)};
+  }
+
+  app.get("/api/rede/oportunidades/:codigo/entregas", async (req,res) => {
+    try {
+      const access=await getObaDeliveryAccess(req,res);
+      if (!access) return;
+      const result=await db.execute(sql`SELECT * FROM oba_entregas WHERE registry_id=${access.registry.id} ORDER BY criado_em DESC`);
+      res.json({entregas:result.rows,editavel:isOpportunityEditable(access.registry.status)});
+    } catch {res.status(500).json({error:"Não foi possível carregar as entregas."});}
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/entregas", async (req,res) => {
+    try {
+      const access=await getObaDeliveryAccess(req,res);
+      if (!access) return;
+      if (!isOpportunityEditable(access.registry.status)) return res.status(409).json({error:"A OBA está encerrada."});
+      const parsed=obaDeliveryCreateSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({error:"Escolha um aliado e informe o escopo."});
+      const member=await directusFetchOne("cadastro_geral",parsed.data.membro_id,"fields=id,nome,Nome_de_usuario");
+      if (!member?.id) return res.status(404).json({error:"Perfil do aliado indisponível."});
+      const result=await db.execute(sql`
+        INSERT INTO oba_entregas (registry_id,membro_id,membro_nome,escopo,criado_por)
+        SELECT r.id,${String(member.id)},${member.nome || member.Nome_de_usuario || "Membro BUILT"},${parsed.data.escopo},${access.actorId}
+        FROM opportunity_registry r WHERE r.id=${access.registry.id} AND r.status=${access.registry.status}
+        ON CONFLICT (registry_id,membro_id,escopo) DO NOTHING RETURNING *
+      `);
+      if (!result.rows.length) return res.status(409).json({error:"Revise a situação da OBA ou consulte a entrega já registrada."});
+      res.status(201).json(result.rows[0]);
+    } catch {res.status(500).json({error:"Não foi possível registrar a entrega."});}
+  });
+
+  app.patch("/api/rede/oportunidades/:codigo/entregas/:entregaId/validar", async (req,res) => {
+    try {
+      const access=await getObaDeliveryAccess(req,res);
+      if (!access) return;
+      if (!isOpportunityEditable(access.registry.status)) return res.status(409).json({error:"A OBA está encerrada."});
+      const parsed=obaDeliveryValidationSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({error:"Descreva o que foi entregue."});
+      const result=await db.execute(sql`
+        UPDATE oba_entregas e SET relato_entrega=${parsed.data.relato_entrega}, status='aguardando_aprovacao_cpp',
+          validado_por=${access.actorId}, validado_em=now()
+        FROM opportunity_registry r WHERE e.id::text=${req.params.entregaId} AND e.registry_id=${access.registry.id}
+          AND r.id=e.registry_id AND r.status=${access.registry.status} AND e.status='em_acompanhamento'
+        RETURNING e.*
+      `);
+      if (!result.rows.length) return res.status(409).json({error:"A entrega já foi validada ou está indisponível."});
+      res.json(result.rows[0]);
+    } catch {res.status(500).json({error:"Não foi possível validar a entrega."});}
+  });
+
+
   app.get("/api/rede/oportunidades/:codigo/disparo", async (req, res) => {
     try {
       const registry = await getOpportunityRegistry(req.params.codigo);
@@ -21216,13 +21811,19 @@ Deixe claro que premissas precisam de validação profissional.`,
       if (!registry || registry.tipo !== "oba") return res.status(404).json({ error: "OBA não encontrada." });
       if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para compartilhar esta OBA." });
       if (!isOpportunityEditable(registry.status)) return res.status(409).json({ error: "Esta OBA já foi encerrada e não pode gerar novos convites." });
+      const offerLink = req.body?.oferta === true;
+      if (offerLink) {
+        const head = await obaOfferHead(String(registry.id));
+        if (!head || String(head.bia_id)!==String(registry.bia_id) || (registry.expira_em && new Date(registry.expira_em)<=new Date()))
+          return res.status(409).json({ error: "Publique uma oferta vigente antes de gerar o convite." });
+      }
       const destination = opportunityInviteDestination(registry.tipo, registry.source_id);
       if (!destination) return res.status(400).json({ error: "Destino da OBA inválido." });
       const origin = await resolveInviteOrigin(req, registry.bia_id ? String(registry.bia_id) : null);
       if (!origin) return res.status(400).json({ error: "Associe seu perfil a uma comunidade antes de compartilhar a OBA." });
       const session = (req.session as any) || {};
       const localUser = session.email ? await storage.getUserByEmail(String(session.email)) : null;
-      const rawToken = randomBytes(32).toString("base64url");
+      const rawToken = (offerLink ? "oferta_" : "") + randomBytes(32).toString("base64url");
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await storage.createConviteLink({
         token_hash: hashInviteToken(rawToken),
@@ -21240,7 +21841,10 @@ Deixe claro que premissas precisam de validação profissional.`,
       });
       await recordOpportunityEvent(String(registry.id), req, "convite_externo_criado", "Link externo da OBA criado", { expires_at: expiresAt.toISOString() });
       const domain = (process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com")).replace(/\/$/, "");
-      return res.status(201).json({ link: `${domain}/login?convite=${encodeURIComponent(rawToken)}`, expires_at: expiresAt, destination });
+      const link = offerLink
+        ? `${domain}/oferta-convidado/${encodeURIComponent(registry.source_id)}#${rawToken}`
+        : `${domain}/login?convite=${encodeURIComponent(rawToken)}`;
+      return res.status(201).json({ link, expires_at: expiresAt, destination });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -21438,7 +22042,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         UPDATE carteira_demandas SET opa_id = ${createdOpaId}, atualizado_em = now()
         WHERE id = ${claimedDemandId} AND opa_id IS NULL
       `);
-      const targetRegistry = await syncOpaRegistry(opa);
+      const targetRegistry = await syncOpaRegistry(opa,true);
       if (!targetRegistry) throw Object.assign(new Error("A OBA foi criada, mas não foi possível indexá-la."), { status: 500 });
       await db.execute(sql`
         UPDATE carteira_demandas SET status = 'convertida', visibilidade = 'privada', tipo_resolucao = 'OBA', opa_id = ${String(opa.id)}, atualizado_em = now()
@@ -23175,7 +23779,7 @@ Responda em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const [allMembros, allBias, allOportunidades] = await Promise.all([
         directusFetch("cadastro_geral"),
         directusFetch("bias_projetos"),
-        directusFetch("tipos_oportunidades"),
+        directusFetch("tipos_oportunidades").then(items=>filterObasByAudience(req,items)),
       ]);
 
       const systemPrompt = `VocÃª Ã© o assistente inteligente da Built Alliances, uma plataforma de gestÃ£o de membros, projetos BIA e oportunidades de negÃ³cio.
@@ -23497,7 +24101,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const config = (mergedResponses as any)?.configuracao || {};
       const profileError = validateOnboardingStepPayload("perfil", { ...profile, purposes: (mergedResponses as any)?.personalizacao?.purposes });
       if (profileError) return res.status(400).json({ error: profileError, next_url: "/onboarding/perfil" });
-      await directusUpdate("cadastro_geral", String(journey.membro_id), buildInitialOnboardingProfileFields(profile, config));
+      const profileFields = buildInitialOnboardingProfileFields(profile, config);
+      if (profileFields.oab !== undefined) await ensureVitrineFields();
+      await directusUpdate("cadastro_geral", String(journey.membro_id), profileFields);
       const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
       const invite = invites.find((item: any) => String(item.id) === String(journey.convite_id));
       if (!invite) return res.status(404).json({ error: "Convite do onboarding não encontrado." });
@@ -23594,6 +24200,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       profilePatch.built_capital_termo_versao = versions.built_capital;
     }
     if (!preAcceptanceFlow) Object.assign(profilePatch, buildInitialOnboardingProfileFields(profile, config));
+    if (profilePatch.oab !== undefined) await ensureVitrineFields();
     await directusUpdate("cadastro_geral", String(journey.membro_id), profilePatch);
     const acceptedInvite = await storage.updateConvite(invite.id, {
       status: preAcceptanceFlow ? "termos_aceitos" : "acesso_inicial_ativo", termos_aceitos_em: now,
@@ -24654,6 +25261,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const role = await getEffectiveRole(req);
     const isAdmin = ["admin", "manager", "superadmin", "master"].includes(String(role || "").toLowerCase());
     const allItems: AgendaAlertItem[] = [];
+    if (!session.companyEmployeeId && (membroId || isAdmin)) allItems.push(...await vacancyAgendaAlerts(req).catch(()=>[]));
     allItems.push(...await contributionBilling.reminders.alerts(String(userId),session.companyEmployeeId?null:membroId?String(membroId):null));
     if (!session.companyEmployeeId) allItems.push(...await roPulse.alerts(String(session.accessUserId || userId), membroId ? String(membroId) : null));
 
@@ -26371,7 +26979,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           .filter(Boolean)
       );
       const opas = biasIds.size > 0
-        ? await directusFetch("tipos_oportunidades", "fields=id,bia,tipo,nucleo_alianca,objetivo_alianca,localizacao,pais,status").catch(() => [])
+        ? await directusFetch("tipos_oportunidades", "fields=id,bia,tipo,nucleo_alianca,objetivo_alianca,localizacao,pais,status").then(items=>filterObasByAudience(req,items)).catch(() => [])
         : [];
       const opasComunidade = (opas as any[]).filter((opa: any) => {
         const biaId = relationId(opa.bia) || relationId(opa.bia_id);

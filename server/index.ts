@@ -142,8 +142,9 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)|\/fluxo-caixa\/comprovantes(?:\/|$)|^\/api\/agenda\/google(?:\/|$)/i.test(path)) {
+      const logPath = path.replace(/^\/api\/convite-publico\/oferta_[A-Za-z0-9_-]{43}(?=\/|$)/, "/api/convite-publico/[token]");
+      let logLine = `${req.method} ${logPath} ${res.statusCode} in ${duration}ms`;
+      if (!nativeDataEnabled() && capturedJsonResponse && !/\/banco(?:\/|$)|\/aportes-iniciais\/cobrancas(?:\/|$)|\/fluxo-caixa\/comprovantes(?:\/|$)|^\/api\/agenda\/google(?:\/|$)|^\/api\/rede\/oportunidades\/[^/]+\/convite$|^\/api\/oportunidades\/[^/]+\/oferta(?:\/|$)/i.test(path)) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

@@ -1,0 +1,531 @@
+{
+  "version": 1,
+  "id": "profile-oab-bia",
+  "title": "OAB opcional no perfil, onboarding e estrutura jurídica",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/profile-oab.ts",
+    "shared/bia-setup.ts"
+  ],
+  "searchTerms": [
+    "oabResponsavel",
+    "hasLegalContribution",
+    "OAB (UF e número)"
+  ],
+  "consumers": [
+    {
+      "path": "shared/profile-oab.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "shared/initial-onboarding.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "shared/initial-onboarding.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "shared/bia-setup.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "shared/bia-setup.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.tsx",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.test.ts",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "docs/platform/modules/acesso-onboarding.md",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Implementação, documentação ou regressão para OAB opcional e sugestão a partir do perfil."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-assets.test.ts",
+      "decision": "reviewed",
+      "reason": "Usa o editor jurídico compartilhado, que preenche a sugestão ao selecionar e salva no formulário existente."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "reviewed",
+      "reason": "Usa o editor jurídico compartilhado, que preenche a sugestão ao selecionar e salva no formulário existente."
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/environment-access.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/components/member-access-panel.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/lib/access-session.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/lib/profile-completion.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/lib/profile-completion.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/bia-editar.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Usa a validação jurídica compartilhada e passa a aceitar OAB vazia com os demais requisitos preenchidos."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/land-bank-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/membros-permissions.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/vitrine-demandas.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "reviewed",
+      "reason": "Consulta de membros continua retornando o contrato anterior, com campo profissional adicional; o consumidor não depende da OAB."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "reviewed",
+      "reason": "Cobre o valor jurídico persistido e sua compatibilidade; a sugestão do perfil não altera valores históricos."
+    },
+    {
+      "path": "server/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-automatic-indicators.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Usa a validação jurídica compartilhada e passa a aceitar OAB vazia com os demais requisitos preenchidos."
+    },
+    {
+      "path": "server/bia-patrimony.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-phase-readiness.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "reviewed",
+      "reason": "Cobre o valor jurídico persistido e sua compatibilidade; a sugestão do perfil não altera valores históricos."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-workflow.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/native-migration-journey.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "server/onboarding-phone.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/account-areas.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-budget.test.ts",
+      "decision": "reviewed",
+      "reason": "Usa a validação jurídica compartilhada e passa a aceitar OAB vazia com os demais requisitos preenchidos."
+    },
+    {
+      "path": "shared/bia-business-type.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-card-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-card-indicators.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-form-options.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-patrimony.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/bia-tracking.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/environment-access.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/environment-access.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/member-access-summary.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/member-access-summary.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/onboarding-segment-storage.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    },
+    {
+      "path": "shared/property-cib.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência transitiva de estrutura ou onboarding. Nenhuma leitura direta da OAB nem requisito próprio para esse dado."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Onboarding e perfil condicionam a OAB a Jurídicas. Criação e edição compartilham a seleção do responsável e a entrada manual.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Conclusão do onboarding e atualização autenticada de membro gravam OAB opcional. O diretório autenticado fornece a sugestão.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Campo anulável em cadastro_geral via sincronização aditiva. JSON versionado da BIA guarda o valor confirmado.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "OAB não alimenta cálculos, agrupamentos ou gráficos.",
+      "status": "not-applicable"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "OAB não altera eventos ou mensagens.",
+      "status": "not-applicable"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Resumo jurídico e PDF continuam usando exclusivamente a OAB registrada na BIA.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Directus usa a sincronização de campos de perfil já existente. Não há consulta à OAB.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Preserva requireCadastroOrOwn para escrita e autenticação do diretório usado pelo seletor.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Campo omitido ou vazio é aceito. OAB da BIA existente só muda por edição. CPF/CNPJ legado segue separado.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Testes de projeção do onboarding, conclusão sem OAB e seleção individual de perfis homônimos.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "shared/initial-onboarding.test.ts",
+    "shared/bia-setup.test.ts",
+    "client/src/components/bia-legal-person-field.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

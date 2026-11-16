@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "id": "bia-plano-campos-visiveis",
+  "title": "Plano de pagamento com campos visíveis diretamente",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/bia-payment-plan-editor.tsx",
+    "shared/bia-payment-plan.ts"
+  ],
+  "searchTerms": [
+    "BiaPaymentPlanEditor",
+    "Montar plano"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-payment-plan-editor.tsx",
+      "decision": "updated",
+      "reason": "Remove a abertura explícita e só exibe validação do plano após edição."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Orçamento usa o editor compartilhado."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Cadastro e rascunho usam o mesmo editor."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "reviewed",
+      "reason": "Cobre o orçamento sem escrita na abertura."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra a apresentação direta do plano."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Campos do plano verificados na Veneto Gramado no localhost e em renderização sem gravação ao montar."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Contrato de salvamento preservado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "O editor não persiste um plano vazio ao montar."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Cronograma e geração continuam usando os helpers existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Controle de abertura era local à interface."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Modelo e formatação do plano são preservados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Nenhuma integração usa o controle de abertura."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Controles existentes dos formulários permanecem."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Planos existentes continuam carregando diretamente."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify concluído. Renderização do editor sem plano confirmou campos visíveis, ação do CAPEX e ausência de gravação na montagem."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-budget-fields.test.ts",
+    "shared/bia-payment-plan.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "id": "oba-vagas-manifestacoes",
+  "title": "Manifestações e decisão de vagas de OBA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/bia-vacancies.ts",
+    "shared/schema.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "vagas-interesses",
+    "vaga_status",
+    "bia_vaga"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "server/bia-vacancies.ts",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "client/src/components/bia-vacancy-interests.tsx",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Implementa, testa ou documenta o fluxo de manifestação e decisão da vaga."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "reason": "O link da Agenda abre as manifestações mesmo quando o diretor tem acesso a decisões de vaga e não ao editor geral.",
+      "decision": "updated"
+    },
+    {
+      "path": "migrations/20261116_oba_vacancies.sql",
+      "decision": "updated",
+      "reason": "Adiciona campos e índice sem regravar manifestações existentes."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "O detalhe padrão da OBA oferece a mesma opção de manifestar interesse em cota e mostra o estado da decisão."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "A página móvel respeita a distribuição da OBA e envia a manifestação por cota com a revisão publicada."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "OBA reaproveita Manifestar interesse e permite selecionar a vaga. Editar BIA lista interessados e perfis.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Vagas e decisões usam ID canônico da BIA, checagem de diretoria e chave da manifestação.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Colunas aditivas em opa_interesses preservam registros anteriores. Decisão e nova versão do MAP gravam juntas.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "A aprovação usa o cálculo existente e preserva as condições econômicas da cota.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Agenda agrupa pendências por vaga. A aprovação reutiliza alertas da revisão e o convite de sócio.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Revisões e aceites históricos permanecem registrados. O candidato passa a integrar a revisão vigente.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Pulso segue ativo durante manifestações por vaga. O registro geral preserva a pausa existente.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Somente diretoria, Aliado e administração decidem. O candidato mantém o acesso padrão à OBA e à própria manifestação.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Manifestação geral mantém as APIs anteriores. Registros sem vaga não passam à fila de vagas.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Cálculo da cota, autorização e duas decisões concorrentes contra a rota isolada com PostgreSQL em memória.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "server/bia-vacancies.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

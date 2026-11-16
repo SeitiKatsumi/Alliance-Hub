@@ -1,4 +1,6 @@
 import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
+import { ObaOfferLink } from "@/components/oba-offer";
+import { ObaQuotaSelect, obaQuotaStatusLabel } from "@/components/oba-quota-select";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +30,7 @@ interface OportunidadePublica {
   bia_id?: string | null;
   valor_origem_opa?: string | number | null;
   Minimo_esforco_multiplicador?: string | number | null;
+  aquisicao_cotas?: boolean;
   objetivo_alianca?: string | null;
   nucleo_alianca?: string | null;
   pais?: string | null;
@@ -56,6 +59,8 @@ interface OpaInteresse {
 
 interface InteresseResponse {
   interesses: OpaInteresse[];
+  vagas?: Array<{id:string;numero:number;tipo:string;aporte:number|null;cotas:number|null;moeda:string}>;
+  oferta_vagas?:boolean;
   meuInteresse: OpaInteresse | null;
   total: number;
 }
@@ -124,6 +129,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [vagaId,setVagaId]=useState("");
   const [interesseOpen, setInteresseOpen] = useState(false);
   const [membershipDialogOpen, setMembershipDialogOpen] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -173,7 +179,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const interesseMutation = useMutation({
     mutationFn: async () => {
       if (!opa?.id) throw new Error("OBA não encontrada");
-      return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, { mensagem: mensagem || null });
+      return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, { mensagem: mensagem || null, ...(vagaId ? {vaga_id:vagaId} : {}) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: interesseQueryKey });
@@ -227,8 +233,10 @@ export function VitrineOpaDetalhePage(props: any = {}) {
 
   const image = getOpaImage(opa);
   const valor = num(opa.valor_origem_opa);
-  const mem = num(opa.Minimo_esforco_multiplicador);
+  const mem = opa.aquisicao_cotas ? 0 : num(opa.Minimo_esforco_multiplicador);
   const jaInteressado = !!interesseData?.meuInteresse;
+  const statusVaga = (interesseData?.meuInteresse as (OpaInteresse & {vaga_status?:string}) | null | undefined)?.vaga_status;
+  const statusVagaLabel = obaQuotaStatusLabel(statusVaga);
   const totalInteresses = interesseData?.total || 0;
 
   return (
@@ -349,13 +357,14 @@ export function VitrineOpaDetalhePage(props: any = {}) {
           {!isCapital && <Card className={jaInteressado ? "border-blue-300" : ""}>
             <CardContent className="space-y-3 pt-5">
               <SectionTitle icon={HandHeart}>Interesse</SectionTitle>
+              <ObaOfferLink opaId={String(opa.id)} />
               {jaInteressado ? (
                 <>
                   <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
                     <UserCheck className="h-4 w-4 text-blue-600" />
-                    <p className="text-sm font-medium text-blue-700">Interesse registrado</p>
+                    <p className="text-sm font-medium text-blue-700">{statusVaga ? statusVagaLabel : "Interesse registrado"}</p>
                   </div>
-                  <Button
+                  {(!statusVaga || statusVaga === "pendente") && <Button
                     variant="ghost"
                     size="sm"
                     className="w-full text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
@@ -364,7 +373,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
                   >
                     {removerInteresseMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                     Cancelar interesse
-                  </Button>
+                  </Button>}
                 </>
               ) : (
                 <>
@@ -386,6 +395,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
                   </Button>
                 </>
               )}
+              {interesseData?.oferta_vagas && !interesseData.vagas?.length && <p className="text-sm text-muted-foreground">Nenhuma cota disponível.</p>}
               {totalInteresses > 0 && (
                 <>
                   <Separator />
@@ -413,6 +423,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
               <p className="text-sm font-medium text-blue-700">{opa.nome_oportunidade}</p>
               {opa.nucleo_alianca && <p className="mt-1 text-xs text-muted-foreground">{opa.nucleo_alianca}</p>}
             </div>
+            <ObaQuotaSelect quotas={interesseData?.vagas} value={vagaId} onChange={setVagaId} />
             <Textarea
               value={mensagem}
               onChange={(event) => setMensagem(event.target.value)}
@@ -422,8 +433,8 @@ export function VitrineOpaDetalhePage(props: any = {}) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInteresseOpen(false)}>Cancelar</Button>
-            <Button onClick={() => interesseMutation.mutate()} disabled={interesseMutation.isPending} className="bg-blue-600 text-white hover:bg-blue-700">
-              {interesseMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+            <Button onClick={() => interesseMutation.mutate()} loading={interesseMutation.isPending} disabled={interesseMutation.isPending} className="bg-blue-600 text-white hover:bg-blue-700">
+              {!interesseMutation.isPending && <CheckCircle2 className="mr-2 h-4 w-4" />}
               Enviar interesse
             </Button>
           </DialogFooter>

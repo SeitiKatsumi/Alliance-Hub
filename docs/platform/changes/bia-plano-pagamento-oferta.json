@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "id": "bia-plano-pagamento-oferta",
+  "title": "Plano de pagamento do CAPEX e oferta móvel por cota",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-payment-plan.ts",
+    "shared/bia-budget.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "planoPagamento",
+    "geradoDoPlano",
+    "oba_ofertas_versoes",
+    "oferta_revisao"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-payment-plan.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "shared/bia-payment-plan.test.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "shared/bia-budget.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "shared/bia-offer.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "server/bia-offer.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "migrations/20261116_oba_offer.sql",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "migrations/20261116_oba_vacancies.sql",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/components/bia-payment-plan-editor.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/components/bia-vacancy-interests.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Implementa ou valida o plano, a oferta, a manifestação ou seus pontos de entrada."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "updated",
+      "reason": "Edição da BIA direciona o CAPEX de uma estruturação aberta ao rascunho canônico."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Criação, edição e CAPEX compartilham o editor. Gestão da OBA abre prévia e usa a mesma tela móvel do interessado. O editor apresenta a quantidade e o valor exato das parcelas do saldo, incluindo diferenças de centavos.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Publicação valida a prévia e o CAPEX já salvo. Manifestação guarda revisão e a dúvida vira tarefa de Agenda.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "O plano integra o orçamento versionado. A oferta tem versões aditivas, com vínculo à BIA e sem dados privados de sócios.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "O cálculo único trabalha em centavos, estende a cobertura do CAPEX e preserva rubricas manuais.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Dúvidas entram na Agenda do responsável da BIA. Convite, Pulso e manifestações conservam os canais existentes.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "Oferta usa somente os anexos da OBA. Resumo e PDF preservam a projeção de CAPEX e a OAB existente.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Publicação e envio são ações separadas. Nenhuma previsão cria lançamento do fluxo de caixa ou cobrança.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Preview e publicação disponíveis à gestão. Oferta publicada segue a audiência e valida a disponibilidade da cota.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "Proposta por cotas exige BEI com CIs inteiras. Orçamentos e OBAs sem plano permanecem utilizáveis.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Validação de centavos, casos de 86 e 66 pagamentos, troca do plano, oferta publicada, nomes protegidos e revisão concorrente. A quantidade de parcelas pode ficar vazia ou zero, com validação na geração.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-payment-plan.test.ts",
+    "server/bia-offer.test.ts",
+    "client/src/components/bia-budget-fields.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

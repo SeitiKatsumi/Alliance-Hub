@@ -23,4 +23,4 @@ type Handoff = { setup: BiaSetup; revision: number };
 const handoffs = new Map<string, Handoff>();
 export function keepDraftHandoff(id: string, handoff: Handoff) { handoffs.set(id, handoff); }
 export function takeDraftHandoff(id: string) { const value = handoffs.get(id); handoffs.delete(id); return value; }
-export function draftSectionStep(section: string | null) { return ({ juridico: 3, ativos: 4, orcamento: 5 } as Record<string, number>)[section || ''] ?? 0; }
+export function draftSectionStep(section: string | null) { return ({ equipe: 1, map: 2, juridico: 3, ativos: 4, orcamento: 5, revisao: 6, situacao: 7 } as Record<string, number>)[section || ''] ?? 0; }

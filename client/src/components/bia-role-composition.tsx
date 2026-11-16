@@ -1,3 +1,4 @@
+import { OBA_AVAILABLE_QUOTA_LABEL } from "@shared/member-portfolio";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
@@ -18,10 +19,10 @@ export function BiaNumberInput({value,onChange,decimals=2,disabled=false,label,p
 const roles=Object.keys(BIA_PARTICIPANT_ROLE_FIELDS).map(r=>BIA_PARTICIPANT_ROLE_LABELS[r as keyof typeof BIA_PARTICIPANT_ROLE_FIELDS]);
 
 // Presentation only: the caller supplies the existing model's authoritative preview.
-export function BiaExistingCompositionFields({participants,onChange,members,valorOrigem,onValueChange,byValue,byRole=false,readOnly=false,moeda="BRL",preview}:{
+export function BiaExistingCompositionFields({participants,onChange,members,valorOrigem,onValueChange,byValue,byRole=false,readOnly=false,allowUnlinked=true,allowVacancies=allowUnlinked,moeda="BRL",preview}:{
   participants:InitialMapParticipantInput[];onChange:(p:InitialMapParticipantInput[])=>void;
   members:Array<{id:string;nome?:string|null;Nome_de_usuario?:string|null}>;
-  valorOrigem:number;onValueChange:(value:number)=>void;byValue:boolean;byRole?:boolean;readOnly?:boolean;moeda?:string;
+  valorOrigem:number;onValueChange:(value:number)=>void;byValue:boolean;byRole?:boolean;readOnly?:boolean;allowUnlinked?:boolean;allowVacancies?:boolean;moeda?:string;
   preview:{calculation:InitialMapCalculation|null;error:string|null};
 }) {
   const types=useQuery<Array<{id:string;Nome:string}>>({queryKey:["/api/tipos-cpp"],enabled:byValue});
@@ -30,26 +31,44 @@ export function BiaExistingCompositionFields({participants,onChange,members,valo
   const percent=(value:number|undefined)=>Number.isFinite(value)?formatBiaPercent(value!):"Pendente";
   const css="min-h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
   const section="min-w-0 space-y-4 rounded-lg border bg-card p-4 sm:p-5";
-  const name=(p:InitialMapParticipantInput)=>p.nome || "Participante";
+  const name=(p:InitialMapParticipantInput)=>p.titular === "vaga" ? OBA_AVAILABLE_QUOTA_LABEL : p.nome || "Participante";
   const classification=(label:string,value:InitialMapParticipantInput["tipoCppCapital"],change:(value:InitialMapParticipantInput["tipoCppCapital"])=>void)=><label className="min-w-0 text-sm">{label}<select className={css} value={value?.id || ""} disabled={readOnly || types.isPending || types.isError} onChange={e=>{const type=types.data?.find(t=>String(t.id)===e.target.value);change(type?{id:String(type.id),nome:type.Nome}:undefined);}}><option value="">Selecione quando houver valor</option>{value && !types.data?.some(t=>String(t.id)===value.id) && <option value={value.id}>{value.nome} (registrado)</option>}{types.data?.map(t=><option key={t.id} value={t.id}>{t.Nome}</option>)}</select></label>;
   const incomplete=byValue && participants.some(p=>!p.naturezaCapital || (Number(p.capitalComprometido)>0 && !p.tipoCppCapital?.id) || (byRole?p.contribuicoes?.some(c=>c.indice>0 && !c.tipoCpp?.id):p.indiceContribuicao>0 && !p.tipoCppContribuicao?.id));
   return <fieldset disabled={readOnly} className="min-w-0 space-y-6" data-testid="existing-bei">
     <section className={section}><h2 className="text-xl font-semibold">1. Dados econômicos</h2><label className="block max-w-sm">Valor de Origem ({moeda})<BiaNumberInput label="Valor de Origem" value={valorOrigem} onChange={onValueChange} decimals={5}/></label><p className="text-sm text-muted-foreground">Esta BIA mantém seu modelo econômico original. Nenhum valor é convertido ao abrir a edição.</p></section>
-    <section className={section} data-testid="existing-bei-participants"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">2. Participantes e aportes</h2><Button type="button" variant="outline" onClick={()=>onChange([...participants,{participantId:`draft:${crypto.randomUUID()}`,memberId:null,nome:"",cargos:[],tipo:byRole?"multiplicador":"guardiao",indiceContribuicao:NaN,pesoCapital:byRole?0:NaN,...(byValue?{capitalComprometido:NaN,naturezaCapital:"caixa" as const}:{}),...(byRole?{modeloCalculo:4 as const,contribuicoes:[{cargo:"Contribuição individual",indice:NaN}]}:{})}])}>+ Pessoa</Button></div><p className="text-sm text-muted-foreground">Uma linha por pessoa. Defina as funções e os índices no bloco seguinte.</p>
+    <section className={section} data-testid="existing-bei-participants"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">2. Participantes e aportes</h2><Button type="button" variant="outline" onClick={()=>onChange([...participants,{participantId:`draft:${crypto.randomUUID()}`,memberId:null,nome:"",cargos:[],tipo:byRole?"multiplicador":"guardiao",indiceContribuicao:NaN,pesoCapital:byRole?0:NaN,...(byValue?{capitalComprometido:NaN,naturezaCapital:"caixa" as const}:{}),...(byRole?{modeloCalculo:4 as const,contribuicoes:[{cargo:"Contribuição individual",indice:NaN}]}:{})}])}>+ Pessoa</Button></div><p className="text-sm text-muted-foreground">Uma linha por sócio ou vaga. Defina as funções e os índices no bloco seguinte.</p>
       {participants.map((p,i)=><div key={p.participantId || i} className="space-y-3 border-b pb-4" role="group" aria-label={`Participante ${i+1}`}><div className="grid min-w-0 gap-3 md:grid-cols-[150px_minmax(0,2fr)_minmax(150px,1fr)_minmax(160px,1fr)]">
         <label className="min-w-0 text-sm">Tipo de Sócio<select className={css} value={p.tipo} onChange={e=>{const tipo=e.target.value as "guardiao"|"multiplicador";if(!byRole && tipo==="multiplicador" && (Number(p.capitalComprometido)>0 || p.pesoCapital>0) && !window.confirm("Mudar para Multiplicador zera o aporte desta pessoa neste modelo. Continuar?"))return;patch(i,{tipo,...(!byRole && tipo==="multiplicador"?{pesoCapital:0,...(byValue?{capitalComprometido:0,tipoCppCapital:undefined}:{})}:{})});}}><option value="guardiao">Guardião</option><option value="multiplicador">Multiplicador</option></select></label>
-        <label className="min-w-0 text-sm">Sócio Aliado<SearchableNameSelect value={p.memberId || ""} disabled={readOnly || !!p.institutionCode} ariaLabel={`Sócio Aliado — participante ${i+1}`} placeholder={p.institutionCode || (p.nome && !p.memberId?p.nome:"Selecione a pessoa")} options={[
-          {value:"",label:p.institutionCode || (p.nome && !p.memberId?p.nome:"Selecione a pessoa"),pinned:true},
+        <label className="min-w-0 text-sm">Sócio Aliado<SearchableNameSelect value={p.memberId || p.titular || ""} disabled={readOnly || !!p.institutionCode} ariaLabel={"Sócio Aliado — participante " + (i+1)} options={[
+          {value:"",label:p.institutionCode || "Selecione a pessoa",pinned:true},
+          ...(allowVacancies ? [{value:"vaga",label:OBA_AVAILABLE_QUOTA_LABEL,pinned:true}] : []),
+          ...(allowUnlinked ? [{value:"externo",label:"Digitar nome",pinned:true}] : []),
           ...(p.memberId && !members.some(m=>String(m.id)===p.memberId)?[{value:p.memberId,label:p.nome || "Participante registrado",pinned:true}]:[]),
           ...members.map(m=>({value:String(m.id),label:m.nome || m.Nome_de_usuario || "Membro",disabled:participants.some((other,n)=>n!==i && other.memberId===String(m.id))})),
-        ]} onValueChange={memberId=>{if(memberId===p.memberId)return;if(p.memberId && !window.confirm(byRole?"Trocar a pessoa remove os valores desta ficha. Continuar?":"Trocar a pessoa mantém os valores e funções desta ficha. Confirma a substituição?"))return;const m=members.find(m=>String(m.id)===memberId);patch(i,{memberId:memberId || null,participantId:memberId?`member:${memberId}`:`draft:${crypto.randomUUID()}`,nome:m?.nome || m?.Nome_de_usuario || "",...(byRole?{capitalComprometido:NaN,tipoCppCapital:undefined,contribuicoes:p.contribuicoes?.map(c=>({...c,indice:NaN,tipoCpp:undefined}))}:{})});}} /></label>
+        ]} onValueChange={selected=>{
+          if(selected===(p.memberId || p.titular || ""))return;
+          const titular = selected === "vaga" || selected === "externo" ? selected : undefined;
+          if(p.memberId && !window.confirm(titular ? "Trocar o titular remove as funções de governança desta ficha. Continuar?" : byRole ? "Trocar a pessoa remove os valores desta ficha. Continuar?" : "Trocar a pessoa mantém os valores e funções desta ficha. Confirma a substituição?"))return;
+          const memberId = titular ? null : selected || null;
+          const member = members.find(m=>String(m.id)===memberId);
+          patch(i,{
+            titular,
+            memberId,
+            participantId:memberId ? "member:" + memberId : (p.titular || !p.memberId ? p.participantId || "draft:" + crypto.randomUUID() : "draft:" + crypto.randomUUID()),
+            nome:member ? member.nome || member.Nome_de_usuario || "Membro" : titular === "vaga" ? OBA_AVAILABLE_QUOTA_LABEL : "",
+            ...(titular ? { cargos:[], indiceContribuicao:0, tipoCppContribuicao:undefined, ...(byRole ? { contribuicoes:[{ cargo:"Contribuição individual", indice:0 }] } : {}) }
+              : byRole && !p.titular ? {capitalComprometido:NaN,tipoCppCapital:undefined,contribuicoes:p.contribuicoes?.map(c=>({...c,indice:NaN,tipoCpp:undefined}))} : {}),
+          });
+        }} />
+        {p.titular === "externo" && <Input aria-label="Nome do sócio externo" placeholder="Digite o nome completo" maxLength={200} className="mt-2" value={p.nome} onChange={e=>patch(i,{nome:e.target.value})} />}
+        </label>
         <label className="min-w-0 text-sm">{byValue?`Aporte (${moeda})`:"Peso do capital (%)"}<BiaNumberInput label={`${byValue?"Aporte":"Peso do capital"} — ${name(p)}`} value={byValue?p.capitalComprometido ?? NaN:p.pesoCapital} decimals={5} disabled={readOnly || (!byRole && p.tipo==="multiplicador")} onChange={value=>patch(i,byValue?{capitalComprometido:value}:{pesoCapital:value})}/></label>
         {byValue && <label className="min-w-0 text-sm">Forma do aporte<select className={css} value={p.naturezaCapital || ""} onChange={e=>patch(i,{naturezaCapital:e.target.value as "caixa"|"nao_caixa"})}><option value="">Selecione</option><option value="caixa">Dinheiro</option><option value="nao_caixa">Propriedade, bens ou direitos</option></select></label>}
       </div><Button type="button" variant="ghost" className="text-destructive" onClick={()=>{if(window.confirm("Remover esta pessoa, suas funções e valores?"))onChange(participants.filter((_,n)=>n!==i));}}>Remover pessoa</Button></div>)}
       {!participants.length && <p>Adicione os participantes.</p>}
     </section>
     <section className={section} data-testid="existing-bei-governance"><h2 className="text-xl font-semibold">3. Governança e Divisor Multiplicador</h2><p className="text-sm text-muted-foreground">{byRole?"Os índices das funções são somados por pessoa. DM não é a participação final.":"Um único DM por pessoa, mesmo com várias funções. As funções não dividem nem multiplicam esse índice."}</p>
-      {participants.map((p,i)=><div key={p.participantId || i} className="space-y-3 rounded border p-3"><h3 className="font-semibold">{name(p)}</h3>{byRole?<>
+      {participants.map((p,i)=>p.titular ? null : <div key={p.participantId || i} className="space-y-3 rounded border p-3"><h3 className="font-semibold">{name(p)}</h3>{byRole?<>
         {(p.contribuicoes || []).map((c,j)=><div key={j} className="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(120px,1fr)_auto]"><label className="min-w-0 text-sm">Função<select className={css} value={c.cargo} onChange={e=>{if((c.indice>0 || c.tipoCpp) && !window.confirm("Trocar a função limpa o índice e a classificação desta linha. Continuar?"))return;const rows=p.contribuicoes!.map((r,n)=>n===j?{cargo:e.target.value,indice:NaN}:r);patch(i,{contribuicoes:rows,cargos:rows.filter(r=>r.cargo!=="Contribuição individual").map(r=>r.cargo)});}}>{!["Contribuição individual",...roles].includes(c.cargo) && <option>{c.cargo}</option>}{["Contribuição individual",...roles].map(role=><option key={role} disabled={role!==c.cargo && role!=="Contribuição individual" && participants.some(other=>other.contribuicoes?.some(r=>r.cargo===role))}>{role}</option>)}</select></label><label className="text-sm">DM da função (%)<BiaNumberInput label={`DM — ${name(p)} — ${c.cargo}`} decimals={5} value={c.indice} onChange={indice=>patch(i,{contribuicoes:p.contribuicoes!.map((r,n)=>n===j?{...r,indice}:r)})}/></label>{p.contribuicoes!.length>1 && <Button type="button" variant="ghost" onClick={()=>{if(!window.confirm("Remover esta função e seu direito?"))return;const rows=p.contribuicoes!.filter((_,n)=>n!==j);patch(i,{contribuicoes:rows,cargos:rows.filter(r=>r.cargo!=="Contribuição individual").map(r=>r.cargo)});}}>Remover função</Button>}</div>)}
         <Button type="button" variant="outline" onClick={()=>patch(i,{contribuicoes:[...(p.contribuicoes || []),{cargo:"Contribuição individual",indice:NaN}]})}>Adicionar função</Button>
       </>:<div className="grid gap-3 sm:grid-cols-[2fr_1fr]"><label className="text-sm">Funções<Input value={(p.cargos || []).join(",")} placeholder="Funções separadas por vírgula" onChange={e=>patch(i,{cargos:e.target.value.split(",")})}/></label><label className="text-sm">DM da pessoa (%)<BiaNumberInput label={`DM da pessoa — ${name(p)}`} value={p.indiceContribuicao} decimals={5} onChange={indiceContribuicao=>patch(i,{indiceContribuicao})}/></label></div>}</div>)}

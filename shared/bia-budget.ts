@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { makePaymentSchedule, paymentPlanSchema, monthIndex as planMonthIndex } from "./bia-payment-plan";
 
 export const BUDGET_COST_STATES = ["Estimativa", "Orçado", "Contratado"] as const;
 export const BUDGET_SOURCE_STATES = ["Estimada", "Condicionada", "Confirmada pelo responsável"] as const;
@@ -11,7 +12,8 @@ const money = z.number().finite().min(0).max(1e10).nullable().default(null);
 const expense = { id, descricao:text, situacao:z.enum(BUDGET_COST_STATES), ativoId:text, ativoNome:text };
 export const biaBudgetSchema = z.object({
   moeda:z.string().regex(/^[A-Z]{3}$/), inicio:month, meses:z.number().int().positive().refine(Number.isSafeInteger, 'Informe uma quantidade inteira de meses representável com segurança'),
-  capex:z.array(z.object({...expense,valor:money,pagamentos:z.array(z.object({id,mes:month,valor:money})).max(120)})).max(200),
+  planoPagamento:paymentPlanSchema.optional(),
+  capex:z.array(z.object({...expense,valor:money,geradoDoPlano:z.literal(true).optional(),pagamentos:z.array(z.object({id,mes:month,valor:money})).max(120)})).max(200),
   opex:z.array(z.object({...expense,valorMensal:money,inicio:month,fim:month})).max(200),
   fontes:z.array(z.object({id,descricao:text,tipo:z.enum(BUDGET_SOURCE_TYPES),valor:money,mes:month,situacao:z.enum(BUDGET_SOURCE_STATES),destinacao:z.enum(BUDGET_TARGETS),observacoes:text})).max(200),
 }).superRefine((v,ctx)=>{
@@ -102,4 +104,23 @@ export function projectBiaBudget(budget:BiaBudget|undefined,moeda:string,assets:
   const capexTotal=knownCapex?capex/100:null;
   return {warnings,partial,currencyMismatch,capex:capexTotal,opex:start===null || !knownOpex?null:opex/100,
     diferenca:!currencyMismatch && capexTotal!==null && typeof valorOrigem==='number' && Number.isFinite(valorOrigem)?(capex-cents(valorOrigem))/100:null,rows:projected};
+}
+
+export function applyPaymentPlan(budget:BiaBudget, plan:NonNullable<BiaBudget["planoPagamento"]>, total:number):BiaBudget {
+  const rows=makePaymentSchedule(plan,total);
+  const generated=budget.capex.find(item=>item.geradoDoPlano);
+  const manual=budget.capex.filter(item=>!item.geradoDoPlano);
+  if (manual.length>=200) throw new Error("O CAPEX já atingiu o limite de investimentos.");
+  const priorIds=new Set(manual.map(item=>item.id));
+  let id=generated?.id || "plano-valor-origem";
+  while(priorIds.has(id))id+="-1";
+  const inicio=budget.inicio && budget.inicio<plan.inicio ? budget.inicio : plan.inicio;
+  const previousEnd=budget.inicio?planMonthIndex(budget.inicio)+budget.meses-1:planMonthIndex(inicio);
+  const end=Math.max(previousEnd,planMonthIndex(rows.at(-1)!.mes));
+  return biaBudgetSchema.parse({...budget,planoPagamento:plan,inicio,meses:end-planMonthIndex(inicio)+1,
+    capex:[...manual,{id,geradoDoPlano:true,descricao:"Plano de pagamento do Valor de Origem",situacao:"Estimativa",
+      ativoId:generated?.ativoId || "",ativoNome:generated?.ativoNome || "",valor:rows.reduce((sum,p)=>sum+p.centavos,0)/100,
+      pagamentos:rows.map((row,index)=>({id:"previsto-"+(index+1),mes:row.mes,valor:row.centavos/100})),
+    }],
+  });
 }

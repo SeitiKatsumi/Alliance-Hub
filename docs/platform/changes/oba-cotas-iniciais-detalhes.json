@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "id": "oba-cotas-iniciais-detalhes",
+  "title": "Mostrar cotas iniciais nos Detalhes da OBA de aquisição",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "shared/bia-offer.ts"
+  ],
+  "searchTerms": [
+    "aquisicaoCotas",
+    "acquisitionOffer"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Identifica a OBA automática na leitura da oferta vigente sem reescrever versões."
+    },
+    {
+      "path": "shared/bia-offer.ts",
+      "decision": "updated",
+      "reason": "Expõe a classificação opcional no contrato da leitura."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Exibe o total disponível na aba Detalhes e usa o valor unitário da cota nos resumos da OBA de aquisição."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Verifica classificação das ofertas existentes e a contagem."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra o indicador nos detalhes."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "reason": "Consome a mesma classificação para a grade da oferta.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "reason": "Usa a mesma classificação para omitir MEM das aquisições no formulário.",
+      "decision": "reviewed"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "No localhost autenticado, a seção da Veneto Gramado mostrou 9 de 10 cotas disponíveis e R$ 117.000,00 por cota. Gestão deixou de repetir a contagem."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Integração validou identificação distinta para OBA de aquisição e oferta comum."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "A classificação usa a identidade estável já existente. Sem migração."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "A mudança posiciona o indicador de cotas e preserva cálculo, acesso e ações da oferta."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "A mudança posiciona o indicador de cotas e preserva cálculo, acesso e ações da oferta."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "A mudança posiciona o indicador de cotas e preserva cálculo, acesso e ações da oferta."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "A mudança posiciona o indicador de cotas e preserva cálculo, acesso e ações da oferta."
+    },
+    {
+      "area": "permissoes",
+      "status": "not-applicable",
+      "evidence": "A mudança posiciona o indicador de cotas e preserva cálculo, acesso e ações da oferta."
+    },
+    {
+      "area": "legado",
+      "status": "not-applicable",
+      "evidence": "A mudança posiciona o indicador de cotas e preserva cálculo, acesso e ações da oferta."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Testes focados, verificação completa e build aprovados."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-offer.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

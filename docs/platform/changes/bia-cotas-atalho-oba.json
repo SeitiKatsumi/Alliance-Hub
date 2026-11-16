@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "id": "bia-cotas-atalho-oba",
+  "title": "Convite para criar OBA ao salvar cotas disponíveis",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/components/bia-oba-prompt.tsx",
+    "shared/member-portfolio.ts"
+  ],
+  "searchTerms": [
+    "BiaObaPrompt",
+    "biaObaCreationUrl",
+    "hasAddedBiaVacancies"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-oba-prompt.tsx",
+      "decision": "updated",
+      "reason": "Centraliza elegibilidade pela diferença de cotas e URL de criação."
+    },
+    {
+      "path": "client/src/components/bia-oba-prompt.test.ts",
+      "decision": "updated",
+      "reason": "Cobre cotas adicionadas, ampliadas, repetidas e parâmetros do atalho."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Sugere concluir estruturação ao salvar o rascunho e abre criação após concluir."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "updated",
+      "reason": "Mostra a oferta de criação após salvar novas cotas no MAP Inicial."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Atalho em OBAs relacionadas passa a BIA pelo mesmo caminho."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "updated",
+      "reason": "Aplica o vínculo inicial no formulário de criação preservando a validação de vínculo."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra a sugestão e o limite de fase."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Mantém requisitos e autorização originais de criação, confirmação, publicação e distribuição."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Verificados no localhost o botão da Veneto Gramado e a confirmação de criação com cotas. Testes verificam a detecção de novas vagas e o vínculo da BIA."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Reutiliza criação autenticada e salvamentos existentes."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Usa o resultado efetivamente salvo para sugerir o atalho. Sem gravação automática."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Atalho local de navegação sem efeitos até a ação explícita no formulário existente."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Atalho local de navegação sem efeitos até a ação explícita no formulário existente."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Atalho local de navegação sem efeitos até a ação explícita no formulário existente."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Atalho local de navegação sem efeitos até a ação explícita no formulário existente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "O formulário e a API continuam a exigir os vínculos e as permissões existentes."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Revisão histórica e edição de DM preservam suas ações."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Verificação completa posteriormente aprovada, com a regressão de cotas e URL de criação."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-oba-prompt.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

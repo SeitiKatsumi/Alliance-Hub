@@ -1,7 +1,11 @@
 import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useLocation } from "wouter";
+import { ObaQuotaAvailability } from "@/components/oba-quota-availability";
+import { ObaOfferLink, ObaOfferScreen, usePublishedObaOffer } from "@/components/oba-offer";
+import { ObaDeliveries } from "@/components/oba-deliveries";
+import { ObaQuotaSelect, obaQuotaStatusLabel, type ObaQuotaOption } from "@/components/oba-quota-select";
+import { useParams, useLocation, useSearch } from "wouter";
 import {
   ArrowLeft, MapPin, Target, Building2, Globe, Pencil,
   Layers, FileText, Paperclip, ExternalLink, CheckCircle2,
@@ -85,6 +89,7 @@ interface BiasProjeto {
 }
 
 interface OpaInteresse {
+  vaga_status?: string | null;
   id: string;
   opa_id: string;
   user_id: string;
@@ -95,8 +100,10 @@ interface OpaInteresse {
 }
 
 interface InteresseResponse {
+  vagas?: ObaQuotaOption[];
   interesses: OpaInteresse[];
   meuInteresse: OpaInteresse | null;
+  minhasCandidaturas?: Array<{vaga_id:string; vaga_status?:string|null}>;
   total: number;
 }
 
@@ -161,6 +168,11 @@ export default function OpaDetalhePage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const search = useSearch();
+  const [vagaId,setVagaId]=useState("");
+  const [selectedQuotas,setSelectedQuotas]=useState<string[]>([]);
+  const toggleQuota=(id:string)=>setSelectedQuotas(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
+  const [offerInvite,setOfferInvite]=useState<{opaId:string;link:string;expiresAt:string}|null>(null);
   const [interesseDialog, setInteresseDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
   const [semSeloDialog, setSemSeloDialog] = useState(false);
@@ -171,6 +183,12 @@ export default function OpaDetalhePage() {
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const hasSeal = !!(user?.role === "admin" || user?.role === "manager" ||
     redes.includes("BUILT_PROUD_MEMBER"));
+
+  const openInterest=(quotaId?:string)=>{
+    setSelectedQuotas(quotaId ? [quotaId] : []);
+    if(hasSeal) setInteresseDialog(true);
+    else setSemSeloDialog(true);
+  };
 
   const { data: opasRaw = [], isLoading } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -194,9 +212,12 @@ export default function OpaDetalhePage() {
     if (!opa || !id) return;
     if (opa.bia_id && !bia) return;
     const publicRef = getOpaPublicRef(opa, bia, opasRaw as Oportunidade[]);
-    if (publicRef && id !== publicRef) navigate(`/opas/${publicRef}`, { replace: true });
-  }, [opa, bia, opasRaw, id, navigate]);
+    if (publicRef && id !== publicRef) navigate(`/opas/${publicRef}` + (search ? "?"+search : ""), { replace: true });
+  }, [opa, bia, opasRaw, id, navigate, search]);
 
+  const publishedOffer=usePublishedObaOffer(opa?.id ? String(opa.id) : undefined);
+  const acquisitionOffer=publishedOffer.data?.aquisicaoCotas ? publishedOffer.data.oferta : null;
+  useEffect(()=>{setSelectedQuotas([]);setVagaId("");},[opa?.id]);
   const { data: interesseData } = useQuery<InteresseResponse>({
     queryKey: ["/api/oportunidades", opa?.id, "interesse"],
     queryFn: async () => {
@@ -213,12 +234,14 @@ export default function OpaDetalhePage() {
       if (!opa?.id) throw new Error("OBA não encontrada");
       return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, {
         mensagem: msg || null,
-        multiplicador: multVal ?parseFloat(multVal) || null : null,
+        multiplicador: !acquisitionOffer && multVal ?parseFloat(multVal) || null : null,
+        ...(acquisitionOffer && selectedQuotas.length ? {vaga_ids:selectedQuotas,oferta_revisao:publishedOffer.data?.revisao} : vagaId ? {vaga_id:vagaId} : {}),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", opa?.id, "interesse"] });
       setInteresseDialog(false);
+      setSelectedQuotas([]);
       setMensagem("");
       setMultiplicadorInput("");
       toast({
@@ -295,12 +318,16 @@ export default function OpaDetalhePage() {
   });
 
   const compartilharMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (oferta: boolean) => {
       if (!opa?.id) throw new Error("OBA não encontrada");
-      const response = await apiRequest("POST", `/api/rede/oportunidades/${opa.codigo || opa.id}/convite`, {});
-      return response.json() as Promise<{ link: string }>;
+      const response = await apiRequest("POST", `/api/rede/oportunidades/${opa.codigo || opa.id}/convite`, { oferta });
+      return response.json() as Promise<{ link: string; expires_at: string }>;
     },
-    onSuccess: async ({ link }) => {
+    onSuccess: async ({ link, expires_at }, oferta) => {
+      if (oferta && opa?.id) {
+        setOfferInvite({opaId:String(opa.id),link,expiresAt:expires_at});
+        return;
+      }
       try {
         if (navigator.share) {
           await navigator.share({ title: `OBA: ${opa?.nome_oportunidade || "BUILT"}`, text: "Acesse esta OBA na plataforma BUILT.", url: link });
@@ -315,8 +342,10 @@ export default function OpaDetalhePage() {
     onError: (error: any) => toast({ title: "Não foi possível criar o convite", description: error?.message, variant: "destructive" }),
   });
 
-  const valor = n(opa?.valor_origem_opa);
-  const mult = n(opa?.Minimo_esforco_multiplicador);
+  const valor = acquisitionOffer ? acquisitionOffer.valorOrigem / acquisitionOffer.totalQuotas : n(opa?.valor_origem_opa);
+  const valorLabel = acquisitionOffer ? "Valor por cota inicial" : "Valor da OBA";
+  const valorMoeda = acquisitionOffer?.moeda || bia?.moeda || "BRL";
+  const mult = acquisitionOffer ? 0 : n(opa?.Minimo_esforco_multiplicador);
   const isClosed = opa?.status === "concluida" || opa?.status === "desistencia";
 
   useEffect(() => {
@@ -330,6 +359,8 @@ export default function OpaDetalhePage() {
     : null;
 
   const jaInteressado = !!interesseData?.meuInteresse;
+  const submissions=interesseData?.minhasCandidaturas || [];
+  const quotaStatus = submissions.some(item=>item.vaga_status==='pendente') ? 'pendente' : interesseData?.meuInteresse?.vaga_status;
   const totalInteresses = interesseData?.total ?? 0;
   const canManageOpa =
     user?.role === "admin" ||
@@ -338,7 +369,9 @@ export default function OpaDetalhePage() {
     relationId(opa?.user_created) === String(user?.id || "") ||
     (!!opa?.criado_por_user_id && String(opa.criado_por_user_id) === String(user?.id || "")) ||
     (!!opa?.criado_por_membro_id && String(opa.criado_por_membro_id) === String((user as any)?.membro_directus_id || "")) ||
-    (!!bia?.aliado_built && String(bia.aliado_built) === String((user as any)?.membro_directus_id || ""));
+    [bia?.aliado_built,bia?.diretor_alianca,bia?.diretor_nucleo_tecnico,bia?.diretor_execucao,bia?.diretor_comercial,bia?.diretor_capital].some(role=>!!role && relationId(role)===String((user as any)?.membro_directus_id || ""));
+
+  if (!canManageOpa && publishedOffer.data && opa?.id) return <ObaOfferScreen opaId={String(opa.id)}/>;
 
   if (isLoading) {
     return (
@@ -376,9 +409,9 @@ export default function OpaDetalhePage() {
           Voltar para OBAs
         </Button>
         {canManageOpa && <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" disabled={compartilharMutation.isPending} onClick={() => compartilharMutation.mutate()} data-testid="btn-share-opa">
+          <Button variant="outline" size="sm" className="gap-2" disabled={compartilharMutation.isPending} onClick={() => compartilharMutation.mutate(false)} data-testid="btn-share-opa">
             {compartilharMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">Compartilhar OBA</span>
+            <span className="inline">Convidar pessoas</span>
             <span className="sr-only sm:hidden">Compartilhar OBA</span>
           </Button>
           <Button size="sm" className="gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white" onClick={() => setEditDialog(true)} data-testid="btn-edit-opa-detail">
@@ -387,7 +420,7 @@ export default function OpaDetalhePage() {
         </div>}
       </div>
 
-      <Tabs defaultValue="detalhes" className="space-y-5">
+      <Tabs defaultValue={canManageOpa && new URLSearchParams(search).get("gestao")==="1" ? "gestao" : "detalhes"} className="space-y-5">
         <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canManageOpa ? "grid-cols-2" : "grid-cols-1"}`}>
           <TabsTrigger value="detalhes" data-testid="tab-opa-detalhes">Detalhes</TabsTrigger>
           {canManageOpa && (
@@ -466,8 +499,8 @@ export default function OpaDetalhePage() {
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
           {valor > 0 && (
             <div className="rounded-lg bg-muted/40 border border-border/50 p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Valor da OBA</p>
-              <p className={`text-xl font-bold ${opaCyanTextStrong} tabular-nums`}>{brl(valor, bia?.moeda || "BRL")}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{valorLabel}</p>
+              <p className={`text-xl font-bold ${opaCyanTextStrong} tabular-nums`}>{brl(valor, valorMoeda)}</p>
             </div>
           )}
           {mult > 0 && (
@@ -480,6 +513,10 @@ export default function OpaDetalhePage() {
       )}
 
         <TabsContent value="detalhes" className="space-y-6">
+          {acquisitionOffer && <ObaQuotaAvailability
+            available={acquisitionOffer.quotas.reduce((sum,quota)=>sum+quota.quantidade,0)} total={acquisitionOffer.totalQuotas}
+            quotas={acquisitionOffer.quotas} selected={selectedQuotas} valorPorCota={valor} moeda={valorMoeda} onToggle={!interesseData?.meuInteresse && interesseData?.vagas?.length ? openInterest : undefined}
+          />}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left col */}
         <div className="lg:col-span-2 space-y-6">
@@ -600,8 +637,8 @@ export default function OpaDetalhePage() {
                   <Separator />
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Valor da OBA</span>
-                      <span className="text-sm font-bold text-brand-gold tabular-nums">{brl(valor, bia?.moeda || "BRL")}</span>
+                      <span className="text-sm text-muted-foreground">{valorLabel}</span>
+                      <span className="text-sm font-bold text-brand-gold tabular-nums">{brl(valor, valorMoeda)}</span>
                     </div>
                     {mult > 0 && (
                       <div className="flex justify-between items-center">
@@ -625,14 +662,14 @@ export default function OpaDetalhePage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 rounded-lg bg-brand-gold/8 border border-brand-gold/25 px-3 py-2.5">
                       <UserCheck className="w-4 h-4 text-brand-gold shrink-0" />
-                      <p className="text-sm font-medium text-brand-gold">Interesse registrado</p>
+                      <p className="text-sm font-medium text-brand-gold">{obaQuotaStatusLabel(quotaStatus)}</p>
                     </div>
                     {interesseData?.meuInteresse?.mensagem && (
                       <p className="text-xs text-muted-foreground italic leading-relaxed">
                         "{interesseData.meuInteresse.mensagem}"
                       </p>
                     )}
-                    <Button
+                    {(!quotaStatus || quotaStatus === "pendente") && <Button
                       variant="ghost"
                       size="sm"
                       className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/5 text-xs"
@@ -646,7 +683,7 @@ export default function OpaDetalhePage() {
                         <XCircle className="w-3.5 h-3.5 mr-1.5" />
                       )}
                       Cancelar interesse
-                    </Button>
+                    </Button>}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -656,7 +693,7 @@ export default function OpaDetalhePage() {
                     {true ?(
                       <Button
                         className="w-full gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
-                        onClick={() => hasSeal ?setInteresseDialog(true) : setSemSeloDialog(true)}
+                        onClick={() => openInterest()}
                         data-testid="btn-manifestar-interesse"
                       >
                         <HandHeart className="w-4 h-4" />
@@ -706,7 +743,28 @@ export default function OpaDetalhePage() {
 
         {canManageOpa && (
           <TabsContent value="gestao" className="space-y-5" data-testid="content-opa-gestao">
-            <Card><CardContent className="pt-5"><SectionTitle icon={Layers}>Pulso da OBA</SectionTitle><OpportunityDistributionControls code={String(opa.id)} /></CardContent></Card>
+            <Card><CardContent className="space-y-4 pt-5">
+              <SectionTitle icon={Layers}>Enviar oferta</SectionTitle>
+              <div className="flex flex-wrap gap-2">
+                <ObaOfferLink opaId={String(opa.id)} manager />
+                <Button type="button" variant="outline" loading={compartilharMutation.isPending && compartilharMutation.variables === true} disabled={!publishedOffer.data || compartilharMutation.isPending} onClick={() => compartilharMutation.mutate(true)}>Convidar pessoa de fora da BUILT</Button>
+              </div>
+              {offerInvite?.opaId===String(opa.id) && <div className="space-y-2">
+                <label className="block text-sm">Link individual da oferta
+                  <input readOnly value={offerInvite.link} onFocus={event=>event.target.select()} className="mt-1 h-10 w-full rounded-md border bg-background px-3" />
+                </label>
+                <p className="text-xs text-muted-foreground">Válido até {new Date(offerInvite.expiresAt).toLocaleString("pt-BR")}.</p>
+                <Button type="button" size="sm" variant="outline" onClick={async()=>{
+                  try {await navigator.clipboard.writeText(offerInvite.link);toast({title:"Link da oferta copiado"});}
+                  catch {toast({title:"Selecione o link acima para copiar",variant:"destructive"});}
+                }}>Copiar link</Button>
+              </div>}
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="font-medium">Gerar Pulso</h3>
+                <OpportunityDistributionControls code={String(opa.id)} />
+              </div>
+            </CardContent></Card>
+            <ObaDeliveries opaId={String(opa.id)} />
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardContent className="pt-5 pb-4">
@@ -723,13 +781,13 @@ export default function OpaDetalhePage() {
                   <SectionTitle icon={TrendingUp}>Análise</SectionTitle>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor da OBA</p>
-                      <p className="text-lg font-bold tabular-nums">{valor > 0 ?brl(valor, bia?.moeda || "BRL") : "-"}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{valorLabel}</p>
+                      <p className="text-lg font-bold tabular-nums">{valor > 0 ?brl(valor, valorMoeda) : "-"}</p>
                     </div>
-                    <div>
+                    {!acquisitionOffer && <div>
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground" title="Mínimo Esforço Multiplicador">MEM</p>
                       <p className="text-lg font-bold tabular-nums">{mult > 0 ?`${mult}%` : "-"}</p>
-                    </div>
+                    </div>}
                   </div>
                 </CardContent>
               </Card>
@@ -826,7 +884,7 @@ export default function OpaDetalhePage() {
               )}
             </div>
 
-            <div className="space-y-2">
+            {!acquisitionOffer && <div className="space-y-2">
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
                 Mínimo Esforço Multiplicador (%)
               </label>
@@ -853,8 +911,9 @@ export default function OpaDetalhePage() {
                   O valor não pode ser menor que o mínimo de {mult}%.
                 </p>
               )}
-            </div>
+            </div>}
 
+            {acquisitionOffer && interesseData?.vagas?.length ? <ObaQuotaAvailability available={acquisitionOffer.quotas.reduce((sum,quota)=>sum+quota.quantidade,0)} total={acquisitionOffer.totalQuotas} quotas={acquisitionOffer.quotas} selected={selectedQuotas} valorPorCota={valor} moeda={valorMoeda} onToggle={toggleQuota}/> : <ObaQuotaSelect quotas={interesseData?.vagas} value={vagaId} onChange={setVagaId} />}
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
                 Mensagem (opcional)
@@ -894,7 +953,7 @@ export default function OpaDetalhePage() {
                 }
                 interesseMutation.mutate({ msg: mensagem, mult: multiplicadorInput });
               }}
-              disabled={interesseMutation.isPending}
+              disabled={interesseMutation.isPending || (!!acquisitionOffer && !selectedQuotas.length)}
               data-testid="btn-confirm-interesse"
             >
               {interesseMutation.isPending ?(

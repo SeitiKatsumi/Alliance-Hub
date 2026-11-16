@@ -1,3 +1,4 @@
+import { BiaPaymentPlanEditor } from "./bia-payment-plan-editor";
 import type { BiaSetup } from '@shared/bia-setup';
 import { BUDGET_COST_STATES, emptyBiaBudget, projectBiaBudget, type BiaBudget } from '@shared/bia-budget';
 import { BiaNumberInput } from './bia-role-composition';
@@ -28,9 +29,12 @@ export function BiaBudgetFields({value,onChange,moeda,valorOrigem,disabled=false
   return <section className="min-w-0 space-y-5"><h2 className="text-xl font-semibold">CAPEX e OPEX</h2><p className="text-sm text-muted-foreground">Preenchimento opcional. Informe o que já souber e continue; você pode completar o orçamento depois. Não gera lançamentos, cobranças ou alterações na BEI e no MAP.</p>
     <fieldset disabled={disabled} className="min-w-0 space-y-5">
       <div className={card}><div className="grid gap-4 sm:grid-cols-3"><label>Mês inicial<Input type="month" value={b.inicio} onChange={e=>update({inicio:e.target.value})}/></label><label>Horizonte (meses)<Input type="number" min={1} step={1} value={b.meses} onChange={e=>update({meses:Number(e.target.value)})}/></label><div><p>Moeda do orçamento</p><strong>{b.moeda}</strong></div></div>{b.moeda!==moeda && <p role="alert" className="text-amber-800">A BIA está em {moeda}. Estes valores continuam em {b.moeda}; não há conversão automática e a comparação está suspensa.</p>}</div>
+      <BiaPaymentPlanEditor budget={b} total={valorOrigem} onChange={orcamento=>onChange({...value,orcamento})}/>
       <section className={card}><h3 className="text-lg font-semibold">1. CAPEX — investimentos previstos</h3><p className="text-sm text-muted-foreground">Ex.: aquisição do ativo, adequações e obras, instalações e equipamentos.</p>
         <ul aria-label="Investimentos CAPEX" className="divide-y border-y">
-        {b.capex.map((c,i)=><li key={c.id} aria-label={`CAPEX ${i+1}`} className="grid min-w-0 gap-x-3 gap-y-2 py-3 text-sm lg:grid-cols-[minmax(0,1fr)_auto]"><div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]"><label className="min-w-0 sm:col-span-2 lg:col-span-1">Rubrica<Input maxLength={4000} placeholder="Ex.: Adequações e obras" value={c.descricao} onChange={e=>patchCap(c.id,{descricao:e.target.value})}/></label><label className="min-w-0">Valor previsto ({b.moeda})<BiaNumberInput label={`Valor CAPEX ${i+1}`} value={c.valor ?? NaN} onChange={v=>patchCap(c.id,{valor:amount(v)})}/></label>{state(c.situacao,situacao=>patchCap(c.id,{situacao}))}</div>
+        {b.capex.map((c,i)=>c.geradoDoPlano ? <li key={c.id} className="py-3 text-sm"><details><summary className="cursor-pointer font-semibold">{c.descricao} · {c.pagamentos.length} pagamentos previstos</summary>
+          <div className="mt-2 max-h-80 overflow-auto"><table className="w-full"><thead><tr className="border-b text-left"><th>Mês</th><th className="text-right">Valor</th></tr></thead><tbody>{c.pagamentos.map(row=><tr className="border-b" key={row.id}><td className="py-2">{row.mes}</td><td className="text-right">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:b.moeda}).format(row.valor ?? 0)}</td></tr>)}</tbody></table></div>
+        </details></li> : <li key={c.id} aria-label={`CAPEX ${i+1}`} className="grid min-w-0 gap-x-3 gap-y-2 py-3 text-sm lg:grid-cols-[minmax(0,1fr)_auto]"><div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]"><label className="min-w-0 sm:col-span-2 lg:col-span-1">Rubrica<Input maxLength={4000} placeholder="Ex.: Adequações e obras" value={c.descricao} onChange={e=>patchCap(c.id,{descricao:e.target.value})}/></label><label className="min-w-0">Valor previsto ({b.moeda})<BiaNumberInput label={`Valor CAPEX ${i+1}`} value={c.valor ?? NaN} onChange={v=>patchCap(c.id,{valor:amount(v)})}/></label>{state(c.situacao,situacao=>patchCap(c.id,{situacao}))}</div>
           <details className="min-w-0 lg:col-span-2"><summary className="cursor-pointer py-1 font-medium">Pagamentos previstos ({c.pagamentos.length}) e ativo</summary><div className="mt-3 space-y-3 rounded-md bg-muted/30 p-3"><div className="max-w-md">{asset(c,p=>patchCap(c.id,p))}</div>
           <h4 className="font-medium">Pagamentos previstos</h4>{c.pagamentos.map((p,j)=><div key={p.id} className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"><label>Mês do pagamento<Input aria-label={`Mês CAPEX ${i+1} pagamento ${j+1}`} type="month" value={p.mes} onChange={e=>patchCap(c.id,{pagamentos:c.pagamentos.map(r=>r.id===p.id?{...r,mes:e.target.value}:r)})}/></label><label>Valor ({b.moeda})<BiaNumberInput label={`Valor CAPEX ${i+1} pagamento ${j+1}`} value={p.valor ?? NaN} onChange={v=>patchCap(c.id,{pagamentos:c.pagamentos.map(r=>r.id===p.id?{...r,valor:amount(v)}:r)})}/></label>{remove('pagamento',()=>patchCap(c.id,{pagamentos:c.pagamentos.filter(r=>r.id!==p.id)}))}</div>)}
           <Button type="button" variant="outline" disabled={c.pagamentos.length>=120} onClick={()=>patchCap(c.id,{pagamentos:[...c.pagamentos,{id:uid(),mes:'',valor:null}]})}>Adicionar pagamento</Button></div></details>
@@ -62,8 +66,39 @@ export function BiaBudgetSummary({value,moeda,valorOrigem,details=true}:Props & 
     {projection.currencyMismatch && <p role="status" className="text-sm text-muted-foreground">Orçamento em {b?.moeda}; moeda atual da BIA: {moeda}. Não há conversão automática.</p>}
     {b && <><p>{b.inicio || 'Início pendente'} · {b.meses} meses · {b.moeda}{projection.partial?' · Totais parciais / dados pendentes':''}</p><dl className="grid gap-2 text-sm sm:grid-cols-2"><dt>Valor de Origem — referência, não caixa</dt><dd>{money(valorOrigem,moeda)}</dd><dt>CAPEX previsto — todos os investimentos</dt><dd>{money(projection.capex)}</dd><dt>Diferença indicativa CAPEX − origem</dt><dd>{money(projection.diferenca)} · Não equivale à falta de caixa</dd><dt>OPEX projetado no horizonte</dt><dd>{money(projection.opex)}</dd></dl>
       {details && <><h3 className="font-semibold">Investimentos previstos</h3>{b.capex.map(c=><div key={c.id} className="border-b py-2"><p>{c.descricao || 'Sem descrição'} · {money(c.valor)} · {c.situacao} · {assetName(c)}</p><p>Pagamentos: {c.pagamentos.map(p=>`${p.mes || 'Mês pendente'}: ${money(p.valor)}`).join(' / ') || 'Não informados'}</p></div>)}<h3 className="font-semibold">Despesas de funcionamento</h3>{b.opex.map(o=><p key={o.id}>{o.descricao || 'Sem descrição'} · {money(o.valorMensal)}/mês · {o.inicio || 'Início pendente'} até {o.fim || 'fim do horizonte'} · {o.situacao} · {assetName(o)}</p>)}<h3 className="font-semibold">Origem dos recursos</h3>{b.fontes.map(f=><p key={f.id}>{f.descricao || 'Sem descrição'} · {f.tipo} · {money(f.valor)} · {f.mes || 'Mês pendente'} · {f.situacao} · {f.destinacao}{f.observacoes?` · ${f.observacoes}`:''}</p>)}</>}
-      <h3 className="font-semibold">Cronograma mensal e cobertura acumulada</h3><p className="text-sm text-muted-foreground">Necessidade não coberta considera despesas e recursos desde o início do horizonte. Fontes restritas cobrem apenas sua categoria; sobras são carregadas. O cenário total inclui confirmadas, estimadas e condicionadas, sem duplicar recursos.{projection.partial?' Valores conhecidos são parciais; não atestam cobertura completa.':''}</p>
-      <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-sm"><thead><tr className="bg-muted text-left">{['Mês','CAPEX','OPEX','Recursos confirmados','Estimados / condicionados','Não coberto — confirmados','Não coberto — todas as previsões'].map(h=><th className="p-2" key={h}>{h}</th>)}</tr></thead><tbody>{projection.rows.map(r=><tr key={r.mes} className="border-b"><th className="p-2 text-left">{r.mes}</th>{[r.capex,r.opex,r.confirmadas,r.condicionadas,r.descobertoConfirmado,r.descobertoPrevisto].map((v,i)=><td key={i} className="p-2">{money(v)}</td>)}</tr>)}</tbody></table></div>
+      {projection.rows.length > 0 && <>
+        <h3 className="font-semibold">Cronograma mensal</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-muted">
+              <th scope="col" className="p-2 text-left">Mês</th>
+              {['CAPEX','OPEX','Total do mês'].map(label=><th scope="col" key={label} className="p-2 text-right">{label}</th>)}
+            </tr></thead>
+            <tbody>{projection.rows.map(row=><tr key={row.mes} className="border-b">
+              <th scope="row" className="whitespace-nowrap p-2 text-left">{row.mes}</th>
+              <td className="whitespace-nowrap p-2 text-right">{money(row.capex)}</td>
+              <td className="whitespace-nowrap p-2 text-right">{money(row.opex)}</td>
+              <td className="whitespace-nowrap p-2 text-right font-semibold">{money(row.capex + row.opex)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        {projection.rows.some(row=>row.confirmadas > 0 || row.condicionadas > 0) && <details className="rounded-md border p-3">
+          <summary className="cursor-pointer font-medium">Ver recursos e quanto falta</summary>
+          <p className="my-3 text-sm text-muted-foreground">Os valores que faltam são acumulados até cada mês. Cada recurso pode ser usado conforme a sua destinação.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead><tr className="bg-muted">
+                <th scope="col" className="p-2 text-left">Mês</th>
+                {['Recursos confirmados','Estimados / condicionados','Falta com recursos confirmados','Falta com todos os recursos previstos'].map(label=><th scope="col" key={label} className="p-2 text-right">{label}</th>)}
+              </tr></thead>
+              <tbody>{projection.rows.map(row=><tr key={row.mes} className="border-b">
+                <th scope="row" className="whitespace-nowrap p-2 text-left">{row.mes}</th>
+                {[row.confirmadas,row.condicionadas,row.descobertoConfirmado,row.descobertoPrevisto].map((amount,index)=><td key={index} className="whitespace-nowrap p-2 text-right">{money(amount)}</td>)}
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </details>}
+      </>}
     </>}
   </section>;
 }

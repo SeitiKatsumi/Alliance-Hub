@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { BiaObaPrompt, hasAddedBiaVacancies } from "@/components/bia-oba-prompt";
 import { BiaExistingCompositionFields, BiaNumberInput, BiaRoleComposition } from "@/components/bia-role-composition";
 import { BiaEconomicStructureFields, EconomicMapPreview } from "@/components/bia-economic-structure";
 import { formatBiaPercent } from "@shared/bia-numbers";
@@ -616,6 +617,7 @@ function MapInicialCalculator({
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const historical = !!snapshot.historicoLegado;
+  const [offerPrompt,setOfferPrompt]=useState(false);
   const [editing, setEditing] = useState(historical && snapshot.revisao === 0);
   const [reviewed, setReviewed] = useState(false);
   const [base, setBase] = useState(snapshot);
@@ -669,6 +671,7 @@ function MapInicialCalculator({
       ...(snapshot.historicoLegado ? { confirmarRevisao: reviewed } : {}),
     })).json(),
     onSuccess: (data: InitialMapSnapshotApi) => {
+      if (mode === "zero" && !historical && hasAddedBiaVacancies(base.participantes,data.participantes)) setOfferPrompt(true);
       setBase(data);
       setEstrutura(data.estrutura);
       setValorOrigem(Number(data.valorOrigem));
@@ -703,6 +706,7 @@ function MapInicialCalculator({
 
   return (
     <div className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} min-w-0 space-y-6`}>
+      <BiaObaPrompt biaId={bia.id} open={offerPrompt} onOpenChange={setOfferPrompt}/>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold">
@@ -756,7 +760,7 @@ function MapInicialCalculator({
         {!readOnly && <Button onClick={() => setEditing(true)}>Editar composição</Button>}
       </>}
       {mode === "zero" && editing && <fieldset disabled={readOnly || locked || saveMutation.isPending} className="min-w-0 space-y-6 border-0 disabled:opacity-90">
-        {snapshot.modeloCalculo === 5 ? <BiaEconomicStructureFields value={{valorOrigem,participantes,estrutura}} onChange={v=>{setValorOrigem(v.valorOrigem);setParticipantes(v.participantes);setEstrutura(v.estrutura);}} members={membros} moeda={base.moeda} readOnly={readOnly || locked}/> : <BiaExistingCompositionFields valorOrigem={valorOrigem} onValueChange={setValorOrigem} participants={participantes} onChange={setParticipantes} members={membros} moeda={base.moeda} byValue={byValue} byRole={Number(snapshot.modeloCalculo)>=4} readOnly={readOnly || locked} preview={preview}/>}
+        {snapshot.modeloCalculo === 5 ? <BiaEconomicStructureFields value={{valorOrigem,participantes,estrutura}} onChange={v=>{setValorOrigem(v.valorOrigem);setParticipantes(v.participantes);setEstrutura(v.estrutura);}} members={membros} moeda={base.moeda} readOnly={readOnly || locked} allowVacancies={!historical} allowUnlinked={!snapshot.ativa && !historical}/> : <BiaExistingCompositionFields valorOrigem={valorOrigem} onValueChange={setValorOrigem} participants={participantes} onChange={setParticipantes} members={membros} moeda={base.moeda} byValue={byValue} byRole={Number(snapshot.modeloCalculo)>=4} readOnly={readOnly || locked} allowVacancies={!historical} allowUnlinked={!snapshot.ativa && !historical} preview={preview}/>}
       </fieldset>}
       {(mode === "dm" || editing) && <div className="space-y-3">
         {(snapshot.ativa || historical) && !readOnly && <label className="block space-y-2 text-sm">{historical ? "Fonte dos dados originais e motivo da revisão" : "Motivo da correção"}<Input disabled={saveMutation.isPending} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={historical ? "Ex.: composição conferida no MOU original" : "Explique o que precisa ser corrigido"} /></label>}

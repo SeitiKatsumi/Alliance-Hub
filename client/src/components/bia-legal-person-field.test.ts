@@ -17,11 +17,16 @@ function component(file:string,name:string,scope:Record<string,unknown>) {
 test('legal name search keeps editable names, alphabetical suggestions and explicit invite action',()=>{
   const source=readFileSync(new URL('./bia-legal-person-field.tsx',import.meta.url),'utf8');
   const Wrapper=({children}:any)=>React.createElement('div',null,children);
+  const actions = new Map<string, () => void>();
+  const selections: unknown[][] = [];
   const Field=component('./bia-legal-person-field.tsx','BiaLegalPersonField',{React,useId:React.useId,useState:React.useState,
-    useQuery:()=>({data:[{nome:'Zélia'},{nome:'Álvaro'},{nome:'Ana & Filhos'},{nome:'Álvaro'}]}),MEMBER_DIRECTORY_QUERY_OPTIONS:{},getMemberDirectoryDisplayName,memberSearchFilter,Input:'input',Textarea:'textarea',Button:'button',Popover:Wrapper,PopoverTrigger:Wrapper,PopoverContent:Wrapper,Command:Wrapper,CommandEmpty:()=>null,CommandInput:()=>null,CommandItem:Wrapper,CommandList:Wrapper});
-  const html=renderToStaticMarkup(React.createElement(Field,{label:'Administrador',value:'Nome externo',onChange:()=>{}}));
+    useQuery:()=>({data:[{id:'member-1',nome:'Zélia',oab:' SP 123456 '},{id:'member-2',nome:'Zélia',empresa:'Outra empresa'},{nome:'Álvaro'},{nome:'Ana & Filhos'},{nome:'Álvaro'}]}),MEMBER_DIRECTORY_QUERY_OPTIONS:{},getMemberDirectoryDisplayName,memberSearchFilter,Input:'input',Textarea:'textarea',Button:'button',Popover:Wrapper,PopoverTrigger:Wrapper,PopoverContent:Wrapper,Command:Wrapper,CommandEmpty:()=>null,CommandInput:()=>null,CommandItem:({ value, onSelect, children }: any) => { actions.set(value, onSelect); return React.createElement(Wrapper, null, children); },CommandList:Wrapper});
+  const html=renderToStaticMarkup(React.createElement(Field,{label:'Administrador',value:'Nome externo',onChange:(...args: unknown[])=> selections.push(args)}));
   assert.match(html,/role="combobox"/);assert.match(html,/Nome externo/);
-  assert.ok(html.indexOf('Álvaro')<html.indexOf('Zélia'));assert.equal(html.match(/Álvaro/g)?.length,1);
+  assert.ok(html.indexOf('Álvaro')<html.indexOf('Zélia'), html);assert.equal(html.match(/Álvaro/g)?.length,1);
+  actions.get('member-1')?.();
+  actions.get('member-2')?.();
+  assert.deepEqual(selections, [['Zélia', 'SP 123456'], ['Zélia', '']]);
   assert.match(html,/Ana &amp; Filhos/);assert.match(html,/Não está na rede\? Convidar/);
   const readonly=renderToStaticMarkup(React.createElement(Field,{label:'Responsável jurídico',value:'Nome',disabled:true,onChange:()=>{}}));
   assert.match(readonly,/disabled=""/);assert.doesNotMatch(readonly,/Convidar/);

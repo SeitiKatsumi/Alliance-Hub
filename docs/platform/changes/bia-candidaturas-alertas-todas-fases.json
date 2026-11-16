@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "id": "bia-candidaturas-alertas-todas-fases",
+  "title": "Avisos e decisões de cotas durante estruturação, captação e fases ativas",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/routes.ts",
+    "server/bia-vacancies.ts"
+  ],
+  "searchTerms": [
+    "quotaApplicationsOpen",
+    "canManageQuotaApplications",
+    "syncActiveQuotaInvite"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Centraliza fases e papéis para alertas, leitura e decisões. Aplica no rascunho ou versiona no MAP."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "updated",
+      "reason": "Atalho da Agenda abre diretamente a decisão com autorização na API."
+    },
+    {
+      "path": "client/src/components/bia-vacancy-interests.tsx",
+      "decision": "updated",
+      "reason": "Reutiliza as decisões e oculta o reenvio do convite enquanto a formalização aguarda a conclusão do rascunho."
+    },
+    {
+      "path": "server/bia-vacancies.ts",
+      "decision": "preserved",
+      "reason": "Mantém agrupamento de CIs compatíveis por participante."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Cobre papéis, rascunho, captação e execução."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Fixtures acompanham a leitura da fase de conclusão do rascunho."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra o fluxo e a formalização por fase."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "O teste HTTP usa o atalho da Agenda com a cota identificada e valida decisão por autor, Aliado e Diretor. A tela é a lista existente de candidaturas. Nenhum registro real foi decidido."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Testes de decisão e alertas nas três fases, incluindo acesso negado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Lock existente serializa decisão, revisão e consolidação de cotas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Rascunho preserva dados em edição. MAP usa recálculo e validações existentes."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Agenda inclui cotas pendentes no rascunho ou no MAP. Convites respeitam a fase."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "MAP continua versionado. Rascunho só formaliza na conclusão."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Alerta usa agregador existente. Convite ativo usa fluxo individual existente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Autor, Diretor de Aliança, Aliado BUILT e administração. Sem ampliar dados de configuração."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Aceita MAP publicado e preserva consulta de decisões encerradas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify concluiu tipos, testes e build. Regressões verificam alertas dos três papéis, aprovação e recusa em estruturação e decisão em execução. Localhost HTTP 200."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-vacancies.test.ts",
+    "server/bia-offer.test.ts",
+    "client/src/pages/bia-editar.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

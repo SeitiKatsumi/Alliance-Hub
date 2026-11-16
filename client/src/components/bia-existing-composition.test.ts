@@ -5,8 +5,8 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import ts from 'typescript';
 import {transformSync} from 'esbuild';
-import {calculateInitialMap, type InitialMapParticipantInput} from '../../../shared/member-portfolio';
-import {validateInitialClassifications} from '../../../shared/initial-contributions';
+import {OBA_AVAILABLE_QUOTA_LABEL, calculateInitialMap, type InitialMapParticipantInput} from '../../../shared/member-portfolio';
+import {commitmentsFromMap, validateInitialClassifications} from '../../../shared/initial-contributions';
 import {formatBiaPercent} from '../../../shared/bia-numbers';
 import {BIA_PARTICIPANT_ROLE_LABELS} from '../../../shared/bia-access';
 
@@ -23,7 +23,7 @@ function fixture(byValue=true,byRole=false,overrides:any={}) {
   let participants=structuredClone(overrides.participants || [participant]);
   let writes=0;
   const query={data:types,isPending:false,isError:false,refetch:()=>{},...overrides.query};
-  const scope={React,useQuery:()=>query,Input:'input',Button:'button',SearchableNameSelect:searchableNameSelect,BiaNumberInput:numberInput,formatBiaPercent,roles:Object.values(BIA_PARTICIPANT_ROLE_LABELS),window:{confirm:()=>true}};
+  const scope={React,OBA_AVAILABLE_QUOTA_LABEL,useQuery:()=>query,Input:'input',Button:'button',SearchableNameSelect:searchableNameSelect,BiaNumberInput:numberInput,formatBiaPercent,roles:Object.values(BIA_PARTICIPANT_ROLE_LABELS),window:{confirm:()=>true}};
   const Field=new Function(...Object.keys(scope),transformSync(fn,{loader:'tsx'}).code+';return BiaExistingCompositionFields;')(...Object.values(scope));
   function render() {
     let preview:any;
@@ -98,4 +98,36 @@ test('consulta desabilita o formulário e os caminhos compartilham apresentaçã
   assert.match(calculator,/revisaoEsperada: base.revisao/);assert.match(calculator,/snapshot.historicoLegado \? "map-zero-legado" : "map-inicial"/);
   assert.match(calculator,/setEstrutura\(snapshot.estrutura\);[^\n]+setReviewed\(false\)/);
   assert.match(edit,/<BiaMapZero biaId=\{bia.id\} readOnly=\{readOnly\}/);
+});
+
+test("Sócio Aliado aceita vaga e nome externo preservando o aporte da cota",()=>{
+  const f=fixture(true, false);
+  const capital=f.participants[0].capitalComprometido;
+  const dropdown=()=>elements(f.render()).find(node=>node.props?.ariaLabel?.startsWith("Sócio Aliado"));
+  dropdown().props.onValueChange("vaga");
+  assert.equal(f.participants[0].titular,"vaga");
+  assert.equal(f.participants[0].memberId,null);
+  assert.equal(f.participants[0].capitalComprometido,capital);
+  assert.deepEqual(f.participants[0].cargos,[]);
+  const id=f.participants[0].participantId;
+  dropdown().props.onValueChange("externo");
+  const name=elements(f.render()).find(node=>node.props?.["aria-label"]==="Nome do sócio externo");
+  name.props.onChange({target:{value:" Maria Externa "}});
+  assert.equal(f.participants[0].participantId,id);
+  const calculated=calculateInitialMap(capital!,f.participants);
+  assert.equal(calculated.participantes[0].nome,"Maria Externa");
+  assert.equal(calculated.participantes[0].titular,"externo");
+  assert.deepEqual(commitmentsFromMap(capital!, calculated.participantes).map(row=>row.componente), ["ativo"]);
+  dropdown().props.onValueChange("a");
+  assert.equal(f.participants[0].titular,undefined);
+  assert.equal(f.participants[0].capitalComprometido,capital);
+});
+
+test("a composição ativa oferece cota disponível mesmo sem nome externo",()=>{
+  const f=fixture(true,false,{allowUnlinked:false,allowVacancies:true});
+  const dropdown=elements(f.render()).find(node=>node.props?.ariaLabel?.startsWith("Sócio Aliado"));
+  assert.deepEqual(dropdown.props.options.slice(0,2).map((option:any)=>option.value),["","vaga"]);
+  assert.ok(!dropdown.props.options.some((option:any)=>option.value==="externo"));
+  dropdown.props.onValueChange("vaga");
+  assert.equal(f.participants[0].titular,"vaga");
 });

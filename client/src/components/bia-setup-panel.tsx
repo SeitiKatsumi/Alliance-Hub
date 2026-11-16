@@ -18,7 +18,12 @@ export function SetupEditor({biaId,moeda,members,section,biaName="",valorOrigem,
   useEffect(()=>{if(query.data && revision<0){setValue(query.data.dados);setRevision(query.data.revisao);setSaved(JSON.stringify(query.data.dados));}},[query.data,revision]);
   useUnsavedChanges(revision>=0 && JSON.stringify(value)!==saved);
   useEffect(()=>{if(section)setTab(section);},[section]);
+  const openDraft=useQuery({queryKey:['bia-editor-open-draft',biaId],queryFn:()=>readOpenBiaDraft(biaId),enabled:tab==='orcamento' && !readOnly && !!query.data?.editavel,staleTime:0});
   if(query.isPending || (!query.isError && revision<0))return <p>Carregando…</p>;
+  if(tab==="orcamento" && !readOnly && openDraft.data && JSON.stringify(value)===saved)return <div className="space-y-3 rounded-lg border p-4">
+    <p>O plano de pagamento desta BIA é salvo no rascunho de estruturação.</p>
+    <Button variant="outline" asChild><a href={"/bias/"+encodeURIComponent(biaId)+"/estruturacao?section=orcamento"}>Abrir CAPEX do rascunho</a></Button>
+  </div>;
   if(query.isError)return <p role="alert">Não foi possível consultar a estrutura. <Button onClick={()=>query.refetch()}>Tentar novamente</Button></p>;
   async function continueDraft(draft:any) {
     if(draft.conclusao_iniciada)throw new Error('A conclusão do rascunho está em andamento. Suas alterações foram mantidas nesta tela; recupere a conclusão antes de editar.');

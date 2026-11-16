@@ -1,0 +1,570 @@
+{
+  "version": 1,
+  "id": "bia-socio-aliado-vaga-nome",
+  "title": "Vaga aberta e sócio externo em Capitalização",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/member-portfolio.ts",
+    "shared/bia-access.ts"
+  ],
+  "searchTerms": [
+    "Nome do sócio externo",
+    "Vaga aberta"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-role-composition.tsx",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "client/src/components/bia-existing-composition.test.ts",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "shared/bia-access.ts",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "shared/member-portfolio.ts",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Participa do cadastro, validação, persistência ou verificação de cotas com titular externo ou vaga."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "updated",
+      "reason": "O editor oculta vagas para correção de MAP ativo e revisão histórica."
+    },
+    {
+      "path": "shared/initial-contributions.ts",
+      "decision": "updated",
+      "reason": "Uma cota sem vínculo continua no MAP e não gera compromisso financeiro pessoal."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/asaas-bank-dashboard.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/asaas-status.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/asaas-status.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/bia-organization-chart.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/bia-participant-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/bia-partners-status.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/bia-phase-controls.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/bia-review-summary.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/contribution-payment.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/contribution-payment.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/contribution-reminders.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/existing-expense-contributions.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/expense-contributions.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/initial-contributions.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/pages/bia-creation.test.ts",
+      "decision": "reviewed",
+      "reason": "Equipe e convites seguem derivados dos IDs de membro. Fichas econômicas sem vínculo não entram nessa lista."
+    },
+    {
+      "path": "client/src/pages/dm-map-navigation.test.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "client/src/pages/fluxo-caixa.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/pages/resultados.tsx",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/asaas/dashboard.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/asaas/dashboard.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/asaas/exclusive-bia.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/asaas/foundation.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/asaas/operations.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/asaas/routes.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/auth-google.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/bia-composition-invites.test.ts",
+      "decision": "reviewed",
+      "reason": "Equipe e convites seguem derivados dos IDs de membro. Fichas econômicas sem vínculo não entram nessa lista."
+    },
+    {
+      "path": "server/bia-legacy-zero.test.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "server/bia-map-creation.test.ts",
+      "decision": "reviewed",
+      "reason": "Equipe e convites seguem derivados dos IDs de membro. Fichas econômicas sem vínculo não entram nessa lista."
+    },
+    {
+      "path": "server/bia-map-history.test.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "server/bia-map-history.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "server/bia-phase-readiness.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "server/business-trace.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-billing-provider.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-billing-routes.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-billing.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-billing.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-cancellation.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-flow-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-flow.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-reminders.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/contribution-reminders.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/dashboard-capital.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/db.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/existing-expense-contributions.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/existing-expense-contributions.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/expense-contributions.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/expense-contributions.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/initial-contributions.test.ts",
+      "decision": "reviewed",
+      "reason": "A geração reaproveita a função de compromissos. O novo titular sem vínculo não vira beneficiário de lançamento."
+    },
+    {
+      "path": "server/initial-contributions.ts",
+      "decision": "reviewed",
+      "reason": "A geração reaproveita a função de compromissos. O novo titular sem vínculo não vira beneficiário de lançamento."
+    },
+    {
+      "path": "server/invite-community-origin.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/quota-correction.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/replit_integrations/audio/index.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/replit_integrations/audio/routes.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/replit_integrations/chat/index.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/replit_integrations/chat/routes.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/replit_integrations/chat/storage.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/ro-pulse-creation.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/ro-pulse-routes.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/ro-pulse.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/ro-pulse.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/storage.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/bia-access.test.ts",
+      "decision": "reviewed",
+      "reason": "Equipe e convites seguem derivados dos IDs de membro. Fichas econômicas sem vínculo não entram nessa lista."
+    },
+    {
+      "path": "shared/bia-model-five.test.ts",
+      "decision": "reviewed",
+      "reason": "A geração reaproveita a função de compromissos. O novo titular sem vínculo não vira beneficiário de lançamento."
+    },
+    {
+      "path": "shared/bia-model-four.test.ts",
+      "decision": "reviewed",
+      "reason": "A geração reaproveita a função de compromissos. O novo titular sem vínculo não vira beneficiário de lançamento."
+    },
+    {
+      "path": "shared/bia-organization.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/bia-organization.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/bia-participant-detail.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/bia-participant-detail.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/contribution-billing.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/contribution-reminders.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/dashboard-capital.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/dashboard-capital.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/existing-expense-contributions.test.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/existing-expense-contributions.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/initial-contributions.test.ts",
+      "decision": "reviewed",
+      "reason": "A geração reaproveita a função de compromissos. O novo titular sem vínculo não vira beneficiário de lançamento."
+    },
+    {
+      "path": "shared/member-portfolio.test.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "shared/property-ownership.test.ts",
+      "decision": "reviewed",
+      "reason": "Consome a composição e suas permissões existentes. Modalidade opcional permite representar cotas em estruturação sem promover identidade a membro."
+    },
+    {
+      "path": "shared/property-ownership.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "reviewed",
+      "reason": "Dependência indireta. Continua consumindo contratos de membro efetivo, permissões e dados financeiros existentes."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.test.ts",
+      "decision": "updated",
+      "reason": "A descrição da lista econômica inclui vagas na mesma etapa do seletor."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "reason": "A aprovação de uma manifestação transforma a vaga em pessoa vinculada, preservando a cota.",
+      "decision": "updated"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "Sócio Aliado oferece cadastro da rede, vaga ou texto nos dois modelos.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "Rascunho aceita a modalidade de titular e a gravação do MAP valida identidade, nome e governança.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "O campo titular é opcional no JSON do rascunho e no snapshot.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "O aporte integra a mesma fórmula de fechamento do modelo original.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "Vagas e nomes externos não geram convites, pois não entram nos vínculos de equipe.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "O resumo usa o nome econômico. A ativação depende de titulares vinculados e dos aceites vigentes.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "A alteração não cria registro de pessoa, cobrança ou candidatura na OBA.",
+      "status": "not-applicable"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "A equipe só recebe membros efetivos. Validação do MAP e ativação impedem governança ou ativação por cota sem conta.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "As fichas antigas continuam válidas com o campo titular omitido.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Testes de componente, cálculo econômico e API de rascunhos.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-existing-composition.test.ts",
+    "client/src/components/bia-economic-structure.test.ts",
+    "server/bia-draft-api.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

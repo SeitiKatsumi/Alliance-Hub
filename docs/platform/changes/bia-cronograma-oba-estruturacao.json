@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "id": "bia-cronograma-oba-estruturacao",
+  "title": "Cronograma mensal simplificado e OBA durante a estruturação",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-budget.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "readObaDraftBase",
+    "draftBudget",
+    "obaDestination"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "updated",
+      "reason": "Separação da tabela mensal e da consulta de recursos."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "updated",
+      "reason": "Verifica cronograma simples e cenários recolhidos."
+    },
+    {
+      "path": "client/src/lib/interface-catalog.json",
+      "decision": "updated",
+      "reason": "Rótulos dos cenários e ação da OBA."
+    },
+    {
+      "path": "client/src/lib/interface-catalog-pt-pt.json",
+      "decision": "updated",
+      "reason": "Rótulo do salvamento para abrir a OBA."
+    },
+    {
+      "path": "client/src/components/bia-oba-prompt.tsx",
+      "decision": "updated",
+      "reason": "Confirma salvamento e criação ainda na estruturação."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Salva rascunho e navega após a atualização do formulário."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Autoriza a criação durante estruturação e consulta cotas e CAPEX do rascunho para ofertas e manifestações."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Confere publicação e leitura com rascunho e transição para o MAP."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Confere permissão de criação na estruturação."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta apresentação e fluxo."
+    },
+    {
+      "path": "client/src/lib/print-bia-summary.ts",
+      "decision": "reviewed",
+      "reason": "PDF abre os detalhes e preserva cenários quando há recursos."
+    },
+    {
+      "path": "client/src/lib/interface-language.ts",
+      "reason": "Os rótulos novos são chaves isoladas, sem mudança na normalização ou busca.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/interface-locale-runtime.tsx",
+      "reason": "O tradutor de texto existente recebe as novas chaves sem mudar quais nós são observados.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/interface-taxonomy.ts",
+      "reason": "Os termos da taxonomia e a chamada do tradutor permanecem iguais.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "reason": "A preferência de idioma e o fornecimento do tradutor permanecem iguais.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/agenda-interface-copy.ts",
+      "reason": "Os moldes de tarefas e documentos não coincidem com as novas chaves.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/appearance-settings.tsx",
+      "reason": "Nenhum dos rótulos de tema e aparência passa a usar as novas chaves.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "reason": "A seleção de idioma permanece com o mesmo catálogo de opções.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "reason": "O seletor de tese usa a taxonomia existente e não os novos rótulos de pagamentos.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "reason": "Rótulos de demandas seguem com as mesmas traduções.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/contribution-area-info.tsx",
+      "reason": "Rótulos de áreas continuam na taxonomia existente.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.tsx",
+      "reason": "Rótulos de áreas continuam na taxonomia existente.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "reason": "Rótulos de perfil e atividade permanecem iguais.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "reason": "Os rótulos dos alertas são distintos dos textos adicionados ao orçamento.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "reason": "As tarefas e títulos não são alterados pelas chaves acrescentadas.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "reason": "A apresentação do diretório não usa as chaves do orçamento e da ficha de OBA.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "reason": "Os rótulos existentes desta página são mantidos e a tela de orçamento usa seu componente próprio.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "reason": "A apresentação de comunidades não usa os rótulos novos.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "reason": "Convites de ingresso usam seus próprios textos, separados do botão de criação de OBA.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "reason": "A taxonomia e os rótulos dos perfis não mudam.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "reason": "Os tipos e filtros continuam independentes dos novos textos de cronograma.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/components/platform-preferences.test.ts",
+      "reason": "Suíte de preferência de idioma incluída na verificação.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/environment-nomenclature.test.ts",
+      "reason": "Suíte de nomes dos ambientes incluída na verificação.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/interface-language.test.ts",
+      "reason": "Suíte de tradução e idioma incluída na verificação.",
+      "decision": "reviewed"
+    },
+    {
+      "path": "client/src/lib/platform-localization.test.ts",
+      "reason": "Suíte transversal de tradução incluída na verificação.",
+      "decision": "reviewed"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Sessão autenticada da Veneto Gramado mostrou Salvar e gerar OBA e a tabela com Mês, CAPEX, OPEX e Total do mês. Criar OBA real não foi executado."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Criação autorizada em estruturação. Oferta usa modelo 5, CAPEX correspondente e revisão publicada."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Rascunho PostgreSQL alimenta a oferta até o MAP. Nenhuma mudança de fase na criação."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Projeção existente e cenários preservados no painel de recursos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Fluxos existentes de OBA e Pulso. Alertas de decisão por cota permanecem em captação."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "PDF usa o resumo compartilhado e abre detalhes com recursos."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Sem novos jobs. Oferta usa a distribuição existente."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Gestão necessária na criação; visibilidade da oferta mantém os controles de convite e Pulso."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Mantém leitura da base consolidada e dados de recursos legados."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify concluído. Os 16 testes focados passaram e o localhost voltou com HTTP 200 após reiniciar."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-budget-fields.test.ts",
+    "server/bia-offer.test.ts",
+    "server/bia-vacancies.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

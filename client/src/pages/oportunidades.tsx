@@ -1,4 +1,5 @@
 import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
+import { usePublishedObaOffer } from "@/components/oba-offer";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -82,6 +83,7 @@ interface Oportunidade {
   bia_id?: string;
   valor_origem_opa?: string | number;
   Minimo_esforco_multiplicador?: string | number;
+  aquisicao_cotas?: boolean;
   objetivo_alianca?: string;
   nucleo_alianca?: string;
   pais?: string;
@@ -602,7 +604,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
                   <p className="text-sm font-bold text-cyan-300 tabular-nums">{brl(n(selectedOpa.valor_origem_opa))}</p>
                 </div>
               )}
-              {n(selectedOpa.Minimo_esforco_multiplicador) > 0 && (
+              {!selectedOpa.aquisicao_cotas && n(selectedOpa.Minimo_esforco_multiplicador) > 0 && (
                 <div>
                   <p className="text-[9px] text-cyan-300/45 uppercase tracking-wider" title="Mínimo Esforço Multiplicador">MEM</p>
                   <p className="text-sm font-bold text-cyan-300">{n(selectedOpa.Minimo_esforco_multiplicador)}%</p>
@@ -793,12 +795,12 @@ function OpaCard({
               {valor > 0 ? brl(valor) : "-"}
             </p>
           </div>
-          <div className="min-w-0 text-right" title="Mínimo Esforço Multiplicador">
+          {!opa.aquisicao_cotas && <div className="min-w-0 text-right" title="Mínimo Esforço Multiplicador">
             <p className="text-[10px] text-muted-foreground">MEM</p>
             <p className="whitespace-nowrap text-sm font-semibold leading-tight text-foreground" data-testid={`text-min-esforco-opa-${opa.id}`}>
               {n(opa.Minimo_esforco_multiplicador) ? `${n(opa.Minimo_esforco_multiplicador).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : "-"}
             </p>
-          </div>
+          </div>}
         </div>
 
         {opa.Anexos && opa.Anexos.length > 0 && (
@@ -830,17 +832,20 @@ const EMPTY_OPA = {
 };
 
 export function OpaFormDialog({
-  open, onClose, opa, bias
+  open, onClose, opa, bias, initialBiaId
 }: {
   open: boolean;
   onClose: () => void;
   opa: Oportunidade | null;
   bias: BiasProjeto[];
+  initialBiaId?: string;
 }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [form, setForm] = useState({ ...EMPTY_OPA });
+  const {data:offer}=usePublishedObaOffer(open && opa?.id ? String(opa.id) : undefined);
+  const acquisition=opa?.aquisicao_cotas===true || offer?.aquisicaoCotas===true;
   const [formLat, setFormLat] = useState<number | null>(null);
   const [formLng, setFormLng] = useState<number | null>(null);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -893,7 +898,7 @@ export function OpaFormDialog({
       setImagemOpaId(opa.imagem_directus_id || null);
       setImagemOpaPreview(versionAssetUrl(opa.imagem_url) || versionAssetUrl(opa.imagem_directus_id));
     } else {
-      setForm({ ...EMPTY_OPA });
+      setForm({ ...EMPTY_OPA, bia_id: initialBiaId || "" });
       setFormLat(null);
       setFormLng(null);
       setExistingAnexos([]);
@@ -901,7 +906,7 @@ export function OpaFormDialog({
       setImagemOpaPreview(null);
     }
     setPendingFiles([]);
-  }, [opa, open]);
+  }, [opa, open, initialBiaId]);
 
   useEffect(() => {
     if (!open || !membroId || !form.bia_id || selectedBiaIsAllowed) return;
@@ -913,10 +918,12 @@ export function OpaFormDialog({
       opa
         ?apiRequest("PATCH", `/api/oportunidades/${opa.id}`, data)
         : apiRequest("POST", "/api/oportunidades", data),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      const created = opa ? null : await response.json();
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
       toast({ title: opa ?"OBA atualizada" : "OBA criada" });
       onClose();
+      if (created?.id) navigate("/opas/"+encodeURIComponent(String(created.id))+"?gestao=1");
     },
     onError: (e: any) => {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
@@ -1004,7 +1011,7 @@ export function OpaFormDialog({
       toast({ title: "Valor da OBA é obrigatório", variant: "destructive" });
       return;
     }
-    if (!form.Minimo_esforco_multiplicador || parseFloat(form.Minimo_esforco_multiplicador) <= 0) {
+    if (!acquisition && (!form.Minimo_esforco_multiplicador || parseFloat(form.Minimo_esforco_multiplicador) <= 0)) {
       toast({ title: "Mín. Esforço Multiplicador é obrigatório", variant: "destructive" });
       return;
     }
@@ -1026,7 +1033,7 @@ export function OpaFormDialog({
         status: form.status || "ativa",
         bia: form.bia_id || null,
         valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
-        Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ?parseFloat(form.Minimo_esforco_multiplicador) : null,
+        Minimo_esforco_multiplicador: !acquisition && form.Minimo_esforco_multiplicador ?parseFloat(form.Minimo_esforco_multiplicador) : null,
         nucleo_alianca: form.nucleo_alianca || null,
         descricao: form.descricao || null,
         perfil_aliado: form.perfil_aliado || null,
@@ -1293,7 +1300,7 @@ export function OpaFormDialog({
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
+            {!acquisition && <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Mín. Esforço Multiplicador *</Label>
               <div className="relative">
                 <Input
@@ -1310,7 +1317,7 @@ export function OpaFormDialog({
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
               </div>
-            </div>
+            </div>}
           </div>
 
           {/* 8. Perfil do Aliado */}
@@ -1496,6 +1503,7 @@ export default function OportunidadesPage() {
   const [filterNucleo, setFilterNucleo] = useState<string>("__all__");
   const [filterTipo, setFilterTipo] = useState<string>("__all__");
   const [createDialog, setCreateDialog] = useState(false);
+  const [initialBiaId, setInitialBiaId] = useState("");
 
   const { data: opasRaw = [], isLoading: loadingOpas } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -1540,8 +1548,10 @@ export default function OportunidadesPage() {
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     if (params.get("criar") === "true") {
+      setInitialBiaId(params.get("bia") || "");
       setCreateDialog(true);
       params.delete("criar");
+      params.delete("bia");
       const suffix = params.toString();
       navigate(`/area-aliancas${suffix ?`?${suffix}` : "?tab=opas"}`, { replace: true });
     }
@@ -1561,7 +1571,7 @@ export default function OportunidadesPage() {
           </p>
         </div>
         <Button
-          onClick={() => setCreateDialog(true)}
+          onClick={() => { setInitialBiaId(""); setCreateDialog(true); }}
           className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
           data-testid="button-new-opa"
         >
@@ -1700,8 +1710,9 @@ export default function OportunidadesPage() {
       )}
 
       <OpaFormDialog
-        open={createDialog}
-        onClose={() => setCreateDialog(false)}
+        open={createDialog && !loadingBias}
+        onClose={() => { setCreateDialog(false); setInitialBiaId(""); }}
+        initialBiaId={initialBiaId}
         opa={null}
         bias={bias}
       />

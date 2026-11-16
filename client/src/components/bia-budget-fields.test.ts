@@ -11,7 +11,7 @@ const source=readFileSync(new URL('./bia-budget-fields.tsx',import.meta.url),'ut
 const ast=ts.createSourceFile('budget.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)).map(n=>n.getText(ast).replace('export function','function')).join('\n');
 const dialog=({children}:any)=>React.createElement(React.Fragment,null,children);
-const scope={React,...budget,AlertDialog:dialog,AlertDialogTrigger:dialog,AlertDialogContent:dialog,AlertDialogHeader:dialog,AlertDialogTitle:dialog,AlertDialogDescription:dialog,AlertDialogFooter:dialog,AlertDialogCancel:'button',AlertDialogAction:'button',Input:'input',Button:'button',css:'',card:'',uid:()=>String(Math.random()),amount:(n:number)=>Number.isFinite(n)?n:null,BiaNumberInput:({label,value,onChange}:any)=>React.createElement('input',{'aria-label':label,value:Number.isFinite(value)?value:'',onChange})};
+const scope={React,BiaPaymentPlanEditor:()=>null,...budget,AlertDialog:dialog,AlertDialogTrigger:dialog,AlertDialogContent:dialog,AlertDialogHeader:dialog,AlertDialogTitle:dialog,AlertDialogDescription:dialog,AlertDialogFooter:dialog,AlertDialogCancel:'button',AlertDialogAction:'button',Input:'input',Button:'button',css:'',card:'',uid:()=>String(Math.random()),amount:(n:number)=>Number.isFinite(n)?n:null,BiaNumberInput:({label,value,onChange}:any)=>React.createElement('input',{'aria-label':label,value:Number.isFinite(value)?value:'',onChange})};
 const {BiaBudgetFields,BiaBudgetSummary}=new Function(...Object.keys(scope),transformSync(functions,{loader:'tsx'}).code+';return {BiaBudgetFields,BiaBudgetSummary};')(...Object.values(scope));
 function nodes(node:any):any[]{if(!node || typeof node!=='object')return [];return Array.isArray(node)?node.flatMap(nodes):[node,...nodes(node.props?.children)];}
 
@@ -100,9 +100,16 @@ test('resumo omite avisos de pagamentos e recursos sem alterar orçamento ou pro
     const html=renderToStaticMarkup(BiaBudgetSummary({value,moeda:'BRL',details}));
     assert.doesNotMatch(html,/Pendências e avisos|Pagamentos diferem|Origem dos recursos não informada|Há necessidades sem cobertura/);
     assert.match(html,/<table/);assert.match(html,/2\.795,00/);
+    assert.match(html,/Total do mês/);assert.doesNotMatch(html,/Ver recursos e quanto falta/);
   }
   assert.deepEqual(value,before);
   assert.deepEqual(budget.projectBiaBudget(value.orcamento,'BRL'),projection);
+  value.orcamento.fontes.push({id:'fonte',descricao:'Capital',tipo:'Aporte',valor:1000,mes:'2026-09',situacao:'Confirmada pelo responsável',destinacao:'Livre',observacoes:''});
+  const withFunding=renderToStaticMarkup(BiaBudgetSummary({value,moeda:'BRL',details:false}));
+  assert.match(withFunding,/<details[^>]*><summary[^>]*>Ver recursos e quanto falta/);
+  assert.match(withFunding,/Falta com recursos confirmados/);
+  assert.match(withFunding,/1\.795,00/);
+
 });
 
 test('resumo para tela/PDF escapa texto, mantém ausência, moeda e seções sem efeitos financeiros',()=>{

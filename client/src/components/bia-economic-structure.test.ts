@@ -125,7 +125,7 @@ test("BEI segue os blocos numerados de 1 a 8 sem entrada ou cálculo de CPP na e
   assert.doesNotMatch(form,/Aportes? de Capital/);
   assert.match(form,/<span>Aporte Financeiro<\/span>/);
   assert.match(form,/<dt>Aportes Financeiros<\/dt>/);
-  assert.match(form,/Uma linha por pessoa\. A forma do aporte fica nos detalhes\./);
+  assert.match(form,/Uma linha por sócio ou vaga\. A forma do aporte fica nos detalhes\./);
   assert.match(form,/>Forma do aporte<\/summary>/);
   assert.doesNotMatch(form,/Natureza do aporte|Selecione quando houver aporte/);
   assert.match(form,/<label>Forma do aporte<select/);

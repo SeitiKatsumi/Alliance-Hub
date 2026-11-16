@@ -285,3 +285,11 @@ test("aceites iniciais não reabrem depois do avanço; fluxo legado preserva ace
   assert.equal(canAccessOnboardingStep("aceites", "aceites", 1), true);
   assert.equal(canAccessOnboardingStep("aceites", "perfil", 1), true);
 });
+
+test("OAB opcional é gravada no perfil somente com a contribuição Jurídicas", () => {
+  assert.equal(buildInitialOnboardingProfileFields({}, { areas: ["Jurídicas"], oab: " SP 123456 " }).oab, "SP 123456");
+  assert.equal(buildInitialOnboardingProfileFields({}, { areas: ["Alianças Jurídicas"], oab: "" }).oab, null);
+  assert.equal(buildInitialOnboardingProfileFields({}, { areas: ["Jurídicas"] }).oab, undefined);
+  assert.equal(buildInitialOnboardingProfileFields({}, { areas: ["Projeto"], oab: "SP 123456" }).oab, undefined);
+  assert.throws(() => buildInitialOnboardingProfileFields({}, { areas: ["Jurídicas"], oab: "x".repeat(101) }), /até 100 caracteres/);
+});

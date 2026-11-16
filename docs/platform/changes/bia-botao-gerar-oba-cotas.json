@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "id": "bia-botao-gerar-oba-cotas",
+  "title": "Botão Gerar OBA no bloco de distribuição das cotas",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "client/src/pages/bia-nova.tsx",
+    "client/src/components/bia-oba-prompt.tsx"
+  ],
+  "searchTerms": [
+    "onGenerateOba"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "updated",
+      "reason": "Exibe a entrada do fluxo de oferta quando o rascunho tem cotas disponíveis."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "updated",
+      "reason": "Mostra botão ao lado de Pessoa no bloco de distribuição."
+    },
+    {
+      "path": "client/src/components/bia-oba-prompt.tsx",
+      "decision": "preserved",
+      "reason": "Reutiliza confirmação e passo de revisão."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta o atalho."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "No localhost autenticado o botão apareceu ao lado de Pessoa na Veneto Gramado, abriu a pergunta e fechou ao clicar Agora não."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Disponível somente no formulário editável habilitado."
+    },
+    {
+      "area": "legado",
+      "status": "not-applicable",
+      "evidence": "Atalho da interface abre a confirmação existente. Não faz gravações nem divulga ofertas."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "9 testes focados e platform:verify com 844 testes, tipos e build aprovados."
+    }
+  ],
+  "regressionTests": [
+    "client/src/components/bia-economic-structure.test.ts",
+    "client/src/components/bia-oba-prompt.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

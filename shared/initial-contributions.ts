@@ -92,6 +92,7 @@ export function buildNominalSchedule(total: number, series: ScheduleSeries[]): S
 export function commitmentsFromMap(valorOrigem: number, participants: InitialMapParticipant[]): InitialCommitment[] {
   const rows: InitialCommitment[] = [{ chave: "ativo", participanteId: null, componente: "ativo", nome: "Pagamento do ativo", valor: valorOrigem, natureza: "caixa", beneficiario: "", series: [] }];
   for (const p of participants) {
+    if (p.titular) continue;
     const capital = p.modeloCalculo === 5 ? Number(p.capitalComprometido) : p.cppCapital;
     if (capital > 0) rows.push({ chave: `${p.participantId}:capital`, participanteId: p.participantId, componente: "capital", nome: p.nome, valor: capital, natureza: p.naturezaCapital || "caixa", tipoCpp: p.tipoCppCapital, beneficiario: p.memberId || "", series: [] });
     if (Number(p.modeloCalculo) >= 4) {

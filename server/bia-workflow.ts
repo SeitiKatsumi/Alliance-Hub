@@ -49,6 +49,7 @@ export function validateBiaDraft(body:any) {
   for(const p of data.map_inicial?.participantes || []) {
     if (p.cotasInvestimento != null && (!Number.isFinite(p.cotasInvestimento) || p.cotasInvestimento < 0)) throw failure("CIs inválidas.",400);
     if(p.cargos.some((cargo:any)=>typeof cargo!=="string") || (p.contribuicoes || []).some((c:any)=>!c || typeof c.cargo!=="string" || (c.indice!=null && (!Number.isFinite(c.indice) || c.indice<0))))throw failure("Contribuição do rascunho inválida.",400);
+    if (p.titular !== undefined && !["vaga", "externo"].includes(p.titular)) throw failure("Titular da cota inválido.",400);
     for(const field of ["nome","memberId","participantId"])if(p[field]!=null && typeof p[field]!=="string")throw failure("Participante do rascunho inválido.",400);
     for(const component of [p.tipoCppCapital,...(p.contribuicoes || []).map((c:any)=>c.tipoCpp)])if(component!=null && (typeof component!=="object" || typeof component.id!=="string" || typeof component.nome!=="string"))throw failure("Classificação do rascunho inválida.",400);
   }

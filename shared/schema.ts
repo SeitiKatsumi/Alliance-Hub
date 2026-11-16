@@ -1160,6 +1160,10 @@ export type InsertAliancaDoc = z.infer<typeof insertAliancaDocSchema>;
 export type AliancaDoc = typeof aliancaDocs.$inferSelect;
 
 export const opaInteresses = pgTable("opa_interesses", {
+  vaga_id: text("vaga_id"),
+  vaga_bia_id: text("vaga_bia_id"),
+  vaga_status: text("vaga_status"),
+  oferta_revisao: integer("oferta_revisao"),
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   opa_id: text("opa_id").notNull(),
   user_id: text("user_id").notNull(),

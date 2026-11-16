@@ -24,7 +24,7 @@ test('draft handoff handles asset additions/removals, no changes and cross-BIA i
   assert.equal(mergeSetupEdits(base,base,draft).ativos.length,2);
   keepDraftHandoff('a',{setup:edit,revision:7});assert.equal(takeDraftHandoff('b'),undefined);
   assert.equal(takeDraftHandoff('a')?.revision,7);assert.equal(takeDraftHandoff('a'),undefined);
-  assert.equal(draftSectionStep('ativos'),4);assert.equal(draftSectionStep('juridico'),3);assert.equal(draftSectionStep('orcamento'),5);assert.equal(draftSectionStep('invalid'),0);
+  assert.equal(draftSectionStep('equipe'),1);assert.equal(draftSectionStep('ativos'),4);assert.equal(draftSectionStep('juridico'),3);assert.equal(draftSectionStep('orcamento'),5);assert.equal(draftSectionStep('invalid'),0);
 });
 test('editor preflights draft before writes; destination keeps revision and original saved baseline',()=>{
   const editor=readFileSync('client/src/components/bia-setup-panel.tsx','utf8');

@@ -30,6 +30,7 @@ import BiaDocumentosPage, { type DocumentoModulo } from "./bia-documentos";
 import NucleoCapitalPage from "./nucleo-capital";
 import BiaDemandas from "@/components/bia-demandas";
 import TraceabilitySummary from "@/components/traceability-summary";
+import { biaObaCreationUrl } from "@/components/bia-oba-prompt";
 import { BiaPhaseControls } from "@/components/bia-phase-controls";
 import { biaPhaseLabel, type BiaPhase } from "@shared/bia-phase";
 import {
@@ -1011,7 +1012,7 @@ export default function BiaDetalhePage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate("/area-aliancas?tab=opas")}
+                    onClick={() => navigate(biaObaCreationUrl(bia.id))}
                     className="mt-1 text-brand-gold/60"
                   >
                     Criar OBA →

@@ -7402,5 +7402,13 @@
   "Dividir proporcionalmente à participação dos sócios guardiões no MAP":["Split proportionally to guardian partners’ participation in the MAP","Repartir proporcionalmente a la participación de los socios guardianes en el MAP"],
 "Dividir o valor em partes iguais entre os sócios guardiões":["Split the amount equally among guardian partners","Dividir el importe en partes iguales entre los socios guardianes"],
 "Período dos imóveis":["Property period","Período de los inmuebles"],
-  "Acesso inicial aprovado. O convidado pode entrar após concluir o onboarding.":["Initial access approved. The invitee can sign in after completing onboarding.","Acceso inicial aprobado. La persona invitada puede entrar después de completar la incorporación."]
+  "Acesso inicial aprovado. O convidado pode entrar após concluir o onboarding.":["Initial access approved. The invitee can sign in after completing onboarding.","Acceso inicial aprobado. La persona invitada puede entrar después de completar la incorporación."],
+  "Cronograma mensal": ["Monthly schedule","Cronograma mensual"],
+  "Total do mês": ["Monthly total","Total del mes"],
+  "Ver recursos e quanto falta": ["View funding and shortfall","Ver recursos y cuánto falta"],
+  "Os valores que faltam são acumulados até cada mês. Cada recurso pode ser usado conforme a sua destinação.": ["Shortfalls are cumulative through each month. Each funding source may be used for its intended purpose.","Los importes faltantes se acumulan hasta cada mes. Cada recurso se utiliza según su destino."],
+  "Falta com recursos confirmados": ["Shortfall with confirmed funding","Falta con recursos confirmados"],
+  "Falta com todos os recursos previstos": ["Shortfall with all planned funding","Falta con todos los recursos previstos"],
+  "Salvar e gerar OBA": ["Save and create OBA","Guardar y crear OBA"],
+  "Vamos salvar o rascunho e abrir o formulário da OBA com esta BIA vinculada.": ["We'll save the draft and open the OBA form with this BIA linked.","Guardaremos el borrador y abriremos el formulario de la OBA con esta BIA vinculada."]
 }

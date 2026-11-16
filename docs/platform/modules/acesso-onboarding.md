@@ -126,3 +126,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Ao alterar: testar login local/Google, convite novo/reutilizado/expirado, aceite com e sem permissao, recuperacao de senha, perfil parcial, desktop e mobile.
 
 - No fluxo v2, aceites iniciais só abrem enquanto forem a etapa atual. Retorno por URL ou histórico após avanço retoma a etapa indicada pela API. Conflito 409 ao enviar aceites atualiza a jornada e segue o next_url de onboarding, sem repetir aceite ou marcar etapas como concluídas. O fluxo legado preserva aceites finais.
+
+- 16/11/2026 — Novos convites de um Aliado BUILT usam a comunidade que ele lidera como destino e como comunidade mãe de quem está ingressando. A decisão de candidatura usa o Aliado da comunidade gravada no convite. O link pessoal só é reaproveitado para o destino vigente. Convites emitidos anteriormente e comunidades mãe existentes conservam o destino registrado. A criação, a edição e a atribuição administrativa de liderança rejeitam dois vínculos para o mesmo membro.
+
+- Convite de acesso inicial feito pelo Aliado da comunidade de destino passa diretamente para acesso inicial ativo após o registro da Aura. O onboarding completo continua necessário. Convites de outros conectores seguem para decisão do Aliado; adesão paga conserva seu fluxo. A percepção e o novo status são gravados em uma transação.

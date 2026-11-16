@@ -133,7 +133,7 @@ export interface IStorage {
 
   createConviteLink(data: InsertConviteLink): Promise<ConviteLink>;
   getConviteLinkByToken(token: string): Promise<ConviteLink | undefined>;
-  getActiveConviteLinkByUserId(userId: string): Promise<ConviteLink | undefined>;
+  getActiveConviteLinkByUserId(userId: string, communityId?: string): Promise<ConviteLink | undefined>;
   getConvitesLinkByComunidade(comunidadeId: string): Promise<ConviteLink[]>;
   updateConviteLink(id: string, data: Partial<ConviteLink>): Promise<ConviteLink | undefined>;
 
@@ -184,7 +184,7 @@ export interface IStorage {
   getChamadasAliancaByDestinatario(membroId: string): Promise<ChamadaAlianca[]>;
   getAllChamadasAlianca(): Promise<ChamadaAlianca[]>;
 
-  upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao>;
+  upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[], writer?: Pick<typeof db, "insert">): Promise<AuraAvaliacao>;
   getAuraAvaliacoesByAvaliado(avaliadoId: string): Promise<AuraAvaliacao[]>;
   getAuraAvaliacoesByAvaliador(avaliadorId: string): Promise<AuraAvaliacao[]>;
   getAuraAvaliacaoByPair(avaliadorId: string, avaliadoId: string): Promise<AuraAvaliacao | undefined>;
@@ -605,11 +605,12 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async getActiveConviteLinkByUserId(userId: string): Promise<ConviteLink | undefined> {
+  async getActiveConviteLinkByUserId(userId: string, communityId?: string): Promise<ConviteLink | undefined> {
     const [item] = await db
       .select()
       .from(convitesLink)
-      .where(and(eq(convitesLink.gerador_user_id, userId), eq(convitesLink.status, "ativo"), isNull(convitesLink.source_type)))
+      .where(and(eq(convitesLink.gerador_user_id, userId), eq(convitesLink.status, "ativo"), isNull(convitesLink.source_type),
+        communityId ? eq(convitesLink.comunidade_id, communityId) : undefined))
       .orderBy(desc(convitesLink.criado_em))
       .limit(1);
     return item;
@@ -938,8 +939,8 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(chamadasAlianca).orderBy(desc(chamadasAlianca.criado_em));
   }
 
-  async upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao> {
-    const [row] = await db.insert(auraAvaliacoes)
+  async upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[], writer: Pick<typeof db, "insert"> = db): Promise<AuraAvaliacao> {
+    const [row] = await writer.insert(auraAvaliacoes)
       .values({ avaliador_membro_id: avaliadorId, avaliado_membro_id: avaliadoId, palavras })
       .onConflictDoUpdate({
         target: [auraAvaliacoes.avaliador_membro_id, auraAvaliacoes.avaliado_membro_id],

@@ -1,0 +1,339 @@
+{
+  "version": 1,
+  "id": "2026-11-16-led-invite-aura-approval",
+  "title": "Ativar acesso inicial após a Aura no convite do próprio Aliado",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/community-approval.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "statusAfterConnectorAura",
+    "initialAccessApproved"
+  ],
+  "consumers": [
+    {
+      "path": "shared/community-approval.ts",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "shared/community-approval.test.ts",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "server/storage.ts",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "client/src/pages/avaliar-aura-candidato.tsx",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "client/src/lib/interface-catalog.json",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "client/src/lib/interface-catalog-pt-pt.json",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "docs/platform/modules/acesso-onboarding.md",
+      "decision": "updated",
+      "reason": "Avaliação e mudança de status são atômicas. A confirmação do guia de avaliação reflete o status devolvido e as traduções incluem o novo resultado."
+    },
+    {
+      "path": "client/src/built-onboarding-preview.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/app-sidebar.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/appearance-settings.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/bia-business-type.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/bia-demandas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/contribution-area-info.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/contribution-area-selector.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/opportunity-distribution-controls.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/platform-preferences.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/platform-preferences.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/preferences-provider.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/components/profile-activity-fields.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/agenda-interface-copy.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/environment-nomenclature.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/interface-language.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/interface-language.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/interface-locale-runtime.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/interface-taxonomy.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/lib/platform-localization.test.ts",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/admin.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/agenda.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/area-membros.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/aura.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/built-capital.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/initial-onboarding.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/login.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/membro-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/membros.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/meu-perfil.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/vitrine-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/vitrine-oportunidades.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    },
+    {
+      "path": "client/src/pages/vitrine.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor indireto do catálogo. O novo rótulo só ocorre na confirmação da Aura e as traduções existentes permanecem iguais."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "evidence": "A confirmação da avaliação reflete o acesso inicial ou a fila de aprovação. Reabrir o link identifica avaliação gravada.",
+      "status": "verified"
+    },
+    {
+      "area": "api",
+      "evidence": "O mesmo endpoint responde com o estado persistido. A transição só ocorre de aguardando_avaliacao_aura.",
+      "status": "verified"
+    },
+    {
+      "area": "dados",
+      "evidence": "Percepção e status gravados em uma única transação no PostgreSQL. A liderança é lida da comunidade do convite.",
+      "status": "verified"
+    },
+    {
+      "area": "calculos-graficos",
+      "evidence": "Sem alteração da fórmula da Aura ou dos gráficos. A avaliação alimenta a tabela existente.",
+      "status": "verified"
+    },
+    {
+      "area": "notificacoes-emails",
+      "evidence": "A notificação de decisão é enviada somente quando o convite passa para candidato. O acesso inicial ativo não permanece na fila de aprovação.",
+      "status": "verified"
+    },
+    {
+      "area": "documentos-relatorios",
+      "evidence": "A transição usa o registro existente e não gera novos documentos.",
+      "status": "verified"
+    },
+    {
+      "area": "integracoes-tarefas",
+      "evidence": "Consulta da comunidade antes de gravar. Onboarding, autorização inicial e fluxo de cobrança usam os estados já reconhecidos.",
+      "status": "verified"
+    },
+    {
+      "area": "permissoes",
+      "evidence": "Igualdade exata entre conector do convite e Aliado da comunidade. Onboarding ainda exige conclusão.",
+      "status": "verified"
+    },
+    {
+      "area": "legado",
+      "evidence": "A nova transição vale ao processar uma avaliação pendente. Convites já processados mantêm o estado persistido.",
+      "status": "verified"
+    },
+    {
+      "area": "testes",
+      "evidence": "Regressão cobre próprio Aliado, outro conector, líder ausente e modalidades distintas.",
+      "status": "verified"
+    }
+  ],
+  "regressionTests": [
+    "shared/community-approval.test.ts",
+    "server/invite-community-origin.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

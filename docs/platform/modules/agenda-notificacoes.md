@@ -107,3 +107,5 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 - `client/src/lib/agenda-calendar.test.ts`
 - `client/src/lib/dashboard-navigation.test.ts`
 - Ao alterar: testar destinatarios por papel, deduplicacao, item resolvido, links profundos, refresh, badge lateral e mobile.
+
+- 11/11/2026 — Aguardando Aura aparece nas Aprovações pendentes e no contador da página apenas para o parceiro conector do convite. Ao passar para candidato, o convite volta à fila de aprovação da comunidade.

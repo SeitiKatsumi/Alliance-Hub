@@ -46,7 +46,7 @@ import {
   formatAuraRecordingTime,
   getAuraAudioFilename,
 } from "@/lib/aura-audio";
-import { isCommunityApprovalPending } from "@shared/community-approval";
+import { canSeeCommunityApproval, isCommunityApprovalPending } from "@shared/community-approval";
 import { memberCommunityMembership, type MemberCommunityLink } from "@shared/member-community";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -1849,6 +1849,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   };
 
   const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
+  const canSeeApproval = (convite: any) => canSeeCommunityApproval(convite, user?.membro_directus_id);
   const mergeConvitesById = (...groups: any[][]) => Array.from(
     new Map(groups.flat().map((convite: any) => [String(convite.id), convite])).values()
   );
@@ -1931,6 +1932,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
     ).values()
   )
     .filter((convite: any) => !HIDDEN_APPROVAL_STATUSES.includes(String(convite.status || "").toLowerCase()))
+    .filter(canSeeApproval)
     .sort((a: any, b: any) => {
     const priorityA = isCommunityApprovalPending(a.status) ?0 : 1;
     const priorityB = isCommunityApprovalPending(b.status) ?0 : 1;
@@ -2028,7 +2030,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
     mergeConvitesById(vitrineCandidatos, todosCandidatos, convitesComoConector)
-      .filter((c: any) => isCommunityApprovalPending(c.status)).length;
+      .filter((c: any) => isCommunityApprovalPending(c.status) && canSeeApproval(c)).length;
 
   return (
     <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"} ${convitesOnly ?"notifications-page" : ""}`}>
@@ -2444,7 +2446,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                   const nomeConector = invitador?.nome || null;
                   const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/40" };
                   const dados = convite.dados_contratuais as any;
-                  const showAuraAction = Boolean(convite.avaliacao_token) && isAguardandoAura;
+                  const showAuraAction = Boolean(convite.avaliacao_token) && isAguardandoAura && canSeeApproval(convite);
                   return (
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0 space-y-1">
@@ -3056,7 +3058,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                     </button>
                   </>
                 )}
-                {sc.status === "aguardando_avaliacao_aura" && sc.avaliacao_token && (
+                {sc.status === "aguardando_avaliacao_aura" && sc.avaliacao_token && canSeeApproval(sc) && (
                   <button
                     onClick={() => {
                       setAuraDialogConvite({ avaliacaoToken: sc.avaliacao_token, candidatoNome: sc.candidato_nome || dados?.nome_completo || "Candidato" });

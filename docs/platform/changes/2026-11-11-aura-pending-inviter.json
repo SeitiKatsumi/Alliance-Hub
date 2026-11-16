@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "id": "2026-11-11-aura-pending-inviter",
+  "title": "Mostrar pendência de Aura somente ao conector",
+  "kind": "behavior",
+  "status": "complete",
+  "sourceOfTruth": [
+    "shared/community-approval.ts"
+  ],
+  "searchTerms": [
+    "canSeeCommunityApproval"
+  ],
+  "consumers": [
+    {
+      "path": "shared/community-approval.ts",
+      "decision": "updated",
+      "reason": "Filtra a pendência e o contador pela identidade do conector e preserva a candidatura para aprovação."
+    },
+    {
+      "path": "shared/community-approval.test.ts",
+      "decision": "updated",
+      "reason": "Filtra a pendência e o contador pela identidade do conector e preserva a candidatura para aprovação."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "updated",
+      "reason": "Filtra a pendência e o contador pela identidade do conector e preserva a candidatura para aprovação."
+    },
+    {
+      "path": "docs/platform/modules/agenda-notificacoes.md",
+      "decision": "updated",
+      "reason": "Filtra a pendência e o contador pela identidade do conector e preserva a candidatura para aprovação."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "reviewed",
+      "reason": "A entrada existente monta a mesma página de Comunidades e Aprovações, com filtro aplicado à lista compartilhada e sem mudar o contrato do componente."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "A entrada existente monta a mesma página de Comunidades e Aprovações, com filtro aplicado à lista compartilhada e sem mudar o contrato do componente."
+    },
+    {
+      "path": "client/src/pages/agenda-alertas.tsx",
+      "decision": "reviewed",
+      "reason": "A entrada existente monta a mesma página de Comunidades e Aprovações, com filtro aplicado à lista compartilhada e sem mudar o contrato do componente."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "reviewed",
+      "reason": "A entrada existente monta a mesma página de Comunidades e Aprovações, com filtro aplicado à lista compartilhada e sem mudar o contrato do componente."
+    },
+    {
+      "path": "client/src/pages/convites.tsx",
+      "decision": "reviewed",
+      "reason": "A entrada existente monta a mesma página de Comunidades e Aprovações, com filtro aplicado à lista compartilhada e sem mudar o contrato do componente."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "reviewed",
+      "reason": "A projeção central já seleciona a avaliação pelo conector. Cadastro, aprovação e envio de Aura conservam seus contratos."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "reviewed",
+      "reason": "A projeção central já seleciona a avaliação pelo conector. Cadastro, aprovação e envio de Aura conservam seus contratos."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Lista e contador usam o filtro do conector. Regressão cobre conector, gestor e transição para candidato."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Lista e contador usam o filtro do conector. Regressão cobre conector, gestor e transição para candidato."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Filtro de apresentação usa o conector da sessão e o status existente. Projeção central já aplica o mesmo escopo e os demais contratos continuam em uso."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Lista e contador usam o filtro do conector. Regressão cobre conector, gestor e transição para candidato."
+    }
+  ],
+  "regressionTests": [
+    "shared/community-approval.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

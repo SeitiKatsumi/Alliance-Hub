@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "id": "2026-11-16-invite-led-community",
+  "title": "Usar a comunidade liderada nos convites do Aliado BUILT",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/community-approval.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "selectLedCommunity",
+    "resolveInviteOrigin",
+    "saveCommunityLeadership"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Implementa ou verifica destino do convite, gravação e unicidade da liderança."
+    },
+    {
+      "path": "server/storage.ts",
+      "decision": "updated",
+      "reason": "Implementa ou verifica destino do convite, gravação e unicidade da liderança."
+    },
+    {
+      "path": "shared/community-approval.ts",
+      "decision": "updated",
+      "reason": "Implementa ou verifica destino do convite, gravação e unicidade da liderança."
+    },
+    {
+      "path": "server/invite-community-origin.test.ts",
+      "decision": "updated",
+      "reason": "Implementa ou verifica destino do convite, gravação e unicidade da liderança."
+    },
+    {
+      "path": "docs/platform/modules/acesso-onboarding.md",
+      "decision": "updated",
+      "reason": "Implementa ou verifica destino do convite, gravação e unicidade da liderança."
+    },
+    {
+      "path": "server/auth-google.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor de storage para autenticação. O fluxo de login Google não resolve a comunidade de destino; a conclusão de cadastro usa a comunidade gravada no link no servidor de rotas."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Os fluxos de convite existentes recebem o link da comunidade liderada. Atribuição duplicada retorna erro de conflito."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Origem usa a relação aliado do cadastro de comunidade. Criação, edição e atribuição direta usam a mesma proteção."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Bloqueio por membro serializa atribuições feitas pela plataforma. A comunidade mãe é gravada pela transação existente do primeiro convite."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Não aplicável. Seleção de destino não consome métricas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Convite direto usa a comunidade efetivamente gravada. A aprovação segue a comunidade do convite."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Não aplicável. Nenhum gerador usa a nova seleção diretamente."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "A busca do Aliado consulta a fonte ativa e falha se a consulta falhar. Não depende de dados de contingência."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Quem convida continua identificado como conector. Aprovação segue as permissões da comunidade associada ao convite."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Links já emitidos conservam o destino gravado. Duplicidades anteriores exigem regularização e não escolhem um destino arbitrário."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "Regressões de precedência, unicidade e persistência da primeira comunidade mãe."
+    }
+  ],
+  "regressionTests": [
+    "server/invite-community-origin.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

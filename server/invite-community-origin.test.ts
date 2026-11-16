@@ -7,6 +7,26 @@ import { drizzle } from "drizzle-orm/pglite";
 import { asc, eq } from "drizzle-orm";
 import ts from "typescript";
 import { convitesComunidade, membroComunidadeMae } from "../shared/schema";
+import { selectLedCommunity } from "../shared/community-approval";
+
+test("convite prioriza a comunidade liderada mesmo quando a comunidade mãe é outra", async () => {
+  const source = readFileSync(new URL("./routes.ts", import.meta.url), "utf8");
+  const resolver = source.slice(source.indexOf("  async function resolveInviteOrigin("), source.indexOf('  app.get("/api/rede/oportunidades",'));
+  const led = [{ id: 7, nome: "Comunidade do conector", aliado: { id: "bernal" } }];
+  const origin = runInNewContext(ts.transpileModule(`${resolver}\nresolveInviteOrigin`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    findLedCommunity: async (id: string) => selectLedCommunity(led, id),
+    getMembroComunidadesLinks: async () => [{ id: 4, nome: "Comunidade mãe", is_mae: true }],
+    loadComunidadesParaChamada: async () => [{ id: 4, nome: "Comunidade da BIA" }],
+    extractComunidadeBiaIds: () => ["bia"],
+  });
+  assert.equal((await origin({ session: { membroId: "bernal" } }, "bia", "4")).id, "7");
+  assert.equal((await origin({ session: { membroId: "outro" } }, null)).id, "4");
+  assert.equal(selectLedCommunity(led, "bernal", "7"), null);
+  assert.equal(selectLedCommunity(led, "bernal", "4")?.id, "7");
+  assert.throws(() => selectLedCommunity([...led, { id: 8, aliado: "bernal" }], "bernal"), { status: 409 });
+});
 
 test("exibe origem sem M2M somente na consulta explícita, sem conceder associação", async () => {
   const source = ts.createSourceFile("routes.ts", readFileSync(new URL("./routes.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);

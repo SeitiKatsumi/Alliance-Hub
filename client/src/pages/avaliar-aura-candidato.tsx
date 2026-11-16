@@ -87,6 +87,7 @@ export default function AvaliarAuraCandidatoPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [initialAccessApproved, setInitialAccessApproved] = useState(false);
   const [evalMode, setEvalMode] = useState<"palavras" | "ia">("palavras");
   const [textoIA, setTextoIA] = useState("");
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
@@ -169,7 +170,10 @@ export default function AvaliarAuraCandidatoPage() {
       }
       return r.json();
     },
-    onSuccess: () => setSubmitted(true),
+    onSuccess: (result) => {
+      setInitialAccessApproved(result.status === "acesso_inicial_ativo");
+      setSubmitted(true);
+    },
     onError: (err: Error) => setPageError(err.message),
   });
 
@@ -264,7 +268,7 @@ export default function AvaliarAuraCandidatoPage() {
   }
 
   if (convite.status !== "aguardando_avaliacao_aura" && !submitted) {
-    const already = ["candidato", "aprovado", "vitrine_ativo", "membro"].includes(convite.status);
+    const already = ["candidato", "aprovado", "acesso_inicial_ativo", "vitrine_ativo", "membro"].includes(convite.status);
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
         <div className="text-center space-y-4 p-8 max-w-md">
@@ -295,8 +299,10 @@ export default function AvaliarAuraCandidatoPage() {
           <div>
             <h1 className="text-xl font-bold font-mono text-white">Percepção de Aura registrada!</h1>
             <p className="text-white/50 text-sm font-mono mt-2 leading-relaxed">
-              Obrigado! O Aliado BUILT foi notificado e analisará a candidatura de{" "}
-              <strong className="text-brand-gold">{convite.candidato_nome}</strong> em breve.
+              {initialAccessApproved ? "Acesso inicial aprovado. O convidado pode entrar após concluir o onboarding." : <>
+                Obrigado! O Aliado BUILT foi notificado e analisará a candidatura de{" "}
+                <strong className="text-brand-gold">{convite.candidato_nome}</strong> em breve.
+              </>}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">

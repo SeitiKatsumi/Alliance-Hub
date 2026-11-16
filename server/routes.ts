@@ -222,7 +222,7 @@ import {
   INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
   type InitialOnboardingStep,
 } from "@shared/initial-onboarding";
-import { shouldStartMembershipPaymentAfterApproval } from "@shared/community-approval";
+import { selectLedCommunity, shouldStartMembershipPaymentAfterApproval, statusAfterConnectorAura } from "@shared/community-approval";
 import {
   buildCarteiraAlternativas,
   canDeleteCarteiraAsset,
@@ -6905,18 +6905,10 @@ export async function registerRoutes(
       if (!comunidadeId) return res.status(400).json({ error: "Selecione uma comunidade." });
 
       const col = await getComunidadeCol();
-      const patch = await fetch(`${DIRECTUS_URL}/items/${col}/${comunidadeId}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ aliado: membroId }),
-      });
-      if (!patch.ok) {
-        const err = await patch.text().catch(() => "");
-        throw new Error(err || "Falha ao vincular membro como aliado da comunidade");
-      }
+      await saveCommunityLeadership(membroId, comunidadeId, () => directusUpdate(col, comunidadeId, { aliado: membroId }));
       res.json({ success: true, comunidade_id: comunidadeId, membro_id: membroId, papel: "aliado" });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 
@@ -19144,15 +19136,49 @@ Deixe claro que premissas precisam de validação profissional.`,
     return String(registry.criador_user_id || "") === String(session.directusUserId || session.userId || "");
   }
 
-  async function resolveInviteOrigin(req: Request, biaId?: string | null) {
+  async function findLedCommunity(memberId: string | null, exceptId?: string) {
+    if (!memberId) return null;
+    const col = await getComunidadeCol();
+    const query = new URLSearchParams({ fields: "id,nome,aliado", limit: "-1", "filter[aliado][_eq]": memberId });
+    const response = await fetch(`${DIRECTUS_URL}/items/${col}?${query}`, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) throw Object.assign(new Error("Não foi possível conferir a comunidade liderada."), { status: 503 });
+    const { data } = await response.json();
+    return selectLedCommunity(data, memberId, exceptId);
+  }
+
+  async function saveCommunityLeadership<T>(aliado: unknown, communityId: string | undefined, save: () => Promise<T>) {
+    const memberId = directusRelationId(aliado);
+    if (aliado && !memberId) {
+      throw Object.assign(new Error("Selecione um membro existente como Aliado BUILT."), { status: 400 });
+    }
+    if (!memberId) return save();
+    return db.transaction(async tx => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`comunidade-aliado:${memberId}`}))`);
+      if (await findLedCommunity(memberId, communityId)) {
+        throw Object.assign(new Error("Este membro já é Aliado BUILT de outra comunidade."), { status: 409 });
+      }
+      return save();
+    });
+  }
+
+  async function resolveInviteOrigin(req: Request, biaId?: string | null, preferredCommunityId?: string) {
+    const membroId = (req.session as any)?.membroId ? String((req.session as any).membroId) : null;
+    const led = await findLedCommunity(membroId);
+    if (led) return led;
     if (biaId) {
       const communities = await loadComunidadesParaChamada().catch(() => []);
       const community = communities.find((item: any) => extractComunidadeBiaIds(item).includes(String(biaId)));
       if (community?.id) return { id: String(community.id), nome: community.nome || null };
     }
-    const membroId = (req.session as any)?.membroId ? String((req.session as any).membroId) : null;
     if (!membroId) return null;
     const communities = await getMembroComunidadesLinks(membroId).catch(() => []);
+    if (preferredCommunityId) {
+      const preferred = communities.find(link => String(link.id) === preferredCommunityId);
+      if (preferred) return { id: String(preferred.id), nome: preferred.nome || null };
+    }
     const community = communities.find((item: any) => item.is_mae) || communities[0] || null;
     if (community?.id) return { id: String(community.id), nome: community.nome || null };
     const stored = await getStoredMembroComunidadeMae(membroId).catch(() => null);
@@ -26414,12 +26440,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         payload.nome = `BUILT ${payload.pais} | ${payload.territorio} | Comunidade ${payload.codigo_sequencial}`;
       }
 
-      const created = await directusCreate(col, payload);
+      const created = await saveCommunityLeadership(payload.aliado, undefined, () => directusCreate(col, payload));
       await ensureStrategicCellTables();
       await ensureCommunityStrategicCells(String(created.id));
       res.json(created);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 
@@ -26427,10 +26453,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
-      const updated = await directusUpdate(col, req.params.id, toComunidadePayload(req.body));
+      const payload = toComunidadePayload(req.body);
+      const updated = await saveCommunityLeadership(payload.aliado, req.params.id, () => directusUpdate(col, req.params.id, payload));
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 
@@ -27399,10 +27426,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.post("/api/convites", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      const { comunidade_id, candidato_membro_id } = req.body;
-      if (!comunidade_id || !candidato_membro_id) return res.status(400).json({ error: "Campos obrigatÃ³rios: comunidade_id, candidato_membro_id" });
+      const { comunidade_id: requestedCommunityId, candidato_membro_id } = req.body;
+      if (!requestedCommunityId || !candidato_membro_id) return res.status(400).json({ error: "Informe a comunidade e o candidato." });
 
       const invitadorId = (req.session as any).membroId;
+      const comunidade_id = (await findLedCommunity(invitadorId))?.id || String(requestedCommunityId);
 
       // Get candidato info from Directus
       const candidato = await getDirectusMembro(candidato_membro_id);
@@ -27456,7 +27484,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       res.json({ ...convite, email_enviado: !emailResult.skipped, email_suprimido_preferencia: !!emailResult.skipped, email_message_id: emailResult.messageId || null });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 
@@ -28093,13 +28121,27 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       for (const p of palavras) {
         if (!classificarPalavra(p)) return res.status(400).json({ error: `Termo nÃ£o reconhecido no lÃ©xico: ${p}` });
       }
-      await storage.upsertAuraAvaliacao(convite.invitador_membro_id, convite.candidato_membro_id, palavras);
-      await storage.updateConvite(convite.id, { status: "candidato", aura_invitador_avaliada_em: new Date() });
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`;
-      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      const comunidade = cr.ok ? (await cr.json()).data : null;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }, signal: AbortSignal.timeout(12000) });
+      if (!cr.ok) return res.status(503).json({ error: "Não foi possível consultar a comunidade do convite. Tente novamente." });
+      const comunidade = (await cr.json()).data;
       const aliado = comunidade?.aliado;
+      const connectorId = convite.invitador_membro_id;
+      const status = statusAfterConnectorAura(convite.tipo, connectorId, directusRelationId(aliado));
+      const updated = await db.transaction(async tx => {
+        const now = new Date();
+        const [invite] = await tx.update(convitesComunidade).set({
+          status, aura_invitador_avaliada_em: now, atualizado_em: now,
+          ...(status === "acesso_inicial_ativo" ? { expires_at: null } : {}),
+        }).where(and(eq(convitesComunidade.id, convite.id), eq(convitesComunidade.status, "aguardando_avaliacao_aura")))
+          .returning({ id: convitesComunidade.id });
+        if (!invite) return false;
+        await storage.upsertAuraAvaliacao(connectorId, convite.candidato_membro_id, palavras, tx);
+        return true;
+      });
+      if (!updated) return res.status(409).json({ error: "A avaliação deste convite já foi processada." });
+      if (status === "acesso_inicial_ativo") return res.json({ success: true, status });
       let auraScore: number | null = null;
       let auraFaixa: string | null = null;
       try {
@@ -28116,7 +28158,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           comunidadeNome: comunidade?.nome || "Comunidade BUILT", comunidadeId: convite.comunidade_id,
         });
       }
-      res.json({ success: true });
+      res.json({ success: true, status });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -28313,21 +28355,18 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         ? String(req.body.tipo)
         : "unificado";
 
-      // Check if there's already an active invite (skip if force=true)
+      const origin = await resolveInviteOrigin(req, null, req.body?.comunidade_id ? String(req.body.comunidade_id) : undefined);
+      const comunidadeId = origin?.id || null;
+      const comunidadeNome = origin?.nome || null;
+
+      // Reuse only links for the current destination.
       if (!forceNew) {
-        const existing = await storage.getActiveConviteLinkByUserId(userId);
-        if (existing && new Date() < new Date(existing.expires_at) && ((existing as any).tipo || "vitrine") === tipoConvite) {
+        const existing = comunidadeId ? await storage.getActiveConviteLinkByUserId(userId, comunidadeId) : undefined;
+        if (existing && new Date() < new Date(existing.expires_at) && (existing.tipo || "vitrine") === tipoConvite) {
           const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
           return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
         }
       }
-
-      const preferredCommunityId = req.body?.comunidade_id ? String(req.body.comunidade_id) : null;
-      const origin = preferredCommunityId
-        ? (await getMembroComunidadesLinks(String(membroId || "")).catch(() => [])).find((item: any) => String(item.id) === preferredCommunityId) || await resolveInviteOrigin(req)
-        : await resolveInviteOrigin(req);
-      const comunidadeId = origin?.id || null;
-      const comunidadeNome = origin?.nome || null;
 
       // Block invite generation if the member has no community â€” the registration
       // flow requires a valid comunidade_id to create the vitrine candidatura record.
@@ -28355,7 +28394,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 
@@ -28367,7 +28406,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const email = (req.session as any).email;
       const localUser = email ? await storage.getUserByEmail(email) : null;
       const userId = localUser?.id || sessionUserId;
-      const convite = await storage.getActiveConviteLinkByUserId(userId);
+      const led = await findLedCommunity((req.session as any).membroId || null);
+      const convite = await storage.getActiveConviteLinkByUserId(userId, led?.id);
       if (!convite) return res.json(null);
       // Validate expiry â€” mark as expirado if past expires_at
       if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
@@ -28377,7 +28417,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   });
 

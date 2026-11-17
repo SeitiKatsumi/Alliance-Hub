@@ -52,7 +52,7 @@ import { groundedMarketComparables, propertyMarketFingerprint, PROPERTY_MARKET_V
 import { BUILT_VALUATION_VERSION, sanitizeValuationAreas, propertyValuationReadiness, valuationObservationReason } from "../shared/property-valuation";
 import { registerBuiltValuationRoutes } from './built-valuation';
 import { OBA_DELIVERIES_SQL, obaDeliveryCreateSchema, obaDeliveryValidationSchema } from "./oba-deliveries";
-import { assignMapVacancy, openMapVacancies } from "./bia-vacancies";
+import { assignMapVacancy, competingVacancyIds, liveOfferQuotas, openMapQuotaUnits, openMapVacancies } from "./bia-vacancies";
 import { externalBiaMemberIds, registerObaGuestRoutes } from "./oba-guest";
 import { guestPayments, guestPaymentTotals } from "../shared/oba-guest";
 import { listMouRevisionAlerts } from "./agenda-alerts";
@@ -79,7 +79,7 @@ import path from "path";
 import fs from "fs";
 import express from "express";
 import { db } from "./db";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 import { registerBiaBankHistory } from "./bia-bank-history";
 import { registerAsaasFoundation } from "./asaas/routes";
@@ -14418,7 +14418,7 @@ export async function registerRoutes(
     const savedBase = lockedBase === undefined ? await loadInitialMapSnapshot(biaId) : lockedBase;
     const base = savedBase ?? (bia.situacao==="em_estruturacao" ? await readObaDraftBase(biaId,tx) : null);
     if (!base || base.draftFrozen) return null;
-    return {biaId,base,registryId:String(registry.id),vagas:openMapVacancies(base.participantes)};
+    return {biaId,base,registryId:String(registry.id),vagas:openMapQuotaUnits(base.participantes)};
   }
 
   function canDecideVacancy(req: Request, bia: any) {
@@ -14448,19 +14448,25 @@ export async function registerRoutes(
 
   async function vacancyAgendaAlerts(req: Request): Promise<AgendaAlertItem[]> {
     const result = await db.execute(sql`
-      SELECT i.vaga_bia_id, i.vaga_id, max(slot.numero)::int AS numero, count(*)::int AS total, max(i.criado_em) AS created_at
-      FROM opa_interesses i
-      LEFT JOIN bia_map_inicial_snapshots m ON m.bia_id = i.vaga_bia_id
-      LEFT JOIN bia_estruturacao_rascunhos d ON d.bia_id = i.vaga_bia_id AND NOT d.concluido AND m.bia_id IS NULL
-      JOIN LATERAL jsonb_array_elements(COALESCE(m.participantes,d.dados->'map_inicial'->'participantes','[]'::jsonb)) WITH ORDINALITY AS slot(data,numero)
-        ON slot.data->>'participantId' = i.vaga_id AND slot.data->>'titular' = 'vaga'
-      WHERE i.vaga_status = 'pendente'
-      GROUP BY i.vaga_bia_id,i.vaga_id ORDER BY max(i.criado_em) DESC
+      WITH pending AS (
+        SELECT vaga_bia_id, vaga_id, count(*)::int AS total, max(criado_em) AS created_at
+        FROM opa_interesses WHERE vaga_status = 'pendente'
+        GROUP BY vaga_bia_id, vaga_id
+      )
+      SELECT p.*, COALESCE(m.participantes,d.dados->'map_inicial'->'participantes','[]'::jsonb) AS participants
+      FROM pending p
+      LEFT JOIN bia_map_inicial_snapshots m ON m.bia_id = p.vaga_bia_id
+      LEFT JOIN bia_estruturacao_rascunhos d ON d.bia_id = p.vaga_bia_id AND NOT d.concluido AND m.bia_id IS NULL
+      ORDER BY p.created_at DESC
     `);
     const alerts: AgendaAlertItem[] = [];
     const bias = new Map<string, any>();
+    const availableByBia = new Map<string, ReturnType<typeof openMapQuotaUnits>>();
     for (const row of result.rows as any[]) {
       const biaId = String(row.vaga_bia_id);
+      if (!availableByBia.has(biaId)) availableByBia.set(biaId,openMapQuotaUnits(row.participants,true));
+      const vacancy = availableByBia.get(biaId)?.find(item => item.slot.participantId === row.vaga_id);
+      if (!vacancy) continue;
       if (!bias.has(biaId)) bias.set(biaId,await resolveBiaByIdOrPublicCode(biaId,"*").catch(()=>null));
       const bia = bias.get(biaId);
       if (!bia || !quotaApplicationsOpen(bia.situacao) || !await canManageQuotaApplications(req,bia)) continue;
@@ -14468,7 +14474,7 @@ export async function registerRoutes(
       alerts.push({
         id:"vaga:"+sourceId,source_type:"bia_vaga",source_id:sourceId,group:"pendencias",category:"convite_bia",
         title:row.total === 1 ? "1 manifestação pendente" : row.total + " manifestações pendentes",
-        description:"Cota "+row.numero+" · "+(bia.nome_bia || "BIA"),priority:"alta",status:"pendente",created_at:agendaAlertDate(row.created_at),
+        description:"Cota "+(vacancy.index+1)+" · "+(bia.nome_bia || "BIA"),priority:"alta",status:"pendente",created_at:agendaAlertDate(row.created_at),
         action_required:true,active:true,href:"/bias/"+encodeURIComponent(biaId)+"/editar?section=equipe&vaga="+encodeURIComponent(row.vaga_id),
         actions:[],metadata:{bia_id:biaId,vaga_id:row.vaga_id},
       });
@@ -14484,11 +14490,12 @@ export async function registerRoutes(
       const base = await loadInitialMapSnapshot(biaId) ?? await readObaDraftBase(biaId);
       const items = await db.select().from(opaInteresses)
         .where(eq(opaInteresses.vaga_bia_id,biaId)).orderBy(desc(opaInteresses.criado_em));
-      const vagas = openMapVacancies(base?.participantes);
+      const vagas = openMapQuotaUnits(base?.participantes);
+      const legacy = openMapQuotaUnits(base?.participantes,true);
       const ids = [...new Set([...vagas.map(({slot})=>slot.participantId!), ...items.map(item=>item.vaga_id!).filter(Boolean)])];
       res.json(ids.map((id,index)=>({
         id, numero:vagas.find(item=>item.slot.participantId === id)?.index ?? index,
-        aberta:quotaApplicationsOpen(bia.situacao) && !base?.draftFrozen && vagas.some(({slot})=>slot.participantId === id),
+        aberta:quotaApplicationsOpen(bia.situacao) && !base?.draftFrozen && legacy.some(({slot})=>slot.participantId === id),
         conviteDisponivel:bia.situacao!=="em_estruturacao" && quotaApplicationsOpen(bia.situacao),
         candidatos:items.filter(item=>item.vaga_id === id).map(({id,membro_id,membro_nome,mensagem,criado_em,vaga_status,oferta_revisao})=>({id,membro_id,membro_nome,mensagem,criado_em,vaga_status,oferta_revisao})),
       })));
@@ -14511,7 +14518,7 @@ export async function registerRoutes(
         if (candidate.vaga_status === (decision === "aprovar" ? "aprovada" : "recusada"))
           return decision==="aprovar" ? {phase:freshBia.situacao,member:candidate.membro_id,guest:candidate.user_id.startsWith('guest:')} : null;
         const base=snapshot ?? await readObaDraftBase(biaId,tx);
-        const vacancy = openMapVacancies(base?.participantes).find(({slot})=>slot.participantId === candidate.vaga_id);
+        const vacancy = openMapQuotaUnits(base?.participantes,true).find(({slot})=>slot.participantId === candidate.vaga_id);
         if (!vacancy || !quotaApplicationsOpen(freshBia.situacao) || base.draftFrozen || candidate.vaga_status !== "pendente")
           throw Object.assign(new Error("A manifestação já foi decidida ou a vaga não está aberta."),{statusCode:409});
         const now = new Date();
@@ -14556,7 +14563,7 @@ export async function registerRoutes(
           await notifyMapRevision(tx,freshBia,updated,active);
         }
         await tx.update(opaInteresses).set({vaga_status:"vaga_preenchida",atualizado_em:now}).where(and(
-          eq(opaInteresses.vaga_bia_id,biaId),eq(opaInteresses.vaga_id,candidate.vaga_id),eq(opaInteresses.vaga_status,"pendente"),
+          eq(opaInteresses.vaga_bia_id,biaId),inArray(opaInteresses.vaga_id,competingVacancyIds(base.participantes,candidate.vaga_id)),eq(opaInteresses.vaga_status,"pendente"),
         ));
         await tx.update(opaInteresses).set({vaga_status:"aprovada",atualizado_em:now}).where(eq(opaInteresses.id,candidate.id));
         return {phase:freshBia.situacao,member:candidate.membro_id,guest:candidate.user_id.startsWith('guest:')};
@@ -14661,8 +14668,11 @@ export async function registerRoutes(
       if(req.query.previa==="1"){
         if(!await canManageOpa(req,id))return res.status(403).json({error:"Prévia disponível à gestão da OBA."});
         const head=await obaOfferHead(String(registry.id));
-        const oferta=await buildObaOffer(registry,await loadInitialMapSnapshot(String(registry.bia_id)),db);
-        return res.json({oferta,revisao:Number(head?.revisao || 0),assinatura:createHash("sha256").update(JSON.stringify(oferta)).digest("hex"),validade:registry.expira_em});
+        const snapshot = await loadInitialMapSnapshot(String(registry.bia_id));
+        const oferta = await buildObaOffer(registry,snapshot,db);
+        const base = snapshot ?? await readObaDraftBase(String(registry.bia_id));
+        return res.json({oferta:{...oferta,quotas:liveOfferQuotas(oferta.quotas,base?.participantes)},revisao:Number(head?.revisao || 0),
+          assinatura:createHash("sha256").update(JSON.stringify(oferta)).digest("hex"),validade:registry.expira_em});
       }
       const inviteToken=req.get("X-Oba-Invite");
       if(inviteToken !== undefined){
@@ -14677,11 +14687,8 @@ export async function registerRoutes(
       if(!head || String(head.bia_id)!==String(registry.bia_id))return res.status(404).json({error:"Oferta ainda não publicada."});
       const base=await loadInitialMapSnapshot(String(registry.bia_id));
       const liveBase=base ?? await readObaDraftBase(String(registry.bia_id));
-      const vacancies=new Map(openMapVacancies(liveBase?.participantes).map(({slot})=>[slot.participantId,slot]));
-      const oferta={...(head.oferta as BiaOffer),quotas:(head.oferta as BiaOffer).quotas.filter(quota=>{
-        const slot=vacancies.get(quota.id);
-        return slot?.tipo===quota.tipo && Number(slot.cotasInvestimento)===quota.quantidade;
-      })};
+      const published = head.oferta as BiaOffer;
+      const oferta = {...published,quotas:liveOfferQuotas(published.quotas,liveBase?.participantes)};
       return res.json({revisao:head.revisao,assinatura:head.assinatura,oferta,validade:registry.expira_em,
         aquisicaoCotas:String(registry.source_id)===quotaAcquisitionObaId(String(registry.bia_id))});
     }catch(error:any){res.status(error.statusCode || 500).json({error:error.message});}
@@ -14876,7 +14883,7 @@ export async function registerRoutes(
         const [duplicate] = await tx.select({id:opaInteresses.id}).from(opaInteresses).where(and(eq(opaInteresses.opa_id,id),eq(opaInteresses.user_id,directusUserId))).limit(1);
         if (duplicate) throw Object.assign(new Error("Interesse já registrado."), {statusCode:409});
         const head=await obaOfferHead(String(fresh.registryId),tx);
-        const publishedQuotas=(head?.oferta as BiaOffer | undefined)?.quotas;
+        const publishedQuotas=head ? liveOfferQuotas((head.oferta as BiaOffer).quotas,fresh.base.participantes) : undefined;
         const matchesOffer=vacancyIds.every(id=>{
           const published=publishedQuotas?.find(quota=>quota.id===id);
           const live=fresh.vagas.find(({slot})=>slot.participantId===id)?.slot;
@@ -21854,11 +21861,12 @@ Deixe claro que premissas precisam de validação profissional.`,
         if (existing.length) return { ok: true };
         const base = snapshot ?? await readObaDraftBase(access.bia_id, tx);
         const head = await obaOfferHead(String(registry.id), tx);
-        const vacancies = openMapVacancies(base?.participantes);
+        const vacancies = openMapQuotaUnits(base?.participantes);
+        const quotas = head ? liveOfferQuotas((head.oferta as BiaOffer).quotas,base?.participantes) : [];
         if (!base || base.draftFrozen || !head || String(head.bia_id) !== access.bia_id || input.oferta_revisao !== Number(head.revisao)
           || !ids.every(id => {
             const slot = vacancies.find(item => item.slot.participantId === id)?.slot;
-            const quota = (head.oferta as BiaOffer).quotas.find(item => item.id === id);
+            const quota = quotas.find(item => item.id === id);
             return slot && quota && slot.tipo === quota.tipo && Number(slot.cotasInvestimento) === quota.quantidade;
           })) throw offerError('A oferta mudou. Atualize a página e escolha as cotas disponíveis.');
         // Stable ID makes a retry after a remote write safe. No user/login or membership is created.
@@ -21919,12 +21927,11 @@ Deixe claro que premissas precisam de validação profissional.`,
       ));
       const participant = base?.participantes.find((item: InitialMapParticipantInput) => item.memberId === access.membro_id);
       const approved = !!participant && applications.some(item => item.vaga_status === 'aprovada');
-      const vacancies = new Set(openMapVacancies(base?.participantes).map(item => item.slot.participantId));
       const published = head?.oferta as BiaOffer | undefined;
       const result: any = {
         nome: access.nome, email: access.email, aprovado: approved, liberado: false,
         candidaturas: applications.map(item => ({ id: item.vaga_id, status: item.vaga_status })),
-        oferta: published ? { ...published, quotas: published.quotas.filter(item => vacancies.has(item.id)) } : null,
+        oferta: published ? { ...published, quotas: liveOfferQuotas(published.quotas,base?.participantes) } : null,
         revisao: Number(head?.revisao || 0), aquisicaoCotas: true,
         documentos: (published?.documentos || []).filter(item => /^\/api\/files\/[\w-]+$/.test(item.url))
           .map(item => ({ id: item.url.split('/').at(-1)!, titulo: item.titulo })),

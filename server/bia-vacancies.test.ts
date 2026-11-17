@@ -4,7 +4,7 @@ import { calculateInitialMap, type InitialMapParticipantInput } from "../shared/
 import { biaAllowsFinance } from "../shared/bia-phase";
 import { BIA_PARTICIPANT_ROLE_FIELDS, BIA_PARTICIPANT_ROLE_LABELS } from "../shared/bia-access";
 import { validateInitialClassifications } from "../shared/initial-contributions";
-import { assignMapVacancy, openMapVacancies } from "./bia-vacancies";
+import { assignMapVacancy, competingVacancyIds, liveOfferQuotas, openMapQuotaUnits, openMapVacancies } from "./bia-vacancies";
 
 test("A aprovação ocupa a cota exata e preserva seus valores, com uma decisão por vaga",()=>{
   const first:InitialMapParticipantInput={participantId:"member:lead",memberId:"lead",nome:"Diretor",tipo:"guardiao",pesoCapital:50,indiceContribuicao:0};
@@ -24,7 +24,7 @@ test("A aprovação ocupa a cota exata e preserva seus valores, com uma decisão
 
 
 test("Decisão real da rota protege a diretoria e permite um vencedor por vaga",async()=>{
-  const [{PGlite},{drizzle},{and,eq,sql},{default:express},{readFileSync},{transformSync},{opaInteresses},{randomUUID}] = await Promise.all([
+  const [{PGlite},{drizzle},{and,eq,inArray,sql},{default:express},{readFileSync},{transformSync},{opaInteresses},{randomUUID}] = await Promise.all([
     import("@electric-sql/pglite"),import("drizzle-orm/pglite"),import("drizzle-orm"),import("express"),import("node:fs"),import("esbuild"),import("../shared/schema"),import("node:crypto"),
   ]);
   const pg=new PGlite();
@@ -48,7 +48,7 @@ test("Decisão real da rota protege a diretoria e permite um vencedor por vaga",
   let phase="em_captacao";
   const permissions=source.slice(source.indexOf("  function quotaApplicationsOpen("),source.indexOf("  async function opportunityVacancyContext("));
   const structure={modalidade:"recursos_proprios",totalCotas:1,instrumentos:[],integralizacao:{forma:"a_vista"}};
-  const scope={app,db,sql,and,eq,opaInteresses,agendaAlertDate:(date:unknown)=>date,randomUUID,openMapVacancies,assignMapVacancy,calculateInitialMap,
+  const scope={app,db,sql,and,eq,inArray,opaInteresses,agendaAlertDate:(date:unknown)=>date,randomUUID,openMapVacancies,openMapQuotaUnits,competingVacancyIds,assignMapVacancy,calculateInitialMap,
     resolveBiaByIdOrPublicCode:async()=>({id:"bia",situacao:phase,diretor_alianca:"director",aliado_built:"ally",autor_bia:"author"}),
     biaAllowsFinance,BIA_PARTICIPANT_ROLE_FIELDS,BIA_PARTICIPANT_ROLE_LABELS,validateInitialClassifications,
     isBiaPlatformAdminRole:()=>false,directusRelationId:(id:string)=>id,
@@ -150,4 +150,29 @@ test("aprovar outra cota compatível aumenta as CIs na mesma ficha",()=>{
   assert.throws(()=>assignMapVacancy([person,vacancy],vacancy.participantId,{id:"m",nome:"Membro"}),/já consta/);
   assert.deepEqual(assignMapVacancy([person,vacancy],vacancy.participantId,{id:"m",nome:"Membro"},true),[{...person,cotasInvestimento:3}]);
   assert.throws(()=>assignMapVacancy([person,{...vacancy,tipo:"multiplicador"}],vacancy.participantId,{id:"m",nome:"Membro"},true),/condições diferentes/);
+});
+
+test("Grouped offers keep the published cents and allocate each quota independently", () => {
+  const group: InitialMapParticipantInput = {
+    participantId: "draft:group", titular: "vaga", nome: "Cota disponível", tipo: "guardiao", modeloCalculo: 5,
+    cotasInvestimento: 2, pesoCapital: 100, indiceContribuicao: 0, capitalComprometido: 1000,
+    naturezaCapital: "caixa", contribuicoes: [{cargo: "Contribuição individual", indice: 0}],
+  };
+  const published = [{id:group.participantId!, numero:1, quantidade:2, tipo:group.tipo,
+    pagamentos:[{mes:"2026-12",centavos:10001,bloco:"Entrada"},{mes:"2027-01",centavos:10001,bloco:"Saldo"}]}];
+  assert.deepEqual(liveOfferQuotas(published,[{ ...group, cotasInvestimento:3 }]),[]);
+  const [first,second] = liveOfferQuotas(published,[group]);
+  assert.equal(first.quantidade,1);
+  assert.equal(second.quantidade,1);
+  assert.equal(first.pagamentos[0].centavos + second.pagamentos[0].centavos,10001);
+  assert.equal(first.pagamentos.reduce((s,row)=>s+row.centavos,0),10001);
+  assert.deepEqual(competingVacancyIds([group],first.id),[first.id,group.participantId]);
+  assert.deepEqual(competingVacancyIds([group],group.participantId!),[group.participantId,first.id,second.id]);
+  const partial = assignMapVacancy([group],second.id,{id:"winner",nome:"Pessoa exemplo"});
+  assert.deepEqual(liveOfferQuotas(published,partial).map(quota=>quota.id),[first.id]);
+  assert.equal(partial.find(slot=>slot.memberId==="winner")?.cotasInvestimento,1);
+  assert.throws(()=>assignMapVacancy(partial,second.id,{id:"other",nome:"Outro"}),/não está aberta/);
+  assert.equal(assignMapVacancy(partial,first.id,{id:"winner",nome:"Pessoa exemplo"},true)[0].cotasInvestimento,2);
+  const role = {...group,cargos:["Diretor de Aliança"]};
+  assert.deepEqual(liveOfferQuotas(published,[role]).map(quota=>quota.quantidade),[2]);
 });

@@ -10,7 +10,7 @@ import { transformSync } from "esbuild";
 import { applyPaymentPlan,biaBudgetSchema,emptyBiaBudget } from "../shared/bia-budget";
 import { makePaymentSchedule,quotePaymentShare,toPaymentCents,newPaymentPlan } from "../shared/bia-payment-plan";
 import { OBA_OFFER_SQL } from "./bia-offer";
-import { openMapVacancies } from "./bia-vacancies";
+import { openMapVacancies, liveOfferQuotas } from "./bia-vacancies";
 
 test("Prévia e publicação usam o CAPEX salvo e a oferta vigente não expõe nomes nem muda com o rascunho",async()=>{
   const pg=new PGlite();
@@ -39,7 +39,7 @@ test("Prévia e publicação usam o CAPEX salvo e a oferta vigente não expõe n
   const start=source.indexOf("  let obaOfferReady:");
   assert.ok(start>=0);
   const code=source.slice(start,source.indexOf('  app.get("/api/oportunidades/:id/interesse",',start));
-  const scope={app,db,sql,createHash,biaBudgetSchema,makePaymentSchedule,quotePaymentShare,toPaymentCents,openMapVacancies,OBA_OFFER_SQL,
+  const scope={app,db,sql,createHash,biaBudgetSchema,makePaymentSchedule,quotePaymentShare,toPaymentCents,openMapVacancies,liveOfferQuotas,OBA_OFFER_SQL,
     obaInterestAudience:async()=>({registry}),getOpportunityRegistry:async(id:string)=>id==="oba"?registry:generatedOpa?.id===id?{...registry,id:generatedRegistryId,source_id:id}:null,
     isOpportunityPublic:()=>false,isOpportunityEditable:()=>true,
     storage:{getConviteLinkByToken:async(value:string)=>value===token?invite:null},

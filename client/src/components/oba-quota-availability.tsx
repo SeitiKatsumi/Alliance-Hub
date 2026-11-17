@@ -23,9 +23,9 @@ export function ObaQuotaAvailability({ available, total, quotas, selected=[], on
       {unavailable > 0 && <span aria-hidden="true" className={slotStyle+" "+unavailableStyle} title={`${unavailable} indisponíveis`}><UserRound className="h-4 w-4"/></span>}
       {quotas.map(quota=>{
         const checked=selected.includes(quota.id);
-        return <button type="button" key={quota.id} aria-pressed={checked} aria-label={`Cota ${quota.numero}${quota.quantidade>1?` · ${quota.quantidade} cotas iniciais`:""}`} onClick={()=>onToggle(quota.id)}
+        return <button type="button" key={quota.id} aria-pressed={checked} aria-label={quota.quantidade > 1 ? `Lote de ${quota.quantidade} cotas` : `Cota ${quota.numero}`} onClick={()=>onToggle(quota.id)}
           className={`${slotStyle} ${checked ? "border border-primary bg-primary text-primary-foreground" : availableStyle} ${quota.quantidade>1 ? "w-auto gap-1 px-2" : ""} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}>
-          {checked?<Check className="h-4 w-4"/>:<Plus className="h-4 w-4"/>}{quota.quantidade>1 && <span className="text-xs">{quota.quantidade}</span>}
+          {quota.quantidade > 1 ? <span className="text-xs">Lote de {quota.quantidade} cotas</span> : checked ? <Check className="h-4 w-4"/> : <Plus className="h-4 w-4"/>}
         </button>;
       })}
     </div> : <div aria-hidden="true" className="flex max-w-md flex-wrap gap-1.5">

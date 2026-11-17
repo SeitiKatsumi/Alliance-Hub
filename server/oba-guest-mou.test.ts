@@ -14,7 +14,7 @@ import { MOU_PERSON_FIELDS, MOU_ADDRESS_FIELDS, validateMouQualification, pickGu
 import { matchesMouRevision } from '../shared/agenda-action';
 import { calculateInitialMap } from '../shared/member-portfolio';
 import { assertMapRevision, mapBaseContent, mapContentHash } from './bia-map-history';
-import { openMapVacancies } from './bia-vacancies';
+import { openMapVacancies, openMapQuotaUnits, liveOfferQuotas } from './bia-vacancies';
 import { guestPayments, guestPaymentTotals } from '../shared/oba-guest';
 
 const qualification = Object.fromEntries([...MOU_PERSON_FIELDS, ...MOU_ADDRESS_FIELDS].map(([key]) => [key, 'Dado fictício']));
@@ -67,7 +67,7 @@ test('Candidatura aprovada exige qualificação e MOU canônico antes do painel;
       readObaDraftBase: async () => ({ participantes: calculation.participantes }),
       resolveBiaByIdOrPublicCode: async () => bia, getOpportunityRegistry: async () => ({ id: 'registry', bia_id: 'bia' }),
       obaOfferHead: async () => ({ revisao: 1, oferta: { quotas: [], documentos: [] } }),
-      openMapVacancies, guestPayments, guestPaymentTotals,
+      openMapVacancies, openMapQuotaUnits, liveOfferQuotas, guestPayments, guestPaymentTotals,
       directusFetchOne: async () => bia,
       directusFetchScoped: async () => { financialReads++; return [{ id: 'payment', bia: 'bia', membro_responsavel: access.membro_id, tipo: 'Entrada', valor: 100, status: 'pago', Anexos: [{ directus_files_id: 'receipt' }] }]; },
       directusRelationId: () => null, loadBiaTracking: async () => new Map(), biaBusinessTypeCode: () => 'venda',

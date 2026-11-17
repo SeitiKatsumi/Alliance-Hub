@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "id": "oba-resumo-por-cota",
+  "title": "Resumo da oferta por cota e seleção na manifestação de interesse",
+  "status": "complete",
+  "kind": "remove",
+  "sourceOfTruth": [
+    "shared/bia-offer.ts",
+    "shared/bia-payment-plan.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "ObaOfferScreen",
+    "ObaOfferPayment",
+    "paymentsPerQuota",
+    "Cota disponível<select",
+    "og-offer-dialog"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "Mostra disponibilidade e valores sem dropdown, concentra a seleção no modal e mantém o envio da revisão pelo fluxo existente."
+    },
+    {
+      "path": "client/src/components/oba-offer-payment.tsx",
+      "decision": "updated",
+      "reason": "Apresenta Valor de Origem, cotas iniciais e linha do tempo por cota, incluindo faixa e detalhe dos vencimentos."
+    },
+    {
+      "path": "client/src/lib/oba-offer-payment.ts",
+      "decision": "updated",
+      "reason": "Projeta os valores mínimos e máximos por cota a partir dos centavos já distribuídos na oferta."
+    },
+    {
+      "path": "client/src/lib/oba-offer-payment.test.ts",
+      "decision": "updated",
+      "reason": "Cobre posição com duas cotas, diferenças de centavos, cronograma vazio e remoção do seletor."
+    },
+    {
+      "path": "client/src/components/oba-guest.css",
+      "decision": "updated",
+      "reason": "Mantém cores, foco e contraste do portal no modal, que é montado fora do contêiner da oferta."
+    },
+    {
+      "path": "client/src/components/oba-quota-availability.tsx",
+      "decision": "preserved",
+      "reason": "Componente partilhado apresenta grade da oferta e seleção no modal com as posições e valores existentes."
+    },
+    {
+      "path": "client/src/components/oba-guest-layout.tsx",
+      "decision": "preserved",
+      "reason": "Importa o CSS externo e mantém cabeçalho, marca e layout de acesso."
+    },
+    {
+      "path": "client/src/components/oba-guest-formalization.tsx",
+      "decision": "preserved",
+      "reason": "Usa o layout do convidado e continua independente dos dados e da seleção da oferta."
+    },
+    {
+      "path": "client/src/components/oba-guest-dashboard.tsx",
+      "decision": "preserved",
+      "reason": "Layout e estilos do painel do participante não são afetados pelo seletor nem pelo cronograma da oferta."
+    },
+    {
+      "path": "client/src/pages/oba-guest.tsx",
+      "decision": "preserved",
+      "reason": "Continua montando o resumo somente antes de candidatura e passa para análise após envio."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Já usa ObaOfferScreen para leitura da oferta publicada e mantém a gestão e a candidatura existente no detalhe."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Link para oferta leva ao resumo sem alterar a disponibilidade ou as permissões na Vitrine."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "preserved",
+      "reason": "Usa o hook de oferta publicada sem alterações no contrato ou chaves de consulta."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "preserved",
+      "reason": "BiaOfferOverview na BIA permanece igual; somente a tela de apresentação da oferta mudou."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas e autenticação existentes montam o componente atualizado."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Entrada transitiva do App sem alterações de montagem, roteador ou tema."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "preserved",
+      "reason": "Versões da oferta, rateio em centavos, dúvidas, interesse e controle de acesso permanecem no backend existente."
+    },
+    {
+      "path": "server/oba-guest.ts",
+      "decision": "preserved",
+      "reason": "Verificação de e-mail e sessão continuam protegendo a oferta e o envio externo."
+    },
+    {
+      "path": "shared/bia-offer.ts",
+      "decision": "preserved",
+      "reason": "Estrutura publicada fornece os valores reais das posições, sem campo adicional."
+    },
+    {
+      "path": "shared/bia-payment-plan.ts",
+      "decision": "preserved",
+      "reason": "Rateio continua canônico no produtor da oferta e é usado no teste de apresentação."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra resumo por cota, cronograma e ponto de seleção das posições."
+    },
+    {
+      "path": "docs/platform/deprecations.json",
+      "decision": "updated",
+      "reason": "Guarda textual restrita ao seletor removido na oferta."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "reason": "Usa BiasPage; listagem e navegação das BIAs não consomem a apresentação por cota.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "reason": "Usa BiaFormSheet, que preserva edição e a origem dos dados publicados.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "reason": "Usa seletores de moeda e localização de BiasPage; criação e plano da BIA não mudam.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "reason": "Importa NetworkOpportunitiesHub; comunidade continua abrindo a oportunidade pelos links existentes.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "reason": "Usa OpaFormDialog da lista de oportunidades; edição e publicação preservadas.",
+      "decision": "preserved"
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "reason": "Monta a lista compartilhada de Oportunidades e preserva navegação e filtros.",
+      "decision": "preserved"
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Prévia com componentes reais, API fictícia e CSS compilado em desktop e 390 px. Conferidos preço, total, correção, 86 vencimentos, atalho com posição pré-selecionada, confirmação bloqueada sem escolha, total de três cotas, envio de duas posições com a revisão 1, estado em análise e oferta sem plano."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Ofertas mantêm shape e consultas. O envio usa IDs das posições vigentes e a revisão da oferta no mesmo endpoint."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "A interface usa snapshots recebidos e não grava novos campos."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Regressão com rateio canônico cobre posições múltiplas e diferenças de centavos por cota."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Nenhuma alteração em notificações, e-mails ou destinatários."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Links existentes e permissões de anexos mantidos; nenhum documento é modificado."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Sem mudança de integração ou tarefa; envio de dúvida segue o endpoint existente para conta BUILT."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Prévia continua sem candidatura, convidado mantém acesso verificado, e o backend revalida posições e versão."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Ofertas sem cronograma exibem condições a definir e o fluxo de posição única mantém vaga_id."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovou 855 testes, zero falhas, tipos e build. Typecheck reaplicado após ajuste final do atalho. Registros em .BUILT-tmp/offer-summary-verify.log e offer-summary-types.log."
+    }
+  ],
+  "regressionTests": [
+    "client/src/lib/oba-offer-payment.test.ts",
+    "server/bia-offer.test.ts",
+    "server/oba-guest.test.ts"
+  ],
+  "deprecationRuleIds": [
+    "oba-offer-position-select"
+  ]
+}

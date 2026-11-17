@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "id": "oba-cotas-unitarias",
+  "kind": "behavior",
+  "title": "Seleção individual de cotas na oferta da BIA",
+  "status": "complete",
+  "sourceOfTruth": [
+    "server/bia-vacancies.ts",
+    "server/routes.ts",
+    "shared/bia-offer.ts",
+    "shared/bia-payment-plan.ts"
+  ],
+  "searchTerms": [
+    "openMapQuotaUnits",
+    "liveOfferQuotas",
+    "competingVacancyIds"
+  ],
+  "consumers": [
+    {
+      "path": "server/bia-vacancies.ts",
+      "decision": "updated",
+      "reason": "Projeta uma unidade por cota comum e materializa a divisão sob lock do MAP somente ao aprovar. Mantém lotes com atribuição de cargo ou contribuição própria."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Usa a projeção comum na prévia, oferta pública, candidatura autenticada ou externa, gestão e Agenda. Competições entre grupo legado e unidades são encerradas na decisão."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Montagem das rotas, sessão e proteções dos acessos não mudam."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Cobre divisão e saldo em centavos, disponibilidade depois da decisão, concorrência, compatibilidade e invalidação se a quantidade mudar."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "updated",
+      "reason": "Exercita a rota que projeta as vagas e continua verificando oferta e CAPEX salvos."
+    },
+    {
+      "path": "server/oba-guest.test.ts",
+      "decision": "updated",
+      "reason": "Envia IDs unitários para a rota real a partir de oferta agrupada, conserva revisão e deduplicação e rejeita nova candidatura com ID do agrupamento."
+    },
+    {
+      "path": "server/oba-guest-mou.test.ts",
+      "decision": "updated",
+      "reason": "Exercita projeção do portal com prova de que o aceite continua exigido antes do painel."
+    },
+    {
+      "path": "client/src/components/oba-quota-availability.tsx",
+      "decision": "updated",
+      "reason": "Cada unidade tem seu próprio botão. Um lote excepcional tem texto explícito em lugar do antigo +N."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "reviewed",
+      "reason": "Link direto preserva a unidade clicada no modal e envia IDs de unidades distintas para aprovação."
+    },
+    {
+      "path": "client/src/components/bia-vacancy-interests.tsx",
+      "decision": "preserved",
+      "reason": "Gestão foca pela chave da vaga recebida da Agenda. Chaves derivadas funcionam como texto nos links e nas consultas."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Quadro compartilhado e modal recebem as unidades da oferta e acumulam os valores."
+    },
+    {
+      "path": "client/src/pages/oba-guest.tsx",
+      "decision": "preserved",
+      "reason": "Convidado acompanha cada candidatura e permanece sujeito à formalização e aceite."
+    },
+    {
+      "path": "shared/bia-offer.ts",
+      "decision": "preserved",
+      "reason": "Payload conserva ID, quantidade, tipo e parcelas e continua legível para versões históricas."
+    },
+    {
+      "path": "shared/bia-payment-plan.ts",
+      "decision": "preserved",
+      "reason": "Usa o rateio de quantias inteiras em centavos da posição publicada."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta divisão por unidade, compatibilidade e exceções de lote."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Demonstração gravada dos componentes reais com API fictícia mostra sete botões para sete cotas, pré-seleção de uma unidade, seleção de duas, total e candidatura em análise. Modal em 390 px conferido com uma e duas unidades, preservando contagem e total."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Leituras e envio validam a disponibilidade das mesmas unidades. Testes da rota externa e oferta publicados com PostgreSQL isolado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Identificadores são de texto em campo existente. Snapshots de ofertas publicados persistem inalterados. MAP materializa divisão somente na decisão transacional."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Cotas mantêm capital proporcional com recomposição canônica. Somatória por parcela e posição fecham em centavos."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Agenda valida unidade aberta e vincula alerta ao ID da vaga. Destinatários e notificações seguem as regras de aprovação já existentes."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Aceite continua exigido após aprovação externa; versões publicadas e assinadas são preservadas."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Nenhuma alteração de integração, cobrança ou tarefa externa."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Decisão mantém os mesmos responsáveis, fase e lock da BIA. O convidado só envia unidades vigentes da mesma revisão."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Candidaturas de lote existentes seguem elegíveis até uma decisão conflitante. Lotes com atribuições específicas não duplicam papéis."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovou 856 testes, tipos e build. Log .BUILT-tmp/quota-units-final-verify.log; testes de rota em banco isolado, incluindo tentativa com ID agregado legado."
+    }
+  ],
+  "regressionTests": [
+    "server/bia-vacancies.test.ts",
+    "server/bia-offer.test.ts",
+    "server/oba-guest.test.ts",
+    "server/oba-guest-mou.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

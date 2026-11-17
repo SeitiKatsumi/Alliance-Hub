@@ -2,6 +2,21 @@
   "version": 1,
   "rules": [
     {
+      "id": "oba-offer-position-select",
+      "description": "Na oferta de cotas, a seleção ocorre na grade da manifestação de interesse.",
+      "terms": [
+        "Cota disponível<select",
+        "select value={active.id}"
+      ],
+      "roots": [
+        "client/src/components/oba-offer.tsx"
+      ],
+      "regressionTests": [
+        "client/src/lib/oba-offer-payment.test.ts"
+      ],
+      "exceptions": []
+    },
+    {
       "id": "bia-financial-management-tab",
       "description": "A navegação financeira da BIA usa Gestão Financeira. Cargos, núcleos cadastrados e instrumentos formais têm identidade própria.",
       "terms": [

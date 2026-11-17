@@ -1,11 +1,12 @@
-.og {
+.og, .og-offer-dialog {
   --background: 40 25% 95%; --foreground: 207 100% 10%; --card: 0 0% 100%; --card-foreground: 207 100% 10%;
   --popover: 0 0% 100%; --popover-foreground: 207 100% 10%; --primary: 197 100% 25%; --primary-foreground: 0 0% 100%;
   --secondary: 200 23% 94%; --secondary-foreground: 207 100% 10%; --muted: 200 23% 94%; --muted-foreground: 207 16% 36%;
   --border: 205 19% 85%; --input: 205 19% 76%; --ring: 197 100% 25%; --accent: 200 23% 94%; --accent-foreground: 207 100% 10%;
   --destructive: 0 73% 39%; --destructive-foreground: 0 0% 100%;
-  color: #001d34; font-family: Inter, Arial, sans-serif; line-height: 1.5; min-height: 100dvh;
+  color: #001d34; font-family: Inter, Arial, sans-serif; line-height: 1.5;
 }
+.og { min-height: 100dvh; }
 .og *, .og *::before, .og *::after { box-sizing: border-box; }
 .og button, .og a, .og input { -webkit-tap-highlight-color: transparent; }
 .og button:focus-visible, .og a:focus-visible, .og summary:focus-visible { outline: 3px solid #005c81; outline-offset: 4px; }
@@ -149,8 +150,8 @@
 .og-offer > main { max-width: 900px; padding-top: 0; }
 .og-offer section { background: #fff; }
 .og-offer h1 { letter-spacing: -.03em; }
-.og-offer button[aria-pressed=false] { color: #826018; border-color: #a47b22; background: #fcf5e6; }
-.og-offer button[aria-pressed=true] { color: white; background: #005c81; border-color: #005c81; }
+.og-offer button[aria-pressed=false], .og-offer-dialog button[aria-pressed=false] { color: #826018; border-color: #a47b22; background: #fcf5e6; }
+.og-offer-dialog button[aria-pressed=true] { color: white; background: #005c81; border-color: #005c81; }
 @media (max-width: 800px) {
   .og-access { padding: 20px 20px 32px; align-items: flex-start; }
   .og-access-layout { grid-template-columns: minmax(0, 1fr); max-width: 480px; gap: 24px; }

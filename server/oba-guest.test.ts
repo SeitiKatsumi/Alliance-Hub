@@ -91,7 +91,7 @@ test('Código por e-mail exige posse, limita tentativas e isola a BIA, inclusive
 });
 
 test('Candidatura externa usa a composição real, revisão publicada e identidade estável, sem duplicar cotas ou criar conta', async () => {
-  const [{readFileSync},{transformSync},{and,eq,sql},{opaInteresses},{openMapVacancies},{randomUUID}] = await Promise.all([
+  const [{readFileSync},{transformSync},{and,eq,sql},{opaInteresses},{openMapVacancies,openMapQuotaUnits,liveOfferQuotas},{randomUUID}] = await Promise.all([
     import('node:fs'), import('esbuild'), import('drizzle-orm'), import('../shared/schema'), import('./bia-vacancies'), import('node:crypto'),
   ]);
   const pg = new PGlite(); const db = drizzle(pg);
@@ -104,27 +104,28 @@ test('Candidatura externa usa a composição real, revisão publicada e identida
     await pg.query('INSERT INTO oba_guest_access(id,bia_id,opa_id,email,nome,membro_id,convite_id) VALUES($1,$2,$3,$4,$5,$6,$7)',
       [access.id,access.bia_id,access.opa_id,access.email,access.nome,access.membro_id,'invite']);
     let callbacks: any, profiles = 0, status = 'ativa';
-    const slots = ['q1','q2'].map(id => ({ participantId: id, titular: 'vaga', memberId: null, tipo: 'guardiao', cotasInvestimento: 1 }));
+    const slots = [{ participantId: 'group', titular: 'vaga', memberId: null, tipo: 'guardiao', cotasInvestimento: 2, pesoCapital: 100, indiceContribuicao: 0 }];
     const source = readFileSync(new URL('./routes.ts',import.meta.url),'utf8');
     const start = source.indexOf('  registerObaGuestRoutes(app, {');
     const block = source.slice(start,source.indexOf('  app.patch("/api/rede/oportunidades/:codigo/disparo"',start));
     const scope = { app: {}, db, sql, and, eq, opaInteresses, registerObaGuestRoutes: (_app: any, deps: any) => { callbacks = deps; },
-      offerError: (message: string) => new Error(message), openMapVacancies,
+      offerError: (message: string) => new Error(message), openMapVacancies, openMapQuotaUnits, liveOfferQuotas,
       withMapLock: (_id: string, work: any) => db.transaction(tx => work(tx,{participantes:slots})),
       getOpportunityRegistry: async () => ({id:'registry',bia_id:'bia',status}),
       resolveBiaByIdOrPublicCode: async () => ({situacao:'em_estruturacao'}),
       isOpportunityEditable: (value: string) => value === 'ativa', quotaApplicationsOpen: () => true,
-      obaOfferHead: async () => ({bia_id:'bia',revisao:3,oferta:{quotas:slots.map(slot=>({id:slot.participantId,tipo:slot.tipo,quantidade:slot.cotasInvestimento}))}}),
+      obaOfferHead: async () => ({bia_id:'bia',revisao:3,oferta:{quotas:slots.map(slot=>({id:slot.participantId,tipo:slot.tipo,quantidade:slot.cotasInvestimento,pagamentos:[]}))}}),
       directusFetchOne: async () => null, directusCreate: async (_collection: string, input: any) => {
         profiles++; assert.equal(input.id,access.membro_id); assert.equal(input.na_vitrine,false); assert.equal(input.em_membros_built,false);
       },
     };
     new Function(...Object.keys(scope),transformSync(block,{loader:'ts'}).code)(...Object.values(scope));
-    await assert.rejects(()=>callbacks.apply(access,{vaga_ids:['q1'],mensagem:'',oferta_revisao:2}),/oferta mudou/);
+    await assert.rejects(()=>callbacks.apply(access,{vaga_ids:['group:ci:1'],mensagem:'',oferta_revisao:2}),/oferta mudou/);
     await assert.rejects(()=>callbacks.apply(access,{vaga_ids:['other'],mensagem:'',oferta_revisao:3}),/oferta mudou/);
+    await assert.rejects(()=>callbacks.apply(access,{vaga_ids:['group'],mensagem:'',oferta_revisao:3}),/oferta mudou/);
     assert.equal(profiles,0);
-    await callbacks.apply(access,{vaga_ids:['q1','q2'],mensagem:'Quero duas cotas',oferta_revisao:3});
-    await callbacks.apply(access,{vaga_ids:['q1','q2'],mensagem:'Quero duas cotas',oferta_revisao:3});
+    await callbacks.apply(access,{vaga_ids:['group:ci:1','group:ci:2'],mensagem:'Quero duas cotas',oferta_revisao:3});
+    await callbacks.apply(access,{vaga_ids:['group:ci:1','group:ci:2'],mensagem:'Quero duas cotas',oferta_revisao:3});
     assert.equal(profiles,1);
     const rows = await db.select().from(opaInteresses);
     assert.equal(rows.length,2);
@@ -132,6 +133,6 @@ test('Candidatura externa usa a composição real, revisão publicada e identida
     assert.ok((await externalBiaMemberIds(db,'bia')).has(access.membro_id));
     assert.equal((await externalBiaMemberIds(db,'other')).size,0);
     status='encerrada';
-    await assert.rejects(()=>callbacks.apply(access,{vaga_ids:['q1'],mensagem:'',oferta_revisao:3}),/encerrada/);
+    await assert.rejects(()=>callbacks.apply(access,{vaga_ids:['group:ci:1'],mensagem:'',oferta_revisao:3}),/encerrada/);
   } finally { await pg.close(); }
 });

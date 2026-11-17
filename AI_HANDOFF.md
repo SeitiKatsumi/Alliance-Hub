@@ -1,5 +1,15 @@
 # AI_HANDOFF.md
 
+## 17/11/2026 — Cotas individuais na OBA e gravação de navegação
+
+- A mesma projeção de unidades atende prévia, oferta autenticada, acesso externo, candidatura, gestão e Agenda. A divisão de vagas comuns preserva centavos publicados e só é persistida na composição sob lock na aprovação. Lotes com cargo/contribuição específica e lotes legados muito grandes permanecem identificados por texto.
+- 856 testes, tipos e build aprovados; seleção e contagem conferidas em 390 px. Vídeo local de 78,6 s com toda a área da página e etapas do convite a documentos, em `entregas/fluxo-usuario-bia-navegacao` no workspace BUILT. O vídeo usa dados fictícios.
+
+## 17/11/2026 — Resumo da oferta por cota
+
+- Na oferta externa, interna e prévia, a disponibilidade, o valor de referência e o cronograma por cota substituem o dropdown antigo. O clique em uma cota abre o modal com a posição selecionada. O cronograma usa os valores já rateados da versão publicada e mostra diferenças de centavos sem inferir outro contrato.
+- Validação: 855 testes e build aprovados; componente real com dados fictícios em desktop e 390 px, incluindo seleção múltipla e estado em análise. Prévia local de teste em `http://localhost:5015/minha-bia/exemplo`. Nenhum envio real.
+
 ## 17/11/2026 — Revisão para commit solicitado
 
 - Revisada também a alteração concorrente de parcelas corrigidas: lista opcional em centavos preservada no orçamento versionado, projeção e oferta pelo cronograma compartilhado, sem gerar cobranças ou alterar o Valor de Origem. Consumidores indiretos conferidos e registrados individualmente em `bia-parcelas-corrigidas.json`.

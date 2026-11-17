@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "id": "oba-logo-espacamento",
+  "title": "Respiro superior e inferior da logo no portal externo",
+  "status": "complete",
+  "kind": "maintenance",
+  "sourceOfTruth": [
+    "client/src/components/oba-guest.css"
+  ],
+  "searchTerms": [
+    "og-topbar"
+  ],
+  "consumers": [
+    {
+      "path": "client/src/components/oba-guest.css",
+      "decision": "updated",
+      "reason": "Padding vertical de 24px no desktop e celular; breakpoint estreito não reduz mais o espaço inferior."
+    },
+    {
+      "path": "client/src/components/oba-guest-layout.tsx",
+      "decision": "preserved",
+      "reason": "Markup e imagens oficiais mantidos, apenas consome o espaçamento CSS."
+    },
+    {
+      "path": "client/src/pages/oba-guest.tsx",
+      "decision": "preserved",
+      "reason": "Portal, formalização e painel usam o mesmo cabeçalho, sem alteração de fluxo."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Rotas e entrada transitiva preservadas."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Entrada dos providers preservada."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra ajuste visual localizado e dimensões."
+    },
+    {
+      "path": "shared/oba-guest-dashboard.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões existentes do painel executadas na suíte completa, sem fórmula alterada; espaçamento validado visualmente, sem teste unitário novo para CSS."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Prévia localhost5011 recompilada com componentes reais. Desktop1280 e celular390/320 conferidos no navegador, padding24px em cima/baixo e sem overflow. Screenshot .BUILT-tmp/oba-logo-spacing.jpg. Guia de marca p5 consultado; logo não foi redesenhada."
+    },
+    {
+      "area": "api",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "dados",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "permissoes",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "legado",
+      "status": "not-applicable",
+      "evidence": "Mudança restrita ao padding do cabeçalho externo; nenhum contrato HTTP, dado, fórmula, mensagem, documento, integração, autorização ou comportamento legado foi alterado."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado: contrato, consistência, tipos, 853 testes/0 falhas e build (.BUILT-tmp/oba-logo-verify.log). Inspeção de 320/390/1280px confirmou padding24px e ausência de overflow. Sem teste unitário novo para CSS."
+    }
+  ],
+  "regressionTests": [
+    "shared/oba-guest-dashboard.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

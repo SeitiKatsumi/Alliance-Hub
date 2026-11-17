@@ -76,6 +76,11 @@ test('email preferences gate actual SMTP, essential bypass and failure safety',a
   const pulse={email:'person@example.test',nome:'Pessoa',meeting:{titulo:'RO teste',codigo:'RO-1',data:'2035-01-01'},url:'/ros/avisos/test'};
   assert.equal((await mail.notificarPulsoRo(pulse)).skipped,true);assert.equal(messages.length,2);
   pulseAllowed=true;assert.equal((await mail.notificarPulsoRo(pulse)).ok,true);assert.equal(messages.length,3);
+  configureEmailPreferencePolicy(async()=>false);
+  await mail.enviarCodigoAcessoBia('guest@example.test','1234','fixture-access');
+  assert.equal(messages.length,4);
+  assert.match(messages[3].html,/1234/);
+  assert.match(messages[3].html,/minha-bia\/fixture-access/);
 });
 
 test('every mail call has an explicit category; only the central sender accesses SMTP',()=>{
@@ -87,6 +92,6 @@ test('every mail call has an explicit category; only the central sender accesses
       count++;assert.ok(ts.isStringLiteral(node.arguments[0]));
       assert.match((node.arguments[0] as ts.StringLiteral).text,/^(essential|invites|agenda|bia|opportunities|ro_pulses|community)$/);
     }ts.forEachChild(node,walk);
-  };walk(ast);assert.equal(count,33);
+  };walk(ast);assert.equal(count,34);
   assert.equal((source.match(/transporter.sendMail/g)||[]).length,1);
 });

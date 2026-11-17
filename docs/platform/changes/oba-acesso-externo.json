@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "id": "oba-acesso-externo",
+  "title": "Convite de OBA e painel individual por e-mail para participantes externos",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "server/oba-guest.ts",
+    "server/routes.ts",
+    "shared/oba-guest.ts",
+    "shared/schema.ts"
+  ],
+  "searchTerms": [
+    "oba-guest",
+    "ObaInviteDialog",
+    "enviarCodigoAcessoBia",
+    "externalBiaMemberIds"
+  ],
+  "consumers": [
+    {
+      "path": "server/oba-guest.ts",
+      "decision": "updated",
+      "reason": "Sessão limitada ao acesso, código HMAC de uso único, limites e arquivos autorizados; testes com PostgreSQL isolado."
+    },
+    {
+      "path": "shared/oba-guest.ts",
+      "decision": "updated",
+      "reason": "Projeção explícita dos próprios lançamentos de caixa e soma em centavos."
+    },
+    {
+      "path": "server/oba-guest.test.ts",
+      "decision": "updated",
+      "reason": "Exercita autenticação, expiração, reuso, isolamento, arquivos, candidaturas reais e idempotência."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Somente trechos do convite externo, candidatura, projeção do painel e sincronização de convites. Alteração concorrente do plano de pagamento não atestada neste registro."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "updated",
+      "reason": "Não registra respostas do portal, que contêm identificadores de acesso e dados particulares."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "updated",
+      "reason": "Código essencial usa remetente e template existentes, incluindo link de retorno; SMTP real não acionado na validação."
+    },
+    {
+      "path": "server/user-preferences.test.ts",
+      "decision": "updated",
+      "reason": "Valida a nova categoria essencial com SMTP simulado e preserva o envio centralizado."
+    },
+    {
+      "path": "server/bia-composition-invites.test.ts",
+      "decision": "updated",
+      "reason": "Participante externo não recebe convite adicional para conta ao sincronizar composição."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "updated",
+      "reason": "Candidato externo percorre aprovação real da rota; pendências para autor, Aliado e Diretor preservadas."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "updated",
+      "reason": "Duas rotas públicas fora do layout autenticado, mantendo fornecedores de sessão e preferências."
+    },
+    {
+      "path": "client/src/pages/oba-guest.tsx",
+      "decision": "updated",
+      "reason": "Escolha de acesso, código, candidatura pendente e painel limitado; sessão de membro abre diretamente a OBA."
+    },
+    {
+      "path": "client/src/components/oba-guest-dashboard.tsx",
+      "decision": "reviewed",
+      "reason": "Novo consumidor visual do mesmo painel autorizado; redesenho validado no registro oba-experiencia-externa, com gráficos dos próprios dados."
+    },
+    {
+      "path": "client/src/components/oba-guest-layout.tsx",
+      "decision": "reviewed",
+      "reason": "Layout visual adicionado ao convite existente; não muda escolha, OTP ou aprovação. Evidência no registro oba-experiencia-externa."
+    },
+    {
+      "path": "client/src/components/oba-guest.css",
+      "decision": "reviewed",
+      "reason": "Estilos locais do redesenho externo, sem afetar autorização ou os demais módulos."
+    },
+    {
+      "path": "shared/oba-guest-dashboard.ts",
+      "decision": "reviewed",
+      "reason": "Deriva série mensal e percentuais da projeção autorizada e reutiliza guestPaymentTotals; cálculos testados no redesenho externo."
+    },
+    {
+      "path": "shared/oba-guest-dashboard.test.ts",
+      "decision": "reviewed",
+      "reason": "Testes de datas, centavos e bases ausentes executados na suíte final de 851 testes do redesenho externo."
+    },
+    {
+      "path": "client/src/components/oba-invite-dialog.tsx",
+      "decision": "updated",
+      "reason": "Mensagem editável com dados da oferta e link individual, sem envio automático."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "updated",
+      "reason": "Reutiliza oferta e seletor para convidado verificado, endpoint de candidatura e documentos próprios."
+    },
+    {
+      "path": "client/src/pages/opa-detalhe.tsx",
+      "decision": "updated",
+      "reason": "Convidar pessoas abre o novo diálogo; demais controles e Pulso preservados."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Candidaturas mantêm opa_interesses e a decisão por posição; identidade externa tem prefixo guest sem FK para users."
+    },
+    {
+      "path": "server/bia-vacancies.ts",
+      "decision": "preserved",
+      "reason": "Aprovação usa assignMapVacancy existente para consolidar múltiplas cotas compatíveis na mesma pessoa."
+    },
+    {
+      "path": "server/bia-tracking.ts",
+      "decision": "reviewed",
+      "reason": "Portal consulta somente etapa e revisões existentes, sem inventar progresso ou previsão."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "reviewed",
+      "reason": "Entrada existente continua montando App; layout público passa pelas rotas novas."
+    },
+    {
+      "path": "client/src/pages/area-aliancas.tsx",
+      "decision": "preserved",
+      "reason": "Contém as listas de BIA/OBA autenticadas; novo painel externo não altera a navegação dessas listas."
+    },
+    {
+      "path": "client/src/pages/bia-editar.tsx",
+      "decision": "preserved",
+      "reason": "Editor continua usando composição, papéis e candidaturas existentes; o cadastro externo é criado somente após verificação."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "preserved",
+      "reason": "Estruturação mantém oferta e geração existentes; não cria convite externo automaticamente."
+    },
+    {
+      "path": "client/src/pages/bias.tsx",
+      "decision": "preserved",
+      "reason": "BiaOfferOverview conserva os mesmos props e cálculo; apenas ObaOfferScreen recebe o novo acesso opcional."
+    },
+    {
+      "path": "client/src/pages/comunidade-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "Lista autenticada de BIAs/Oportunidades permanece dependente dos vínculos da rede; externo não recebe comunidade."
+    },
+    {
+      "path": "client/src/pages/gestao-opas.tsx",
+      "decision": "preserved",
+      "reason": "Gestão e CRM usam opa_interesses existente com nome do candidato; sem nova forma de aprovação."
+    },
+    {
+      "path": "client/src/pages/network-opportunities.tsx",
+      "decision": "preserved",
+      "reason": "Distribuição e acesso pela rede/Pulso mantidos; link externo é ação explícita no detalhe da OBA."
+    },
+    {
+      "path": "client/src/pages/oportunidades.tsx",
+      "decision": "preserved",
+      "reason": "Consome usePublishedObaOffer, cujo contrato e chave de consulta não mudaram."
+    },
+    {
+      "path": "client/src/pages/vitrine-opa-detalhe.tsx",
+      "decision": "preserved",
+      "reason": "ObaOfferLink preserva o endereço autenticado; novo portal não amplia a publicação na Vitrine."
+    },
+    {
+      "path": "server/mailer.test.ts",
+      "decision": "reviewed",
+      "reason": "Testes existentes passaram, preservando links e templates de diretoria, sócios, aportes e RO."
+    },
+    {
+      "path": "server/payment-reminders.ts",
+      "decision": "preserved",
+      "reason": "Continua chamando enviarLembreteVencimentoPagamento; exportação nova no mailer não altera cron, consulta ou destinatários."
+    },
+    {
+      "path": "server/payment-reminders.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões dos lembretes passaram na suíte completa, sem alteração do serviço."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Documenta convite externo, fontes, autorização, formalização preservada e limites."
+    },
+    {
+      "path": "client/src/components/oba-guest-formalization.tsx",
+      "decision": "reviewed",
+      "reason": "Consumidor posterior do convite externo: formalização e MOU implementados/revisados separadamente em oba-formalizacao-mou; não amplia escopo deste registro anterior."
+    },
+    {
+      "path": "server/oba-guest-mou.test.ts",
+      "decision": "reviewed",
+      "reason": "Consumidor posterior do convite externo: formalização e MOU implementados/revisados separadamente em oba-formalizacao-mou; não amplia escopo deste registro anterior."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Navegador com dados fictícios: escolha, código 1234 simulado, duas cotas R$234.000, espera, acesso logado direto e três abas do painel em 390px; captura .BUILT-tmp/oba-guest-mobile.jpg."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "Rotas de código/sessão/arquivos testadas em Express; callback real de candidaturas avaliado com PGlite, revisão, disponibilidade e repetição."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "DDL aditivo idempotente; cadastro Directus estável e privado sem users; opa_interesses e snapshots existentes mantidos. Sem migração de pessoas antigas."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Soma dos próprios aportes em centavos testada; cotas, totais e cronograma vêm da oferta publicada e composição persistida."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Agenda existente inclui candidato externo; mailer essencial com SMTP simulado. Entrega real depende do SMTP configurado e não foi enviada durante QA."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Downloads revalidam acesso: arquivos da oferta publicada e comprovantes próprios após aprovação. PDFs e documentos assinados não são gerados ou alterados."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Usa armazenamento Directus e mailer existentes; nenhum webhook, Pulso ou cron novo. Não executa operações bancárias nem assina documentos."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Código expira e tem cinco tentativas, reenvio limitado, sessão de 12h por acesso, revogação e autorização de cada arquivo. Aprovação existente preservada."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Contas existentes usam resgate de convite e OBA corretos; demais OBAs preservam login. Não converte convidados ou contas automaticamente; formalização continua exigida."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify aprovado com typecheck, 849 testes e build. Testes específicos de entrada externa, candidatura, aprovação, sincronização e SMTP simulado aprovados. Revisão do diff externo separada da mudança concorrente de parcelas."
+    }
+  ],
+  "regressionTests": [
+    "server/oba-guest.test.ts",
+    "server/bia-vacancies.test.ts",
+    "server/bia-composition-invites.test.ts",
+    "server/user-preferences.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

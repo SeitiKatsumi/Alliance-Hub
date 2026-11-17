@@ -10,6 +10,7 @@ const directusRelationId=(value:any)=>value && typeof value==="object" ? String(
 const parseCode=source.slice(source.indexOf("  function parseBiaMemberList("),source.indexOf("  function resolveAnexosBia("));
 const parseBiaMemberList=new Function("directusRelationId",transformSync(parseCode,{loader:"ts"}).code+";return parseBiaMemberList;")(directusRelationId);
 function extract(name:string,next:string,scope:Record<string,any>){
+  scope = {db:{}, externalBiaMemberIds:async()=>new Set(['external']), ...scope};
   const code=source.slice(source.indexOf(`  async function ${name}(`),source.indexOf(`  ${next}`));
   return new Function(...Object.keys(scope),transformSync(code,{loader:"ts"}).code+`;return ${name};`)(...Object.values(scope));
 }
@@ -26,7 +27,7 @@ test("seleção salva cancela convite de pessoa nunca efetivada e cria apenas se
       updateBiaSocioSolicitacao:async(id:string,data:any)=>Object.assign(invitations.find(i=>i.id===id),data)},
     createSocioSolicitacao:async(p:any)=>{const i={id:`new${++created}`,bia_id:p.biaId,socio_membro_id:p.socioId,campo_socios:p.campoSocios,status:"pendente"};invitations.push(i);return i;},
   });
-  const opts={biaId:"bia",biaNome:"Teste",currentBia:{socios_guardioes:["accepted"]},req:{},body:{socios_guardioes:["accepted","eugenio","new"],socios_multiplicadores:[]}};
+  const opts={biaId:"bia",biaNome:"Teste",currentBia:{socios_guardioes:["accepted"]},req:{},body:{socios_guardioes:["accepted","eugenio","new","external"],socios_multiplicadores:[]}};
   await process(opts);await process(opts);
   assert.equal(invitations[0].status,"cancelado");assert.ok(invitations[0].respondido_em);
   assert.equal(invitations[1].status,"pendente");assert.equal(invitations[2].status,"pendente");assert.equal(created,1);

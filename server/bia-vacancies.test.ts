@@ -90,7 +90,7 @@ test("Decisão real da rota protege a diretoria e permite um vencedor por vaga",
     const draftSlot:InitialMapParticipantInput={...slot,modeloCalculo:5,cotasInvestimento:1,naturezaCapital:"caixa",tipoCppCapital:{id:"capital",nome:"Capital"},contribuicoes:[{cargo:"Contribuição individual",indice:0}]};
     await pg.exec("DELETE FROM bia_map_inicial_snapshots; DELETE FROM opa_interesses;");
     await pg.query("INSERT INTO bia_estruturacao_rascunhos (bia_id,dados) VALUES ($1,$2)",["bia",{moeda:"BRL",map_inicial:{modeloCalculo:5,valorOrigem:1000,estrutura:structure,participantes:[draftSlot]}}]);
-    await db.insert(opaInteresses).values({id:"c",opa_id:"oba",user_id:"c",membro_id:"c",vaga_id:slot.participantId!,vaga_bia_id:"bia",vaga_status:"pendente"});
+    await db.insert(opaInteresses).values({id:"c",opa_id:"oba",user_id:"guest:c",membro_id:"c",vaga_id:slot.participantId!,vaga_bia_id:"bia",vaga_status:"pendente"});
     for(const role of ["director","author","ally"])assert.equal((await getAlerts({session:{directusUserId:"actor",membroId:role}})).length,1);
     assert.equal((await call("c","other")).status,403);
     await db.insert(opaInteresses).values({id:"rejected",opa_id:"oba",user_id:"other-buyer",membro_id:"other-buyer",vaga_id:slot.participantId!,vaga_bia_id:"bia",vaga_status:"pendente"});

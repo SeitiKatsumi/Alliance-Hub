@@ -20,6 +20,12 @@ const BASE_URL = process.env.APP_URL || "https://app.builtalliances.com";
 // still uses APP_URL, but shared branding always comes from the public site.
 const EMAIL_LOGO_URL = "https://app.builtalliances.com/built-logo-horizontal-branca-email.png?v=20260514";
 
+export async function enviarCodigoAcessoBia(email: string, code: string, accessId: string) {
+  return send('essential', email, 'Seu código de acesso à BIA', baseTemplate(
+    `<h2>Confirme seu e-mail</h2><p>Use este código para acessar seu convite ou acompanhar sua BIA.</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>O código expira em 10 minutos.</p><p>Guarde seu <a href="${BASE_URL}/minha-bia/${accessId}">link de acompanhamento da BIA</a> para voltar quando quiser.</p>`,
+  ));
+}
+
 const WINDOWS_1252_BYTE_BY_CHAR: Record<number, number> = {
   0x20ac: 0x80,
   0x201a: 0x82,

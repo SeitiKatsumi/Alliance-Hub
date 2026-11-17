@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "oba-experiencia-externa",
+  "title": "Identidade BUILT e painel visual de participação externa na BIA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": ["shared/oba-guest.ts", "shared/oba-guest-dashboard.ts", "server/oba-guest.ts", "server/routes.ts"],
+  "searchTerms": ["GuestAccessLayout", "GuestDashboard", "guestDashboard", "og-access"],
+  "consumers": [
+    {"path":"client/src/pages/oba-guest.tsx","decision":"updated","reason":"Apresentação de escolha, e-mail, código, análise e painel; contratos HTTP, autenticação e candidatura preservados."},
+    {"path":"client/src/components/oba-guest-layout.tsx","decision":"updated","reason":"Layout externo responsivo com arquivos oficiais de logo e superfícies isoladas do tema da plataforma."},
+    {"path":"client/src/components/oba-guest.css","decision":"updated","reason":"Estilos restritos ao acesso externo, foco, contraste, tamanhos móveis e navegação inferior."},
+    {"path":"client/src/components/oba-guest-dashboard.tsx","decision":"updated","reason":"Gráficos e tabelas acessíveis, próximos aportes, filtros de pagamentos e histórico real do próprio participante."},
+    {"path":"shared/oba-guest-dashboard.ts","decision":"updated","reason":"Agregação mensal por data de pagamento, somas em centavos e percentual das cotas iniciais com denominador válido."},
+    {"path":"shared/oba-guest-dashboard.test.ts","decision":"updated","reason":"Testa valores decimais, datas ausentes/inválidas, ordem dos vencimentos e ausência de base para percentuais."},
+    {"path":"client/src/App.tsx","decision":"preserved","reason":"Consumidor das rotas externas existentes; este redesenho não altera rotas nem controle de sessão."},
+    {"path":"client/src/main.tsx","decision":"preserved","reason":"Entrada transitiva do App; nenhum fornecedor ou montagem global foi modificado pelo redesenho."},
+    {"path":"client/src/components/oba-offer.tsx","decision":"preserved","reason":"Oferta e seleção existentes permanecem; somente o contêiner externo aplica a marca e contraste local."},
+    {"path":"client/src/components/oba-quota-availability.tsx","decision":"preserved","reason":"Grade de cotas e total usam a oferta publicada; ajuste de contraste via seletor restrito ao portal externo."},
+    {"path":"shared/oba-guest.ts","decision":"preserved","reason":"Continua fonte da soma dos lançamentos filtrados; nova agregação chama guestPaymentTotals sem fórmula concorrente."},
+    {"path":"server/oba-guest.ts","decision":"preserved","reason":"Código, sessão, aprovação e autorização de arquivos não se alteram por esta mudança visual."},
+    {"path":"server/routes.ts","decision":"preserved","reason":"Projeção autorizada do painel mantém pagamentos, cotas, documentos e histórico; não inclui dados novos ou outros participantes."},
+    {"path":"docs/platform/modules/built-alliances.md","decision":"updated","reason":"Registra apresentação, denominadores, série mensal e consumidores preservados."}
+  ],
+  "areas": [
+    {"area":"interface","status":"verified","evidence":"Prévia dos componentes reais com APIs fictícias: entrada, OTP inválido/correção, duas cotas e R$234.000, análise, redirecionamento logado, três abas, filtro a pagar (4 linhas), gráficos e estado vazio conferidos. Formulário em 320px e painel em 390px, sem rolagem horizontal; troca de aba volta ao topo. Capturas .BUILT-tmp/oba-design-entry.jpg, oba-design-dashboard.jpg e oba-design-mobile.jpg."},
+    {"area":"api","status":"verified","evidence":"Endpoints e payloads existentes preservados. O painel tipa a resposta já projetada; não consulta fonte ou pessoa adicional."},
+    {"area":"dados","status":"not-applicable","evidence":"Nenhuma coluna, migração, cadastro ou persistência nova; dados fictícios somente na prévia local isolada."},
+    {"area":"calculos-graficos","status":"verified","evidence":"guestDashboard reutiliza soma em centavos. Mensal usa pagoEm, exclui datas ausentes/inválidas e avisa sobre exclusões. Percentual de pagamento usa apenas lançamentos registrados; cotas iniciais não são MAP nem retorno."},
+    {"area":"notificacoes-emails","status":"not-applicable","evidence":"Tela de código consome o mesmo envio existente. Sem alteração de mailer, destinatários, Agenda, notificações ou mensagens; nenhum envio real durante o QA."},
+    {"area":"documentos-relatorios","status":"verified","evidence":"Links existentes continuam usando endpoint de arquivos por acesso. Apresentação não gera nem altera PDFs, MOU, aceites ou documentos assinados."},
+    {"area":"integracoes-tarefas","status":"not-applicable","evidence":"Não altera Directus, Asaas, cron ou integrações. Links de cobrança HTTPS e contato existentes apenas apresentados."},
+    {"area":"permissoes","status":"verified","evidence":"Usuário logado mantém redirecionamento direto. Visitante continua com OTP e aprovação; dashboard recebe somente pagamentos/arquivos autorizados do próprio participante."},
+    {"area":"legado","status":"verified","evidence":"Datas ausentes não viram pagamentos em datas de vencimento; histórico vazio não inventa pontos. Dados de cotas inválidos não geram percentual. Demais telas autenticadas preservadas por escopo CSS."},
+    {"area":"testes","status":"verified","evidence":"platform:verify final aprovado: tipos da aplicação/ferramentas, contrato, consistência, 851 testes/0 falhas e build. Log .BUILT-tmp/oba-design-verify-final.log. UI exercitada com dados fictícios, sem envios de e-mail ou pagamentos reais."}
+  ],
+  "regressionTests": ["shared/oba-guest-dashboard.test.ts", "server/oba-guest.test.ts"],
+  "deprecationRuleIds": []
+}

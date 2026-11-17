@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "id": "oba-formalizacao-mou",
+  "title": "Dados e aceite canônico do MOU antes de liberar o painel externo da BIA",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-mou-qualification.ts",
+    "server/oba-guest.ts",
+    "server/routes.ts"
+  ],
+  "searchTerms": [
+    "loadObaGuestFormalization",
+    "dados_formalizacao",
+    "GuestFormalizationFlow",
+    "validateMouQualification",
+    "guestMouHash",
+    "reviewedDocument"
+  ],
+  "consumers": [
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Callbacks externos exigem aprovação, vínculo e MOU canônico; dados/revisão sob lock, texto revisado preservado. Demais alterações já existentes e importação paralela de parcelas fora deste escopo."
+    },
+    {
+      "path": "server/oba-guest.ts",
+      "decision": "updated",
+      "reason": "Novas APIs por sessão limitada ao acesso e coluna de qualificação; download privado exige liberado. Hash de texto/dados apresentado."
+    },
+    {
+      "path": "server/oba-guest.test.ts",
+      "decision": "updated",
+      "reason": "Rotas sem sessão bloqueadas e comprovante permanece inacessível mesmo com aprovação até MOU válido."
+    },
+    {
+      "path": "server/oba-guest-mou.test.ts",
+      "decision": "updated",
+      "reason": "Exercita callbacks reais e aceite canônico em PGlite: aprovação, qualificação, estruturação, hash, evidência, snapshot, idempotência, revisão nova e retirada de aprovação."
+    },
+    {
+      "path": "shared/bia-mou-qualification.ts",
+      "decision": "updated",
+      "reason": "Campos obrigatórios e condicional de cônjuge/endereço compartilhados com validador interno; externo limita campos e fixa e-mail verificado."
+    },
+    {
+      "path": "client/src/pages/oba-guest.tsx",
+      "decision": "updated",
+      "reason": "Etapa de formalização antes do dashboard; cache do MOU limpo ao sair/entrar e painel somente quando liberado."
+    },
+    {
+      "path": "client/src/components/oba-guest-formalization.tsx",
+      "decision": "updated",
+      "reason": "Dados persistidos, revisão do texto e dados, aceite explícito com localização capturada; espera quando MOU ainda não disponível."
+    },
+    {
+      "path": "client/src/components/oba-guest-dashboard.tsx",
+      "decision": "updated",
+      "reason": "Contrato distingue aprovado de liberado; cálculos e componentes do dashboard mantidos."
+    },
+    {
+      "path": "client/src/components/oba-guest-layout.tsx",
+      "decision": "updated",
+      "reason": "Jornada mostra formalização antes do acompanhamento."
+    },
+    {
+      "path": "client/src/components/oba-guest.css",
+      "decision": "updated",
+      "reason": "Estilos restritos ao formulário/etapas/documento, desktop e celular sem overflow horizontal."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Fontes, sequência, consumidores, compatibilidade e restrição durante estruturação documentados."
+    },
+    {
+      "path": "client/src/App.tsx",
+      "decision": "preserved",
+      "reason": "Mantém rotas externas já existentes, sem nova entrada ou ampliação da sessão."
+    },
+    {
+      "path": "client/src/main.tsx",
+      "decision": "preserved",
+      "reason": "Consumidor transitivo da página, sem mudança de providers."
+    },
+    {
+      "path": "server/index.ts",
+      "decision": "preserved",
+      "reason": "Mantém omissão de respostas oba-guest nos logs, inclusive novos dados e texto contratual."
+    },
+    {
+      "path": "client/src/lib/acceptanceLocation.ts",
+      "decision": "preserved",
+      "reason": "Captura obrigatória usada também pelo novo fluxo; não usa localização do perfil."
+    },
+    {
+      "path": "client/src/lib/acceptanceLocation.test.ts",
+      "decision": "preserved",
+      "reason": "Regressões de localização da suíte completa preservadas."
+    },
+    {
+      "path": "client/src/pages/comunidade.tsx",
+      "decision": "preserved",
+      "reason": "Aceite interno permanece no fluxo existente, usando os mesmos campos obrigatórios no backend."
+    },
+    {
+      "path": "server/bia-mou-action.test.ts",
+      "decision": "preserved",
+      "reason": "Revisão, signatário e evidências do aceite interno testados sem regressão."
+    },
+    {
+      "path": "server/bia-map-api.test.ts",
+      "decision": "preserved",
+      "reason": "Snapshot, revisão e aceites imutáveis testados na implementação canônica."
+    },
+    {
+      "path": "server/bia-phase-readiness.ts",
+      "decision": "preserved",
+      "reason": "Formalização usa aceites existentes e preserva requisitos de conclusão da BIA."
+    },
+    {
+      "path": "server/bia-phase-readiness.test.ts",
+      "decision": "preserved",
+      "reason": "Suíte completa cobre prontidão de fase; candidatura não se torna aceite."
+    },
+    {
+      "path": "server/bia-composition-invites.test.ts",
+      "decision": "preserved",
+      "reason": "Convidado externo continua sem convite adicional de conta; regressão completa executada."
+    },
+    {
+      "path": "server/bia-vacancies.test.ts",
+      "decision": "preserved",
+      "reason": "Aprovação e consolidação de cotas permanecem; qualificação ocorre após decisão."
+    },
+    {
+      "path": "server/mailer.ts",
+      "decision": "preserved",
+      "reason": "OTP e link de retorno inalterados; nenhuma mensagem real ou assinatura enviada pelo agente."
+    },
+    {
+      "path": "client/src/components/oba-invite-dialog.tsx",
+      "decision": "preserved",
+      "reason": "Texto e compartilhamento existentes preservados, sem mudar destinatários."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "preserved",
+      "reason": "Oferta publicada pode ser consultada antes do MOU; dados do painel permanecem bloqueados."
+    },
+    {
+      "path": "shared/schema.ts",
+      "decision": "preserved",
+      "reason": "Candidatura usa opa_interesses existente; novo rascunho é campo do serviço oba_guest_access."
+    },
+    {
+      "path": "shared/oba-guest.ts",
+      "decision": "preserved",
+      "reason": "Somas/projeção de pagamentos iguais; só consultados após liberação."
+    },
+    {
+      "path": "shared/oba-guest-dashboard.ts",
+      "decision": "preserved",
+      "reason": "Gráficos e totais preservados, sem incluir qualquer dado anterior ao MOU."
+    },
+    {
+      "path": "shared/oba-guest-dashboard.test.ts",
+      "decision": "preserved",
+      "reason": "Cálculos aprovados na suíte completa, sem mudança de domínio financeiro."
+    },
+    {
+      "path": "shared/agenda-action.ts",
+      "decision": "preserved",
+      "reason": "matchesMouRevision rejeita revisão ausente ou obsoleta no aceite externo."
+    },
+    {
+      "path": "server/bia-map-history.ts",
+      "decision": "preserved",
+      "reason": "Lock, snapshot/hash e evidências imutáveis reutilizados pelo aceite canônico."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componentes reais em prévia local com dados fictícios: preenchimento, salvamento, retomada, leitura/checkbox, liberação após aceite simulado; celular 390px, campos conjugais e dois endereços sem overflow. Captura .BUILT-tmp/oba-mou-mobile.jpg."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "POST formalizacao e mou exigem sessão do acesso e aprovação/vínculo. Backend só retorna dashboard após hasBiaMouAceito; download valida liberado. Tests Express/PGlite."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Coluna JSONB aditiva com IF NOT EXISTS; rascunho filtrado é separado do aceite imutável. Identidade é da sessão e e-mail verificado. Dados confirmados seguem para Directus pelo fluxo canônico."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Não muda cotas, cronograma ou agregações; consulta e exposição dos mesmos valores ocorre apenas depois do MOU válido."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "verified",
+      "evidence": "Candidaturas e decisões da Agenda preservadas; nenhum novo envio, destinatário ou template. Link de retorno e polling existentes mostram o passo pendente."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Usa MOU personalizado e tabela bia_mou_aceites existentes; salva exatamente o texto revisado, versão, revisão, identidade, dados e localização capturada. PDF continua consumindo evidências canônicas; histórico assinado não é reescrito."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "verified",
+      "evidence": "Aceite chama mesma reconciliação; estruturação ainda impede coleta antes de MOU pronto. Não cria cobrança, publicação, integração ou job novo."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Verificação de e-mail sozinha não libera MOU nem painel. Aprovação sozinha não libera finanças; hash, revisão, dados obrigatórios e captura explícita são validados antes do aceite. Revogação permanece no serviço."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Aceite válido existente libera o acesso sem exigir nova assinatura. Sem aceite, usuários externos já aprovados passam pela formalização; revisão pré-ativação obsoleta bloqueia novamente. Nenhuma migração destrutiva nem alteração de documentos antigos."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify final aprovado: tipos, ferramentas, contrato, consistência, 853 testes/0 falhas e build (.BUILT-tmp/oba-mou-verify-final.log). Revisão específica aprovada em .BUILT-tmp/oba-mou-scoped-review.log. Revisão global permanece com 50 pendências da alteração paralela de parcelas, não atestada neste trabalho. Testes canônicos em PGlite e UI desktop/390px com dados fictícios, sem aceite real nem produção."
+    }
+  ],
+  "regressionTests": [
+    "server/oba-guest-mou.test.ts",
+    "server/oba-guest.test.ts",
+    "server/bia-mou-action.test.ts",
+    "server/bia-map-api.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

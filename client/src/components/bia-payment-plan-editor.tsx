@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { applyPaymentPlan, type BiaBudget } from "@shared/bia-budget";
-import { makePaymentSchedule, newPaymentPlan, toPaymentCents, type PaymentPlan } from "@shared/bia-payment-plan";
+import { makePaymentSchedule, newPaymentPlan, parsePaymentAmounts, toPaymentCents, type PaymentPlan } from "@shared/bia-payment-plan";
 import { BiaNumberInput } from "./bia-role-composition";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -13,7 +13,9 @@ export function BiaPaymentPlanEditor({budget,total,onChange}:{
   budget:BiaBudget;total?:number|null;onChange:(budget:BiaBudget)=>void;
 }) {
   const [error,setError]=useState("");
+  const [draft,setDraft]=useState<string | null>(null);
   const plan=budget.planoPagamento || newPaymentPlan(budget.inicio);
+  const fixedValues=plan.modelo!=="a_vista" ? plan.saldoValoresCentavos : undefined;
   const update=(patch:Partial<PaymentPlan>)=>{
     setError("");
     onChange({...budget,planoPagamento:{...plan,...patch}});
@@ -59,20 +61,48 @@ export function BiaPaymentPlanEditor({budget,total,onChange}:{
       <Button type="button" variant="outline" disabled={plan.intermediarias.length>=20} onClick={()=>update({intermediarias:[...plan.intermediarias,{nome:"Intermediárias",quantidade:1,valor:null,intervalo:1}]})}>Adicionar bloco intermediário</Button>
     </>}
     {plan.modelo!=="a_vista" && <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-3">
-      <label>{plan.modelo==="blocos"?"Parcelas do saldo":"Quantidade de parcelas"}<Input type="number" min={0} max={120} value={plan.saldoQuantidade ?? ""} onChange={e=>update({saldoQuantidade:e.target.value === "" ? null : e.target.valueAsNumber})}/></label>
+      <label>{plan.modelo==="blocos"?"Parcelas do saldo":"Quantidade de parcelas"}<Input type="number" min={0} max={120} readOnly={fixedValues!==undefined} value={fixedValues?.length ?? plan.saldoQuantidade ?? ""} onChange={e=>update({saldoQuantidade:e.target.value === "" ? null : e.target.valueAsNumber})}/></label>
       <label>Periodicidade{period(plan.saldoIntervalo,saldoIntervalo=>update({saldoIntervalo}))}</label>
       <div className="space-y-1">
-        <span className="block">Saldo calculado</span>
+        <span className="block">{fixedValues ? "Total das parcelas corrigidas" : "Saldo calculado"}</span>
         <strong>{rows.length ? money(balance) : "—"}</strong>
-        {byAmount.size>0 && <ul className="text-sm text-muted-foreground" aria-label="Valores das parcelas do saldo">
+        {!fixedValues && byAmount.size>0 && <ul className="text-sm text-muted-foreground" aria-label="Valores das parcelas do saldo">
           {[...byAmount].map(([value,quantity])=><li key={value}>{quantity} × {money(value)}</li>)}
         </ul>}
       </div>
+      <label className="flex items-center gap-2 sm:col-span-3">
+        <input type="checkbox" checked={fixedValues!==undefined} onChange={e=>{
+          setDraft(null);
+          update({saldoValoresCentavos:e.target.checked ? [] : undefined});
+        }}/>
+        Informar valores já corrigidos
+      </label>
+      {fixedValues && <div className="space-y-2 sm:col-span-3">
+        <label className="block">Cole um valor por linha
+          <textarea className="block min-h-32 w-full rounded-md border bg-background p-2" maxLength={12000}
+            placeholder="1ª parcela: 8.625,00"
+            value={draft ?? fixedValues.map(value=>(value/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})).join("\n")}
+            onChange={e=>{setDraft(e.target.value);setError("");}}/>
+        </label>
+        <Button type="button" variant="outline" disabled={draft===null} onClick={()=>{
+          try {
+            update({saldoValoresCentavos:parsePaymentAmounts(draft ?? "")});
+            setDraft(null);
+          } catch(e) {
+            setError(e instanceof Error ? e.message : "Confira a lista de parcelas.");
+          }
+        }}>Importar parcelas</Button>
+        {draft!==null && fixedValues.length>0 && <Button type="button" variant="ghost" onClick={()=>{setDraft(null);setError("");}}>Descartar edição da lista</Button>}
+      </div>}
     </div>}
-    {!!rows.length && <p role="status">{rows.length} pagamentos · até {rows.at(-1)!.mes} · {money(rows.reduce((sum,row)=>sum+row.centavos,0))}</p>}
-    {plan.correcao!=="Sem reajuste" && <p className="text-sm text-muted-foreground">Valores-base. Correção contratual por {plan.correcao}.</p>}
+    {!!rows.length && <p role="status">{rows.length} pagamentos · até {rows.at(-1)!.mes} · {money(rows.reduce((sum,row)=>sum+row.centavos,0))}
+      {fixedValues && <> · Valor de Origem {money(toPaymentCents(total!))}</>}
+    </p>}
+    {fixedValues
+      ? <p className="text-sm text-muted-foreground">Os valores importados já incluem a correção. {plan.correcao!=="Sem reajuste" && `Índice contratual: ${plan.correcao}.`}</p>
+      : plan.correcao!=="Sem reajuste" && <p className="text-sm text-muted-foreground">Valores-base. Correção contratual por {plan.correcao}.</p>}
     {(error || (budget.planoPagamento && invalid)) && <p role="status" className="text-sm text-muted-foreground">{error || invalid}</p>}
-    <Button type="button" disabled={!rows.length} onClick={()=>{
+    <Button type="button" disabled={!rows.length || (fixedValues!==undefined && draft!==null)} onClick={()=>{
       if(budget.capex.some(item=>!item.geradoDoPlano && item.valor===total && item.pagamentos.some(row=>row.valor))) {
         setError("Há um investimento manual com o mesmo valor do plano. Revise esses pagamentos antes de gerar para evitar duplicidade.");return;
       }

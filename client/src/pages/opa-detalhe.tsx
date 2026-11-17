@@ -2,6 +2,7 @@ import { useTaxonomyLabel } from "@/lib/interface-taxonomy";
 import { opportunityScopeLabel } from "@shared/bia-business-type";
 ﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ObaQuotaAvailability } from "@/components/oba-quota-availability";
+import { ObaInviteDialog } from "@/components/oba-invite-dialog";
 import { ObaOfferLink, ObaOfferScreen, usePublishedObaOffer } from "@/components/oba-offer";
 import { ObaDeliveries } from "@/components/oba-deliveries";
 import { ObaQuotaSelect, obaQuotaStatusLabel, type ObaQuotaOption } from "@/components/oba-quota-select";
@@ -409,11 +410,7 @@ export default function OpaDetalhePage() {
           Voltar para OBAs
         </Button>
         {canManageOpa && <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" disabled={compartilharMutation.isPending} onClick={() => compartilharMutation.mutate(false)} data-testid="btn-share-opa">
-            {compartilharMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
-            <span className="inline">Convidar pessoas</span>
-            <span className="sr-only sm:hidden">Compartilhar OBA</span>
-          </Button>
+          <ObaInviteDialog opaId={String(opa.id)} title={opa.nome_oportunidade || 'Oportunidade BUILT'} offer={acquisitionOffer}/>
           <Button size="sm" className="gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white" onClick={() => setEditDialog(true)} data-testid="btn-edit-opa-detail">
             <Pencil className="w-3.5 h-3.5" />Editar
           </Button>

@@ -1,0 +1,370 @@
+{
+  "version": 1,
+  "id": "bia-parcelas-corrigidas",
+  "title": "Importação de parcelas com correção já definida",
+  "status": "complete",
+  "kind": "behavior",
+  "sourceOfTruth": [
+    "shared/bia-payment-plan.ts",
+    "shared/bia-budget.ts"
+  ],
+  "searchTerms": [
+    "saldoValoresCentavos",
+    "makePaymentSchedule",
+    "BiaPaymentPlanEditor"
+  ],
+  "consumers": [
+    {
+      "path": "shared/bia-payment-plan.ts",
+      "decision": "updated",
+      "reason": "Valida a lista em centavos e projeta as parcelas exatas."
+    },
+    {
+      "path": "client/src/components/bia-payment-plan-editor.tsx",
+      "decision": "updated",
+      "reason": "Importa e valida a lista antes de gerar o CAPEX."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Usa o editor compartilhado."
+    },
+    {
+      "path": "client/src/components/bia-budget-fields.test.ts",
+      "decision": "reviewed",
+      "reason": "Cobre a incorporação do editor compartilhado."
+    },
+    {
+      "path": "client/src/pages/bia-nova.tsx",
+      "decision": "reviewed",
+      "reason": "Criação e rascunho usam o editor e o orçamento existentes."
+    },
+    {
+      "path": "shared/bia-budget.ts",
+      "decision": "reviewed",
+      "reason": "Validação e geração usam o esquema e cronograma compartilhados."
+    },
+    {
+      "path": "server/routes.ts",
+      "decision": "updated",
+      "reason": "Oferta usa cronograma salvo e identifica valores já corrigidos."
+    },
+    {
+      "path": "server/bia-offer.test.ts",
+      "decision": "reviewed",
+      "reason": "Teste existente garante que a oferta usa o cronograma do CAPEX salvo."
+    },
+    {
+      "path": "client/src/components/oba-offer.tsx",
+      "decision": "reviewed",
+      "reason": "Consome o cronograma compartilhado e apresenta o rótulo da oferta."
+    },
+    {
+      "path": "shared/bia-payment-plan.test.ts",
+      "decision": "updated",
+      "reason": "Cobre lista de 80 parcelas, datas, centavos, CAPEX, cotas e entradas inválidas."
+    },
+    {
+      "path": "docs/platform/modules/built-alliances.md",
+      "decision": "updated",
+      "reason": "Registra o contrato do orçamento e os consumidores."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão de edição patrimonial usa BiaSetup; o novo campo opcional do orçamento não altera os ativos."
+    },
+    {
+      "path": "client/src/components/bia-asset-patrimony-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Edita ativos e correções patrimoniais; não calcula parcelas nem remove o orçamento do objeto."
+    },
+    {
+      "path": "client/src/components/bia-assets.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões preservam ativos e ausência de orçamento legado; passaram na suíte completa."
+    },
+    {
+      "path": "client/src/components/bia-card-indicators.tsx",
+      "decision": "reviewed",
+      "reason": "Renderiza indicadores do helper de cartões; parcelas previstas não são recebimentos realizados."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões do diálogo e exportação passaram; resumo usa a rubrica de CAPEX existente."
+    },
+    {
+      "path": "client/src/components/bia-data-dialog.tsx",
+      "decision": "reviewed",
+      "reason": "BiaBudgetSummary apresenta o orçamento salvo também na impressão; não divide novamente o valor de origem."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de participantes e estrutura econômica passaram; cotas não são recalculadas pela importação."
+    },
+    {
+      "path": "client/src/components/bia-economic-structure.tsx",
+      "decision": "reviewed",
+      "reason": "Usa governança e composição; o cronograma não modifica cargos ou quantidades de cotas."
+    },
+    {
+      "path": "client/src/components/bia-legal-person-field.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de estrutura jurídica usam o mesmo setup, sem dependência dos valores de parcelas."
+    },
+    {
+      "path": "client/src/components/bia-map-history.tsx",
+      "decision": "reviewed",
+      "reason": "Exibe snapshots econômicos históricos; a importação do orçamento não regrava revisões do MAP."
+    },
+    {
+      "path": "client/src/components/bia-patrimony-breakdown.tsx",
+      "decision": "reviewed",
+      "reason": "Exibe estimativa patrimonial, que não incorpora CAPEX previsto como pagamento realizado."
+    },
+    {
+      "path": "client/src/components/bia-setup-fields.tsx",
+      "decision": "reviewed",
+      "reason": "Resumo delega ao BiaBudgetSummary; campos jurídicos e ativos mantêm o restante do setup."
+    },
+    {
+      "path": "client/src/components/bia-setup-panel.tsx",
+      "decision": "reviewed",
+      "reason": "Edição usa BiaBudgetFields, salvamento e histórico do setup existentes, com permissões preservadas."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de transferência e conflito do setup passaram na suíte completa."
+    },
+    {
+      "path": "client/src/lib/bia-draft-handoff.ts",
+      "decision": "reviewed",
+      "reason": "Merge recursivo preserva campos não editados e valida pelo biaSetupSchema; listas numéricas concorrentes entram na regra de conflito."
+    },
+    {
+      "path": "client/src/pages/bia-detalhe.tsx",
+      "decision": "reviewed",
+      "reason": "Usa diálogo e painel compartilhados; não cria uma projeção própria das parcelas."
+    },
+    {
+      "path": "client/src/pages/bia-documentos.tsx",
+      "decision": "reviewed",
+      "reason": "Gerencia documentos e governança; não reescreve o cronograma nem documentos já aceitos."
+    },
+    {
+      "path": "client/src/pages/bia-editar.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões do editor e abas de orçamento passaram com o componente compartilhado."
+    },
+    {
+      "path": "client/src/pages/bias-calculadora.tsx",
+      "decision": "reviewed",
+      "reason": "Calculadora utiliza composição econômica; importação mantém valor de origem e quantidades de cotas."
+    },
+    {
+      "path": "client/src/pages/carteira.tsx",
+      "decision": "reviewed",
+      "reason": "Consome estimativa patrimonial e BiaPatrimonyBreakdown; pagamentos previstos não viram aportes realizados."
+    },
+    {
+      "path": "client/src/pages/movimentacao-cotas.tsx",
+      "decision": "reviewed",
+      "reason": "Fluxo de cotas permanece baseado na participação econômica, sem importar pagamentos do orçamento."
+    },
+    {
+      "path": "client/src/pages/nucleo-capital.tsx",
+      "decision": "reviewed",
+      "reason": "Consome componentes e indicadores existentes; a lista corrigida fica no orçamento da BIA."
+    },
+    {
+      "path": "client/src/pages/painel.tsx",
+      "decision": "reviewed",
+      "reason": "Cartões usam BiaCardIndicators; a importação não modifica alertas, cotas ou dados de caixa."
+    },
+    {
+      "path": "scripts/native-platform-journey.ts",
+      "decision": "reviewed",
+      "reason": "Fixture da jornada usa emptyBiaSetup; campo opcional mantém payloads existentes compatíveis. Não foi executada contra dados reais."
+    },
+    {
+      "path": "server/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de indicadores e isolamento passaram; orçamento previsto continua separado de caixa."
+    },
+    {
+      "path": "server/bia-automatic-indicators.ts",
+      "decision": "reviewed",
+      "reason": "Consulta ativos e recebimentos efetivos; não usa o cronograma previsto como receita."
+    },
+    {
+      "path": "server/bia-draft-api.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões da API de rascunho e preservação do orçamento passaram."
+    },
+    {
+      "path": "server/bia-patrimony.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de patrimônio e escopo passaram sem alterar regras de avaliação."
+    },
+    {
+      "path": "server/bia-patrimony.ts",
+      "decision": "reviewed",
+      "reason": "Estimativa usa ativos e lançamentos efetivos; parcelas previstas não passam a compor patrimônio automaticamente."
+    },
+    {
+      "path": "server/bia-setup.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de persistência, histórico e recuperação do orçamento passaram."
+    },
+    {
+      "path": "server/bia-setup.ts",
+      "decision": "reviewed",
+      "reason": "Persistência JSON versionada usa parseBiaSetup e mantém o novo campo aceito pelo esquema compartilhado."
+    },
+    {
+      "path": "server/bia-workflow.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de rascunho e transições passaram; importação não ativa a BIA."
+    },
+    {
+      "path": "server/bia-workflow.ts",
+      "decision": "reviewed",
+      "reason": "validateBiaDraft valida estrutura pelo biaSetupSchema, incluindo lista opcional; máquina de fases preservada."
+    },
+    {
+      "path": "server/native-migration-journey.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressão mantém estrutura separada do payload legado, preservando appendBiaSetup; passou na suíte."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de indicadores passaram; cálculos de recebimentos não usam orçamento previsto."
+    },
+    {
+      "path": "shared/bia-automatic-indicators.ts",
+      "decision": "reviewed",
+      "reason": "plannedBiaSales lê indicadores dos ativos e valores legados, sem recalcular parcelas."
+    },
+    {
+      "path": "shared/bia-budget.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de soma, centavos, horizonte, moeda, preservação e projeção passaram."
+    },
+    {
+      "path": "shared/bia-business-type.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de tese e validação do rascunho passaram; campo opcional não altera a taxonomia."
+    },
+    {
+      "path": "shared/bia-card-indicators.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões dos cartões por tese passaram sem incluir CAPEX previsto como retorno."
+    },
+    {
+      "path": "shared/bia-card-indicators.ts",
+      "decision": "reviewed",
+      "reason": "Deriva indicadores de acompanhamento e dados automáticos, sem ler saldoValoresCentavos."
+    },
+    {
+      "path": "shared/bia-form-options.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de opções e payload do rascunho passaram; modelos existentes permanecem compatíveis."
+    },
+    {
+      "path": "shared/bia-offer.ts",
+      "decision": "reviewed",
+      "reason": "PlannedPayment conserva mes, centavos e bloco; contrato da oferta aceita os mesmos pagamentos já rateados."
+    },
+    {
+      "path": "shared/bia-patrimony.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões patrimoniais passaram; orçamento não substitui a base dos ativos ou caixa."
+    },
+    {
+      "path": "shared/bia-patrimony.ts",
+      "decision": "reviewed",
+      "reason": "Usa ativos e caixa na avaliação; lista do plano não altera a base patrimonial."
+    },
+    {
+      "path": "shared/bia-setup.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de parse, legado e preservação do setup passaram."
+    },
+    {
+      "path": "shared/bia-setup.ts",
+      "decision": "reviewed",
+      "reason": "orcamento usa biaBudgetSchema opcional; parse mantém orçamento anterior quando omitido."
+    },
+    {
+      "path": "shared/bia-tracking.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de acompanhamento e cartões passaram; cronograma não modifica etapas."
+    },
+    {
+      "path": "shared/property-cib.test.ts",
+      "decision": "reviewed",
+      "reason": "Regressões de normalização e importação de imóvel passaram; lista financeira não altera identificação imobiliária."
+    }
+  ],
+  "areas": [
+    {
+      "area": "interface",
+      "status": "verified",
+      "evidence": "Componente real em fixture local sem API: desktop e 390px; rejeição de numeração fora de sequência, importação de 80 valores, 86 pagamentos no CAPEX totalizando R$ 1.173.160,00, geração bloqueada durante edição e descarte da lista preservando valores. Valor de Origem permaneceu R$ 1.170.000,00. Não houve alteração de dados reais."
+    },
+    {
+      "area": "api",
+      "status": "verified",
+      "evidence": "O esquema do orçamento preserva a lista e a oferta confere o CAPEX salvo pelo cronograma compartilhado."
+    },
+    {
+      "area": "dados",
+      "status": "verified",
+      "evidence": "Campo numérico opcional no orçamento JSON existente. Sem migração ou cópia nova."
+    },
+    {
+      "area": "calculos-graficos",
+      "status": "verified",
+      "evidence": "Teste verifica centavos, vencimentos, valor da rubrica e soma das cotas."
+    },
+    {
+      "area": "notificacoes-emails",
+      "status": "not-applicable",
+      "evidence": "Importação e geração são edições de orçamento e não disparam mensagens."
+    },
+    {
+      "area": "documentos-relatorios",
+      "status": "verified",
+      "evidence": "Projeção e PDF do orçamento consultam os pagamentos da rubrica do CAPEX."
+    },
+    {
+      "area": "integracoes-tarefas",
+      "status": "not-applicable",
+      "evidence": "Cronograma previsto não depende de integrações ou tarefas."
+    },
+    {
+      "area": "permissoes",
+      "status": "verified",
+      "evidence": "Salvamento usa a mesma rota e os mesmos controles de acesso da estrutura."
+    },
+    {
+      "area": "legado",
+      "status": "verified",
+      "evidence": "Testes exercitam os modelos sem lista e o esquema aceita o novo campo como opcional."
+    },
+    {
+      "area": "testes",
+      "status": "verified",
+      "evidence": "platform:verify executado em 17/11/2026: 853 testes, zero falhas, tipos e build aprovados. Inclui cronograma, oferta, orçamento e consumidores indiretos. Log local .BUILT-tmp/commit-platform-verify.log."
+    }
+  ],
+  "regressionTests": [
+    "shared/bia-payment-plan.test.ts",
+    "server/bia-offer.test.ts"
+  ],
+  "deprecationRuleIds": []
+}

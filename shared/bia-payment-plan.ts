@@ -12,6 +12,7 @@ export const paymentPlanSchema = z.object({
   })).max(20),
   saldoQuantidade: z.number().int().min(0).max(120).nullable(),
   saldoIntervalo: z.number().int().min(1).max(12),
+  saldoValoresCentavos: z.array(z.number().int().min(1).max(1e12)).max(120).optional(),
 });
 
 export type PaymentPlan = z.infer<typeof paymentPlanSchema>;
@@ -25,22 +26,37 @@ export const toPaymentCents = (value:number) => Math.round((value+Number.EPSILON
 export const monthIndex = (value:string) => Number(value.slice(0,4))*12+Number(value.slice(5))-1;
 export const monthAt = (value:number) => String(Math.floor(value/12))+"-"+String(value%12+1).padStart(2,"0");
 
+export function parsePaymentAmounts(text: string): number[] {
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  if (!lines.length || lines.length > 120) throw new Error("Informe de 1 a 120 parcelas, uma por linha.");
+  return lines.map((line, index) => {
+    const match = /^(?:(\d+)[ªº°]?\s*(?:parcela)?\s*:\s*)?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{2}))?$/iu.exec(line);
+    const cents = match ? Number(match[2].replace(/\./g, "")) * 100 + Number(match[3] ?? 0) : NaN;
+    if (!match || (match[1] && Number(match[1]) !== index + 1) || !Number.isSafeInteger(cents) || cents <= 0 || cents > 1e12)
+      throw new Error(`Confira o número e o valor da parcela na linha ${index + 1}.`);
+    return cents;
+  });
+}
+
 export function makePaymentSchedule(input:PaymentPlan, total:number): PlannedPayment[] {
   const plan=paymentPlanSchema.parse(input);
   if (!month.test(plan.inicio) || !Number.isFinite(total) || total<=0 || total>1e10)
     throw new Error("Informe o Valor de Origem e o primeiro vencimento.");
   const payments:PlannedPayment[]=[];
   let cursor=monthIndex(plan.inicio);
-  const add=(name:string,count:number,amount:number,interval:number) => {
-    if (payments.length+count>120) throw new Error("O CAPEX aceita até 120 pagamentos neste plano.");
-    const each=Math.floor(amount/count);
-    const remainder=amount%count;
-    for (let index=0;index<count;index++) {
+  const addAmounts=(name:string,amounts:number[],interval:number) => {
+    if (payments.length+amounts.length>120) throw new Error("O CAPEX aceita até 120 pagamentos neste plano.");
+    for (const [index, centavos] of amounts.entries()) {
       const mes=monthAt(cursor);
       if(!month.test(mes))throw new Error("O último vencimento excede o período suportado.");
-      payments.push({mes,centavos:each+(index<remainder?1:0),bloco:name});
-      cursor+=index===count-1?1:interval;
+      payments.push({mes,centavos,bloco:name});
+      cursor+=index===amounts.length-1?1:interval;
     }
+  };
+  const add=(name:string,count:number,amount:number,interval:number) => {
+    const each=Math.floor(amount/count);
+    const remainder=amount%count;
+    addAmounts(name,Array.from({length:count},(_,index)=>each+(index<remainder?1:0)),interval);
   };
   const target=toPaymentCents(total);
   if (plan.modelo==="a_vista") {
@@ -56,6 +72,12 @@ export function makePaymentSchedule(input:PaymentPlan, total:number): PlannedPay
   }
   const remaining=target-payments.reduce((sum,row)=>sum+row.centavos,0);
   if (remaining<0) throw new Error("A entrada e as intermediárias ultrapassam o Valor de Origem.");
+  if (plan.saldoValoresCentavos) {
+    if (!plan.saldoValoresCentavos.length) throw new Error("Importe os valores das parcelas já corrigidas.");
+    addAmounts(plan.modelo==="parcelado"?"Parcelas":"Saldo",plan.saldoValoresCentavos,plan.saldoIntervalo);
+    if (payments.reduce((sum,row)=>sum+row.centavos,0)>1e12) throw new Error("O total previsto excede o limite do CAPEX.");
+    return payments;
+  }
   if (remaining>0) {
     if (!plan.saldoQuantidade) throw new Error("Informe a quantidade de parcelas para distribuir o saldo.");
     if(remaining<plan.saldoQuantidade)throw new Error("O saldo precisa cobrir pelo menos um centavo por parcela.");

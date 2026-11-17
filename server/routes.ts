@@ -1,3 +1,5 @@
+import { validateMouQualification, pickGuestQualification } from '../shared/bia-mou-qualification';
+import { guestMouHash } from './oba-guest';
 import { OBA_OFFER_SQL } from "./bia-offer";
 import type { BiaOffer, OfferQuota } from "@shared/bia-offer";
 import { biaBudgetSchema } from "@shared/bia-budget";
@@ -8,7 +10,8 @@ import { acquireMapFinancialLock, createMapRecoveryJob } from './map-recovery-jo
 import { areaChoices, blockedArea, withAreaChoices } from '../shared/account-areas';
 import { withAutomaticBiaIndicators, loadBiaAssetIndicators, BIA_RECEIPTS_QUERY } from './bia-automatic-indicators';
 import {financialImportLabels, financialImportRows} from './financial-import-labels';
-import { registerBiaTrackingRoutes, withBiaTracking } from './bia-tracking';
+import { registerBiaTrackingRoutes, withBiaTracking, loadBiaTracking } from './bia-tracking';
+import type { BiaTracking } from '../shared/bia-tracking';
 import {financialImportPrompt} from './financial-import-prompt';
 import {receiptStageConfig,readStageReceipt,readStageFinancialImport} from './receipt-ai-stage';
 import { memberDisplayName } from "../shared/member-display-name";
@@ -50,6 +53,8 @@ import { BUILT_VALUATION_VERSION, sanitizeValuationAreas, propertyValuationReadi
 import { registerBuiltValuationRoutes } from './built-valuation';
 import { OBA_DELIVERIES_SQL, obaDeliveryCreateSchema, obaDeliveryValidationSchema } from "./oba-deliveries";
 import { assignMapVacancy, openMapVacancies } from "./bia-vacancies";
+import { externalBiaMemberIds, registerObaGuestRoutes } from "./oba-guest";
+import { guestPayments, guestPaymentTotals } from "../shared/oba-guest";
 import { listMouRevisionAlerts } from "./agenda-alerts";
 import { agendaTaskHref, agendaTaskTitle, matchesMouRevision, MOU_REVIEW_LABEL } from "../shared/agenda-action";
 import { biaExecutionReadiness, biaPhaseProgress, registerBiaPhaseReadRoutes } from "./bia-phase-readiness";
@@ -7415,67 +7420,7 @@ export async function registerRoutes(
   }
 
   const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para alianÃ§a de LideranÃ§a";
-  function validateBiaMouDadosContratuais(data: any) {
-    const body = data && typeof data === "object" ? data : {};
-    const missing: string[] = [];
-    const required = [
-      ["nome_completo", "Nome completo"],
-      ["nacionalidade", "Nacionalidade"],
-      ["nome_mae", "Nome da mÃ£e"],
-      ["nome_pai", "Nome do pai"],
-      ["data_nascimento", "Data de nascimento"],
-      ["profissao", "ProfissÃ£o"],
-      ["email", "E-mail"],
-      ["telefone", "Telefone"],
-      ["cpf", "CPF"],
-      ["rg", "RG"],
-      ["estado_civil", "Estado civil"],
-    ];
-    for (const [key, label] of required) {
-      if (!String(body[key] || "").trim()) missing.push(label);
-    }
-
-    const estadoCivil = String(body.estado_civil || "").toLowerCase();
-    const isCasado = estadoCivil === "casado" || estadoCivil === "casada";
-    if (isCasado) {
-      [
-        ["regime_comunhao", "Regime de comunhÃ£o"],
-        ["conjuge_nome_completo", "Nome do cÃ´njuge"],
-        ["conjuge_nacionalidade", "Nacionalidade do cÃ´njuge"],
-        ["conjuge_nome_mae", "Nome da mÃ£e do cÃ´njuge"],
-        ["conjuge_nome_pai", "Nome do pai do cÃ´njuge"],
-        ["conjuge_data_nascimento", "Data de nascimento do cÃ´njuge"],
-        ["conjuge_profissao", "ProfissÃ£o do cÃ´njuge"],
-        ["conjuge_email", "E-mail do cÃ´njuge"],
-        ["conjuge_telefone", "Telefone do cÃ´njuge"],
-        ["conjuge_cpf", "CPF do cÃ´njuge"],
-        ["conjuge_rg", "RG do cÃ´njuge"],
-      ].forEach(([key, label]) => {
-        if (!String(body[key] || "").trim()) missing.push(label);
-      });
-    }
-
-    const mesmoEndereco = body.mesmo_endereco === true || body.mesmo_endereco === "true";
-    const addressFields = [
-      ["endereco", "EndereÃ§o"],
-      ["bairro", "Bairro"],
-      ["cidade", "Cidade"],
-      ["estado", "Estado"],
-      ["pais", "PaÃ­s"],
-    ];
-    if (isCasado && !mesmoEndereco) {
-      addressFields.forEach(([key, label]) => {
-        if (!String(body[`titular_${key}`] || "").trim()) missing.push(`${label} do titular`);
-        if (!String(body[`conjuge_${key}`] || "").trim()) missing.push(`${label} do cÃ´njuge`);
-      });
-    } else {
-      addressFields.forEach(([key, label]) => {
-        if (!String(body[key] || "").trim()) missing.push(label);
-      });
-    }
-
-    return { ok: missing.length === 0, missing, data: body };
-  }
+  const validateBiaMouDadosContratuais = validateMouQualification;
 
   const BIA_DADOS_CONTRATUAIS_CADASTRO_FIELDS = [
     "nacionalidade",
@@ -8085,6 +8030,7 @@ export async function registerRoutes(
     dadosContratuais: Record<string, unknown>;
     aceiteLocalizacao: Record<string, unknown>;
     actorUserId?: string | null;
+    reviewedDocument?: string;
   }) {
     await ensureBiaMapInicialSnapshotsTable();
     return withMapLock(opts.biaId, async (tx) => {
@@ -8137,7 +8083,7 @@ export async function registerRoutes(
         dadosContratuais = {
           ...dadosContratuais,
           map_inicial: { snapshot_id: snapshotId, hash: snapshotHash, versao: Number(snapshot.revisao), snapshot: mapBaseContent(snapshot) },
-          documento_texto: await getBiaMouTextoPersonalizado(opts.biaId),
+          documento_texto: opts.reviewedDocument ?? await getBiaMouTextoPersonalizado(opts.biaId),
         };
       }
 
@@ -8155,7 +8101,7 @@ export async function registerRoutes(
     });
   }
 
-  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any, aceiteLocalizacao?: any, actorUserId?: string | null) {
+  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any, aceiteLocalizacao?: any, actorUserId?: string | null, reviewedDocument?: string) {
     return withMapLock(biaId, async () => {
     if (await hasBiaMouAceito(biaId, membroId)) return { ok: true };
     if (!aceitarMou) {
@@ -8205,6 +8151,7 @@ export async function registerRoutes(
         dadosContratuais: dadosCheck.data,
         aceiteLocalizacao: capturedLocation as any,
         actorUserId: actorUserId || null,
+        reviewedDocument,
       });
     } catch (error: any) {
       if (error?.statusCode) return { ok: false, statusCode: error.statusCode, response: { error: error.message } };
@@ -8369,6 +8316,7 @@ export async function registerRoutes(
     currentBia?: any | null;
   }) {
     const criadas: any[] = [];
+    const externalMembers = await externalBiaMemberIds(db, opts.biaId);
     for (const config of SOCIO_SOLICITACAO_CONFIG) {
       if (!Object.prototype.hasOwnProperty.call(opts.body, config.campoSocios)) continue;
       const requestedIds = parseBiaMemberList(opts.body[config.campoSocios]);
@@ -8389,6 +8337,8 @@ export async function registerRoutes(
           efetivados.push(socioId);
           continue;
         }
+        // A participação externa é acompanhada pelo acesso de e-mail, sem convite de conta.
+        if (externalMembers.has(socioId)) continue;
         const jaExiste = pendentes.some((item) =>
           item.campo_socios === config.campoSocios && item.socio_membro_id === socioId
         );
@@ -14559,7 +14509,7 @@ export async function registerRoutes(
           .where(and(eq(opaInteresses.id,req.params.interestId),eq(opaInteresses.vaga_bia_id,biaId)));
         if (!candidate?.vaga_id) throw Object.assign(new Error("Manifestação não encontrada."),{statusCode:404});
         if (candidate.vaga_status === (decision === "aprovar" ? "aprovada" : "recusada"))
-          return decision==="aprovar" ? {phase:freshBia.situacao,member:candidate.membro_id} : null;
+          return decision==="aprovar" ? {phase:freshBia.situacao,member:candidate.membro_id,guest:candidate.user_id.startsWith('guest:')} : null;
         const base=snapshot ?? await readObaDraftBase(biaId,tx);
         const vacancy = openMapVacancies(base?.participantes).find(({slot})=>slot.participantId === candidate.vaga_id);
         if (!vacancy || !quotaApplicationsOpen(freshBia.situacao) || base.draftFrozen || candidate.vaga_status !== "pendente")
@@ -14609,9 +14559,9 @@ export async function registerRoutes(
           eq(opaInteresses.vaga_bia_id,biaId),eq(opaInteresses.vaga_id,candidate.vaga_id),eq(opaInteresses.vaga_status,"pendente"),
         ));
         await tx.update(opaInteresses).set({vaga_status:"aprovada",atualizado_em:now}).where(eq(opaInteresses.id,candidate.id));
-        return {phase:freshBia.situacao,member:candidate.membro_id};
+        return {phase:freshBia.situacao,member:candidate.membro_id,guest:candidate.user_id.startsWith('guest:')};
       });
-      const inviteSync=approved?.phase==="em_captacao" ? await syncFormationMapInvites(biaId,req)
+      const inviteSync=approved?.guest ? "ok" : approved?.phase==="em_captacao" ? await syncFormationMapInvites(biaId,req)
         : approved?.member && biaAllowsFinance(approved.phase) ? await syncActiveQuotaInvite(biaId,approved.member,req) : "ok";
       res.json({success:true,inviteSync});
     } catch(error:any) {res.status(error.statusCode || 500).json({error:error.message});}
@@ -14696,7 +14646,9 @@ export async function registerRoutes(
     if(!raw)throw offerError("OBA não encontrada.",404);
     const [opa]=resolveAnexosOpa([raw]);
     return {titulo:opa.nome_oportunidade,descricao:opa.descricao || "",localizacao:opa.localizacao || "",imagem:opa.imagem_url || null,
-      moeda:base.moeda,totalQuotas,valorOrigem,correcao:schedule.length ? plan!.correcao : "",quotas,
+      moeda:base.moeda,totalQuotas,valorOrigem,
+      correcao:schedule.length ? (plan!.modelo!=="a_vista" && plan!.saldoValoresCentavos ? "Parcelas com valores já corrigidos" : plan!.correcao) : "",
+      quotas,
       documentos:(opa.Anexos || []).filter((item:any)=>item.url).map((item:any)=>({id:String(item.id),titulo:item.title,url:item.url})).sort((a:any,b:any)=>a.id.localeCompare(b.id)),
     };
   }
@@ -21848,6 +21800,169 @@ Deixe claro que premissas precisam de validação profissional.`,
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
+  });
+
+  async function loadObaGuestFormalization(access: import('./oba-guest').GuestAccess, executor: any = mapOperationContext.getStore()?.tx || db) {
+    const snapshot = await loadInitialMapSnapshot(access.bia_id, executor);
+    const base = snapshot ?? await readObaDraftBase(access.bia_id, executor);
+    const participant = base?.participantes?.find((item: InitialMapParticipantInput) => item.memberId === access.membro_id);
+    const applications = await executor.select().from(opaInteresses).where(and(
+      eq(opaInteresses.opa_id, access.opa_id), eq(opaInteresses.user_id, 'guest:' + access.id),
+      eq(opaInteresses.membro_id, access.membro_id), eq(opaInteresses.vaga_bia_id, access.bia_id),
+    ));
+    const approved = !!participant && applications.some((item: any) => item.vaga_status === 'aprovada');
+    const bia = await resolveBiaByIdOrPublicCode(access.bia_id, '*');
+    const draft = (await executor.execute(sql`SELECT concluido FROM bia_estruturacao_rascunhos WHERE bia_id=${access.bia_id}`)).rows[0];
+    const row = (await executor.execute(sql`SELECT dados_formalizacao FROM oba_guest_access WHERE id=${access.id} AND NOT revogado`)).rows[0];
+    if (!row || !bia) throw offerError('Acesso indisponível.', 403);
+    const liberated = approved && await hasBiaMouAceito(access.bia_id, access.membro_id);
+    const mouAvailable = !!snapshot?.revisao && bia.situacao !== 'em_estruturacao' && !(bia.situacao === 'em_captacao' && draft && !draft.concluido);
+    return { approved, liberated, bia, formalization: { dados: row.dados_formalizacao || null, mouDisponivel: mouAvailable } };
+  }
+
+  registerObaGuestRoutes(app, {
+    db,
+    accountExists: async email => !!await storage.getUserByEmail(email),
+    sendCode: async (email, code, accessId) => (await import('./mailer')).enviarCodigoAcessoBia(email, code, accessId),
+    claim: async (tx, access) => {
+      const result = await tx.execute(sql`UPDATE convites_link SET status='usado', usado_por_user_id=${'guest:' + access.id}, usado_em=now()
+        WHERE id=${access.convite_id} AND status='ativo' AND expires_at>now() RETURNING id`);
+      if (!result.rows.length) throw offerError('Este convite expirou ou já foi utilizado. Solicite um novo convite.');
+    },
+    invite: async (token, opaId) => {
+      const invite = /^oferta_[A-Za-z0-9_-]{43}$/.test(token) ? await storage.getConviteLinkByToken(token) : null;
+      const registry = await getOpportunityRegistry(opaId);
+      if (!invite || invite.source_type !== 'oba' || invite.source_id !== opaId || invite.status !== 'ativo'
+        || new Date(invite.expires_at) <= new Date() || !registry?.bia_id || !isOpportunityEditable(registry.status)
+        || (registry.expira_em && new Date(registry.expira_em) <= new Date())) throw offerError('Convite indisponível ou expirado.', 404);
+      if (opaId !== quotaAcquisitionObaId(String(registry.bia_id))) throw offerError('Esta oferta requer acesso pela plataforma.');
+      return { id: String(invite.id), biaId: String(registry.bia_id) };
+    },
+    apply: async (access, input) => {
+      const ids: string[] = Array.isArray(input?.vaga_ids) ? [...new Set<string>(input.vaga_ids)] : [];
+      if (!ids.length || ids.length > 100 || ids.some(id => typeof id !== 'string') || typeof input?.mensagem !== 'string' || input.mensagem.length > 2000)
+        throw offerError('Selecione as cotas e confira sua mensagem.', 400);
+      return withMapLock(access.bia_id, async (tx, snapshot) => {
+        const registry = await getOpportunityRegistry(access.opa_id);
+        const bia = await resolveBiaByIdOrPublicCode(access.bia_id, '*');
+        if (!registry || String(registry.bia_id) !== access.bia_id || !isOpportunityEditable(registry.status)
+          || (registry.expira_em && new Date(registry.expira_em) <= new Date()) || !bia || !quotaApplicationsOpen(bia.situacao))
+          throw offerError('Esta oferta está encerrada.');
+        const existing = await tx.select({ id: opaInteresses.id }).from(opaInteresses).where(and(
+          eq(opaInteresses.opa_id, access.opa_id), eq(opaInteresses.user_id, 'guest:' + access.id),
+        ));
+        if (existing.length) return { ok: true };
+        const base = snapshot ?? await readObaDraftBase(access.bia_id, tx);
+        const head = await obaOfferHead(String(registry.id), tx);
+        const vacancies = openMapVacancies(base?.participantes);
+        if (!base || base.draftFrozen || !head || String(head.bia_id) !== access.bia_id || input.oferta_revisao !== Number(head.revisao)
+          || !ids.every(id => {
+            const slot = vacancies.find(item => item.slot.participantId === id)?.slot;
+            const quota = (head.oferta as BiaOffer).quotas.find(item => item.id === id);
+            return slot && quota && slot.tipo === quota.tipo && Number(slot.cotasInvestimento) === quota.quantidade;
+          })) throw offerError('A oferta mudou. Atualize a página e escolha as cotas disponíveis.');
+        // Stable ID makes a retry after a remote write safe. No user/login or membership is created.
+        if (!access.perfil_criado) {
+          const profile = await directusFetchOne('cadastro_geral', access.membro_id, 'fields=id');
+          if (!profile) await directusCreate('cadastro_geral', {
+            id: access.membro_id, nome: access.nome, email: access.email,
+            na_vitrine: false, em_membros_built: false,
+          });
+          await tx.execute(sql`UPDATE oba_guest_access SET perfil_criado=true WHERE id=${access.id}`);
+        }
+        await tx.insert(opaInteresses).values(ids.map(id => ({
+          opa_id: access.opa_id, user_id: 'guest:' + access.id, membro_id: access.membro_id,
+          membro_nome: access.nome, mensagem: input.mensagem || null, vaga_id: id, vaga_bia_id: access.bia_id,
+          vaga_status: 'pendente', oferta_revisao: Number(head.revisao),
+        })));
+        return { ok: true };
+      });
+    },
+    formalize: async (access, input) => withMapLock(access.bia_id, async tx => {
+      const state = await loadObaGuestFormalization(access, tx);
+      if (!state.approved) throw offerError('Sua candidatura precisa ser aprovada antes da formalização.', 403);
+      if (state.liberated) return { ok: true };
+      const data = pickGuestQualification(input?.dados, access.email);
+      const checked = validateBiaMouDadosContratuais(data);
+      if (!checked.ok) throw offerError(`Preencha os dados obrigatórios: ${checked.missing.join(', ')}.`, 400);
+      await tx.execute(sql`UPDATE oba_guest_access SET dados_formalizacao=${JSON.stringify(data)}::jsonb WHERE id=${access.id} AND NOT revogado`);
+      return { ok: true };
+    }),
+    mou: async (access, input) => withMapLock(access.bia_id, async tx => {
+      const state = await loadObaGuestFormalization(access, tx);
+      if (!state.approved) throw offerError('Sua candidatura precisa ser aprovada antes da formalização.', 403);
+      if (state.liberated) return { resolved: true };
+      if (!state.formalization.dados || !validateBiaMouDadosContratuais(state.formalization.dados).ok)
+        throw offerError('Preencha seus dados de formalização antes de revisar o MOU.', 400);
+      if (!state.formalization.mouDisponivel) throw offerError('Os responsáveis ainda estão preparando o MOU desta BIA. Seus dados estão salvos.', 409);
+      const preview = await ensureMouAceitoOuRetornaPendencia(access.bia_id, access.membro_id, false);
+      if (preview.ok) return { resolved: true };
+      const mou = preview.response?.mou;
+      if (!mou) throw offerError('MOU indisponível.', 409);
+      const hash = guestMouHash(mou, state.formalization.dados);
+      if (input?.aceitar_mou !== true) return { mou: { ...mou, hash }, dados: state.formalization.dados };
+      if (input.mou_hash !== hash || !matchesMouRevision(input.map_revisao, mou.map_revisao))
+        throw offerError('O MOU ou seus dados mudaram. Revise o documento atualizado antes de aceitar.', 409);
+      const check = await ensureMouAceitoOuRetornaPendencia(access.bia_id, access.membro_id, true,
+        state.formalization.dados, input.aceite_localizacao, 'guest:' + access.id, mou.texto);
+      if (!check.ok) throw offerError(check.response?.error || 'Não foi possível registrar o aceite.', check.statusCode || 400);
+      await activatePropertyOriginIfReady(access.bia_id);
+      return { success: true };
+    }),
+    portal: async access => {
+      const registry = await getOpportunityRegistry(access.opa_id);
+      if (!registry || String(registry.bia_id) !== access.bia_id) throw offerError('BIA indisponível.', 404);
+      const base = await loadInitialMapSnapshot(access.bia_id) ?? await readObaDraftBase(access.bia_id);
+      const head = await obaOfferHead(String(registry.id));
+      const applications = await db.select().from(opaInteresses).where(and(
+        eq(opaInteresses.opa_id, access.opa_id), eq(opaInteresses.user_id, 'guest:' + access.id),
+      ));
+      const participant = base?.participantes.find((item: InitialMapParticipantInput) => item.memberId === access.membro_id);
+      const approved = !!participant && applications.some(item => item.vaga_status === 'aprovada');
+      const vacancies = new Set(openMapVacancies(base?.participantes).map(item => item.slot.participantId));
+      const published = head?.oferta as BiaOffer | undefined;
+      const result: any = {
+        nome: access.nome, email: access.email, aprovado: approved, liberado: false,
+        candidaturas: applications.map(item => ({ id: item.vaga_id, status: item.vaga_status })),
+        oferta: published ? { ...published, quotas: published.quotas.filter(item => vacancies.has(item.id)) } : null,
+        revisao: Number(head?.revisao || 0), aquisicaoCotas: true,
+        documentos: (published?.documentos || []).filter(item => /^\/api\/files\/[\w-]+$/.test(item.url))
+          .map(item => ({ id: item.url.split('/').at(-1)!, titulo: item.titulo })),
+      };
+      if (!approved) return result;
+      const state = await loadObaGuestFormalization(access);
+      if (!state.approved) return { ...result, aprovado: false };
+      const bia = state.bia;
+      result.bia = { nome: bia.nome_bia, fase: bia.situacao };
+      if (!state.liberated) return { ...result, formalizacao: state.formalization };
+      result.liberado = true;
+      const raw = await directusFetchScoped('fluxo_caixa', `filter[bia][_eq]=${encodeURIComponent(access.bia_id)}&filter[membro_responsavel][_eq]=${encodeURIComponent(access.membro_id)}&fields=*,Anexos.directus_files_id`);
+      const payments = guestPayments(raw, access.bia_id, access.membro_id);
+      const directorId = directusRelationId(bia.diretor_alianca);
+      const director = directorId ? await directusFetchOne('cadastro_geral', directorId, 'fields=nome,telefone') : null;
+      const tracking = await loadBiaTracking(db, [access.bia_id]);
+      const thesis = biaBusinessTypeCode(bia);
+      const values = tracking.get(access.bia_id)?.byThesis[thesis as keyof BiaTracking['byThesis']];
+      const updates = tracking.has(access.bia_id) ? (await db.execute(sql`SELECT revisao, dados, criado_em FROM bia_acompanhamento_versoes
+        WHERE bia_id=${access.bia_id} ORDER BY revisao DESC LIMIT 20`)).rows.map((row: any) => ({
+          id: String(row.revisao), data: row.criado_em, etapa: row.dados?.[thesis || '']?.stage || row.dados?.[thesis || '']?.rentalStatus || null,
+        })).filter((row: any) => row.etapa) : [];
+      return { ...result, bia: { nome: bia.nome_bia, fase: bia.situacao, etapa: values?.stage || values?.rentalStatus || null },
+        cotas: Number(participant.cotasInvestimento || 0), totalCotas: Number(base.estrutura_economica?.totalCotas || 0),
+        pagamentos: payments, totais: guestPaymentTotals(payments),
+        novidades: updates,
+        responsavel: director ? { nome: director.nome, telefone: director.telefone } : null,
+      };
+    },
+    file: async (req, res) => {
+      if (!/^[\w-]+$/.test(req.params.id)) return res.status(404).end();
+      const response = await fetch(`${DIRECTUS_URL}/assets/${req.params.id}`, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!response.ok) return res.status(404).json({ error: 'Arquivo indisponível.' });
+      res.set('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+      res.set('Content-Disposition', 'attachment');
+      res.set('Cache-Control', 'private, no-store');
+      res.send(Buffer.from(await response.arrayBuffer()));
+    },
   });
 
   app.patch("/api/rede/oportunidades/:codigo/disparo", async (req, res) => {

@@ -1,9 +1,9 @@
 import type { BiaBudget } from "@shared/bia-budget";
 import { makePaymentSchedule } from "@shared/bia-payment-plan";
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearch } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { ObaQuotaAvailability } from "./oba-quota-availability";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,12 +40,14 @@ export function ObaGuestOfferPage() {
   return <ObaOfferScreen opaId={id || ""} guestToken={window.location.hash.slice(1)}/>;
 }
 
-export function ObaOfferScreen({opaId,preview=false,guestToken}:{opaId:string;preview?:boolean;guestToken?:string}) {
-  const guest=guestToken!==undefined;
+export function ObaOfferScreen({opaId,preview=false,guestToken,guestAccessId}:{opaId:string;preview?:boolean;guestToken?:string;guestAccessId?:string}) {
+  const queryClient = useQueryClient();
+  const guest=guestToken!==undefined || !!guestAccessId;
   const published=usePublishedObaOffer(!guest?opaId:undefined);
   const invited=useQuery<BiaOfferView>({
-    queryKey:[path(opaId),"convite",guestToken],enabled:guest && !!opaId,staleTime:0,refetchOnWindowFocus:"always",retry:false,
+    queryKey:[path(opaId),"convite",guestToken,guestAccessId],enabled:guest && (!!opaId || !!guestAccessId),staleTime:0,refetchOnWindowFocus:"always",retry:false,
     queryFn:async()=>{
+      if (guestAccessId) return (await apiRequest('GET', '/api/oba-guest/' + guestAccessId)).json();
       if(!guestToken)throw new Error("Convite indisponível.");
       const response=await fetch(path(opaId),{headers:{"X-Oba-Invite":guestToken},cache:"no-store",credentials:"omit"});
       if(!response.ok)throw new Error("Este convite ou oferta está indisponível.");
@@ -69,6 +71,9 @@ export function ObaOfferScreen({opaId,preview=false,guestToken}:{opaId:string;pr
   });
   const save=useMutation({
     mutationFn:async(kind:"publicar"|"interesse"|"duvida")=>{
+      if (guestAccessId) return apiRequest('POST', `/api/oba-guest/${guestAccessId}/interesse`, {
+        vaga_ids: selectedQuotas, mensagem: message, oferta_revisao: quote.data?.revisao,
+      });
       if(kind==="publicar")return apiRequest("POST",path(opaId),{assinatura:quote.data?.assinatura,revisao:quote.data?.revisao});
       if(kind==="duvida")return apiRequest("POST",path(opaId)+"/duvidas",{mensagem:message});
       return apiRequest("POST","/api/oportunidades/"+encodeURIComponent(opaId)+"/interesse",{
@@ -79,6 +84,7 @@ export function ObaOfferScreen({opaId,preview=false,guestToken}:{opaId:string;pr
     onSuccess:async(_,kind)=>{
       setAction(null);setMessage("");
       if(kind==='interesse')setSelectedQuotas([]);
+      if (guestAccessId) await queryClient.invalidateQueries({ queryKey: ['oba-guest', guestAccessId] });
       await Promise.all([queryClient.invalidateQueries({queryKey:[path(opaId)]}),
         queryClient.invalidateQueries({queryKey:["/api/oportunidades",opaId,"interesse"]})]);
       toast({title:kind==="publicar"?"Oferta publicada. Use um convite ou o Pulso para divulgar.":kind==="duvida"?"Dúvida enviada ao responsável.":"Interesse registrado. Aguardando decisão da diretoria."});
@@ -111,7 +117,7 @@ export function ObaOfferScreen({opaId,preview=false,guestToken}:{opaId:string;pr
       {offer.imagem && <img src={offer.imagem} alt="Imóvel da oferta" className="aspect-video w-full rounded-lg object-cover"/>}
     </header>
     {acquisition && <ObaQuotaAvailability available={available} total={offer.totalQuotas} quotas={offer.quotas} selected={selectedQuotas} valorPorCota={offer.valorOrigem/offer.totalQuotas} moeda={offer.moeda}
-      onToggle={!guest && !preview && !interest.data?.meuInteresse ? id=>{
+      onToggle={(!guest || !!guestAccessId) && !preview && !interest.data?.meuInteresse ? id=>{
         setSelected(id);
         setSelectedQuotas(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
       } : undefined}/>}
@@ -145,17 +151,17 @@ export function ObaOfferScreen({opaId,preview=false,guestToken}:{opaId:string;pr
       {offer.descricao && <p className="whitespace-pre-wrap break-words text-sm">{offer.descricao}</p>}
     </section>
     {!!offer.documentos.length && <section className="space-y-2 rounded-lg border bg-card p-4"><h2 className="font-semibold">Documentos da oferta</h2>
-      {offer.documentos.map(doc=><a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer" className="block break-words text-sm text-primary underline">{doc.titulo}</a>)}
+      {offer.documentos.map(doc=><a key={doc.id} href={guestAccessId && /^\/api\/files\/[\w-]+$/.test(doc.url) ? `/api/oba-guest/${guestAccessId}/files/${doc.url.split('/').at(-1)}` : doc.url} target="_blank" rel="noopener noreferrer" className="block break-words text-sm text-primary underline">{doc.titulo}</a>)}
     </section>}
     {quote.data?.validade && <p className="text-sm text-muted-foreground">Válida até {new Date(quote.data.validade).toLocaleDateString("pt-BR")} ou até as cotas serem preenchidas.</p>}
-    {guest ? <div className="space-y-3 rounded-lg border bg-card p-4">
+    {guest && !guestAccessId ? <div className="space-y-3 rounded-lg border bg-card p-4">
       <p className="text-sm">Entre ou crie uma conta para manifestar interesse ou tirar uma dúvida.</p>
-      <Button asChild><a href={"/login?convite="+encodeURIComponent(guestToken)}>Continuar com o convite</a></Button>
+      <Button asChild><a href={"/login?convite="+encodeURIComponent(guestToken || '')}>Continuar com o convite</a></Button>
     </div> : <div className="space-y-3 rounded-lg border bg-card p-4">
       {!preview && interest.data?.meuInteresse && <p role="status">{(interest.data.minhasCandidaturas?.length || 0)>1 ? `${interest.data.minhasCandidaturas!.length} candidaturas registradas` : state==="aprovada"?"Aprovada":state==="recusada"?"Recusada":state==="vaga_preenchida"?"Cota preenchida":"Interesse registrado"}</p>}
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button disabled={preview || !active || (acquisition && !selectedQuotas.length) || interest.isPending || !!interest.data?.meuInteresse} onClick={()=>{setAction("interesse");setMessage("");}}>Manifestar interesse</Button>
-        <Button variant="outline" disabled={preview} onClick={()=>{setAction("duvida");setMessage("");}}>Tirar uma dúvida</Button>
+        <Button disabled={preview || !active || (acquisition && !selectedQuotas.length) || (!guestAccessId && interest.isPending) || !!interest.data?.meuInteresse} onClick={()=>{setAction("interesse");setMessage("");}}>Manifestar interesse</Button>
+        {!guestAccessId && <Button variant="outline" disabled={preview} onClick={()=>{setAction("duvida");setMessage("");}}>Tirar uma dúvida</Button>}
       </div>
       {action && <div className="space-y-3">
         <label className="block">{action==="duvida"?"Sua dúvida":"Mensagem (opcional)"}<Textarea rows={3} maxLength={2000} value={message} onChange={e=>setMessage(e.target.value)}/></label>

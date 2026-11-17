@@ -68,6 +68,7 @@ import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
 import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth, type AppUser } from "@/hooks/use-auth";
+import { ObaGuestEntry, ObaGuestPortal } from '@/pages/oba-guest';
 import { AccessSessionSync } from '@/components/access-session-sync';
 import { Briefcase, CheckCircle2, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, ScrollText, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1571,7 +1572,8 @@ function App() {
       <AccountPreferences>
       <TooltipProvider>
         <Switch>
-          <Route path="/oferta-convidado/:id" component={ObaGuestOfferPage} />
+          <Route path="/oferta-convidado/:id" component={ObaGuestEntry} />
+          <Route path="/minha-bia/:accessId" component={ObaGuestPortal} />
           <Route path="/convite/:token" component={ConvitePage} />
           <Route path="/convite-imovel/:token" component={ConviteImovelPage} />
           <Route path="/ro-convite/:token" component={RoGuestConfirmationPage} />

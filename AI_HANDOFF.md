@@ -1,5 +1,29 @@
 # AI_HANDOFF.md
 
+## 17/11/2026 — Revisão para commit solicitado
+
+- Revisada também a alteração concorrente de parcelas corrigidas: lista opcional em centavos preservada no orçamento versionado, projeção e oferta pelo cronograma compartilhado, sem gerar cobranças ou alterar o Valor de Origem. Consumidores indiretos conferidos e registrados individualmente em `bia-parcelas-corrigidas.json`.
+- `platform:verify` aprovado: 853 testes, zero falhas, tipos e build. Editor real conferido com dados fictícios em desktop e 390px: importação, erro de sequência, geração de 86 pagamentos e descarte de edição. Sem SMTP, pagamento, assinatura ou banco de produção durante esta revisão.
+- Logs, fixtures, PDFs e arquivos locais de vídeo ficam fora do commit. Os bloqueios históricos abaixo da revisão global de parcelas foram resolvidos nesta conferência; registros anteriores mantidos como histórico.
+
+## 17/11/2026 — UX e identidade do convite/painel externo
+
+- Conferência posterior de tipografia: o HTML isolado da prévia5011 não importava Inter, apesar da família declarada no CSS. Acrescentada no fixture a mesma família variável Inter já importada em `client/index.html`; prévia reiniciada e painel recarregado/conferido visualmente, sem erros de console. Evidência `.BUILT-tmp/oba-font-corrected.jpg`. Nenhuma mudança no código da aplicação, regras ou estilos nesta conferência; somente HTML da prévia local.
+
+- Redesenhados os componentes reais de `/oferta-convidado/:id` e `/minha-bia/:accessId`: logos oficiais, Navy/Bone/Blue/Gold conforme guia, cartões de escolha, código com quatro espaços, erros/reenvio e análise de candidatura. Dashboard de cotas iniciais, aportes mensais, progresso dos pagamentos registrados, próximo aporte, filtros, comprovantes e histórico/documentos. Navegação inferior móvel e retorno ao topo ao trocar aba. CSS limitado ao portal externo.
+- `shared/oba-guest-dashboard.ts` usa a projeção já autorizada e `guestPaymentTotals`; série mensal usa pagoEm válido, ausentes são avisados, percentual pago considera apenas lançamentos registrados; percentual de cotas iniciais não representa MAP/retorno. Contratos HTTP, OTP/sessão, aprovação, links e dados persistidos mantidos.
+- Validação final: `platform:verify` aprovado com 851 testes/0 falhas, tipos e build (`.BUILT-tmp/oba-design-verify-final.log`). UI real com APIs fictícias: OTP inválido/correção, duas cotas R$234.000, análise, conta logada redirecionada, três abas, filtro de 4 aportes pendentes, vazio sem gráfico fictício, entrada em320px e painel em390px. Sem e-mail, candidatura ou pagamento real. Capturas `.BUILT-tmp/oba-design-entry.jpg`, `oba-design-dashboard.jpg`, `oba-design-mobile.jpg`.
+- Prévia5011 recompila os componentes reais com dados fictícios: entrada `/oferta-convidado/oba#fixture`, código1234, painel `/minha-bia/demo?approved=1`, vazio com `&empty=1`. Processo Node oculto; `.BUILT-tmp/rebuild-oba-design.mjs` atualiza bundle sem reiniciar. CSS base congelado para não desaparecer durante build. Não confundir a prévia com produção nem adicionar suas rotas/fixtures ao app. Porta5000 não estava em escuta na conferência final; nenhum servidor real reiniciado.
+- Registro `docs/platform/changes/oba-experiencia-externa.json`; o registro ainda não publicado do convite foi complementado com seus novos consumidores visuais. Revisão própria via `.BUILT-tmp/review-oba-design.ts`; gate global preserva bloqueio da mudança concorrente `bia-parcelas-corrigidas`, não atestada. Sem commit/push/deploy.
+
+## 17/11/2026 — Convite de OBA e participação externa
+
+- Implementado convite editável em Convidar pessoas. Aquisição de cotas oferece conta BUILT ou acesso somente à BIA por código de e-mail; usuário já logado abre diretamente a OBA correta. Aprovação por Aliado/Diretor/autor preservada. Painel externo após aprovação mostra participação, próprios lançamentos/comprovantes, documentos publicados e acompanhamento existente.
+- Código de quatro dígitos: HMAC, 10 minutos, cinco tentativas, reenvio limitado, sessão de 12h por acesso. Tabelas aditivas inicializadas idempotentemente pelo serviço. Não cria conta/licença/filiação; cria cadastro privado estável ao enviar candidatura. Sincronização da composição não envia convite de conta ao externo. Formalização/MOU e fase da BIA permanecem independentes.
+- `platform:verify`: 849 testes, tipos e build aprovados. Entrada, código, duas cotas, pendência, redirecionamento autenticado e painel móvel conferidos com dados fictícios. SMTP simulado; não houve envio real. O diálogo na OBA real gerou o convite correto, sem compartilhá-lo. Nova versão carregada no servidor local da porta 5000.
+- Registro: `docs/platform/changes/oba-acesso-externo.json`. Revisão exclusiva destes 16 arquivos/consumidores passou via `.BUILT-tmp/review-oba-guest.ts`; gate global continua bloqueado por registro/consumidores da mudança concorrente `bia-parcelas-corrigidas`, que não foi atestada por este trabalho. Há uma alteração concorrente de rótulo do cronograma em `server/routes.ts`; preservada. Sem commit/push/deploy.
+- Evidência visual fictícia: `.BUILT-tmp/oba-guest-mobile.jpg`. Não converter automaticamente o cadastro externo em conta nem considerar aprovação como assinatura ou aceite contratual. Nenhum dado financeiro ou cadastro real foi criado no QA.
+
 ## 09/11/2026 — Recebimentos em conta externa da BIA
 
 Verificação da plataforma com 811 testes aprovados, tipos e build. Revisão transversal contra a base 8b4de131 aprovada. A suíte bancária também verificou que uma confirmação manual concorrente não é reaberta pela atualização de sugestões. Evidências locais em `.BUILT-tmp/multibank-verified.log`, `.BUILT-tmp/multibank-reviewed.log` e `output/external-banking/`. Nenhum deploy ou teste com movimentação financeira real.
